@@ -1,0 +1,25 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  residential_rotating_proxy_order: one
+  myproxyapi_order_id: MyString
+  hostname: MyString
+  port: 1
+  main_username: MyString
+  main_password: MyString
+  traffic_gb_total: 9.99
+  traffic_gb_used: 9.99
+  status: MyString
+  metadata: 
+
+two:
+  residential_rotating_proxy_order: two
+  myproxyapi_order_id: MyString
+  hostname: MyString
+  port: 1
+  main_username: MyString
+  main_password: MyString
+  traffic_gb_total: 9.99
+  traffic_gb_used: 9.99
+  status: MyString
+  metadata: 

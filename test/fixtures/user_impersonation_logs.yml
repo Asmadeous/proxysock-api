@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  employee: one
+  user: one
+  started_at: 2026-01-25 11:30:02
+  ended_at: 2026-01-25 11:30:02
+  ip_address: MyString
+  reason: MyString
+
+two:
+  employee: two
+  user: two
+  started_at: 2026-01-25 11:30:02
+  ended_at: 2026-01-25 11:30:02
+  ip_address: MyString
+  reason: MyString

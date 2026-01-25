@@ -1,0 +1,2 @@
+class ProviderInventorySync < ApplicationRecord
+end

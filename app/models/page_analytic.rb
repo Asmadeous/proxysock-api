@@ -1,0 +1,2 @@
+class PageAnalytic < ApplicationRecord
+end

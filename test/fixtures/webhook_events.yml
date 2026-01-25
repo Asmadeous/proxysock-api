@@ -1,0 +1,25 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  reseller: one
+  webhook_url: MyString
+  event_type: MyString
+  payload: 
+  signature: MyString
+  attempts: 1
+  last_attempt_at: 2026-01-25 11:28:52
+  status: MyString
+  response_code: 1
+  response_body: MyText
+
+two:
+  reseller: two
+  webhook_url: MyString
+  event_type: MyString
+  payload: 
+  signature: MyString
+  attempts: 1
+  last_attempt_at: 2026-01-25 11:28:52
+  status: MyString
+  response_code: 1
+  response_body: MyText

@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  date: 2026-01-25
+  total_visitors: 1
+  total_page_views: 1
+  total_orders: 1
+  total_revenue: 9.99
+  avg_order_value: 9.99
+  conversion_rate: 9.99
+  top_products: 
+  traffic_sources: 
+
+two:
+  date: 2026-01-25
+  total_visitors: 1
+  total_page_views: 1
+  total_orders: 1
+  total_revenue: 9.99
+  avg_order_value: 9.99
+  conversion_rate: 9.99
+  top_products: 
+  traffic_sources: 

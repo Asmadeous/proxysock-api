@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  owner: one
+  owner_type: Owner
+  gateway: MyString
+  gateway_customer_id: MyString
+  gateway_payment_method_id: MyString
+  card_type: MyString
+  last4: MyString
+  exp_month: 1
+  exp_year: 1
+  is_default: false
+  active: false
+
+two:
+  owner: two
+  owner_type: Owner
+  gateway: MyString
+  gateway_customer_id: MyString
+  gateway_payment_method_id: MyString
+  card_type: MyString
+  last4: MyString
+  exp_month: 1
+  exp_year: 1
+  is_default: false
+  active: false

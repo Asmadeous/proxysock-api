@@ -1,0 +1,31 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  transactable: one
+  transactable_type: Transactable
+  transaction_type: MyString
+  amount: 9.99
+  currency: MyString
+  description: MyString
+  reference: one
+  reference_type: Reference
+  payment_gateway: MyString
+  gateway_transaction_id: MyString
+  gateway_reference: MyString
+  status: MyString
+  metadata: 
+
+two:
+  transactable: two
+  transactable_type: Transactable
+  transaction_type: MyString
+  amount: 9.99
+  currency: MyString
+  description: MyString
+  reference: two
+  reference_type: Reference
+  payment_gateway: MyString
+  gateway_transaction_id: MyString
+  gateway_reference: MyString
+  status: MyString
+  metadata: 

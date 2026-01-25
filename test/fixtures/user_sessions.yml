@@ -1,0 +1,39 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  ip_address: MyString
+  user_agent: MyString
+  country_code: MyString
+  city: MyString
+  device_type: MyString
+  browser: MyString
+  os: MyString
+  utm_source: MyString
+  utm_medium: MyString
+  utm_campaign: MyString
+  utm_term: MyString
+  utm_content: MyString
+  referrer: MyString
+  started_at: 2026-01-25 11:29:58
+  last_activity_at: 2026-01-25 11:29:58
+  ended_at: 2026-01-25 11:29:58
+
+two:
+  user: two
+  ip_address: MyString
+  user_agent: MyString
+  country_code: MyString
+  city: MyString
+  device_type: MyString
+  browser: MyString
+  os: MyString
+  utm_source: MyString
+  utm_medium: MyString
+  utm_campaign: MyString
+  utm_term: MyString
+  utm_content: MyString
+  referrer: MyString
+  started_at: 2026-01-25 11:29:58
+  last_activity_at: 2026-01-25 11:29:58
+  ended_at: 2026-01-25 11:29:58
