@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  vm: one
+  playbook_name: MyString
+  playbook_tags: 
+  inventory: 
+  extra_vars: 
+  status: MyString
+  stdout: MyText
+  stderr: MyText
+  exit_code: 1
+  started_at: 2026-01-25 11:30:07
+  completed_at: 2026-01-25 11:30:07
+
+two:
+  vm: two
+  playbook_name: MyString
+  playbook_tags: 
+  inventory: 
+  extra_vars: 
+  status: MyString
+  stdout: MyText
+  stderr: MyText
+  exit_code: 1
+  started_at: 2026-01-25 11:30:07
+  completed_at: 2026-01-25 11:30:07

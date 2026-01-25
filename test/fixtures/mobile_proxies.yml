@@ -1,0 +1,31 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  mobile_proxy_order: one
+  proxy_source: MyString
+  xproxy_order_id: MyString
+  myproxyapi_order_id: MyString
+  ip_address: MyString
+  port: 1
+  username: MyString
+  password: MyString
+  country_code: MyString
+  rotation_interval_minutes: 1
+  whitelisted_ips: 
+  status: MyString
+  metadata: 
+
+two:
+  mobile_proxy_order: two
+  proxy_source: MyString
+  xproxy_order_id: MyString
+  myproxyapi_order_id: MyString
+  ip_address: MyString
+  port: 1
+  username: MyString
+  password: MyString
+  country_code: MyString
+  rotation_interval_minutes: 1
+  whitelisted_ips: 
+  status: MyString
+  metadata: 

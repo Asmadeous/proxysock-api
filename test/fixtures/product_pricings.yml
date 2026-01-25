@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  product: one
+  duration_type: MyString
+  duration_value: 1
+  cost_price: 9.99
+  selling_price: 9.99
+  margin_percentage: 9.99
+  currency: MyString
+  active: false
+
+two:
+  product: two
+  duration_type: MyString
+  duration_value: 1
+  cost_price: 9.99
+  selling_price: 9.99
+  margin_percentage: 9.99
+  currency: MyString
+  active: false

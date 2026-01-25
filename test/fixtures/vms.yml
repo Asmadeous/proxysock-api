@@ -1,0 +1,35 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  vm_order: one
+  proxmox_vm_id: MyString
+  proxmox_node: MyString
+  vm_type: MyString
+  country_code: MyString
+  ip_address: MyString
+  ssh_port: 1
+  ssh_username: MyString
+  ssh_password_encrypted: MyString
+  rdp_port: 1
+  rdp_username: MyString
+  rdp_password_encrypted: MyString
+  status: MyString
+  ansible_playbook_run_id: 1
+  metadata: 
+
+two:
+  vm_order: two
+  proxmox_vm_id: MyString
+  proxmox_node: MyString
+  vm_type: MyString
+  country_code: MyString
+  ip_address: MyString
+  ssh_port: 1
+  ssh_username: MyString
+  ssh_password_encrypted: MyString
+  rdp_port: 1
+  rdp_username: MyString
+  rdp_password_encrypted: MyString
+  status: MyString
+  ansible_playbook_run_id: 1
+  metadata: 

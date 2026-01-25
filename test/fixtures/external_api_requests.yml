@@ -1,0 +1,29 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  provider: MyString
+  endpoint: MyString
+  http_method: MyString
+  request_headers: 
+  request_body: 
+  response_status: 1
+  response_headers: 
+  response_body: 
+  duration_ms: 1
+  error_message: MyString
+  related: one
+  related_type: Related
+
+two:
+  provider: MyString
+  endpoint: MyString
+  http_method: MyString
+  request_headers: 
+  request_body: 
+  response_status: 1
+  response_headers: 
+  response_body: 
+  duration_ms: 1
+  error_message: MyString
+  related: two
+  related_type: Related

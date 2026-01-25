@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  static_datacenter_proxy_order: one
+  myproxyapi_order_id: MyString
+  ip_address: MyString
+  port: 1
+  username: MyString
+  password: MyString
+  protocol: MyString
+  country_code: MyString
+  whitelisted_ips: 
+  status: MyString
+  metadata: 
+
+two:
+  static_datacenter_proxy_order: two
+  myproxyapi_order_id: MyString
+  ip_address: MyString
+  port: 1
+  username: MyString
+  password: MyString
+  protocol: MyString
+  country_code: MyString
+  whitelisted_ips: 
+  status: MyString
+  metadata: 

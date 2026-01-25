@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  identifier: MyString
+  identifier_type: MyString
+  endpoint: MyString
+  requests_count: 1
+  window_start: 2026-01-25 11:30:03
+  window_end: 2026-01-25 11:30:03
+
+two:
+  identifier: MyString
+  identifier_type: MyString
+  endpoint: MyString
+  requests_count: 1
+  window_start: 2026-01-25 11:30:03
+  window_end: 2026-01-25 11:30:03

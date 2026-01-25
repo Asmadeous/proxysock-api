@@ -1,0 +1,43 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  esim_order: one
+  esim_provider: MyString
+  esimaccess_transaction_id: MyString
+  esimaccess_order_no: MyString
+  esimaccess_esim_tran_no: MyString
+  iccid: MyString
+  imsi: MyString
+  msisdn: MyString
+  qr_code_url: MyString
+  qr_code_data: MyText
+  smdp_status: MyString
+  esim_status: MyString
+  eid: MyString
+  has_phone_number: false
+  data_total_bytes: 
+  data_used_bytes: 
+  expires_at: 2026-01-25 11:28:50
+  status: MyString
+  metadata: 
+
+two:
+  esim_order: two
+  esim_provider: MyString
+  esimaccess_transaction_id: MyString
+  esimaccess_order_no: MyString
+  esimaccess_esim_tran_no: MyString
+  iccid: MyString
+  imsi: MyString
+  msisdn: MyString
+  qr_code_url: MyString
+  qr_code_data: MyText
+  smdp_status: MyString
+  esim_status: MyString
+  eid: MyString
+  has_phone_number: false
+  data_total_bytes: 
+  data_used_bytes: 
+  expires_at: 2026-01-25 11:28:50
+  status: MyString
+  metadata: 

@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  vm: one
+  operation_type: MyString
+  proxmox_node: MyString
+  proxmox_vm_id: MyString
+  request_params: 
+  response_data: 
+  status: MyString
+  error_message: MyString
+
+two:
+  vm: two
+  operation_type: MyString
+  proxmox_node: MyString
+  proxmox_vm_id: MyString
+  request_params: 
+  response_data: 
+  status: MyString
+  error_message: MyString
