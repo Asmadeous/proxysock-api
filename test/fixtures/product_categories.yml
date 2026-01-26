@@ -1,17 +1,14 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+product_categories:
+  id: 1
+  name: VMs
+  description: Virtual Machines
 
-one:
-  name: MyString
-  slug: MyString
-  category_type: MyString
-  description: MyText
-  active: false
-  metadata: 
+proxy_categories:
+  id: 2
+  name: Proxies
+  description: Proxy Services
 
-two:
-  name: MyString
-  slug: MyString
-  category_type: MyString
-  description: MyText
-  active: false
-  metadata: 
+esim_categories:
+  id: 3
+  name: eSIMs
+  description: eSIM Products

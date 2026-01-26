@@ -1,21 +1,20 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+vm_pricing:
+  id: 1
+  product: vm_product
+  selling_price: 25.00
+  cost_price: 15.00
+  active: true
 
-one:
-  product: one
-  duration_type: MyString
-  duration_value: 1
-  cost_price: 9.99
-  selling_price: 9.99
-  margin_percentage: 9.99
-  currency: MyString
-  active: false
+proxy_pricing:
+  id: 2
+  product: proxy_product
+  selling_price: 10.00
+  cost_price: 5.00
+  active: true
 
-two:
-  product: two
-  duration_type: MyString
-  duration_value: 1
-  cost_price: 9.99
-  selling_price: 9.99
-  margin_percentage: 9.99
-  currency: MyString
-  active: false
+esim_pricing:
+  id: 3
+  product: esim_product
+  selling_price: 15.00
+  cost_price: 8.00
+  active: true

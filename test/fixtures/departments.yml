@@ -1,11 +1,9 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+engineering:
+  id: 1
+  name: Engineering
+  description: Tech team
 
-one:
-  name: MyString
-  description: MyText
-  active: false
-
-two:
-  name: MyString
-  description: MyText
-  active: false
+support:
+  id: 2
+  name: Support
+  description: Customer support
