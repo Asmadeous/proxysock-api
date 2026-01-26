@@ -1,0 +1,48 @@
+<div style="font-family: sans-serif; line-height: 1.5;">
+  <h2>Hello <%= @user.first_name %>,</h2>
+  
+  <p>Your eSIM order (<b>#<%= @esim.esim_order.order.order_number %></b>) has been processed.</p>
+
+  <% if @type == 'api' %>
+    <h3>Scan QR Code to Activate</h3>
+    <% if @esim.qr_code_data.present? %>
+      <!-- Typically QR code data is a string like LPA:1$.... -->
+      <!-- We need to render it as an image. Assuming we use a helper or simple text if image gen not available -->
+      <!-- Ideally, use a gem like rqrcode to generate base64 image here. For now, displaying code. -->
+      <p><b>Activation Code:</b> <%= @esim.activation_code %></p>
+      
+      <p><i>Please use this code manually if you cannot scan.</i></p>
+    <% end %>
+    
+  <% else %>
+    <h3>Your eSIM Details</h3>
+    <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">
+      <tr>
+        <th>ICCID</th>
+        <td><%= @esim.iccid %></td>
+      </tr>
+      <tr>
+        <th>Activation Code</th>
+        <td><%= @esim.activation_code %></td>
+      </tr>
+      <tr>
+        <th>PIN 1</th>
+        <td><%= @esim.pin1 %></td>
+      </tr>
+      <tr>
+        <th>PUK 1</th>
+        <td><%= @esim.puk1 %></td>
+      </tr>
+       <tr>
+        <th>PIN 2</th>
+        <td><%= @esim.pin2 %></td>
+      </tr>
+      <tr>
+        <th>PUK 2</th>
+        <td><%= @esim.puk2 %></td>
+      </tr>
+    </table>
+  <% end %>
+
+  <p>Thank you for choosing ProxySock!</p>
+</div>
