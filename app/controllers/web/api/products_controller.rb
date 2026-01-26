@@ -1,7 +1,6 @@
 module Web
   module Api
     class ProductsController < BaseController
-      skip_before_action :verify_authenticity_token
       
       # GET /web/api/products
       def index
