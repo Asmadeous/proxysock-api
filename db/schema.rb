@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_26_225001) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_26_233001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -110,7 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_225001) do
     t.string "session_id"
     t.string "status"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.index ["user_id"], name: "index_carts_on_user_id"
   end
 
@@ -888,6 +888,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_225001) do
     t.index ["user_id"], name: "index_wallets_on_user_id"
   end
 
+  create_table "webhook_endpoints", force: :cascade do |t|
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.jsonb "events", default: []
+    t.bigint "reseller_id", null: false
+    t.string "secret", null: false
+    t.datetime "updated_at", null: false
+    t.string "url", null: false
+    t.index ["reseller_id", "active"], name: "index_webhook_endpoints_on_reseller_id_and_active"
+    t.index ["reseller_id"], name: "index_webhook_endpoints_on_reseller_id"
+  end
+
   create_table "webhook_events", force: :cascade do |t|
     t.integer "attempts"
     t.datetime "created_at", null: false
@@ -964,5 +976,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_225001) do
   add_foreign_key "wallet_transactions", "transactions"
   add_foreign_key "wallet_transactions", "wallets"
   add_foreign_key "wallets", "users"
+  add_foreign_key "webhook_endpoints", "resellers"
   add_foreign_key "webhook_events", "resellers"
 end

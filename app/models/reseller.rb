@@ -17,7 +17,13 @@ class Reseller < ApplicationRecord
   # Reseller Tiers
   # api_only: Standard pricing (100%)
   # infrastructure: Surcharge applied (100% + X%)
+  has_many :webhook_endpoints, dependent: :destroy
+  
   enum :reseller_type, { api_only: 'api_only', infrastructure: 'infrastructure' }, default: 'api_only'
+  
+  def api_only?
+    reseller_type == 'api_only'
+  end
   
   before_create :generate_api_key
 

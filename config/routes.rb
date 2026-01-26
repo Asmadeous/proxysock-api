@@ -5,18 +5,28 @@ Rails.application.routes.draw do
       # Auth
       post 'auth/token', to: 'auth#token'
       post 'auth/refresh', to: 'auth#refresh'
+
+      # New admin-like routes for V1
+      resources :auth, only: [] do
+        collection do
+          post :zoho_callback
+          get :me
+        end
+      end
+      resources :resellers, only: [:index, :show, :update] do
+        member do
+           post :deposit # Keep existing deposit action
+        end
+      end
       
-      resources :orders do
+      resources :orders, only: [:index, :create, :show] do
         member do
           get :credentials
+          post :renew
         end
       end
+
       resources :products, only: [:index, :show]
-      resources :resellers, only: [:show, :update] do
-        member do
-           post :deposit
-        end
-      end
       
       # VMs
       resources :vms, only: [:index, :show, :create, :destroy] do
@@ -42,7 +52,19 @@ Rails.application.routes.draw do
       get 'auth/twitter/callback', to: 'auth#twitter_callback'
       get 'auth/failure', to: 'auth#failure'
       
+      resources :webhooks, only: [:index, :create, :destroy] do
+        post :test, on: :member
+      end
+      
+      get 'billing/balance', to: 'billing#balance'
+      get 'billing/transactions', to: 'billing#transactions'
+      get 'billing/history', to: 'billing#history'
+      
       resources :products, only: [:index, :show]
+      resource :cart, only: [:show] do
+        post :add_item
+        delete :remove_item
+      end
       resources :orders, only: [:index, :create, :show] do
         member do
           get :credentials
@@ -79,7 +101,10 @@ Rails.application.routes.draw do
           post :onboard
         end
       end
-      resources :users
+      resources :users, only: [:index, :show, :update]
+      resources :orders, only: [:index, :show] do
+        post :refund, on: :member
+      end
     end
   end
 
