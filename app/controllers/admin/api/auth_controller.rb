@@ -1,7 +1,6 @@
 module Admin
   module Api
     class AuthController < ApplicationController
-      skip_before_action :verify_authenticity_token, raise: false
 
       # GET /admin/api/auth/zoho (redirect to OAuth)
       def zoho

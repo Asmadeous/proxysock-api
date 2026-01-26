@@ -1,7 +1,6 @@
 module Api
   module V1
     class AuthController < ApplicationController
-      skip_before_action :verify_authenticity_token, raise: false
       
       # POST /api/v1/auth/token
       # Issue initial rotating token for reseller

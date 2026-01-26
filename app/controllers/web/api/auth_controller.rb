@@ -1,7 +1,6 @@
 module Web
   module Api
-    class AuthController < ApplicationController
-      skip_before_action :verify_authenticity_token, raise: false
+    class AuthController < BaseController
       
       # POST /web/api/auth/register
       def register
