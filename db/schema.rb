@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_26_233001) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_26_234500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -704,6 +704,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_233001) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "ticket_messages", force: :cascade do |t|
+    t.jsonb "attachments", default: []
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.boolean "internal_note", default: false
+    t.bigint "sender_id", null: false
+    t.string "sender_type", null: false
+    t.bigint "ticket_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sender_type", "sender_id"], name: "index_ticket_messages_on_sender"
+    t.index ["sender_type", "sender_id"], name: "index_ticket_messages_on_sender_type_and_sender_id"
+    t.index ["ticket_id"], name: "index_ticket_messages_on_ticket_id"
+  end
+
+  create_table "tickets", force: :cascade do |t|
+    t.bigint "assigned_to_id"
+    t.datetime "created_at", null: false
+    t.bigint "order_id"
+    t.string "priority", default: "normal"
+    t.string "status", default: "open", null: false
+    t.string "subject", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "user_type", null: false
+    t.index ["assigned_to_id"], name: "index_tickets_on_assigned_to_id"
+    t.index ["order_id"], name: "index_tickets_on_order_id"
+    t.index ["status"], name: "index_tickets_on_status"
+    t.index ["user_type", "user_id"], name: "index_tickets_on_user"
+    t.index ["user_type", "user_id"], name: "index_tickets_on_user_type_and_user_id"
+  end
+
   create_table "transactions", force: :cascade do |t|
     t.decimal "amount"
     t.datetime "created_at", null: false
@@ -965,6 +996,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_233001) do
   add_foreign_key "static_isp_proxy_orders", "orders"
   add_foreign_key "static_residential_proxies", "static_residential_proxy_orders"
   add_foreign_key "static_residential_proxy_orders", "orders"
+  add_foreign_key "ticket_messages", "tickets"
+  add_foreign_key "tickets", "employees", column: "assigned_to_id"
+  add_foreign_key "tickets", "orders"
   add_foreign_key "user_impersonation_logs", "employees"
   add_foreign_key "user_impersonation_logs", "users"
   add_foreign_key "user_sessions", "users"

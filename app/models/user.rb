@@ -7,6 +7,7 @@ class User < ApplicationRecord
   has_many :ecommerce_orders
   has_many :orders, through: :ecommerce_orders
   has_many :deposits, as: :depositable
+  has_many :tickets, as: :user
   has_one :wallet, as: :owner, dependent: :destroy
   
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }

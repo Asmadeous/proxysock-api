@@ -3889,3 +3889,65 @@ Migrating to MakeUserIdOptionalInCarts (20260126233001)
   [1m[35mSQL (0.9ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.5ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (7.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (4.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[34mSELECT pg_try_advisory_lock(7087012580112496290) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (2.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+Migrating to CreateTicketsAndMessages (20260126234500)
+  [1m[36mTRANSACTION (1.0ms)[0m  [1m[35mBEGIN /*application='ProxysockApi'*/[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[34mSELECT pg_advisory_unlock(7087012580112496290) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[34mSELECT pg_try_advisory_lock(7087012580112496290) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+Migrating to CreateTicketsAndMessages (20260126234500)
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN /*application='ProxysockApi'*/[0m
+  [1m[35m (9.6ms)[0m  [1m[35mCREATE TABLE "tickets" ("id" bigserial primary key, "user_type" character varying NOT NULL, "user_id" bigint NOT NULL, "assigned_to_id" bigint, "order_id" bigint, "subject" character varying NOT NULL, "status" character varying DEFAULT 'open' NOT NULL, "priority" character varying DEFAULT 'normal', "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL, CONSTRAINT "fk_rails_99ff85190e"
+FOREIGN KEY ("assigned_to_id")
+  REFERENCES "employees" ("id")
+, CONSTRAINT "fk_rails_c6410ba81d"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.8ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_user" ON "tickets" ("user_type", "user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (1.0ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_assigned_to_id" ON "tickets" ("assigned_to_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.8ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_order_id" ON "tickets" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (1.0ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_user_type_and_user_id" ON "tickets" ("user_type", "user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.9ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_status" ON "tickets" ("status") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE TABLE "ticket_messages" ("id" bigserial primary key, "ticket_id" bigint NOT NULL, "sender_type" character varying NOT NULL, "sender_id" bigint NOT NULL, "body" text NOT NULL, "internal_note" boolean DEFAULT FALSE, "attachments" jsonb DEFAULT '[]', "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL, CONSTRAINT "fk_rails_398b98fd8f"
+FOREIGN KEY ("ticket_id")
+  REFERENCES "tickets" ("id")
+) /*application='ProxysockApi'*/[0m
+  [1m[35m (1.0ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_ticket_id" ON "ticket_messages" ("ticket_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (1.7ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_sender" ON "ticket_messages" ("sender_type", "sender_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (1.0ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_sender_type_and_sender_id" ON "ticket_messages" ("sender_type", "sender_id") /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20260126234500') RETURNING "version" /*application='ProxysockApi'*/[0m
+  [1m[36mTRANSACTION (5.4ms)[0m  [1m[35mCOMMIT /*application='ProxysockApi'*/[0m
+  [1m[35m (0.7ms)[0m  [1m[34mSELECT pg_advisory_unlock(7087012580112496290) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.6ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.1ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
