@@ -1,0 +1,33 @@
+{
+  "name": "Rails Docker Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "web-dev",
+  "workspaceFolder": "/rails",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/ruby:1": {
+      "version": "4.0.0"
+    }
+  },
+  "forwardPorts": [
+    3000,
+    5432,
+    5433
+  ],
+  "postCreateCommand": "bundle install && rails db:migrate",
+  "remoteEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "DB_HOST": "host.docker.internal",
+    "DB_USERNAME": "asmadeous",
+    "DB_PASSWORD": "Asmadeous@2025"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode-remote.remote-containers",
+        "ms-azuretools.vscode-docker",
+        "rebornix.Ruby"
+      ]
+    }
+  }
+}
