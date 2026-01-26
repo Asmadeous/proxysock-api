@@ -28,6 +28,10 @@ Rails.application.routes.draw do
 
       resources :products, only: [:index, :show]
       
+      resources :tickets, only: [:index, :create, :show] do
+        post :reply, on: :member
+      end
+      
       # VMs
       resources :vms, only: [:index, :show, :create, :destroy] do
         member do
@@ -65,6 +69,11 @@ Rails.application.routes.draw do
         post :add_item
         delete :remove_item
       end
+      
+      resources :tickets, only: [:index, :create, :show] do
+        post :reply, on: :member
+      end
+      
       resources :orders, only: [:index, :create, :show] do
         member do
           get :credentials
@@ -96,6 +105,13 @@ Rails.application.routes.draw do
       
       # Admin routes
       resources :employees
+      
+      resources :tickets, only: [:index, :show, :update] do
+        member do
+          post :reply
+          post :rescue_order
+        end
+      end
       
       namespace :analytics do
         get :dashboard

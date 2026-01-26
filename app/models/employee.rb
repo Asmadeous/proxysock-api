@@ -13,6 +13,12 @@ class Employee < ApplicationRecord
   # Allowed work email domains for SSO
   ALLOWED_DOMAINS = ENV.fetch('EMPLOYEE_EMAIL_DOMAINS', 'proxysock.com').split(',').map(&:strip).freeze
   
+  # Roles
+  ROLES = %w[admin support manager].freeze
+  
+  scope :support_agents, -> { where(role: 'support', active: true) }
+  scope :admins, -> { where(role: 'admin', active: true) }
+
   # SSO: Find or create employee from Zoho OAuth
   def self.from_omniauth(auth)
     email = auth.info.email
