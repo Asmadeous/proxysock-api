@@ -1,9 +1,37 @@
 class Order < ApplicationRecord
-  belongs_to :orderable, polymorphic: true # ResellOrder or EcommerceOrder
+  belongs_to :orderable, polymorphic: true, optional: true # ResellOrder or EcommerceOrder (optional for direct orders)
+  belongs_to :user, optional: true # Direct user orders
   belongs_to :product
   belongs_to :product_pricing
+  belongs_to :reseller, optional: true # Reseller orders
+  
+  # Associations for provisioned resources
+  has_one :vm, dependent: :destroy
+  has_one :mobile_proxy, dependent: :destroy
+  has_one :esim_order, dependent: :destroy
+  has_one :vpn_account, dependent: :destroy
+  
+  # Alias for unified access
+  alias_method :proxy, :mobile_proxy
+  
+  before_save :calculate_total_amount
   
   include AASM
+
+  # Calculate total amount including reseller surcharge if applicable
+  def calculate_total_amount
+    return unless product_pricing
+    
+    base_price = product_pricing.selling_price
+    
+    if reseller
+      # Apply reseller surcharge
+      total = base_price * reseller.price_multiplier
+      self.total_amount = total.round(2)
+    else
+      self.total_amount = base_price
+    end
+  end
 
   aasm column: :status do
     state :pending, initial: true
