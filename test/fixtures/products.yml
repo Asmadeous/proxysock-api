@@ -1,23 +1,29 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+vm_product:
+  id: 1
+  name: Basic VM
+  description: 2 CPU, 4GB RAM, 50GB SSD
+  product_type: vm
+  provider_type: proxmox
+  available_to: both
+  product_category: product_categories
+  metadata: {"cpu_cores": 2, "ram_gb": 4, "storage_gb": 50}
 
-one:
-  product_category: one
-  name: MyString
-  slug: MyString
-  product_type: MyString
-  provider: MyString
-  provider_product_id: MyString
-  description: MyText
-  active: false
-  metadata: 
+proxy_product:
+  id: 2
+  name: Mobile Proxy
+  description: US Mobile Proxy
+  product_type: proxy
+  provider_type: xproxy
+  available_to: ecommerce
+  product_category: proxy_categories
+  metadata: {}
 
-two:
-  product_category: two
-  name: MyString
-  slug: MyString
-  product_type: MyString
-  provider: MyString
-  provider_product_id: MyString
-  description: MyText
-  active: false
-  metadata: 
+esim_product:
+  id: 3
+  name: Global eSIM 1GB
+  description: 1GB Data, 30 Days
+  product_type: esim
+  provider_type: esim_access
+  available_to: ecommerce
+  product_category: esim_categories
+  metadata: {"data_gb": 1, "duration_days": 30}

@@ -1,21 +1,17 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+admin_one:
+  id: 1
+  first_name: Admin
+  last_name: User
+  work_email: admin@proxysock.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  department: engineering
+  role: super_admin
 
-one:
-  email: MyString
-  password_digest: MyString
-  first_name: MyString
-  last_name: MyString
-  role: MyString
-  department: one
-  active: false
-  last_login_at: 2026-01-25 11:31:28
-
-two:
-  email: MyString
-  password_digest: MyString
-  first_name: MyString
-  last_name: MyString
-  role: MyString
-  department: two
-  active: false
-  last_login_at: 2026-01-25 11:31:28
+support_agent:
+  id: 2
+  first_name: Support
+  last_name: Agent
+  work_email: support@proxysock.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  department: support
+  role: agent
