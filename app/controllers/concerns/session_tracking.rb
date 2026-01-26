@@ -3,7 +3,7 @@ module SessionTracking
 
   included do
     before_action :track_session
-    helper_method :current_session
+    helper_method :current_session if respond_to?(:helper_method)
   end
 
   def current_session
@@ -31,10 +31,35 @@ module SessionTracking
     if @current_session.persisted?
       @current_session.update_columns(last_activity_at: Time.current)
       
-      # Link user if logged in during session
-      if defined?(current_user) && current_user && @current_session.user.nil?
-        @current_session.update(user: current_user)
       end
     end
   end
-end
+  
+  def track_page_view
+    return if request.path.start_with?('/api/v1')
+    
+    # Increment PageAnalytics
+    # Optimized: Update counters in Redis or DB directly (Upsert)
+    # For now, simple DB upsert
+    today = Date.current
+    path = request.path
+    
+    # Using raw SQL or efficient find_or_create for speed
+    # Ideally async job but direct for simplicity here
+    page_stat = PageAnalytics.find_or_initialize_by(date: today, page_url: path)
+    page_stat.views = (page_stat.views || 0) + 1
+    page_stat.unique_visitors = UserSession.where(started_at: today.beginning_of_day..today.end_of_day).count # Approximation
+    page_stat.save
+    
+    # If product page, track ProductAnalytics
+    if params[:controller] == 'web/api/products' && params[:action] == 'show' && params[:id]
+      track_product_view(params[:id])
+    end
+  end
+  
+  def track_product_view(product_id)
+    today = Date.current
+    prod_stat = ProductAnalytics.find_or_initialize_by(date: today, product_id: product_id)
+    prod_stat.views = (prod_stat.views || 0) + 1
+    prod_stat.save
+  end
