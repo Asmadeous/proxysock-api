@@ -78,6 +78,27 @@ module Api
         }
       end
 
+      # POST /api/v1/orders/:id/renew
+      def renew
+        order = current_reseller.orders.find(params[:id])
+        
+        # Double check reseller restriction (already handled by model but safe to be explicit)
+        unless order.product.product_type == 'vm'
+          return render json: { error: 'Only VMs can be renewed via this endpoint' }, status: :forbidden
+        end
+        
+        begin
+          service = OrderRenewalService.new(order, current_reseller)
+          if service.process!
+            render json: { message: 'Order renewed successfully', order: serialize_order(order) }
+          else
+            render json: { error: 'Renewal failed' }, status: :unprocessable_entity
+          end
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def serialize_order(order)

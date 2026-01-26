@@ -122,6 +122,22 @@ module Web
         end
       end
 
+      # POST /web/api/orders/:id/renew
+      def renew
+        order = current_user.orders.find(params[:id])
+        
+        begin
+          service = OrderRenewalService.new(order, current_user)
+          if service.process!
+            render json: { message: 'Order renewed successfully', order: serialize_order(order) }
+          else
+            render json: { error: 'Renewal failed' }, status: :unprocessable_entity
+          end
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+      
       private
 
       def serialize_order(order)

@@ -1,9 +1,12 @@
 class VpnAccount < ApplicationRecord
   belongs_to :order
   
-  validates :username, presence: true
-  validates :password, presence: true
-  validates :server, presence: true
+  def can_renew?
+    status == 'active'
+  end
   
-  enum :status, { pending: 'pending', active: 'active', expired: 'expired', revoked: 'revoked' }
+  def renew!(duration_days = 30)
+    # VPN is internal - just extend expiry
+    update!(expires_at: (expires_at || Time.current) + duration_days.days)
+  end
 end
