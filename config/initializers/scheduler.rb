@@ -1,7 +1,10 @@
-# Scheduler Placeholder
-# In production, use Sidekiq Cron or similar.
-# For now, documenting the schedule:
-
-# every 30.minutes, 'EsimSyncJob'
-# every 1.hour, 'VmCleanupJob'
-# every 1.hour, 'ProxySyncJob'
+# Start the scheduler in a Sidekiq initialization hook
+Sidekiq.configure_server do |config|
+  config.on(:startup) do
+    # Load the schedule
+    schedule_file = "config/schedule.yml"
+    if File.exist?(schedule_file)
+      Sidekiq::Cron::Job.load_from_hash YAML.load_file(schedule_file)
+    end
+  end
+end

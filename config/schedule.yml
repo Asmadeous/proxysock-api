@@ -1,0 +1,19 @@
+expiration_cleanup:
+  cron: "0 * * * *"   # Every hour
+  class: "ExpirationCleanupJob"
+
+billing_renewal:
+  cron: "0 0 * * *"   # Every day at midnight
+  class: "BillingRenewalWorker"
+
+inventory_restock:
+  cron: "0 6 * * *"   # Every day at 6 AM
+  class: "InventoryRestockWorker"
+
+proxy_sync:
+  cron: "*/5 * * * *" # Every 5 minutes
+  class: "ProxySyncJob"
+
+esim_sync:
+  cron: "*/30 * * * *" # Every 30 minutes
+  class: "EsimSyncJob"
