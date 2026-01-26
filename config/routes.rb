@@ -96,12 +96,23 @@ Rails.application.routes.draw do
       
       # Admin routes
       resources :employees
+      
+      namespace :analytics do
+        get :dashboard
+        get :traffic
+        get :products
+        get :conversions
+        get :revenue
+      end
+      
       resources :resellers do
         member do
           post :onboard
         end
       end
-      resources :users, only: [:index, :show, :update]
+      resources :users, only: [:index, :show, :update] do
+        post :impersonate, on: :member
+      end
       resources :orders, only: [:index, :show] do
         post :refund, on: :member
       end
