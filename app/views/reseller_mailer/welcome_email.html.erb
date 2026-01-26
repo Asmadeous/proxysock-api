@@ -1,0 +1,36 @@
+<div style="font-family: sans-serif; line-height: 1.6;">
+  <h2>Welcome to ProxySock, <%= @reseller.company_name %>!</h2>
+  
+  <p>Your reseller account has been activated. Below are your API credentials:</p>
+  
+  <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; margin: 20px 0;">
+    <tr>
+      <th style="background: #f5f5f5;">Reseller ID</th>
+      <td><%= @credentials[:reseller_id] %></td>
+    </tr>
+    <tr>
+      <th style="background: #f5f5f5;">Username</th>
+      <td><%= @credentials[:username] %></td>
+    </tr>
+    <tr>
+      <th style="background: #f5f5f5;">Initial Token</th>
+      <td style="word-break: break-all;"><code><%= @credentials[:initial_token] %></code></td>
+    </tr>
+  </table>
+  
+  <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px; margin: 20px 0;">
+    <strong>⚠️ Important:</strong> Your API uses rotating tokens for security. Each API response will include a new token in the <code>X-Next-Token</code> header. You must use this new token for your next request.
+  </div>
+  
+  <h3>Getting Started</h3>
+  <ol>
+    <li>Fund your wallet via our deposit endpoints</li>
+    <li>Browse available products at <code>GET /api/v1/products</code></li>
+    <li>Place orders at <code>POST /api/v1/orders</code></li>
+  </ol>
+  
+  <p>For full API documentation, visit our developer portal.</p>
+  
+  <p>Welcome aboard!</p>
+  <p><strong>The ProxySock Team</strong></p>
+</div>
