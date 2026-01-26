@@ -29,6 +29,18 @@ class Vm < ApplicationRecord
     end
   end
 
+  def can_renew?
+    # Only active VMs can be renewed
+    active?
+  end
+  
+  def renew!(duration_days = 30)
+    # For VMs, renewal just means extending the database expiry date.
+    # Proxmox doesn't auto-kill; our cleanup job checks this DB expiry.
+    new_expiry = (expires_at || Time.current) + duration_days.days
+    update!(expires_at: new_expiry)
+  end
+
   def provision!
     start_provisioning!
     
@@ -52,7 +64,8 @@ class Vm < ApplicationRecord
       update!(
         ip_address: result[:ip_address],
         proxmox_vm_id: result[:vm_id].to_s,
-        rdp_port: result[:external_port] # Assuming internal mapping for now or external
+        rdp_port: result[:external_port], # Assuming internal mapping for now or external
+        expires_at: 30.days.from_now # Set initial expiry
       )
       
       mark_active!

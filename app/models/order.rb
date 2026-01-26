@@ -11,8 +11,22 @@ class Order < ApplicationRecord
   has_one :esim_order, dependent: :destroy
   has_one :vpn_account, dependent: :destroy
   
-  # Alias for unified access
-  alias_method :proxy, :mobile_proxy
+  def provisioned_resource
+    case product.product_type
+    when 'vm' then vm
+    when 'proxy' then proxy # delegates to correct proxy association
+    when 'esim' then esim_order
+    when 'vpn' then vpn_account
+    end
+  end
+  
+  def proxy
+    # Helper to find linked proxy across multiple tables/associations
+    MobileProxy.find_by(order_id: id) ||
+    StaticDatacenterProxy.find_by(order_id: id) ||
+    StaticIspProxy.find_by(order_id: id) ||
+    ResidentialRotatingProxy.find_by(order_id: id)
+  end
   
   before_save :calculate_total_amount
   

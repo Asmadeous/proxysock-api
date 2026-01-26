@@ -43,9 +43,10 @@ Rails.application.routes.draw do
       get 'auth/failure', to: 'auth#failure'
       
       resources :products, only: [:index, :show]
-      resources :orders do
+      resources :orders, only: [:index, :create, :show] do
         member do
           get :credentials
+          post :renew
         end
       end
       resource :wallet, only: [:show] do

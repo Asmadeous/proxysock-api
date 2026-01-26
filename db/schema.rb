@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_26_225001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -233,6 +233,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
     t.decimal "data_amount_gb"
     t.integer "duration_days"
     t.string "esim_provider"
+    t.datetime "expires_at"
     t.bigint "order_id", null: false
     t.string "package_code"
     t.string "provider_order_no"
@@ -307,6 +308,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
   create_table "mobile_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.bigint "mobile_proxy_order_id", null: false
@@ -568,6 +570,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
 
   create_table "residential_rotating_proxies", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "hostname"
     t.string "main_password"
     t.string "main_username"
@@ -600,6 +603,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
   create_table "static_datacenter_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.string "myproxyapi_order_id"
@@ -631,6 +635,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
   create_table "static_isp_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.string "isp_type"
     t.jsonb "metadata"
@@ -792,6 +797,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
     t.jsonb "api_response", default: {}
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.string "proxmox_node"
@@ -813,6 +819,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_204303) do
 
   create_table "vpn_accounts", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.bigint "order_id", null: false
     t.string "password", null: false
     t.string "protocol", default: "wireguard"
