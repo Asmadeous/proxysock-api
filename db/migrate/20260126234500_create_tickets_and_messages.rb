@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateTicketsAndMessages < ActiveRecord::Migration[8.1]
   def change
     create_table :tickets do |t|
@@ -9,10 +11,10 @@ class CreateTicketsAndMessages < ActiveRecord::Migration[8.1]
       t.string :priority, default: 'normal'
       t.timestamps
     end
-    
-    add_index :tickets, [:user_type, :user_id]
+
+    add_index :tickets, %i[user_type user_id]
     add_index :tickets, :status
-    
+
     create_table :ticket_messages do |t|
       t.references :ticket, null: false, foreign_key: true
       t.references :sender, polymorphic: true, null: false # User, Reseller, or Employee
@@ -21,7 +23,7 @@ class CreateTicketsAndMessages < ActiveRecord::Migration[8.1]
       t.jsonb :attachments, default: []
       t.timestamps
     end
-    
-    add_index :ticket_messages, [:sender_type, :sender_id]
+
+    add_index :ticket_messages, %i[sender_type sender_id]
   end
 end

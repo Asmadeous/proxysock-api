@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateUserSessions < ActiveRecord::Migration[8.1]
   def change
     create_table :user_sessions do |t|

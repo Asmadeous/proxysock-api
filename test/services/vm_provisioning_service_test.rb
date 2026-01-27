@@ -1,14 +1,16 @@
-require "test_helper"
+# frozen_string_literal: true
+
+require 'test_helper'
 
 class VmProvisioningServiceTest < ActiveSupport::TestCase
-  test "generates valid proxmox config" do
+  test 'generates valid proxmox config' do
     service = VmProvisioningService.new(nil, Rails.logger)
-    
+
     # We can test internal methods by exposing them or just testing public interface mocks.
     # Since Proxmox interaction is external, we mostly want to ensure it handles the response correctly.
     # But the service connects to an external API. We should test that it constructs the right calls.
     # For now, let's just test that it initializes correctly and validating parameters.
-    
+
     assert service
   end
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateExternalApiWebhooks < ActiveRecord::Migration[8.1]
   def change
     create_table :external_api_webhooks do |t|

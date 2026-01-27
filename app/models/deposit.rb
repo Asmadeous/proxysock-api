@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Deposit < ApplicationRecord
   belongs_to :depositable, polymorphic: true
   belongs_to :user, optional: true # Deprecated

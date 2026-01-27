@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddExpiresAtToResources < ActiveRecord::Migration[8.1]
   def change
     # Standardize expiry tracking across all provisioned resources
@@ -8,7 +10,7 @@ class AddExpiresAtToResources < ActiveRecord::Migration[8.1]
     add_column :residential_rotating_proxies, :expires_at, :datetime
     add_column :esim_orders, :expires_at, :datetime
     add_column :vpn_accounts, :expires_at, :datetime
-    
+
     # Optional: Backfill existing records (e.g. set expiry to 30 days from created_at)
     # reversible do |dir|
     #   dir.up do

@@ -1,17 +1,19 @@
+# frozen_string_literal: true
+
 class VmProvisioningJob < ApplicationJob
   queue_as :default
-  
+
   retry_on StandardError, wait: 5.seconds, attempts: 3
 
   def perform(vm_id, params = {})
     vm = Vm.find(vm_id)
-    
+
     logger.info "[VmProvisioningJob] Starting provisioning for VM #{vm_id}"
-    
+
     vm.start_provisioning! if vm.may_start_provisioning?
 
     service = VmProvisioningService.new(nil, logger)
-    
+
     # Merge VM order data with params
     provision_params = {
       'job_id' => "vm-#{vm_id}-#{Time.now.to_i}",
@@ -43,24 +45,20 @@ class VmProvisioningJob < ApplicationJob
 
     # Invalidate cache
     Rails.cache.delete("vm_status_#{vm_id}")
-    
+
     # Send credentials email
     owner = vm.vm_order&.order&.user || vm.vm_order&.order&.reseller
-    if owner
-      VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later
-    end
+    VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later if owner
 
     logger.info "[VmProvisioningJob] VM #{vm_id} provisioned successfully"
-
   rescue AASM::InvalidTransition => e
     logger.error "[VmProvisioningJob] Invalid state transition: #{e.message}"
     raise e
-
-  rescue => e
+  rescue StandardError => e
     logger.error "[VmProvisioningJob] Provisioning failed for VM #{vm_id}: #{e.message}"
-    
+
     vm.fail! if vm.may_fail?
-    
+
     # Re-raise to trigger retry
     raise e
   end

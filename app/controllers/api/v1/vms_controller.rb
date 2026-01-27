@@ -1,12 +1,14 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class VmsController < BaseController
-      before_action :set_vm, only: [:show, :destroy, :start, :stop, :restart, :status]
+      before_action :set_vm, only: %i[show destroy start stop restart status]
 
       # GET /api/v1/vms
       def index
         @vms = current_reseller_vms.includes(:vm_order)
-        
+
         render json: {
           vms: @vms.map { |vm| serialize_vm(vm) }
         }
@@ -28,13 +30,13 @@ module Api
         if order.save
           begin
             OrderProvisioningService.new(order, @current_reseller).process!
-            
+
             render json: {
               message: 'VM order created and provisioning started',
               vm_id: vm.id,
               status: vm.status
             }, status: :accepted
-          rescue => e
+          rescue StandardError => e
             render json: { error: e.message }, status: :payment_required
           end
         else
@@ -45,7 +47,7 @@ module Api
       # DELETE /api/v1/vms/:id
       def destroy
         VmCleanupJob.perform_later(@vm.id)
-        
+
         render json: { message: 'VM cleanup initiated', vm_id: @vm.id }
       end
 
@@ -91,9 +93,8 @@ module Api
       end
 
       def current_reseller_vms
-        Vm.joins(vm_order: { order: :orderable })
-          .where(orders: { orderable_type: 'ResellerOrder' })
-          .where(reseller_orders: { reseller_id: @current_reseller.id })
+        Vm.joins(vm_order: :order)
+          .where(orders: { orderable_type: 'Reseller', orderable_id: @current_reseller.id })
       end
 
       def vm_params

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Rails.application.routes.draw do
   # Reseller API
   namespace :api do
@@ -13,27 +15,27 @@ Rails.application.routes.draw do
           get :me
         end
       end
-      resources :resellers, only: [:index, :show, :update] do
+      resources :resellers, only: %i[index show update] do
         member do
-           post :deposit # Keep existing deposit action
+          post :deposit # Keep existing deposit action
         end
       end
-      
-      resources :orders, only: [:index, :create, :show] do
+
+      resources :orders, only: %i[index create show] do
         member do
           get :credentials
           post :renew
         end
       end
 
-      resources :products, only: [:index, :show]
-      
-      resources :tickets, only: [:index, :create, :show] do
+      resources :products, only: %i[index show]
+
+      resources :tickets, only: %i[index create show] do
         post :reply, on: :member
       end
-      
+
       # VMs
-      resources :vms, only: [:index, :show, :create, :destroy] do
+      resources :vms, only: %i[index show create destroy] do
         member do
           post :start
           post :stop
@@ -55,26 +57,26 @@ Rails.application.routes.draw do
       get 'auth/twitter', to: 'auth#twitter'
       get 'auth/twitter/callback', to: 'auth#twitter_callback'
       get 'auth/failure', to: 'auth#failure'
-      
-      resources :webhooks, only: [:index, :create, :destroy] do
+
+      resources :webhooks, only: %i[index create destroy] do
         post :test, on: :member
       end
-      
+
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
       get 'billing/history', to: 'billing#history'
-      
-      resources :products, only: [:index, :show]
+
+      resources :products, only: %i[index show]
       resource :cart, only: [:show] do
         post :add_item
         delete :remove_item
       end
-      
-      resources :tickets, only: [:index, :create, :show] do
+
+      resources :tickets, only: %i[index create show] do
         post :reply, on: :member
       end
-      
-      resources :orders, only: [:index, :create, :show] do
+
+      resources :orders, only: %i[index create show] do
         member do
           get :credentials
           post :renew
@@ -83,9 +85,9 @@ Rails.application.routes.draw do
       resource :wallet, only: [:show] do
         post :deposit
       end
-      
+
       # VMs
-      resources :vms, only: [:index, :show, :create, :destroy] do
+      resources :vms, only: %i[index show create destroy] do
         member do
           post :start
           post :stop
@@ -102,17 +104,17 @@ Rails.application.routes.draw do
       get 'auth/zoho', to: 'auth#zoho'
       get 'auth/zoho/callback', to: 'auth#zoho_callback'
       get 'auth/failure', to: 'auth#failure'
-      
+
       # Admin routes
       resources :employees
-      
-      resources :tickets, only: [:index, :show, :update] do
+
+      resources :tickets, only: %i[index show update] do
         member do
           post :reply
           post :rescue_order
         end
       end
-      
+
       namespace :analytics do
         get :dashboard
         get :traffic
@@ -120,29 +122,30 @@ Rails.application.routes.draw do
         get :conversions
         get :revenue
       end
-      
+
       resources :resellers do
         member do
           post :onboard
         end
       end
-      resources :users, only: [:index, :show, :update] do
+      resources :users, only: %i[index show update] do
         post :impersonate, on: :member
       end
-      resources :orders, only: [:index, :show] do
+      resources :orders, only: %i[index show] do
         post :refund, on: :member
       end
     end
   end
 
   # Shared OmniAuth callback route
-  get '/auth/:provider/callback', to: ->(env) {
+  get '/auth/:provider/callback', to: lambda { |env|
     strategy = env['omniauth.strategy'].name
-    if strategy == 'zoho'
+    case strategy
+    when 'zoho'
       Admin::Api::AuthController.action(:zoho_callback).call(env)
-    elsif strategy == 'google_oauth2'
+    when 'google_oauth2'
       Web::Api::AuthController.action(:google_callback).call(env)
-    elsif strategy == 'twitter2'
+    when 'twitter2'
       Web::Api::AuthController.action(:twitter_callback).call(env)
     end
   }
@@ -154,6 +157,6 @@ Rails.application.routes.draw do
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
   end
-  
-  get "up" => "rails/health#show", as: :rails_health_check
+
+  get 'up' => 'rails/health#show', as: :rails_health_check
 end

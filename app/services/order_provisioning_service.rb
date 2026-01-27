@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class OrderProvisioningService
   class ProvisioningError < StandardError; end
 
@@ -21,18 +23,18 @@ class OrderProvisioningService
       elsif @actor.is_a?(User)
         # Users may have already paid via gateway, or pay from wallet
         # If this is called, assume wallet payment
-        validate_and_deduct_balance!(total) if @actor.wallet&.balance.to_f >= total
+        validate_and_deduct_balance!(total)
       end
-      
+
       # 3. Transition to processing
       @order.process!
     end
 
     # 4. Provision based on product type
     provision_product!
-    
+
     true
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error("[OrderProvisioningService] Failed: #{e.message}")
     @order.fail! if @order.may_fail?
     raise e
@@ -42,14 +44,26 @@ class OrderProvisioningService
 
   def validate_and_deduct_balance!(total)
     unless enough_balance?(total)
-      raise ProvisioningError, "Insufficient balance: Wallet has #{@actor.balance || 0}, required #{total}"
+      raise ProvisioningError, "Insufficient balance: Wallet has #{@actor.wallet&.balance || 0}, required #{total}"
     end
-    
-    @actor.wallet.debit!(total, "Order ##{@order.id} payment", { order_id: @order.id })
+
+    transaction = Transaction.create!(
+      transactable: @actor,
+      reference: @order,
+      amount: total,
+      transaction_type: 'debit',
+      status: 'success',
+      currency: 'USD',
+      description: "Order ##{@order.id} payment",
+      metadata: { order_id: @order.id }
+    )
+
+    @actor.wallet.debit!(total, "Order ##{@order.id} payment", { order_id: @order.id }, transaction)
   end
 
   def enough_balance?(amount)
     return false unless @actor.wallet
+
     @actor.wallet.balance >= amount
   end
 
@@ -76,14 +90,14 @@ class OrderProvisioningService
       status: 'pending',
       vm_type: @product.metadata&.dig('vm_type') || 'shared-cpu'
     )
-    
+
     VmProvisioningJob.perform_later(vm.id, {
-      'os_template' => @product.metadata&.dig('os_template') || 'ubuntu-22-04',
-      'cpu_cores' => @product.metadata&.dig('cpu_cores') || 1,
-      'ram_gb' => @product.metadata&.dig('ram_gb') || 1,
-      'storage_gb' => @product.metadata&.dig('storage_gb') || 20
-    })
-    
+                                      'os_template' => @product.metadata&.dig('os_template') || 'ubuntu-22-04',
+                                      'cpu_cores' => @product.metadata&.dig('cpu_cores') || 1,
+                                      'ram_gb' => @product.metadata&.dig('ram_gb') || 1,
+                                      'storage_gb' => @product.metadata&.dig('storage_gb') || 20
+                                    })
+
     # Order stays in processing until job completes
   end
 
@@ -91,20 +105,20 @@ class OrderProvisioningService
   def provision_proxy!
     case @product.provider_type
     when 'xproxy'
-      result = XProxyService.new.provision(@order)
+      XProxyService.new.provision(@order)
       @order.activate!
-      
+
     when 'myproxyapi'
       # Find available proxy from synced inventory
       proxy = assign_proxy_from_inventory('myproxyapi')
       send_proxy_credentials(proxy)
       @order.activate!
-      
+
     when 'static_datacenter', 'static_isp', 'residential'
       proxy = assign_proxy_from_inventory(@product.provider_type)
       send_proxy_credentials(proxy)
       @order.activate!
-      
+
     else
       raise ProvisioningError, "Unknown proxy provider: #{@product.provider_type}"
     end
@@ -118,21 +132,21 @@ class OrderProvisioningService
                   when 'residential' then ResidentialRotatingProxy
                   else MobileProxy
                   end
-    
+
     proxy = proxy_class.lock.where(status: 'available').first
     raise ProvisioningError, "No available #{provider_type} proxies" unless proxy
-    
+
     # Generate credentials
     username = "user_#{SecureRandom.hex(4)}"
     password = SecureRandom.hex(8)
-    
+
     proxy.update!(
       status: 'assigned',
       username: username,
       password: password,
       order_id: @order.id
     )
-    
+
     proxy
   end
 
@@ -156,7 +170,7 @@ class OrderProvisioningService
     # Generate VPN credentials
     username = "vpn_#{SecureRandom.hex(4)}"
     password = SecureRandom.hex(12)
-    
+
     # Store VPN credentials (assuming VpnAccount model exists or use metadata)
     vpn_account = VpnAccount.create!(
       order: @order,
@@ -166,11 +180,11 @@ class OrderProvisioningService
       protocol: @product.metadata&.dig('protocol') || 'wireguard',
       status: 'active'
     )
-    
+
     # Send credentials
     owner = @order.user || @order.reseller
     VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
-    
+
     @order.activate!
   end
 end

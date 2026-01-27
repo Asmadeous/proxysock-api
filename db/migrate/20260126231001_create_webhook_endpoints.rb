@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateWebhookEndpoints < ActiveRecord::Migration[8.1]
   def change
     create_table :webhook_endpoints do |t|
@@ -8,7 +10,7 @@ class CreateWebhookEndpoints < ActiveRecord::Migration[8.1]
       t.jsonb :events, default: [] # e.g. ['order.created', 'vm.provisioned']
       t.timestamps
     end
-    
-    add_index :webhook_endpoints, [:reseller_id, :active]
+
+    add_index :webhook_endpoints, %i[reseller_id active]
   end
 end

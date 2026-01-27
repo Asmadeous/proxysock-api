@@ -1,61 +1,83 @@
-require "test_helper"
+# frozen_string_literal: true
+
+require 'test_helper'
 
 class ProxySyncServiceTest < ActiveSupport::TestCase
-  test "syncs proxies from provider" do
+  test 'syncs proxies from provider' do
+    # Create dependencies for sync
+    reseller = resellers(:one)
+    order = Order.create!(orderable: reseller, product: products(:two), product_pricing: product_pricings(:two), status: 'active')
+    MobileProxyOrder.create!(order: order)
+
     # Mock external API client
-    mock_client = Minitest::Mock.new
-    mock_client.expect :fetch_proxies, [
+    mock_data = [
       {
-        "ip" => "1.2.3.4",
-        "port" => 8080,
-        "username" => "user",
-        "password" => "pass",
-        "type" => "mobile",
-        "country" => "US"
+        'ip' => '1.2.3.4',
+        'port' => 8080,
+        'username' => 'user',
+        'password' => 'pass',
+        'type' => 'mobile',
+        'country' => 'US'
       }
     ]
-    
-    MyProxyApiClient.stub :new, mock_client do
-      assert_difference "MobileProxy.count", 1 do
-        ProxySyncService.new.sync!
-      end
+
+    mock_client = mock
+    mock_client.stubs(:fetch_proxies).returns(mock_data)
+    MyProxyApiClient.stubs(:new).returns(mock_client)
+
+    assert_difference 'MobileProxy.count', 1 do
+      ProxySyncService.new.sync_all
     end
-    
+
     proxy = MobileProxy.last
-    assert_equal "1.2.3.4", proxy.ip_address
-    assert_equal "US", proxy.country
+    assert_equal '1.2.3.4', proxy.ip_address
+    assert_equal 'US', proxy.country
   end
-  
-  test "updates existing proxies" do
+
+  test 'updates existing proxies' do
     # Create existing proxy
-    proxy = MobileProxy.create!(
-      ip_address: "1.2.3.4",
-      port: 8080,
-      username: "old_user",
-      password: "old_pass",
-      status: "available",
-      proxy_source: "myproxyapi"
+    # Create dependencies
+    reseller = resellers(:one)
+    order = Order.create!(
+      orderable: reseller,
+      product: products(:two),
+      product_pricing: product_pricings(:two),
+      status: 'active'
     )
-    
-    mock_client = Minitest::Mock.new
-    mock_client.expect :fetch_proxies, [
+    mp_order = MobileProxyOrder.create!(order: order)
+
+    proxy = MobileProxy.create!(
+      mobile_proxy_order: mp_order,
+      ip_address: '1.2.3.4',
+      port: 8080,
+      username: 'old_user',
+      password: 'old_pass',
+      status: 'available',
+      proxy_source: 'myproxyapi',
+      myproxyapi_order_id: 123
+    )
+
+    mock_data = [
       {
-        "ip" => "1.2.3.4",
-        "port" => 8080,
-        "username" => "new_user",
-        "password" => "new_pass",
-        "type" => "mobile",
-        "country" => "US"
+        'id' => 123,
+        'ip' => '1.2.3.4',
+        'port' => 8080,
+        'username' => 'new_user',
+        'password' => 'new_pass',
+        'type' => 'mobile',
+        'country' => 'US'
       }
     ]
-    
-    MyProxyApiClient.stub :new, mock_client do
-      assert_no_difference "MobileProxy.count" do
-        ProxySyncService.new.sync!
-      end
+
+    mock_client = mock
+    mock_client.stubs(:fetch_proxies).returns(mock_data)
+    MyProxyApiClient.stubs(:new).returns(mock_client)
+
+    assert_no_difference 'MobileProxy.count' do
+      ProxySyncService.new.sync_all
     end
-    
+
     proxy.reload
-    assert_equal "new_user", proxy.username
+    assert_equal 'new_user', proxy.username
   end
 end

@@ -1,8 +1,11 @@
+# frozen_string_literal: true
+
 class Vm < ApplicationRecord
   belongs_to :vm_order, optional: true
-  belongs_to :order, optional: true
+
+  has_one :order, through: :vm_order
   has_many :proxmox_operations, dependent: :destroy
-  
+
   include AASM
 
   aasm column: :status do
@@ -13,7 +16,7 @@ class Vm < ApplicationRecord
     state :terminated
 
     event :start_provisioning do
-      transitions from: [:pending, :failed], to: :provisioning
+      transitions from: %i[pending failed], to: :provisioning
     end
 
     event :mark_active do
@@ -21,11 +24,11 @@ class Vm < ApplicationRecord
     end
 
     event :fail do
-      transitions from: [:pending, :provisioning], to: :failed
+      transitions from: %i[pending provisioning], to: :failed
     end
 
     event :terminate do
-      transitions from: [:active, :failed, :provisioning], to: :terminated
+      transitions from: %i[active failed provisioning], to: :terminated
     end
   end
 
@@ -33,7 +36,7 @@ class Vm < ApplicationRecord
     # Only active VMs can be renewed
     active?
   end
-  
+
   def renew!(duration_days = 30)
     # For VMs, renewal just means extending the database expiry date.
     # Proxmox doesn't auto-kill; our cleanup job checks this DB expiry.
@@ -43,14 +46,14 @@ class Vm < ApplicationRecord
 
   def provision!
     start_provisioning!
-    
+
     service = VmProvisioningService.new(nil, Rails.logger)
-    
+
     # Map attributes to service params
     params = {
       'job_id' => "vm-#{id}-#{Time.now.to_i}", # Unique job ID
-      'os_template' => vm_order.os_type,   # Assuming VmOrder has os_type
-      'vm_type' => vm_type,               # Vm has vm_type
+      'os_template' => vm_order.os_type, # Assuming VmOrder has os_type
+      'vm_type' => vm_type, # Vm has vm_type
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
@@ -60,16 +63,16 @@ class Vm < ApplicationRecord
 
     begin
       result = service.provision(params)
-      
+
       update!(
         ip_address: result[:ip_address],
         proxmox_vm_id: result[:vm_id].to_s,
         rdp_port: result[:external_port], # Assuming internal mapping for now or external
         expires_at: 30.days.from_now # Set initial expiry
       )
-      
+
       mark_active!
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error("VM Provisioning failed: #{e.message}")
       fail!
       raise e

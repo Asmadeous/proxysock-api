@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ApplicationController < ActionController::API
   def record_audit_log(action, target, changes = nil)
     # Generic audit log recorder
@@ -11,9 +13,9 @@ class ApplicationController < ActionController::API
             else
               nil
             end
-            
+
     return unless actor
-    
+
     AuditLog.create!(
       user_id: actor.id,
       user_type: actor.class.name,
@@ -22,7 +24,7 @@ class ApplicationController < ActionController::API
       ip_address: request.remote_ip,
       object_changes: changes || target.try(:saved_changes)
     )
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Audit Log Failed: #{e.message}"
   end
 end

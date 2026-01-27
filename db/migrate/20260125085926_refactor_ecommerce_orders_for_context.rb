@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class RefactorEcommerceOrdersForContext < ActiveRecord::Migration[8.0]
   def change
     # Remove columns moved to Master Order
@@ -16,7 +18,7 @@ class RefactorEcommerceOrdersForContext < ActiveRecord::Migration[8.0]
 
     # Add reference to Master Order
     add_reference :ecommerce_orders, :order, null: false, foreign_key: true
-    
+
     # Add polymorphic orderable (VmOrder, ProxyOrder, etc)
     add_reference :ecommerce_orders, :orderable, polymorphic: true, null: false
 

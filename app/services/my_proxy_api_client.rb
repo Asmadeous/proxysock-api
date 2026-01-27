@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'net/http'
 require 'json'
 
@@ -15,7 +17,7 @@ class MyProxyApiClient
     # endpoint = "#{BASE_URL}/proxies"
     # response = request(:get, endpoint)
     # response['data'] || []
-    
+
     # MOCK DATA FOR DEVELOPMENT until real API details are integrated
     [
       {
@@ -58,10 +60,8 @@ class MyProxyApiClient
     request.body = body.to_json if body
 
     response = http.request(request)
-    
-    unless response.is_a?(Net::HTTPSuccess)
-      raise "MyProxyApi Error: #{response.code} - #{response.body}"
-    end
+
+    raise "MyProxyApi Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   end

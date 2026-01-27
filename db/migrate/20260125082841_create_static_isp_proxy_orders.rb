@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateStaticIspProxyOrders < ActiveRecord::Migration[8.1]
   def change
     create_table :static_isp_proxy_orders do |t|

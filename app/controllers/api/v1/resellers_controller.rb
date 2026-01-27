@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class ResellersController < BaseController
@@ -6,7 +8,7 @@ module Api
       def show
         render json: current_reseller
       end
-      
+
       def update
         if current_reseller.update(reseller_params)
           render json: current_reseller
@@ -18,12 +20,12 @@ module Api
       def deposit
         # Initiate deposit logic
         # params: amount, gateway ('paystack', 'plisio', 'payvra')
-        
+
         amount = params[:amount].to_f
         gateway = params[:gateway]
-        
+
         return render json: { error: 'Invalid amount' }, status: :bad_request if amount <= 0
-        
+
         # Create Pending Deposit
         deposit = Deposit.create!(
           depositable: current_reseller,
@@ -32,12 +34,12 @@ module Api
           status: 'pending',
           transaction_id: "DEP_#{SecureRandom.hex(8)}"
         )
-        
+
         # Generate Link (Mock or via Service)
         # Service logic for generating payment URL would go here
-        
-        render json: { 
-          message: 'Deposit initiated', 
+
+        render json: {
+          message: 'Deposit initiated',
           deposit_id: deposit.id,
           transaction_ref: deposit.transaction_id
         }
@@ -46,7 +48,7 @@ module Api
       private
 
       def reseller_params
-        params.require(:reseller).permit(:company_name, :email) 
+        params.require(:reseller).permit(:company_name, :email)
       end
     end
   end

@@ -1,9 +1,7 @@
-engineering:
-  id: 1
+one:
   name: Engineering
   description: Tech team
 
-support:
-  id: 2
+two:
   name: Support
   description: Customer support

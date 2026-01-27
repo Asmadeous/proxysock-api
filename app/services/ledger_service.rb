@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class LedgerService
   class LedgerTamperError < StandardError; end
   class InsufficientFundsError < StandardError; end
@@ -16,11 +18,11 @@ class LedgerService
       # Fetch last transaction to chain hash
       last_tx = @wallet.wallet_transactions.order(:created_at).last
       parent_hash = last_tx&.entry_hash || 'GENESIS_HASH'
-      
+
       current_balance = @wallet.balance
       new_balance = current_balance + final_amount
-      
-      if type == 'debit' && new_balance < 0
+
+      if type == 'debit' && new_balance.negative?
         raise InsufficientFundsError, "Insufficient funds: #{current_balance} < #{amount}"
       end
 
@@ -33,16 +35,9 @@ class LedgerService
         description: description,
         metadata: metadata,
         parent_hash: parent_hash,
-        transaction_id: reference&.id,    # Polymorphic ID
-        transaction_type_polymorphic: reference&.class&.name # Polymorphic Type (mapped to 'reference_type' in schema usually)
+        transaction_id: reference&.id
       )
-      
-      # Handle polymorphic reference manually or if schema matches
-      # Schema has 'reference_type' and 'reference_id' for generic linkage usually
-      if reference
-        tx.reference_type = reference.class.name
-        tx.reference_id = reference.id
-      end
+
 
       # Compute Hash
       # Hash = SHA256(prev_hash + amount + type + timestamp + nonce)
@@ -53,10 +48,10 @@ class LedgerService
       tx.created_at = timestamp
 
       tx.save!
-      
+
       # Update cache on wallet (optional, but good for quick reads)
       # @wallet.update!(balance: new_balance) # Use if migrating away from sum-on-read
-      
+
       tx
     end
   end
@@ -73,11 +68,11 @@ class LedgerService
       end
 
       # 2. Recompute hash
-      # We need exact same fields used during creation. 
-      # CAUTION: timestamp precision might differ if read from DB. 
+      # We need exact same fields used during creation.
+      # CAUTION: timestamp precision might differ if read from DB.
       # ideally store the 'payload' string or ensure strict reconstruction.
       # For now, we trust the chain linkage primary.
-      
+
       prev_hash = tx.entry_hash
     end
     true

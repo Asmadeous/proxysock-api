@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 module Admin
   module Api
     class ResellersController < ApplicationController
       before_action :authenticate_admin!
-      before_action :set_reseller, only: [:show, :update, :destroy, :onboard]
+      before_action :set_reseller, only: %i[show update destroy onboard]
 
       # GET /admin/api/resellers
       def index
@@ -21,11 +23,11 @@ module Admin
       # POST /admin/api/resellers
       def create
         @reseller = Reseller.new(reseller_params)
-        
+
         if @reseller.save
           # Create wallet for reseller
           @reseller.create_wallet!
-          
+
           render json: serialize_reseller(@reseller), status: :created
         else
           render json: { errors: @reseller.errors }, status: :unprocessable_entity
@@ -51,10 +53,10 @@ module Admin
       # Generates initial API credentials for reseller
       def onboard
         credentials = @reseller.generate_initial_credentials
-        
+
         # Send welcome email with credentials
         ResellerMailer.with(reseller: @reseller, credentials: credentials).welcome_email.deliver_later
-        
+
         render json: {
           message: 'Reseller onboarded successfully',
           credentials: credentials
@@ -104,7 +106,7 @@ module Admin
         begin
           payload = JWT.decode(token, Rails.application.secret_key_base).first
           @current_employee = Employee.find(payload['employee_id'])
-        rescue
+        rescue StandardError
           render json: { error: 'Unauthorized' }, status: :unauthorized
         end
       end

@@ -1,5 +1,4 @@
-user_one:
-  id: 1
+one:
   first_name: John
   last_name: Doe
   email: john@example.com
@@ -7,8 +6,7 @@ user_one:
   provider: ~
   uid: ~
 
-user_two:
-  id: 2
+two:
   first_name: Jane
   last_name: Smith
   email: jane@example.com

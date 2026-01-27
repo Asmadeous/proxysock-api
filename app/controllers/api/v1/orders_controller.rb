@@ -1,16 +1,18 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class OrdersController < BaseController
       include JwtAuthenticated
-      
+
       # GET /api/v1/orders
       def index
         # Resellers can only see their VM orders
         orders = current_reseller.orders.joins(:product).where(products: { product_type: 'vm' })
-                                .includes(:product, :vm).order(created_at: :desc).page(params[:page])
+                                 .includes(:product, :vm).order(created_at: :desc).limit(20)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
-          meta: pagination_meta(orders)
+          meta: { total_count: orders.count } # simplified meta
         }
       end
 
@@ -24,18 +26,18 @@ module Api
       # RESELLERS CAN ONLY ORDER VMs
       def create
         product = Product.for_resellers.vms.find(params[:product_id])
-        
+
         pricing = product.product_pricings.find_by(active: true)
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
-        
+
         order = Order.new(
-          reseller: current_reseller,
+          orderable: current_reseller,
           product: product,
           product_pricing: pricing,
           quantity: params[:quantity] || 1,
           status: 'pending'
         )
-        
+
         if order.save
           begin
             # Process order (checks balance, deducts, provisions)
@@ -53,17 +55,17 @@ module Api
       # RESELLERS ONLY GET VM CREDENTIALS
       def credentials
         order = current_reseller.orders.find(params[:id])
-        
+
         unless order.product.product_type == 'vm'
           return render json: { error: 'Credentials only available for VM orders' }, status: :bad_request
         end
-        
+
         vm = order.vm
-        
+
         unless vm && vm.status == 'active'
           return render json: { error: 'VM not yet provisioned', status: vm&.status }, status: :accepted
         end
-        
+
         render json: {
           type: 'vm',
           order_id: order.id,
@@ -81,12 +83,12 @@ module Api
       # POST /api/v1/orders/:id/renew
       def renew
         order = current_reseller.orders.find(params[:id])
-        
+
         # Double check reseller restriction (already handled by model but safe to be explicit)
         unless order.product.product_type == 'vm'
           return render json: { error: 'Only VMs can be renewed via this endpoint' }, status: :forbidden
         end
-        
+
         begin
           service = OrderRenewalService.new(order, current_reseller)
           if service.process!

@@ -1,11 +1,9 @@
+# frozen_string_literal: true
+
 class MakeDepositsPolymorphic < ActiveRecord::Migration[8.1]
   def change
-    unless column_exists?(:deposits, :depositable_id)
-      add_column :deposits, :depositable_id, :bigint
-    end
-    unless column_exists?(:deposits, :depositable_type)
-      add_column :deposits, :depositable_type, :string
-    end
+    add_column :deposits, :depositable_id, :bigint unless column_exists?(:deposits, :depositable_id)
+    add_column :deposits, :depositable_type, :string unless column_exists?(:deposits, :depositable_type)
 
     # Backfill existing deposits
     reversible do |dir|
@@ -15,9 +13,9 @@ class MakeDepositsPolymorphic < ActiveRecord::Migration[8.1]
     end
 
     change_column_null :deposits, :user_id, true
-    
-    unless index_exists?(:deposits, [:depositable_type, :depositable_id])
-      add_index :deposits, [:depositable_type, :depositable_id]
-    end
+
+    return if index_exists?(:deposits, %i[depositable_type depositable_id])
+
+    add_index :deposits, %i[depositable_type depositable_id]
   end
 end

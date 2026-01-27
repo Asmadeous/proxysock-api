@@ -1,7 +1,8 @@
+# frozen_string_literal: true
+
 module Admin
   module Api
     class AuthController < ApplicationController
-
       # GET /admin/api/auth/zoho (redirect to OAuth)
       def zoho
         redirect_to '/auth/zoho_oauth2', allow_other_host: true
@@ -10,13 +11,13 @@ module Admin
       # GET /admin/api/auth/zoho/callback
       def zoho_callback
         auth = request.env['omniauth.auth']
-        
+
         begin
           employee = Employee.from_omniauth(auth)
-          
+
           employee.update(last_login_at: Time.current)
           token = employee.generate_jwt
-          
+
           render json: {
             message: 'Zoho login successful',
             employee: serialize_employee(employee),
@@ -24,7 +25,7 @@ module Admin
           }
         rescue SecurityError => e
           render json: { error: e.message }, status: :forbidden
-        rescue => e
+        rescue StandardError => e
           render json: { error: "Zoho Authentication failed: #{e.message}" }, status: :unprocessable_entity
         end
       end

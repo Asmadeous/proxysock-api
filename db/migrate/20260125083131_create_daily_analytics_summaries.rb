@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateDailyAnalyticsSummaries < ActiveRecord::Migration[8.1]
   def change
     create_table :daily_analytics_summaries do |t|

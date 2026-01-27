@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateStaticDatacenterProxyOrders < ActiveRecord::Migration[8.1]
   def change
     create_table :static_datacenter_proxy_orders do |t|

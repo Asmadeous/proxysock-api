@@ -1,14 +1,11 @@
-product_categories:
-  id: 1
+one:
   name: VMs
   description: Virtual Machines
 
-proxy_categories:
-  id: 2
+two:
   name: Proxies
   description: Proxy Services
 
-esim_categories:
-  id: 3
+three:
   name: eSIMs
   description: eSIM Products

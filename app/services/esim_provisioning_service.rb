@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class EsimProvisioningService
   class OutOfStockError < StandardError; end
 
@@ -25,11 +27,11 @@ class EsimProvisioningService
     service = EsimAccessService.new
     # Assuming product.provider_type holds the 'package_code' or use provider_product_id
     result = service.order_esim(@product.provider_product_id || @product.metadata&.dig('package_code'))
-    
+
     # API might be async (webhook) or sync. Docs say "GOT_RESOURCE" via webhook.
     # We'll create a pending ESIM record with API response stored.
-    
-    esim_order = EsimOrder.create!(
+
+    EsimOrder.create!(
       order: @order,
       country_code: @product.metadata&.dig('country_code') || 'global',
       data_amount_gb: @product.metadata&.dig('data_gb') || 1,
@@ -40,14 +42,14 @@ class EsimProvisioningService
       api_response: result.to_json, # Store full API response
       provider_order_no: result['orderNo']
     )
-    
+
     @order.update!(status: 'processing', provider_order_id: result['orderNo'])
   end
 
   def provision_from_inventory(provider)
     EsimInventory.transaction do
       inventory_item = EsimInventory.lock.available.where(provider: provider).first
-      
+
       raise OutOfStockError, "No inventory for #{provider}" unless inventory_item
 
       inventory_item.mark_as_sold!
@@ -76,7 +78,7 @@ class EsimProvisioningService
       )
 
       @order.update!(status: 'completed', total_amount: @order.product.product_pricings.first.selling_price)
-      
+
       # Send Email
       EsimMailer.with(user: @order.user, esim: esim_order.esim).delivery_email.deliver_later
     end

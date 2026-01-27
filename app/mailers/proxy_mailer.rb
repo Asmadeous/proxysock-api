@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ProxyMailer < ApplicationMailer
   default from: ENV.fetch('SMTP_FROM_EMAIL', 'noreply@proxysock.com')
 
@@ -5,13 +7,13 @@ class ProxyMailer < ApplicationMailer
     @owner = params[:owner]
     @proxy = params[:proxy]
     @order = params[:order]
-    
+
     mail(
       to: @owner.email,
       subject: "Your Proxy Credentials - Order ##{@order.id}"
     )
   end
-  
+
   def support_email(subject, details)
     @details = details
     mail(
