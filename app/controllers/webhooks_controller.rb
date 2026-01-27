@@ -15,14 +15,14 @@ class WebhooksController < ApplicationController
   end
 
   def plisio
-    params.permit!
-    handle_payment(params, 'plisio') if %w[completed mismatch].include?(params[:status])
+    webhook_params = params.permit(:status, :order_number, :reference, :amount, :currency, :txn_id, metadata: {})
+    handle_payment(webhook_params, 'plisio') if %w[completed mismatch].include?(webhook_params[:status])
     head :ok
   end
 
   def payvra
-    params.permit!
-    handle_payment(params, 'payvra') if params[:status] == 'success'
+    webhook_params = params.permit(:status, :order_number, :reference, :amount, :currency, :transaction_id, metadata: {})
+    handle_payment(webhook_params, 'payvra') if webhook_params[:status] == 'success'
     head :ok
   end
 
