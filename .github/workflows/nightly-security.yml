@@ -1,0 +1,27 @@
+name: Nightly Security Audit
+
+on:
+    schedule:
+        - cron: "0 0 * * *" # Run every day at midnight UTC
+    workflow_dispatch: # Allow manual trigger
+
+jobs:
+    security_audit:
+        name: Security Scan
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Ruby
+              uses: ruby/setup-ruby@v1
+              with:
+                  ruby-version: "4.0.0"
+                  bundler-cache: true
+
+            - name: Run Brakeman
+              run: bundle exec brakeman -q --no-pager
+
+            - name: Run Bundle Audit
+              run: |
+                  gem install bundler-audit
+                  bundle audit check --update
