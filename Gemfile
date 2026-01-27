@@ -73,3 +73,6 @@ gem "rswag-ui", "~> 2.17"
 
 gem "rswag-specs", "~> 2.17", groups: [:development, :test]
 gem "rspec-rails", "~> 8.0", groups: [:development, :test]
+
+gem "sentry-ruby", "~> 6.3"
+gem "sentry-rails", "~> 6.3"
