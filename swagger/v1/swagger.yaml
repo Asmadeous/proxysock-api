@@ -1,0 +1,72 @@
+---
+openapi: 3.0.1
+info:
+  title: ProxySock API
+  version: v1
+  description: API for Resellers to manage proxies, VMs, and orders.
+paths:
+  "/api/v1/products":
+    get:
+      summary: List Products
+      tags:
+      - Products
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        base_price:
+                          type: number
+                        currency:
+                          type: string
+        '401':
+          description: unauthorized
+  "/api/v1/products/{id}":
+    parameters:
+    - name: id
+      in: path
+      description: id
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Show Product
+      tags:
+      - Products
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+        '404':
+          description: not found
+servers:
+- url: https://{defaultHost}
+  variables:
+    defaultHost:
+      default: api.proxysock.com
+- url: http://localhost:3000
+  description: Local development server
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT token here. Get it from /api/v1/auth/token
+security:
+- Bearer: []
