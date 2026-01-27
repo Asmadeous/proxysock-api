@@ -51,8 +51,6 @@ module Api
         end
 
         render json: product_json
-      rescue ActiveRecord::RecordNotFound
-        render json: { error: 'Product not found' }, status: :not_found
       end
 
       private
