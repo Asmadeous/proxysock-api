@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateWalletSystem < ActiveRecord::Migration[8.0]
   def change
     create_table :wallets do |t|
@@ -35,16 +37,16 @@ class CreateWalletSystem < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
+
     # Add polymorphic billing history if not already present or modify it
     # We already have billing_histories with reseller_id. We need to make it polymorphic.
     # Check if we need to migrate existing billing_histories
-    
+
     # Using 'safety' check
-    unless column_exists?(:billing_histories, :billable_type)
-      # Rename reseller_id to billable_id and add type
-      rename_column :billing_histories, :reseller_id, :billable_id
-      add_column :billing_histories, :billable_type, :string, default: 'Reseller'
-    end
+    return if column_exists?(:billing_histories, :billable_type)
+
+    # Rename reseller_id to billable_id and add type
+    rename_column :billing_histories, :reseller_id, :billable_id
+    add_column :billing_histories, :billable_type, :string, default: 'Reseller'
   end
 end

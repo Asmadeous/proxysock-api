@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateResidentialRotatingProxies < ActiveRecord::Migration[8.1]
   def change
     create_table :residential_rotating_proxies do |t|

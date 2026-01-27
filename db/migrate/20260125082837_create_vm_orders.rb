@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateVmOrders < ActiveRecord::Migration[8.1]
   def change
     create_table :vm_orders do |t|

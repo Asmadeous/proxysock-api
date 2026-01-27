@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -110,7 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "session_id"
     t.string "status"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.index ["user_id"], name: "index_carts_on_user_id"
   end
 
@@ -159,6 +159,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.string "currency"
+    t.bigint "depositable_id"
+    t.string "depositable_type"
     t.datetime "expires_at"
     t.string "gateway"
     t.datetime "initiated_at"
@@ -167,7 +169,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "status"
     t.bigint "transaction_id"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
+    t.index ["depositable_type", "depositable_id"], name: "index_deposits_on_depositable_type_and_depositable_id"
     t.index ["payment_method_id"], name: "index_deposits_on_payment_method_id"
     t.index ["transaction_id"], name: "index_deposits_on_transaction_id"
     t.index ["user_id"], name: "index_deposits_on_user_id"
@@ -195,26 +198,53 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.datetime "last_login_at"
     t.string "last_name"
     t.string "password_digest"
+    t.string "provider"
     t.string "role"
+    t.string "uid"
     t.datetime "updated_at", null: false
+    t.string "work_email"
     t.index ["department_id"], name: "index_employees_on_department_id"
     t.index ["email"], name: "index_employees_on_email"
+    t.index ["provider", "uid"], name: "index_employees_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
+    t.index ["work_email"], name: "index_employees_on_work_email", unique: true
+  end
+
+  create_table "esim_inventories", force: :cascade do |t|
+    t.string "activation_code"
+    t.datetime "created_at", null: false
+    t.string "iccid", null: false
+    t.string "pin1"
+    t.string "pin2"
+    t.bigint "product_id"
+    t.string "provider", null: false
+    t.string "puk1"
+    t.string "puk2"
+    t.string "status", default: "available"
+    t.datetime "updated_at", null: false
+    t.index ["iccid"], name: "index_esim_inventories_on_iccid", unique: true
+    t.index ["product_id"], name: "index_esim_inventories_on_product_id"
+    t.index ["provider", "status"], name: "index_esim_inventories_on_provider_and_status"
   end
 
   create_table "esim_orders", force: :cascade do |t|
+    t.jsonb "api_response", default: {}
     t.string "country_code"
     t.datetime "created_at", null: false
     t.decimal "data_amount_gb"
     t.integer "duration_days"
     t.string "esim_provider"
+    t.datetime "expires_at"
     t.bigint "order_id", null: false
     t.string "package_code"
+    t.string "provider_order_no"
     t.string "status"
     t.datetime "updated_at", null: false
     t.index ["order_id"], name: "index_esim_orders_on_order_id"
+    t.index ["provider_order_no"], name: "index_esim_orders_on_provider_order_no"
   end
 
   create_table "esims", force: :cascade do |t|
+    t.string "activation_code"
     t.datetime "created_at", null: false
     t.bigint "data_total_bytes"
     t.bigint "data_used_bytes"
@@ -231,6 +261,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "imsi"
     t.jsonb "metadata"
     t.string "msisdn"
+    t.string "pin1"
+    t.string "puk1"
     t.text "qr_code_data"
     t.string "qr_code_url"
     t.string "smdp_status"
@@ -276,10 +308,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
   create_table "mobile_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.bigint "mobile_proxy_order_id", null: false
     t.string "myproxyapi_order_id"
+    t.bigint "order_id"
     t.string "password"
     t.integer "port"
     t.string "proxy_source"
@@ -290,6 +324,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.jsonb "whitelisted_ips"
     t.string "xproxy_order_id"
     t.index ["mobile_proxy_order_id"], name: "index_mobile_proxies_on_mobile_proxy_order_id"
+    t.index ["order_id"], name: "index_mobile_proxies_on_order_id"
+    t.index ["proxy_source"], name: "index_mobile_proxies_on_proxy_source"
   end
 
   create_table "mobile_proxy_orders", force: :cascade do |t|
@@ -302,6 +338,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.index ["order_id"], name: "index_mobile_proxy_orders_on_order_id"
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.string "category"
+    t.datetime "created_at", null: false
+    t.text "message"
+    t.jsonb "metadata"
+    t.datetime "read_at"
+    t.bigint "recipient_id", null: false
+    t.string "recipient_type", null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.index ["recipient_type", "recipient_id"], name: "index_notifications_on_recipient"
   end
 
   create_table "order_items", force: :cascade do |t|
@@ -330,6 +379,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.bigint "product_id", null: false
     t.bigint "product_pricing_id", null: false
     t.string "provider_order_id"
+    t.integer "quantity", default: 1
     t.string "status"
     t.decimal "total_amount"
     t.datetime "updated_at", null: false
@@ -337,6 +387,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.index ["orderable_type", "orderable_id"], name: "index_orders_on_orderable"
     t.index ["product_id"], name: "index_orders_on_product_id"
     t.index ["product_pricing_id"], name: "index_orders_on_product_pricing_id"
+    t.index ["provider_order_id"], name: "index_orders_on_provider_order_id"
   end
 
   create_table "page_analytics", force: :cascade do |t|
@@ -437,9 +488,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "product_type"
     t.string "provider"
     t.string "provider_product_id"
+    t.string "provider_type", default: "myproxyapi"
     t.string "slug"
     t.datetime "updated_at", null: false
     t.index ["product_category_id"], name: "index_products_on_product_category_id"
+    t.index ["product_type"], name: "index_products_on_product_type"
+    t.index ["provider_type"], name: "index_products_on_provider_type"
     t.index ["slug"], name: "index_products_on_slug"
   end
 
@@ -497,13 +551,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "api_key_hash"
     t.string "company_name"
     t.datetime "created_at", null: false
+    t.string "current_token_jti"
     t.decimal "discount_percentage"
     t.string "email"
+    t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
     t.string "password_digest"
+    t.string "reseller_type", default: "api_only"
     t.string "status"
+    t.datetime "token_issued_at"
+    t.integer "token_request_count", default: 0
     t.datetime "updated_at", null: false
     t.string "username"
+    t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
+    t.index ["reseller_type"], name: "index_resellers_on_reseller_type"
     t.index ["username"], name: "index_resellers_on_username"
   end
 
@@ -522,17 +583,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
 
   create_table "residential_rotating_proxies", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "hostname"
     t.string "main_password"
     t.string "main_username"
     t.jsonb "metadata"
     t.string "myproxyapi_order_id"
+    t.bigint "order_id"
     t.integer "port"
     t.bigint "residential_rotating_proxy_order_id", null: false
     t.string "status"
     t.decimal "traffic_gb_total"
     t.decimal "traffic_gb_used"
     t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_residential_rotating_proxies_on_order_id"
     t.index ["residential_rotating_proxy_order_id"], name: "idx_on_residential_rotating_proxy_order_id_21359c3ec5"
   end
 
@@ -552,9 +616,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
   create_table "static_datacenter_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.string "myproxyapi_order_id"
+    t.bigint "order_id"
     t.string "password"
     t.integer "port"
     t.string "protocol"
@@ -563,6 +629,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.datetime "updated_at", null: false
     t.string "username"
     t.jsonb "whitelisted_ips"
+    t.index ["order_id"], name: "index_static_datacenter_proxies_on_order_id"
     t.index ["static_datacenter_proxy_order_id"], name: "idx_on_static_datacenter_proxy_order_id_db8248c860"
   end
 
@@ -581,10 +648,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
   create_table "static_isp_proxies", force: :cascade do |t|
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.string "isp_type"
     t.jsonb "metadata"
     t.string "myproxyapi_order_id"
+    t.bigint "order_id"
     t.string "password"
     t.integer "port"
     t.string "protocol"
@@ -593,6 +662,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.datetime "updated_at", null: false
     t.string "username"
     t.jsonb "whitelisted_ips"
+    t.index ["order_id"], name: "index_static_isp_proxies_on_order_id"
     t.index ["static_isp_proxy_order_id"], name: "index_static_isp_proxies_on_static_isp_proxy_order_id"
   end
 
@@ -645,6 +715,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "name"
     t.jsonb "settings"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "ticket_messages", force: :cascade do |t|
+    t.jsonb "attachments", default: []
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.boolean "internal_note", default: false
+    t.bigint "sender_id", null: false
+    t.string "sender_type", null: false
+    t.bigint "ticket_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sender_type", "sender_id"], name: "index_ticket_messages_on_sender"
+    t.index ["sender_type", "sender_id"], name: "index_ticket_messages_on_sender_type_and_sender_id"
+    t.index ["ticket_id"], name: "index_ticket_messages_on_ticket_id"
+  end
+
+  create_table "tickets", force: :cascade do |t|
+    t.bigint "assigned_to_id"
+    t.datetime "created_at", null: false
+    t.bigint "order_id"
+    t.string "priority", default: "normal"
+    t.string "status", default: "open", null: false
+    t.string "subject", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "user_type", null: false
+    t.index ["assigned_to_id"], name: "index_tickets_on_assigned_to_id"
+    t.index ["order_id"], name: "index_tickets_on_order_id"
+    t.index ["status"], name: "index_tickets_on_status"
+    t.index ["user_type", "user_id"], name: "index_tickets_on_user"
+    t.index ["user_type", "user_id"], name: "index_tickets_on_user_type_and_user_id"
   end
 
   create_table "transactions", force: :cascade do |t|
@@ -713,9 +814,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.jsonb "metadata"
     t.string "password_digest"
     t.string "phone"
+    t.string "provider"
     t.string "status"
+    t.string "uid"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email"
+    t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
   end
 
   create_table "vm_orders", force: :cascade do |t|
@@ -734,8 +838,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
 
   create_table "vms", force: :cascade do |t|
     t.integer "ansible_playbook_run_id"
+    t.jsonb "api_response", default: {}
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.string "ip_address"
     t.jsonb "metadata"
     t.string "proxmox_node"
@@ -743,6 +849,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.string "rdp_password_encrypted"
     t.integer "rdp_port"
     t.string "rdp_username"
+    t.string "root_password"
+    t.string "ssh_password"
     t.string "ssh_password_encrypted"
     t.integer "ssh_port"
     t.string "ssh_username"
@@ -751,6 +859,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.bigint "vm_order_id", null: false
     t.string "vm_type"
     t.index ["vm_order_id"], name: "index_vms_on_vm_order_id"
+  end
+
+  create_table "vpn_accounts", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.bigint "order_id", null: false
+    t.string "password", null: false
+    t.string "protocol", default: "wireguard"
+    t.string "server", null: false
+    t.string "status", default: "pending"
+    t.datetime "updated_at", null: false
+    t.string "username", null: false
+    t.index ["order_id"], name: "index_vpn_accounts_on_order_id"
+    t.index ["username"], name: "index_vpn_accounts_on_username", unique: true
   end
 
   create_table "vpn_orders", force: :cascade do |t|
@@ -784,21 +906,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
     t.decimal "balance_before"
     t.datetime "created_at", null: false
     t.string "description"
+    t.string "entry_hash"
+    t.datetime "locked_at"
     t.jsonb "metadata"
+    t.string "parent_hash"
     t.bigint "transaction_id", null: false
     t.string "transaction_type"
     t.datetime "updated_at", null: false
     t.bigint "wallet_id", null: false
+    t.index ["entry_hash"], name: "index_wallet_transactions_on_entry_hash", unique: true
+    t.index ["parent_hash"], name: "index_wallet_transactions_on_parent_hash"
     t.index ["transaction_id"], name: "index_wallet_transactions_on_transaction_id"
+    t.index ["wallet_id", "created_at"], name: "index_wallet_transactions_on_wallet_id_and_created_at"
     t.index ["wallet_id"], name: "index_wallet_transactions_on_wallet_id"
   end
 
   create_table "wallets", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.bigint "owner_id"
+    t.string "owner_type"
     t.string "status", default: "active"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
+    t.index ["owner_type", "owner_id"], name: "index_wallets_on_owner_type_and_owner_id"
     t.index ["user_id"], name: "index_wallets_on_user_id"
+  end
+
+  create_table "webhook_endpoints", force: :cascade do |t|
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.jsonb "events", default: []
+    t.bigint "reseller_id", null: false
+    t.string "secret", null: false
+    t.datetime "updated_at", null: false
+    t.string "url", null: false
+    t.index ["reseller_id", "active"], name: "index_webhook_endpoints_on_reseller_id_and_active"
+    t.index ["reseller_id"], name: "index_webhook_endpoints_on_reseller_id"
   end
 
   create_table "webhook_events", force: :cascade do |t|
@@ -836,9 +979,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
   add_foreign_key "ecommerce_orders", "orders"
   add_foreign_key "ecommerce_orders", "users"
   add_foreign_key "employees", "departments"
+  add_foreign_key "esim_inventories", "products"
   add_foreign_key "esim_orders", "orders"
   add_foreign_key "esims", "esim_orders"
   add_foreign_key "mobile_proxies", "mobile_proxy_orders"
+  add_foreign_key "mobile_proxies", "orders"
   add_foreign_key "mobile_proxy_orders", "orders"
   add_foreign_key "order_items", "ecommerce_orders"
   add_foreign_key "order_items", "product_pricings"
@@ -853,23 +998,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_090021) do
   add_foreign_key "reseller_orders", "orders"
   add_foreign_key "reseller_orders", "resellers"
   add_foreign_key "residential_proxy_accounts", "residential_rotating_proxies"
+  add_foreign_key "residential_rotating_proxies", "orders"
   add_foreign_key "residential_rotating_proxies", "residential_rotating_proxy_orders"
   add_foreign_key "residential_rotating_proxy_orders", "orders"
+  add_foreign_key "static_datacenter_proxies", "orders"
   add_foreign_key "static_datacenter_proxies", "static_datacenter_proxy_orders"
   add_foreign_key "static_datacenter_proxy_orders", "orders"
+  add_foreign_key "static_isp_proxies", "orders"
   add_foreign_key "static_isp_proxies", "static_isp_proxy_orders"
   add_foreign_key "static_isp_proxy_orders", "orders"
   add_foreign_key "static_residential_proxies", "static_residential_proxy_orders"
   add_foreign_key "static_residential_proxy_orders", "orders"
+  add_foreign_key "ticket_messages", "tickets"
+  add_foreign_key "tickets", "employees", column: "assigned_to_id"
+  add_foreign_key "tickets", "orders"
   add_foreign_key "user_impersonation_logs", "employees"
   add_foreign_key "user_impersonation_logs", "users"
   add_foreign_key "user_sessions", "users"
   add_foreign_key "vm_orders", "orders"
   add_foreign_key "vms", "vm_orders"
+  add_foreign_key "vpn_accounts", "orders"
   add_foreign_key "vpn_orders", "orders"
   add_foreign_key "vpns", "vpn_orders"
   add_foreign_key "wallet_transactions", "transactions"
   add_foreign_key "wallet_transactions", "wallets"
   add_foreign_key "wallets", "users"
+  add_foreign_key "webhook_endpoints", "resellers"
   add_foreign_key "webhook_events", "resellers"
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Web
   module Api
     class BaseController < ApplicationController
@@ -5,13 +7,13 @@ module Web
 
       # Allow public access for some things, but verify user if token present
       # Specific controllers will enforce :authenticate_user!
-      
+
       private
 
       def authenticate_user!
-        unless @current_user
-          render json: { error: 'Unauthorized Access: User account required' }, status: :unauthorized
-        end
+        return if @current_user
+
+        render json: { error: 'Unauthorized Access: User account required' }, status: :unauthorized
       end
     end
   end

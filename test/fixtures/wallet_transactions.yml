@@ -1,0 +1,21 @@
+one:
+  wallet: user_wallet
+  financial_transaction: one
+  transaction_type: credit
+  amount: 100.00
+  balance_before: 0.0
+  balance_after: 100.00
+  description: Initial Balance
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+two:
+  wallet: reseller_wallet
+  financial_transaction: two
+  transaction_type: credit
+  amount: 500.00
+  balance_before: 0.0
+  balance_after: 500.00
+  description: Reseller Balance
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

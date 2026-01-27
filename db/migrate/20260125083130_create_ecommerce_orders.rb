@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateEcommerceOrders < ActiveRecord::Migration[8.1]
   def change
     create_table :ecommerce_orders do |t|

@@ -1,0 +1,54 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+
+module Web
+  module Api
+    class AuthControllerTest < ActionDispatch::IntegrationTest
+      setup do
+        @user = users(:one)
+      end
+
+      test 'should login with valid credentials' do
+        post '/web/api/auth/login', params: {
+          user: {
+            email: @user.email,
+            password: 'password123'
+          }
+        }
+
+        assert_response :success
+        assert_not_nil json_response['token']
+        assert_not_nil json_response['user']
+      end
+
+      test 'should fail login with invalid credentials' do
+        post '/web/api/auth/login', params: {
+          user: {
+            email: @user.email,
+            password: 'wrongpassword'
+          }
+        }
+
+        assert_response :unauthorized
+      end
+
+      test 'should register new user' do
+        assert_difference 'User.count', 1 do
+          post '/web/api/auth/register', params: {
+            user: {
+              first_name: 'New',
+              last_name: 'User',
+              email: 'newuser@example.com',
+              password: 'password123',
+              password_confirmation: 'password123'
+            }
+          }
+        end
+
+        assert_response :created
+        assert_not_nil json_response['token']
+      end
+    end
+  end
+end

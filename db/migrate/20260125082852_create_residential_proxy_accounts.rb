@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateResidentialProxyAccounts < ActiveRecord::Migration[8.1]
   def change
     create_table :residential_proxy_accounts do |t|
