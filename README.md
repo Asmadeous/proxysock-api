@@ -6,28 +6,15 @@
 
 ## DOCUMENTATION INDEX
 
-📘 **[DEVELOPER GUIDE (Start Here)](DEVELOPER.md)** - Workflow, Setup, and Testing.
+Documentation is centralized in the `readme_docs/` directory.
 
-This guide is split into separate documents:
+### Engineering & Planning
+1. 📘 **[Agile Developer Guide](readme_docs/DEVELOPER.md)** - Setup, Testing, Workflow, and API Docs.
+2. 🗺️ **[Implementation Roadmap](readme_docs/IMPLEMENTATION_ROADMAP.md)** - Detailed phase-by-phase project plan.
 
-1. **ARCHITECTURE.md** - System design principles and patterns
-2. **DATABASE_SCHEMA.md** - Complete database tables and relationships
-3. **PROJECT_STRUCTURE.md** - Directory organization and naming conventions
-4. **MODELS.md** - All model relationships and responsibilities
-5. **CONTROLLERS.md** - API endpoints and controller structure
-6. **SERVICES.md** - Business logic layer organization
-7. **JOBS.md** - Background job workers and scheduling
-8. **CACHING.md** - Cache strategy and implementation
-9. **SECURITY.md** - Authentication, authorization, and safety measures
-10. **API_DOCS.md** - Complete API endpoint documentation
-11. **RESELLER_INTEGRATION.md** - Reseller-specific features and workflows
-12. **ECOMMERCE_GUIDE.md** - E-commerce admin dashboard features
-13. **PAYMENT_INTEGRATION.md** - Payment gateway workflows
-14. **WEBHOOK_SYSTEM.md** - Event system and reseller webhooks
-15. **TESTING_STRATEGY.md** - Testing approach and structure
-16. **DEPLOYMENT.md** - Production deployment checklist
-17. **TROUBLESHOOTING.md** - Common issues and solutions
-18. **GLOSSARY.md** - Terms and definitions
+### Reference Material (PDFs)
+- **[Proxy Reseller API Spec](readme_docs/MyProxyApi%20-%20Private%20Dedicated%20Proxy%20Reseller%20API.pdf)**
+- **[eSIM Access API Spec](readme_docs/eSIM%20Access%20API%20for%20resellers.pdf)**
 
 ---
 
