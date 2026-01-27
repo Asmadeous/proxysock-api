@@ -9,14 +9,16 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
     order = Order.create!(orderable: reseller, product: products(:two), product_pricing: product_pricings(:two), status: 'active')
     MobileProxyOrder.create!(order: order)
 
-    # Mock external API client
+    # Mock external API client - note: type must match 'mobile_proxy' for MobileProxy sync
     mock_data = [
       {
+        'id' => 999,
         'ip' => '1.2.3.4',
         'port' => 8080,
         'username' => 'user',
         'password' => 'pass',
-        'type' => 'mobile',
+        'type' => 'mobile_proxy',
+        'status' => 'available',
         'country' => 'US'
       }
     ]
@@ -31,7 +33,7 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
 
     proxy = MobileProxy.last
     assert_equal '1.2.3.4', proxy.ip_address
-    assert_equal 'US', proxy.country
+    assert_equal 'US', proxy.country_code
   end
 
   test 'updates existing proxies' do
@@ -54,7 +56,7 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
       password: 'old_pass',
       status: 'available',
       proxy_source: 'myproxyapi',
-      myproxyapi_order_id: 123
+      myproxyapi_order_id: '123'
     )
 
     mock_data = [
@@ -64,7 +66,8 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
         'port' => 8080,
         'username' => 'new_user',
         'password' => 'new_pass',
-        'type' => 'mobile',
+        'type' => 'mobile_proxy',
+        'status' => 'available',
         'country' => 'US'
       }
     ]

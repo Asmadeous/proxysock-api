@@ -60,6 +60,7 @@ class LedgerService
   def verify_integrity!
     transactions = @wallet.wallet_transactions.order(:created_at)
     prev_hash = 'GENESIS_HASH'
+    expected_balance = 0.to_d
 
     transactions.each do |tx|
       # 1. Check chain linkage
@@ -67,12 +68,17 @@ class LedgerService
         raise LedgerTamperError, "Chain break at TX #{tx.id}: Parent #{tx.parent_hash} != Prev #{prev_hash}"
       end
 
-      # 2. Recompute hash
-      # We need exact same fields used during creation.
-      # CAUTION: timestamp precision might differ if read from DB.
-      # ideally store the 'payload' string or ensure strict reconstruction.
-      # For now, we trust the chain linkage primary.
+      # 2. Verify balance chain - detect amount tampering
+      if tx.balance_before != expected_balance
+        raise LedgerTamperError, "Balance mismatch at TX #{tx.id}: Expected #{expected_balance}, got #{tx.balance_before}"
+      end
 
+      calculated_balance_after = tx.balance_before + tx.amount
+      if tx.balance_after != calculated_balance_after
+        raise LedgerTamperError, "Amount tampered at TX #{tx.id}: balance_after #{tx.balance_after} != calculated #{calculated_balance_after}"
+      end
+
+      expected_balance = tx.balance_after
       prev_hash = tx.entry_hash
     end
     true

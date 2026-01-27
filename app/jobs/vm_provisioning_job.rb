@@ -49,6 +49,8 @@ class VmProvisioningJob < ApplicationJob
     # Send credentials email
     logger.info "[VmProvisioningJob] VM #{vm_id} provisioned successfully"
 
+    # Get owner from VM order (order.orderable is polymorphic - User or Reseller)
+    owner = vm.vm_order&.order&.orderable
     if owner
       VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later 
       NotificationService.notify(
@@ -68,7 +70,7 @@ class VmProvisioningJob < ApplicationJob
     vm.fail! if vm.may_fail?
 
     # Notify failure
-    owner = vm.vm_order&.order&.user || vm.vm_order&.order&.reseller
+    owner = vm.vm_order&.order&.orderable
     if owner
       NotificationService.notify(
         recipient: owner,

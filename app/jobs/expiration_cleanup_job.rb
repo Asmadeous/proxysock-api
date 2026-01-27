@@ -7,7 +7,10 @@ class ExpirationCleanupJob < ApplicationJob
     Rails.logger.info 'Starting ExpirationCleanupJob...'
 
     # VMs
-    Vm.where(status: 'active').where('expires_at < ?', Time.current).find_each do |vm|
+    expired_vms = Vm.where(status: 'active').where('expires_at < ?', Time.current)
+    Rails.logger.info "Found #{expired_vms.count} expired VMs to terminate"
+    expired_vms.find_each do |vm|
+      Rails.logger.info "Processing VM #{vm.id}, responds_to terminate!: #{vm.respond_to?(:terminate!)}, may_terminate: #{vm.may_terminate?}"
       terminate_resource(vm)
     end
 
@@ -48,13 +51,14 @@ class ExpirationCleanupJob < ApplicationJob
 
   def terminate_resource(resource)
     Rails.logger.info "Terminating expired #{resource.class.name} ##{resource.id}"
-    begin
-      resource.terminate! if resource.respond_to?(:terminate!)
-      # Update associated order if needed
-      resource.order&.update(status: 'expired')
-    rescue StandardError => e
-      Rails.logger.error "Failed to terminate #{resource.class.name} ##{resource.id}: #{e.message}"
+    if resource.respond_to?(:terminate!) && resource.may_terminate?
+      resource.terminate!
+      resource.save!  # Ensure state change is persisted
     end
+    # Update associated order if needed
+    resource.order&.update(status: 'expired')
+  rescue StandardError => e
+    Rails.logger.error "Failed to terminate #{resource.class.name} ##{resource.id}: #{e.message}"
   end
 
   def expire_resource(resource)

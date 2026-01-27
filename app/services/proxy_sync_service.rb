@@ -57,15 +57,16 @@ class ProxySyncService
     return if external_list.empty?
 
     # Eager load existing records to minimize DB queries
-    # Assuming 'myproxyapi_order_id' is the unique key from provider
-    existing_records = model_class.where(myproxyapi_order_id: external_list.map do |p|
-      p['id']
-    end).index_by(&:myproxyapi_order_id)
+    # Assuming 'myproxyapi_order_id' is the unique key from provider (stored as string)
+    external_ids = external_list.map { |p| p['id'].to_s }
+    existing_records = model_class.where(myproxyapi_order_id: external_ids).index_by(&:myproxyapi_order_id)
 
     external_list.each do |data|
-      local_record = existing_records[data['id']]
+      external_id = data['id'].to_s
+      local_record = existing_records[external_id]
 
-      attributes = map_attributes(data)
+      attributes = map_attributes(data, model_class)
+      next unless attributes  # Skip if we can't create valid attributes (missing FK)
 
       if local_record
         # Update if changed
@@ -93,21 +94,25 @@ class ProxySyncService
     end
   end
 
-  def map_attributes(data)
+  def map_attributes(data, model_class)
     attrs = {
       ip_address: data['ip'],
       port: data['port'],
       username: data['username'],
       password: data['password'],
       status: data['status'],
-      country: data['country'],
-      myproxyapi_order_id: data['id'],
+      myproxyapi_order_id: data['id'].to_s,
       updated_at: Time.current
     }
     
-    # Hack for test/schema constraint:
-    if MobileProxyOrder.any?
-      attrs[:mobile_proxy_order_id] = MobileProxyOrder.first.id
+    # Add country_code for models that have it
+    attrs[:country_code] = data['country'] if data['country']
+    
+    # Add mobile_proxy_order_id for MobileProxy model (required by schema)
+    if model_class == MobileProxy
+      mp_order = MobileProxyOrder.first
+      return nil unless mp_order  # Can't create without FK
+      attrs[:mobile_proxy_order_id] = mp_order.id
     end
     
     attrs
