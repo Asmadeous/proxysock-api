@@ -1,0 +1,46 @@
+name: Auto PR to Develop
+
+on:
+    push:
+        branches:
+            - "feature/**"
+            - "fix/**"
+            - "hotfix/**"
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    create-pr:
+        name: Create PR to Develop
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Create Pull Request to Develop
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  base: develop
+                  title: "Merge ${{ github.ref_name }} into develop"
+                  body: |
+                      ## Auto-generated PR
+
+                      This PR was automatically created when pushing to `${{ github.ref_name }}`.
+
+                      **Branch:** `${{ github.ref_name }}`
+                      **Commit:** ${{ github.sha }}
+
+                      ### Checklist
+                      - [ ] Code reviewed
+                      - [ ] Tests pass
+                      - [ ] Ready to merge
+                  labels: auto-pr
+                  draft: false
+
+            - name: PR Created
+              run: echo "PR created or updated for ${{ github.ref_name }}"
