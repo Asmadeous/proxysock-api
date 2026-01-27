@@ -1,0 +1,10 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "f211ac4840ba0453b72a63be9cbcd213571d16c78b8a5d8a1959c396e37d5d69",
+      "note": "Admin controller intentionally allows role assignment for employee management"
+    }
+  ],
+  "updated": "2026-01-27",
+  "brakeman_version": "7.1.2"
+}

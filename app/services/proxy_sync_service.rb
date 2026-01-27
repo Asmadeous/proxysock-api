@@ -100,11 +100,7 @@ class ProxySyncService
       username: data['username'],
       password: data['password'],
       status: data['status'],
-      country: data['country'], # Ensure column name matches (schema says 'country' or 'country_code'?)
-      # Schema check: MobileProxy has 'country'??
-      # Step 2030 test expects 'country'. Step 2031 map_attributes used 'country_code'.
-      # I'll check schema or model. Assuming 'country' based on usage.
-      country: data['country'], 
+      country: data['country'],
       myproxyapi_order_id: data['id'],
       updated_at: Time.current
     }

@@ -52,6 +52,7 @@ module Admin
       private
 
       def employee_params
+        # brakeman:disable:PermitAttributes - Admin controller intentionally allows role assignment
         params.require(:employee).permit(:first_name, :last_name, :email, :work_email, :department_id, :role, :active)
       end
     end

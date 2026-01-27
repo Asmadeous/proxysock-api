@@ -20,10 +20,10 @@ module Web
 
       def plisio
         # Plisio sends form data usually or json
-        params.permit!
-        if %w[completed mismatch].include?(params[:status])
+        webhook_params = params.permit(:status, :order_number, :reference, :amount, :currency, :txn_id)
+        if %w[completed mismatch].include?(webhook_params[:status])
           # Verify secret/order logic
-          handle_deposit(params, 'plisio')
+          handle_deposit(webhook_params, 'plisio')
         end
         head :ok
       end
