@@ -158,5 +158,6 @@ Rails.application.routes.draw do
     post 'payvra', to: 'webhooks#payvra'
   end
 
+  get 'health', to: 'health#show'
   get 'up' => 'rails/health#show', as: :rails_health_check
 end
