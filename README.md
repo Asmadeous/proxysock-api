@@ -6,6 +6,8 @@
 
 ## DOCUMENTATION INDEX
 
+📘 **[DEVELOPER GUIDE (Start Here)](DEVELOPER.md)** - Workflow, Setup, and Testing.
+
 This guide is split into separate documents:
 
 1. **ARCHITECTURE.md** - System design principles and patterns
