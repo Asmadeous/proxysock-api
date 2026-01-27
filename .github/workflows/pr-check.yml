@@ -5,6 +5,10 @@ on:
     branches: [develop, main]
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   changes:
     name: Detect Changes
@@ -29,9 +33,10 @@ jobs:
   pr-tests:
     name: PR Tests
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    # Always run tests if backend files changed, or if detection failed (to be safe)
+    if: needs.changes.outputs.backend == 'true' || needs.changes.result == 'failure'
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16
@@ -49,13 +54,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: "3.3"
           bundler-cache: true
-      
+
       - name: Set up database
         run: |
           bin/rails db:create
@@ -63,7 +68,7 @@ jobs:
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/proxysock_api_test
-      
+
       - name: Run tests
         run: bin/rails test
         env:
@@ -75,7 +80,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16
@@ -93,13 +98,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: "3.3"
           bundler-cache: true
-      
+
       - name: Test migrations
         run: |
           bin/rails db:create
