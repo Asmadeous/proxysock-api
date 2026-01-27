@@ -4584,3 +4584,6 @@ Migrating to CreateNotifications (20260127185115)
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.5ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN /*application='ProxysockApi'*/[0m
+  [1m[36mVm Create (4.5ms)[0m  [1m[32mINSERT INTO "vms" ("vm_order_id", "proxmox_vm_id", "proxmox_node", "vm_type", "country_code", "ip_address", "ssh_port", "ssh_username", "ssh_password_encrypted", "rdp_port", "rdp_username", "rdp_password_encrypted", "status", "ansible_playbook_run_id", "metadata", "created_at", "updated_at", "ssh_password", "root_password", "api_response", "expires_at") VALUES (NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, NULL, '2026-01-27 20:28:45.945051', '2026-01-27 20:28:45.945051', NULL, NULL, '{}', NULL) RETURNING "id" /*application='ProxysockApi'*/[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[31mROLLBACK /*application='ProxysockApi'*/[0m
