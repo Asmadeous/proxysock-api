@@ -2,30 +2,14 @@
 
 one:
   user: one
-  order_number: MyString
-  status: MyString
-  subtotal: 9.99
-  tax: 9.99
-  total: 9.99
-  currency: MyString
-  payment_method: MyString
-  paid_at: 2026-01-25 11:31:30
-  fulfilled_at: 2026-01-25 11:31:30
-  cancelled_at: 2026-01-25 11:31:30
-  refunded_at: 2026-01-25 11:31:30
-  metadata: 
+  order: one
+  orderable: one
+  orderable_type: Product
+  custom_fields: {}
 
 two:
   user: two
-  order_number: MyString
-  status: MyString
-  subtotal: 9.99
-  tax: 9.99
-  total: 9.99
-  currency: MyString
-  payment_method: MyString
-  paid_at: 2026-01-25 11:31:30
-  fulfilled_at: 2026-01-25 11:31:30
-  cancelled_at: 2026-01-25 11:31:30
-  refunded_at: 2026-01-25 11:31:30
-  metadata: 
+  order: two
+  orderable: two
+  orderable_type: Product
+  custom_fields: {}

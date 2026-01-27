@@ -1,19 +1,21 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
 one:
-  email: MyString
-  username: MyString
-  password_digest: MyString
-  company_name: MyString
-  api_key_hash: MyString
-  status: MyString
-  discount_percentage: 9.99
+  company_name: Acme Proxies
+  username: acme_proxies
+  email: acme@example.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  reseller_type: api_only
+  infrastructure_surcharge_percentage: 10.0
+  current_token_jti: ~
+  token_issued_at: ~
+  token_request_count: 0
 
 two:
-  email: MyString
-  username: MyString
-  password_digest: MyString
-  company_name: MyString
-  api_key_hash: MyString
-  status: MyString
-  discount_percentage: 9.99
+  company_name: API Corp
+  username: api_corp
+  email: api@example.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  reseller_type: api_only
+  infrastructure_surcharge_percentage: 15.0
+  current_token_jti: "test-jti-12345"
+  token_issued_at: <%= Time.current %>
+  token_request_count: 5

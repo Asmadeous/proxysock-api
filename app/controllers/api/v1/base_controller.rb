@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class BaseController < ApplicationController
@@ -8,9 +10,9 @@ module Api
       private
 
       def authenticate_reseller!
-        unless @current_reseller
-          render json: { error: 'Unauthorized Access: Reseller account required' }, status: :unauthorized
-        end
+        return if @current_reseller
+
+        render json: { error: 'Unauthorized Access: Reseller account required' }, status: :unauthorized
       end
     end
   end

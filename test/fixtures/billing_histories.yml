@@ -1,7 +1,7 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  reseller: one
+  billable: one (Reseller)
   billing_period_start: 2026-01-25
   billing_period_end: 2026-01-25
   total_orders: 1
@@ -12,7 +12,7 @@ one:
   generated_at: 2026-01-25 11:29:52
 
 two:
-  reseller: two
+  billable: two (Reseller)
   billing_period_start: 2026-01-25
   billing_period_end: 2026-01-25
   total_orders: 1

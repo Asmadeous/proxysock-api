@@ -1,79 +1,26 @@
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    profiles: ["dev", "test", "production"]
-
-  db-production:
-    image: mrts/docker-postgresql-multiple-databases:16-alpine
-    volumes:
-      - postgres_production_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_MULTIPLE_DATABASES: proxysock_api_production,proxysock_api_production_cache,proxysock_api_production_queue,proxysock_api_production_cable
-      POSTGRES_USER: proxysock_api
-      POSTGRES_PASSWORD: ${PROXYSOCK_API_DATABASE_PASSWORD}
-    ports:
-      - "5433:5432"
-    profiles: ["production"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U proxysock_api"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   web-dev:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -b 0.0.0.0"
+    # Automatically prepares all 4 databases (primary, cache, queue, cable)
+    command: >
+      bash -c "bin/rails db:prepare && 
+               rm -f tmp/pids/server.pid && 
+               bundle exec rails s -b 0.0.0.0"
     volumes:
-      - .:/rails:cached
-      - bundle_cache:/usr/local/bundle
+      - .:/home/asmadeous/Work/proxysock-api:cached
+      - rails_bundle_2026:/usr/local/bundle
     ports:
       - "3000:3000"
-    depends_on:
-      - redis
-    profiles: ["dev"]
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USERNAME=asmadeous
+      - DB_PASSWORD=Asmadeous@2025
+      - RAILS_ENV=development
+    profiles: [ "dev" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    environment:
-      DATABASE_URL: postgres://asmadeous:Asmadeous%402025@host.docker.internal/proxysock_api_development
-
-  web-test:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    command: bundle exec rails test
-    volumes:
-      - .:/rails:cached
-      - bundle_cache:/usr/local/bundle
-    depends_on:
-      - redis
-    profiles: ["test"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      DATABASE_URL: postgres://asmadeous:Asmadeous%402025@host.docker.internal/proxysock_api_test
-
-  web-production:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "80:80"
-    depends_on:
-      db-production:
-        condition: service_healthy
-    environment:
-      RAILS_ENV: production
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
-      DATABASE_URL: postgres://proxysock_api:${PROXYSOCK_API_DATABASE_PASSWORD}@db-production/proxysock_api_production
-      DATABASE_CACHE_URL: postgres://proxysock_api:${PROXYSOCK_API_DATABASE_PASSWORD}@db-production/proxysock_api_production_cache
-      DATABASE_QUEUE_URL: postgres://proxysock_api:${PROXYSOCK_API_DATABASE_PASSWORD}@db-production/proxysock_api_production_queue
-      DATABASE_CABLE_URL: postgres://proxysock_api:${PROXYSOCK_API_DATABASE_PASSWORD}@db-production/proxysock_api_production_cable
-    profiles: ["production"]
 
 volumes:
-  postgres_production_data:
-  bundle_cache:
+  rails_bundle_2026:
