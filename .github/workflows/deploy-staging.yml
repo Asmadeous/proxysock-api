@@ -1,0 +1,96 @@
+name: Deploy Staging
+
+on:
+    push:
+        branches: [develop]
+    workflow_dispatch:
+
+env:
+    REGISTRY: ghcr.io
+    IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+    deploy-staging:
+        name: Deploy to Staging
+        runs-on: ubuntu-latest
+        # Uncomment after creating 'staging' environment in GitHub Settings → Environments
+        environment: staging
+
+        permissions:
+            contents: read
+            packages: write
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Log in to Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Extract metadata
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  tags: |
+                      type=sha
+                      type=raw,value=staging
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            # Deploy to staging server
+            # Option 1: Using Kamal (uncomment when ready)
+            # - name: Set up Ruby for Kamal
+            #   uses: ruby/setup-ruby@v1
+            #   with:
+            #     ruby-version: '3.3'
+            #     bundler-cache: true
+            #
+            # - name: Deploy with Kamal to Staging
+            #   run: |
+            #     gem install kamal
+            #     kamal deploy -d staging
+            #   env:
+            #     KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+            #     STAGING_HOST: ${{ secrets.STAGING_HOST }}
+
+            # Option 2: Using SSH (uncomment and configure)
+            # - name: Deploy to Staging Server
+            #   uses: appleboy/ssh-action@v1.0.0
+            #   with:
+            #     host: ${{ secrets.STAGING_HOST }}
+            #     username: ${{ secrets.STAGING_USER }}
+            #     key: ${{ secrets.STAGING_SSH_KEY }}
+            #     script: |
+            #       docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+            #       docker stop proxysock-api-staging || true
+            #       docker rm proxysock-api-staging || true
+            #       docker run -d \
+            #         --name proxysock-api-staging \
+            #         --restart unless-stopped \
+            #         -p 3001:80 \
+            #         -e RAILS_ENV=staging \
+            #         -e RAILS_MASTER_KEY=${{ secrets.STAGING_MASTER_KEY }} \
+            #         -e DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }} \
+            #         -e REDIS_URL=${{ secrets.STAGING_REDIS_URL }} \
+            #         ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+
+            - name: Notify deployment
+              run: |
+                  echo "🚀 Staging deployment completed!"
+                  echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+                  echo "Commit: ${{ github.sha }}"

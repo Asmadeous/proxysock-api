@@ -1,0 +1,68 @@
+name: Auto PR to Main (Release)
+
+on:
+    push:
+        branches: [develop]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    create-release-pr:
+        name: Create Release PR to Main
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Check for differences
+              id: diff
+              run: |
+                  git fetch origin main
+                  DIFF=$(git diff origin/main..HEAD --stat)
+                  if [ -z "$DIFF" ]; then
+                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                  else
+                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create Pull Request to Main
+              if: steps.diff.outputs.has_changes == 'true'
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  base: main
+                  branch: develop
+                  title: "🚀 Release: Merge develop into main"
+                  body: |
+                      ## Release PR
+
+                      This PR merges all changes from `develop` into `main` for production deployment.
+
+                      **Source:** `develop`
+                      **Target:** `main`
+                      **Triggered by:** ${{ github.sha }}
+
+                      ### Pre-deployment Checklist
+                      - [ ] All tests passing on staging
+                      - [ ] QA approved
+                      - [ ] No blocking issues
+                      - [ ] Database migrations reviewed
+
+                      ### Post-merge
+                      After merging, the production deployment workflow will automatically:
+                      1. Build Docker image tagged as `:latest`
+                      2. Push to container registry
+                      3. Deploy to production (if configured)
+                  labels: |
+                      release
+                      production
+                  draft: false
+
+            - name: No changes
+              if: steps.diff.outputs.has_changes == 'false'
+              run: echo "No changes between develop and main"
