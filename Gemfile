@@ -67,3 +67,6 @@ end
 gem 'sidekiq-cron', '~> 2.3'
 
 gem 'mocha', '~> 3.0', group: :test
+
+gem "sentry-ruby", "~> 6.3"
+gem "sentry-rails", "~> 6.3"
