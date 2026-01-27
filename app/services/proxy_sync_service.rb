@@ -27,6 +27,28 @@ class ProxySyncService
     sync_resource(StaticIspProxy, external_proxies.select { |p| p['type'] == 'static_isp' })
 
     @logger.info('[ProxySyncService] Sync completed.')
+    
+    check_inventory_levels
+  end
+
+  def check_inventory_levels
+    [MobileProxy, StaticDatacenterProxy, StaticIspProxy, ResidentialRotatingProxy].each do |proxy_class|
+      count = proxy_class.where(status: 'available').count
+      threshold = 5 # Alert if below 5
+
+      if count < threshold
+        # Notify active employees
+        Employee.where(active: true).find_each do |employee|
+          NotificationService.notify(
+            recipient: employee,
+            category: 'warning',
+            title: 'Low Inventory Alert',
+            message: "#{proxy_class.name.titleize} inventory is low (#{count} remaining).",
+            metadata: { proxy_type: proxy_class.name, count: count }
+          )
+        end
+      end
+    end
   end
 
   private
