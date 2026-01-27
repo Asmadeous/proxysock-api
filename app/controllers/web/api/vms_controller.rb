@@ -1,13 +1,15 @@
+# frozen_string_literal: true
+
 module Web
   module Api
     class VmsController < BaseController
       before_action :authenticate_user!
-      before_action :set_vm, only: [:show, :destroy, :start, :stop, :status]
+      before_action :set_vm, only: %i[show destroy start stop status]
 
       # GET /web/api/vms
       def index
         @vms = current_user_vms.includes(:vm_order)
-        
+
         render json: {
           vms: @vms.map { |vm| serialize_vm(vm) }
         }
@@ -39,7 +41,7 @@ module Web
       # DELETE /web/api/vms/:id
       def destroy
         VmCleanupJob.perform_later(@vm.id)
-        
+
         render json: { message: 'VM cleanup initiated', vm_id: @vm.id }
       end
 

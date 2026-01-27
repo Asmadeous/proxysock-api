@@ -1,20 +1,22 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class BillingController < BaseController
       def balance
         wallet = current_reseller.wallet || current_reseller.create_wallet(balance: 0.0)
-        render json: { 
-          balance: wallet.balance.to_f, 
-          currency: wallet.currency 
+        render json: {
+          balance: wallet.balance.to_f,
+          currency: wallet.currency
         }
       end
-      
+
       def transactions
         wallet = current_reseller.wallet
         return render json: { transactions: [] } unless wallet
-        
+
         transactions = wallet.wallet_transactions.order(created_at: :desc).page(params[:page]).per(20)
-        
+
         render json: {
           transactions: transactions,
           meta: {
@@ -24,7 +26,7 @@ module Api
           }
         }
       end
-      
+
       def history
         # Aggregated monthly billing history
         # Assuming BillingHistory model exists or we generate it on fly

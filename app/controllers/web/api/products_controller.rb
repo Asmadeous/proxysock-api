@@ -1,18 +1,19 @@
+# frozen_string_literal: true
+
 module Web
   module Api
     class ProductsController < BaseController
-      
       # GET /web/api/products
       def index
         # Cache key: products/web/index/[page]/[category]
         cache_key = "products/web/index/#{params[:page] || 1}/#{params[:category_id] || 'all'}"
-        
+
         products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = Product.for_ecommerce.includes(:product_pricings, :product_category)
           scope = scope.where(product_category_id: params[:category_id]) if params[:category_id].present?
-          
+
           paginated = scope.page(params[:page]).per(20)
-          
+
           {
             products: paginated.map { |p| serialize_product(p) },
             meta: {
@@ -22,19 +23,19 @@ module Web
             }
           }.to_json
         end
-        
+
         render json: products_json
       end
 
       # GET /web/api/products/:id
       def show
         cache_key = "products/web/show/#{params[:id]}"
-        
+
         product_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
-           product = Product.for_ecommerce.find(params[:id])
-           { product: serialize_product(product) }.to_json
+          product = Product.for_ecommerce.find(params[:id])
+          { product: serialize_product(product) }.to_json
         end
-        
+
         render json: product_json
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'Product not found' }, status: :not_found

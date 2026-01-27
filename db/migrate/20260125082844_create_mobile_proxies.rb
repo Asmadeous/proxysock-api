@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateMobileProxies < ActiveRecord::Migration[8.1]
   def change
     create_table :mobile_proxies do |t|

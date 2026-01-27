@@ -1,6 +1,6 @@
-reseller_one:
-  id: 1
+one:
   company_name: Acme Proxies
+  username: acme_proxies
   email: acme@example.com
   password_digest: <%= BCrypt::Password.create('password123') %>
   reseller_type: api_only
@@ -9,9 +9,9 @@ reseller_one:
   token_issued_at: ~
   token_request_count: 0
 
-reseller_api:
-  id: 2
+two:
   company_name: API Corp
+  username: api_corp
   email: api@example.com
   password_digest: <%= BCrypt::Password.create('password123') %>
   reseller_type: api_only

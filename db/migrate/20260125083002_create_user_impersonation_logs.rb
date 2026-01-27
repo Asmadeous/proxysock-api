@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateUserImpersonationLogs < ActiveRecord::Migration[8.1]
   def change
     create_table :user_impersonation_logs do |t|

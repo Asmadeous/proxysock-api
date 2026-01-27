@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddRotatingTokenFieldsToResellers < ActiveRecord::Migration[8.1]
   def change
     add_column :resellers, :current_token_jti, :string

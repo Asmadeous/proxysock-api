@@ -1,17 +1,15 @@
-admin_one:
-  id: 1
+one:
   first_name: Admin
   last_name: User
   work_email: admin@proxysock.com
   password_digest: <%= BCrypt::Password.create('password123') %>
-  department: engineering
+  department: one
   role: super_admin
 
-support_agent:
-  id: 2
+two:
   first_name: Support
   last_name: Agent
   work_email: support@proxysock.com
   password_digest: <%= BCrypt::Password.create('password123') %>
-  department: support
+  department: two
   role: agent

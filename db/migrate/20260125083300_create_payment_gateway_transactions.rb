@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreatePaymentGatewayTransactions < ActiveRecord::Migration[8.0]
   def change
     create_table :payment_gateway_transactions do |t|

@@ -1,26 +1,30 @@
+# frozen_string_literal: true
+
 module Web
   module Api
     class TicketsController < BaseController
       def index
         tickets = current_user.tickets.order(updated_at: :desc).page(params[:page]).per(20)
-        
-        render json: { 
+
+        render json: {
           tickets: tickets.map { |t| serialize_ticket(t) },
           meta: pagination_meta(tickets)
         }
       end
-      
+
       def show
         ticket = current_user.tickets.find(params[:id])
-        render json: { 
+        render json: {
           ticket: serialize_ticket(ticket),
-          messages: ticket.ticket_messages.where(internal_note: false).includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
+          messages: ticket.ticket_messages.where(internal_note: false).includes(:sender).order(created_at: :asc).map do |m|
+            serialize_message(m)
+          end
         }
       end
-      
+
       def create
         ticket = current_user.tickets.build(ticket_params)
-        
+
         if ticket.save
           ticket.ticket_messages.create!(
             sender: current_user,
@@ -31,16 +35,16 @@ module Web
           render json: { errors: ticket.errors }, status: :unprocessable_entity
         end
       end
-      
+
       def reply
         ticket = current_user.tickets.find(params[:id])
-        
+
         message = ticket.ticket_messages.new(
           body: params[:body],
           sender: current_user,
           attachments: params[:attachments]
         )
-        
+
         if message.save
           ticket.update(status: 'open', updated_at: Time.current)
           render json: { message: serialize_message(message) }
@@ -48,13 +52,13 @@ module Web
           render json: { errors: message.errors }, status: :unprocessable_entity
         end
       end
-      
+
       private
-      
+
       def ticket_params
         params.require(:ticket).permit(:subject, :priority, :order_id)
       end
-      
+
       def serialize_ticket(ticket)
         {
           id: ticket.id,
@@ -63,7 +67,7 @@ module Web
           updated_at: ticket.updated_at
         }
       end
-      
+
       def serialize_message(message)
         {
           id: message.id,
@@ -72,7 +76,7 @@ module Web
           created_at: message.created_at
         }
       end
-      
+
       def pagination_meta(collection)
         {
           current_page: collection.current_page,

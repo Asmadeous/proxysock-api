@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateAnsibleRuns < ActiveRecord::Migration[8.1]
   def change
     create_table :ansible_runs do |t|

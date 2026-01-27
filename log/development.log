@@ -3951,3 +3951,602 @@ FOREIGN KEY ("ticket_id")
   [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
   [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.8ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (8.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (7.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.8ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (4.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (0.1ms)[0m  [1m[35mSET search_path TO public /*application='ProxysockApi'*/[0m
+  [1m[35m (6635.9ms)[0m  [1m[35mDROP DATABASE IF EXISTS "proxysock_api_test" /*application='ProxysockApi'*/[0m
+  [1m[35m (40.1ms)[0m  [1m[35mCREATE DATABASE "proxysock_api_test" ENCODING = 'unicode' /*application='ProxysockApi'*/[0m
+  [1m[35mSQL (25.4ms)[0m  [1m[35mCREATE EXTENSION IF NOT EXISTS "plpgsql" SCHEMA pg_catalog /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "admin_action_logs" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.6ms)[0m  [1m[35mCREATE TABLE "admin_action_logs" ("id" bigserial primary key, "action_type" character varying, "created_at" timestamp(6) NOT NULL, "employee_id" bigint NOT NULL, "ip_address" character varying, "object_changes" jsonb, "target_id" bigint NOT NULL, "target_type" character varying NOT NULL, "updated_at" timestamp(6) NOT NULL, "user_agent" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_admin_action_logs_on_employee_id" ON "admin_action_logs" ("employee_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_admin_action_logs_on_target" ON "admin_action_logs" ("target_type", "target_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "ansible_runs" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "ansible_runs" ("id" bigserial primary key, "completed_at" timestamp(6), "created_at" timestamp(6) NOT NULL, "exit_code" integer, "extra_vars" jsonb, "inventory" jsonb, "playbook_name" character varying, "playbook_tags" jsonb, "started_at" timestamp(6), "status" character varying, "stderr" text, "stdout" text, "updated_at" timestamp(6) NOT NULL, "vm_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mCREATE INDEX "index_ansible_runs_on_vm_id" ON "ansible_runs" ("vm_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "api_tokens" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "api_tokens" ("id" bigserial primary key, "active" boolean, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "hashed_token" character varying, "last_used_at" timestamp(6), "reseller_id" bigint NOT NULL, "scopes" jsonb, "token_name" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_api_tokens_on_reseller_id" ON "api_tokens" ("reseller_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "audit_logs" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "audit_logs" ("id" bigserial primary key, "action" character varying, "auditable_id" bigint NOT NULL, "auditable_type" character varying NOT NULL, "created_at" timestamp(6) NOT NULL, "ip_address" character varying, "object_changes" jsonb, "updated_at" timestamp(6) NOT NULL, "user_id" bigint, "user_type" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_audit_logs_on_auditable" ON "audit_logs" ("auditable_type", "auditable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "billing_histories" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "billing_histories" ("id" bigserial primary key, "billable_id" bigint NOT NULL, "billable_type" character varying DEFAULT 'Reseller', "billing_period_end" date, "billing_period_start" date, "created_at" timestamp(6) NOT NULL, "currency" character varying, "generated_at" timestamp(6), "net_revenue" decimal, "total_orders" integer, "total_refunds" decimal, "total_revenue" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_billing_histories_on_billable_id" ON "billing_histories" ("billable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "cart_items" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.1ms)[0m  [1m[35mCREATE TABLE "cart_items" ("id" bigserial primary key, "cart_id" bigint NOT NULL, "created_at" timestamp(6) NOT NULL, "metadata" jsonb, "product_id" bigint NOT NULL, "product_pricing_id" bigint NOT NULL, "quantity" integer, "total_price" decimal, "unit_price" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.0ms)[0m  [1m[35mCREATE INDEX "index_cart_items_on_cart_id" ON "cart_items" ("cart_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_cart_items_on_product_id" ON "cart_items" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.9ms)[0m  [1m[35mCREATE INDEX "index_cart_items_on_product_pricing_id" ON "cart_items" ("product_pricing_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "carts" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.7ms)[0m  [1m[35mCREATE TABLE "carts" ("id" bigserial primary key, "abandoned_at" timestamp(6), "converted_at" timestamp(6), "created_at" timestamp(6) NOT NULL, "recovery_email_sent_at" timestamp(6), "session_id" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL, "user_id" bigint) /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE INDEX "index_carts_on_user_id" ON "carts" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "conversions" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.3ms)[0m  [1m[35mCREATE TABLE "conversions" ("id" bigserial primary key, "cart_id" bigint NOT NULL, "created_at" timestamp(6) NOT NULL, "ecommerce_order_id" bigint NOT NULL, "funnel_stage" character varying, "product_id" bigint NOT NULL, "time_to_convert_seconds" integer, "updated_at" timestamp(6) NOT NULL, "user_id" bigint NOT NULL, "user_session_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (6.1ms)[0m  [1m[35mCREATE INDEX "index_conversions_on_cart_id" ON "conversions" ("cart_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_conversions_on_ecommerce_order_id" ON "conversions" ("ecommerce_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_conversions_on_product_id" ON "conversions" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_conversions_on_user_id" ON "conversions" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE INDEX "index_conversions_on_user_session_id" ON "conversions" ("user_session_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "daily_analytics_summaries" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.8ms)[0m  [1m[35mCREATE TABLE "daily_analytics_summaries" ("id" bigserial primary key, "avg_order_value" decimal, "conversion_rate" decimal, "created_at" timestamp(6) NOT NULL, "date" date, "top_products" jsonb, "total_orders" integer, "total_page_views" integer, "total_revenue" decimal, "total_visitors" integer, "traffic_sources" jsonb, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_daily_analytics_summaries_on_date" ON "daily_analytics_summaries" ("date") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "departments" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "departments" ("id" bigserial primary key, "active" boolean, "created_at" timestamp(6) NOT NULL, "description" text, "name" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "deposits" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "deposits" ("id" bigserial primary key, "amount" decimal, "completed_at" timestamp(6), "created_at" timestamp(6) NOT NULL, "currency" character varying, "depositable_id" bigint, "depositable_type" character varying, "expires_at" timestamp(6), "gateway" character varying, "initiated_at" timestamp(6), "metadata" jsonb, "payment_method_id" bigint, "status" character varying, "transaction_id" bigint, "updated_at" timestamp(6) NOT NULL, "user_id" bigint) /*application='ProxysockApi'*/[0m
+  [1m[35m (29.4ms)[0m  [1m[35mCREATE INDEX "index_deposits_on_depositable_type_and_depositable_id" ON "deposits" ("depositable_type", "depositable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (4.4ms)[0m  [1m[35mCREATE INDEX "index_deposits_on_payment_method_id" ON "deposits" ("payment_method_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mCREATE INDEX "index_deposits_on_transaction_id" ON "deposits" ("transaction_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (4.2ms)[0m  [1m[35mCREATE INDEX "index_deposits_on_user_id" ON "deposits" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.7ms)[0m  [1m[35mDROP TABLE IF EXISTS "ecommerce_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (5.1ms)[0m  [1m[35mCREATE TABLE "ecommerce_orders" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "custom_fields" jsonb, "order_id" bigint NOT NULL, "orderable_id" bigint NOT NULL, "orderable_type" character varying NOT NULL, "updated_at" timestamp(6) NOT NULL, "user_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE INDEX "index_ecommerce_orders_on_order_id" ON "ecommerce_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE INDEX "index_ecommerce_orders_on_orderable" ON "ecommerce_orders" ("orderable_type", "orderable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_ecommerce_orders_on_user_id" ON "ecommerce_orders" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "employees" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.9ms)[0m  [1m[35mCREATE TABLE "employees" ("id" bigserial primary key, "active" boolean, "created_at" timestamp(6) NOT NULL, "department_id" bigint NOT NULL, "email" character varying, "first_name" character varying, "last_login_at" timestamp(6), "last_name" character varying, "password_digest" character varying, "provider" character varying, "role" character varying, "uid" character varying, "updated_at" timestamp(6) NOT NULL, "work_email" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE INDEX "index_employees_on_department_id" ON "employees" ("department_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_employees_on_email" ON "employees" ("email") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_employees_on_provider_and_uid" ON "employees" ("provider", "uid") WHERE (provider IS NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_employees_on_work_email" ON "employees" ("work_email") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "esim_inventories" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE TABLE "esim_inventories" ("id" bigserial primary key, "activation_code" character varying, "created_at" timestamp(6) NOT NULL, "iccid" character varying NOT NULL, "pin1" character varying, "pin2" character varying, "product_id" bigint, "provider" character varying NOT NULL, "puk1" character varying, "puk2" character varying, "status" character varying DEFAULT 'available', "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_esim_inventories_on_iccid" ON "esim_inventories" ("iccid") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE INDEX "index_esim_inventories_on_product_id" ON "esim_inventories" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE INDEX "index_esim_inventories_on_provider_and_status" ON "esim_inventories" ("provider", "status") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "esim_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "esim_orders" ("id" bigserial primary key, "api_response" jsonb DEFAULT '{}', "country_code" character varying, "created_at" timestamp(6) NOT NULL, "data_amount_gb" decimal, "duration_days" integer, "esim_provider" character varying, "expires_at" timestamp(6), "order_id" bigint NOT NULL, "package_code" character varying, "provider_order_no" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_esim_orders_on_order_id" ON "esim_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_esim_orders_on_provider_order_no" ON "esim_orders" ("provider_order_no") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "esims" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "esims" ("id" bigserial primary key, "activation_code" character varying, "created_at" timestamp(6) NOT NULL, "data_total_bytes" bigint, "data_used_bytes" bigint, "eid" character varying, "esim_order_id" bigint NOT NULL, "esim_provider" character varying, "esim_status" character varying, "esimaccess_esim_tran_no" character varying, "esimaccess_order_no" character varying, "esimaccess_transaction_id" character varying, "expires_at" timestamp(6), "has_phone_number" boolean, "iccid" character varying, "imsi" character varying, "metadata" jsonb, "msisdn" character varying, "pin1" character varying, "puk1" character varying, "qr_code_data" text, "qr_code_url" character varying, "smdp_status" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_esims_on_esim_order_id" ON "esims" ("esim_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "external_api_requests" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE TABLE "external_api_requests" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "duration_ms" integer, "endpoint" character varying, "error_message" character varying, "http_method" character varying, "provider" character varying, "related_id" bigint NOT NULL, "related_type" character varying NOT NULL, "request_body" jsonb, "request_headers" jsonb, "response_body" jsonb, "response_headers" jsonb, "response_status" integer, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_external_api_requests_on_related" ON "external_api_requests" ("related_type", "related_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "external_api_webhooks" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "external_api_webhooks" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "error_message" character varying, "payload" jsonb, "processed_at" timestamp(6), "processing_status" character varying, "provider" character varying, "related_id" bigint NOT NULL, "related_type" character varying NOT NULL, "signature" character varying, "signature_verified" boolean, "updated_at" timestamp(6) NOT NULL, "webhook_type" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_external_api_webhooks_on_related" ON "external_api_webhooks" ("related_type", "related_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "mobile_proxies" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "mobile_proxies" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "ip_address" character varying, "metadata" jsonb, "mobile_proxy_order_id" bigint NOT NULL, "myproxyapi_order_id" character varying, "order_id" bigint, "password" character varying, "port" integer, "proxy_source" character varying, "rotation_interval_minutes" integer, "status" character varying, "updated_at" timestamp(6) NOT NULL, "username" character varying, "whitelisted_ips" jsonb, "xproxy_order_id" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_mobile_proxies_on_mobile_proxy_order_id" ON "mobile_proxies" ("mobile_proxy_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.0ms)[0m  [1m[35mCREATE INDEX "index_mobile_proxies_on_order_id" ON "mobile_proxies" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mCREATE INDEX "index_mobile_proxies_on_proxy_source" ON "mobile_proxies" ("proxy_source") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "mobile_proxy_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.8ms)[0m  [1m[35mCREATE TABLE "mobile_proxy_orders" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "order_id" bigint NOT NULL, "proxy_source" character varying, "quantity" integer, "rotation_enabled" boolean, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_mobile_proxy_orders_on_order_id" ON "mobile_proxy_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "order_items" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mCREATE TABLE "order_items" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "ecommerce_order_id" bigint NOT NULL, "metadata" jsonb, "product_id" bigint NOT NULL, "product_pricing_id" bigint NOT NULL, "quantity" integer, "total_price" decimal, "unit_price" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_order_items_on_ecommerce_order_id" ON "order_items" ("ecommerce_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_order_items_on_product_id" ON "order_items" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_order_items_on_product_pricing_id" ON "order_items" ("product_pricing_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.6ms)[0m  [1m[35mCREATE TABLE "orders" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "currency" character varying, "expires_at" timestamp(6), "metadata" jsonb, "order_number" character varying, "orderable_id" bigint NOT NULL, "orderable_type" character varying NOT NULL, "product_id" bigint NOT NULL, "product_pricing_id" bigint NOT NULL, "provider_order_id" character varying, "quantity" integer DEFAULT 1, "status" character varying, "total_amount" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_orders_on_order_number" ON "orders" ("order_number") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_orders_on_orderable" ON "orders" ("orderable_type", "orderable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_orders_on_product_id" ON "orders" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_orders_on_product_pricing_id" ON "orders" ("product_pricing_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_orders_on_provider_order_id" ON "orders" ("provider_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "page_analytics" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.3ms)[0m  [1m[35mCREATE TABLE "page_analytics" ("id" bigserial primary key, "avg_time_on_page_seconds" decimal, "bounce_rate" decimal, "conversion_rate" decimal, "created_at" timestamp(6) NOT NULL, "date" date, "page_url" character varying, "unique_visitors" integer, "updated_at" timestamp(6) NOT NULL, "views" integer) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "payment_gateway_transactions" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "payment_gateway_transactions" ("id" bigserial primary key, "amount" decimal, "created_at" timestamp(6) NOT NULL, "currency" character varying, "gateway" character varying, "gateway_reference" character varying, "gateway_transaction_id" character varying, "request_payload" jsonb, "response_payload" jsonb, "status" character varying, "transaction_id" bigint NOT NULL, "updated_at" timestamp(6) NOT NULL, "verified_at" timestamp(6), "webhook_payload" jsonb) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_payment_gateway_transactions_on_gateway_transaction_id" ON "payment_gateway_transactions" ("gateway_transaction_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_payment_gateway_transactions_on_transaction_id" ON "payment_gateway_transactions" ("transaction_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "payment_methods" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.4ms)[0m  [1m[35mCREATE TABLE "payment_methods" ("id" bigserial primary key, "active" boolean, "card_type" character varying, "created_at" timestamp(6) NOT NULL, "exp_month" integer, "exp_year" integer, "gateway" character varying, "gateway_customer_id" character varying, "gateway_payment_method_id" character varying, "is_default" boolean, "last4" character varying, "owner_id" bigint NOT NULL, "owner_type" character varying NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE INDEX "index_payment_methods_on_owner" ON "payment_methods" ("owner_type", "owner_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "product_analytics" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE TABLE "product_analytics" ("id" bigserial primary key, "add_to_cart_count" integer, "conversion_rate" decimal, "created_at" timestamp(6) NOT NULL, "date" date, "product_id" bigint NOT NULL, "purchase_count" integer, "revenue" decimal, "updated_at" timestamp(6) NOT NULL, "views" integer) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_product_analytics_on_product_id" ON "product_analytics" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "product_categories" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE TABLE "product_categories" ("id" bigserial primary key, "active" boolean, "available_to" character varying DEFAULT 'both', "category_type" character varying, "created_at" timestamp(6) NOT NULL, "description" text, "metadata" jsonb, "name" character varying, "slug" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_product_categories_on_slug" ON "product_categories" ("slug") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "product_pricings" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "product_pricings" ("id" bigserial primary key, "active" boolean, "cost_price" decimal, "created_at" timestamp(6) NOT NULL, "currency" character varying, "duration_type" character varying, "duration_value" integer, "margin_percentage" decimal, "product_id" bigint NOT NULL, "selling_price" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_product_pricings_on_product_id" ON "product_pricings" ("product_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "products" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mCREATE TABLE "products" ("id" bigserial primary key, "active" boolean, "available_to" character varying DEFAULT 'both', "created_at" timestamp(6) NOT NULL, "description" text, "metadata" jsonb, "name" character varying, "product_category_id" bigint NOT NULL, "product_type" character varying, "provider" character varying, "provider_product_id" character varying, "provider_type" character varying DEFAULT 'myproxyapi', "slug" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE INDEX "index_products_on_product_category_id" ON "products" ("product_category_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_products_on_product_type" ON "products" ("product_type") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_products_on_provider_type" ON "products" ("provider_type") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE INDEX "index_products_on_slug" ON "products" ("slug") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "provider_inventory_syncs" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE TABLE "provider_inventory_syncs" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "data_snapshot" jsonb, "error_message" character varying, "last_synced_at" timestamp(6), "provider" character varying, "records_synced" integer, "sync_status" character varying, "sync_type" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "proxmox_operations" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE TABLE "proxmox_operations" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "error_message" character varying, "operation_type" character varying, "proxmox_node" character varying, "proxmox_vm_id" character varying, "request_params" jsonb, "response_data" jsonb, "status" character varying, "updated_at" timestamp(6) NOT NULL, "vm_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mCREATE INDEX "index_proxmox_operations_on_vm_id" ON "proxmox_operations" ("vm_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "rate_limits" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.3ms)[0m  [1m[35mCREATE TABLE "rate_limits" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "endpoint" character varying, "identifier" character varying, "identifier_type" character varying, "requests_count" integer, "updated_at" timestamp(6) NOT NULL, "window_end" timestamp(6), "window_start" timestamp(6)) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "reseller_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "reseller_orders" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "custom_fields" jsonb, "order_id" bigint NOT NULL, "orderable_id" bigint NOT NULL, "orderable_type" character varying NOT NULL, "reseller_id" bigint NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_reseller_orders_on_order_id" ON "reseller_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mCREATE INDEX "index_reseller_orders_on_orderable" ON "reseller_orders" ("orderable_type", "orderable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_reseller_orders_on_reseller_id" ON "reseller_orders" ("reseller_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "resellers" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE TABLE "resellers" ("id" bigserial primary key, "api_key_hash" character varying, "company_name" character varying, "created_at" timestamp(6) NOT NULL, "current_token_jti" character varying, "discount_percentage" decimal, "email" character varying, "infrastructure_surcharge_percentage" decimal(5,2) DEFAULT 0.0, "password_digest" character varying, "reseller_type" character varying DEFAULT 'api_only', "status" character varying, "token_issued_at" timestamp(6), "token_request_count" integer DEFAULT 0, "updated_at" timestamp(6) NOT NULL, "username" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_resellers_on_current_token_jti" ON "resellers" ("current_token_jti") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_resellers_on_email" ON "resellers" ("email") /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE INDEX "index_resellers_on_reseller_type" ON "resellers" ("reseller_type") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.0ms)[0m  [1m[35mCREATE INDEX "index_resellers_on_username" ON "resellers" ("username") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "residential_proxy_accounts" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.6ms)[0m  [1m[35mCREATE TABLE "residential_proxy_accounts" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "myproxyapi_proxy_username_id" character varying, "proxy_password" character varying, "proxy_username" character varying, "residential_rotating_proxy_id" bigint NOT NULL, "status" character varying, "traffic_limit_gb" decimal, "traffic_used_gb" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "idx_on_residential_rotating_proxy_id_d9445849ff" ON "residential_proxy_accounts" ("residential_rotating_proxy_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "residential_rotating_proxies" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mCREATE TABLE "residential_rotating_proxies" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "hostname" character varying, "main_password" character varying, "main_username" character varying, "metadata" jsonb, "myproxyapi_order_id" character varying, "order_id" bigint, "port" integer, "residential_rotating_proxy_order_id" bigint NOT NULL, "status" character varying, "traffic_gb_total" decimal, "traffic_gb_used" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (4.5ms)[0m  [1m[35mCREATE INDEX "index_residential_rotating_proxies_on_order_id" ON "residential_rotating_proxies" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (4.1ms)[0m  [1m[35mCREATE INDEX "idx_on_residential_rotating_proxy_order_id_21359c3ec5" ON "residential_rotating_proxies" ("residential_rotating_proxy_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.7ms)[0m  [1m[35mDROP TABLE IF EXISTS "residential_rotating_proxy_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (6.1ms)[0m  [1m[35mCREATE TABLE "residential_rotating_proxy_orders" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "myproxyapi_order_id" character varying, "myproxyapi_username" character varying, "order_id" bigint NOT NULL, "status" character varying, "traffic_expires_at" timestamp(6), "traffic_gb_total" decimal, "traffic_gb_used" decimal, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE INDEX "index_residential_rotating_proxy_orders_on_order_id" ON "residential_rotating_proxy_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_datacenter_proxies" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mCREATE TABLE "static_datacenter_proxies" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "ip_address" character varying, "metadata" jsonb, "myproxyapi_order_id" character varying, "order_id" bigint, "password" character varying, "port" integer, "protocol" character varying, "static_datacenter_proxy_order_id" bigint NOT NULL, "status" character varying, "updated_at" timestamp(6) NOT NULL, "username" character varying, "whitelisted_ips" jsonb) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_static_datacenter_proxies_on_order_id" ON "static_datacenter_proxies" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "idx_on_static_datacenter_proxy_order_id_db8248c860" ON "static_datacenter_proxies" ("static_datacenter_proxy_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_datacenter_proxy_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE TABLE "static_datacenter_proxy_orders" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "myproxyapi_order_id" character varying, "order_id" bigint NOT NULL, "protocol" character varying, "quantity" integer, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_static_datacenter_proxy_orders_on_order_id" ON "static_datacenter_proxy_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_isp_proxies" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "static_isp_proxies" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "ip_address" character varying, "isp_type" character varying, "metadata" jsonb, "myproxyapi_order_id" character varying, "order_id" bigint, "password" character varying, "port" integer, "protocol" character varying, "static_isp_proxy_order_id" bigint NOT NULL, "status" character varying, "updated_at" timestamp(6) NOT NULL, "username" character varying, "whitelisted_ips" jsonb) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.0ms)[0m  [1m[35mCREATE INDEX "index_static_isp_proxies_on_order_id" ON "static_isp_proxies" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_static_isp_proxies_on_static_isp_proxy_order_id" ON "static_isp_proxies" ("static_isp_proxy_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_isp_proxy_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.6ms)[0m  [1m[35mCREATE TABLE "static_isp_proxy_orders" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "isp_type" character varying, "myproxyapi_order_id" character varying, "order_id" bigint NOT NULL, "protocol" character varying, "quantity" integer, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_static_isp_proxy_orders_on_order_id" ON "static_isp_proxy_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_residential_proxies" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.3ms)[0m  [1m[35mCREATE TABLE "static_residential_proxies" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "ip_address" character varying, "metadata" jsonb, "myproxyapi_order_id" character varying, "password" character varying, "port" integer, "protocol" character varying, "static_residential_proxy_order_id" bigint NOT NULL, "status" character varying, "updated_at" timestamp(6) NOT NULL, "username" character varying, "whitelisted_ips" jsonb) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "idx_on_static_residential_proxy_order_id_216e7d575e" ON "static_residential_proxies" ("static_residential_proxy_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "static_residential_proxy_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.5ms)[0m  [1m[35mCREATE TABLE "static_residential_proxy_orders" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "myproxyapi_order_id" character varying, "order_id" bigint NOT NULL, "protocol" character varying, "quantity" integer, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_static_residential_proxy_orders_on_order_id" ON "static_residential_proxy_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "stores" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE TABLE "stores" ("id" bigserial primary key, "active" boolean, "created_at" timestamp(6) NOT NULL, "domain" character varying, "name" character varying, "settings" jsonb, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "ticket_messages" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.8ms)[0m  [1m[35mCREATE TABLE "ticket_messages" ("id" bigserial primary key, "attachments" jsonb DEFAULT '[]', "body" text NOT NULL, "created_at" timestamp(6) NOT NULL, "internal_note" boolean DEFAULT FALSE, "sender_id" bigint NOT NULL, "sender_type" character varying NOT NULL, "ticket_id" bigint NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_sender" ON "ticket_messages" ("sender_type", "sender_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_sender_type_and_sender_id" ON "ticket_messages" ("sender_type", "sender_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_ticket_messages_on_ticket_id" ON "ticket_messages" ("ticket_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "tickets" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mCREATE TABLE "tickets" ("id" bigserial primary key, "assigned_to_id" bigint, "created_at" timestamp(6) NOT NULL, "order_id" bigint, "priority" character varying DEFAULT 'normal', "status" character varying DEFAULT 'open' NOT NULL, "subject" character varying NOT NULL, "updated_at" timestamp(6) NOT NULL, "user_id" bigint NOT NULL, "user_type" character varying NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_assigned_to_id" ON "tickets" ("assigned_to_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_order_id" ON "tickets" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_status" ON "tickets" ("status") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_user" ON "tickets" ("user_type", "user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_tickets_on_user_type_and_user_id" ON "tickets" ("user_type", "user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "transactions" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.8ms)[0m  [1m[35mCREATE TABLE "transactions" ("id" bigserial primary key, "amount" decimal, "created_at" timestamp(6) NOT NULL, "currency" character varying, "description" character varying, "gateway_reference" character varying, "gateway_transaction_id" character varying, "metadata" jsonb, "payment_gateway" character varying, "reference_id" bigint NOT NULL, "reference_type" character varying NOT NULL, "status" character varying, "transactable_id" bigint NOT NULL, "transactable_type" character varying NOT NULL, "transaction_type" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_reference" ON "transactions" ("reference_type", "reference_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_transactable" ON "transactions" ("transactable_type", "transactable_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "user_impersonation_logs" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (5.2ms)[0m  [1m[35mCREATE TABLE "user_impersonation_logs" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "employee_id" bigint NOT NULL, "ended_at" timestamp(6), "ip_address" character varying, "reason" character varying, "started_at" timestamp(6), "updated_at" timestamp(6) NOT NULL, "user_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_user_impersonation_logs_on_employee_id" ON "user_impersonation_logs" ("employee_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_user_impersonation_logs_on_user_id" ON "user_impersonation_logs" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "user_sessions" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE TABLE "user_sessions" ("id" bigserial primary key, "browser" character varying, "city" character varying, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "device_type" character varying, "ended_at" timestamp(6), "ip_address" character varying, "last_activity_at" timestamp(6), "os" character varying, "referrer" character varying, "started_at" timestamp(6), "updated_at" timestamp(6) NOT NULL, "user_agent" character varying, "user_id" bigint NOT NULL, "utm_campaign" character varying, "utm_content" character varying, "utm_medium" character varying, "utm_source" character varying, "utm_term" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_user_sessions_on_user_id" ON "user_sessions" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "users" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (252.8ms)[0m  [1m[35mCREATE TABLE "users" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "email" character varying, "email_verified_at" timestamp(6), "first_name" character varying, "last_login_at" timestamp(6), "last_name" character varying, "metadata" jsonb, "password_digest" character varying, "phone" character varying, "provider" character varying, "status" character varying, "uid" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mCREATE INDEX "index_users_on_email" ON "users" ("email") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_users_on_provider_and_uid" ON "users" ("provider", "uid") WHERE (provider IS NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "vm_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "vm_orders" ("id" bigserial primary key, "country_code" character varying, "cpu_cores" integer, "created_at" timestamp(6) NOT NULL, "disk_gb" integer, "order_id" bigint NOT NULL, "os_type" character varying, "ram_gb" integer, "status" character varying, "updated_at" timestamp(6) NOT NULL, "vm_type" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mCREATE INDEX "index_vm_orders_on_order_id" ON "vm_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "vms" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (4.1ms)[0m  [1m[35mCREATE TABLE "vms" ("id" bigserial primary key, "ansible_playbook_run_id" integer, "api_response" jsonb DEFAULT '{}', "country_code" character varying, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "ip_address" character varying, "metadata" jsonb, "proxmox_node" character varying, "proxmox_vm_id" character varying, "rdp_password_encrypted" character varying, "rdp_port" integer, "rdp_username" character varying, "root_password" character varying, "ssh_password" character varying, "ssh_password_encrypted" character varying, "ssh_port" integer, "ssh_username" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL, "vm_order_id" bigint NOT NULL, "vm_type" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE INDEX "index_vms_on_vm_order_id" ON "vms" ("vm_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "vpn_accounts" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "vpn_accounts" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "expires_at" timestamp(6), "order_id" bigint NOT NULL, "password" character varying NOT NULL, "protocol" character varying DEFAULT 'wireguard', "server" character varying NOT NULL, "status" character varying DEFAULT 'pending', "updated_at" timestamp(6) NOT NULL, "username" character varying NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_vpn_accounts_on_order_id" ON "vpn_accounts" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_vpn_accounts_on_username" ON "vpn_accounts" ("username") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "vpn_orders" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mCREATE TABLE "vpn_orders" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "myproxyapi_order_id" character varying, "order_id" bigint NOT NULL, "status" character varying, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_vpn_orders_on_order_id" ON "vpn_orders" ("order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "vpns" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE TABLE "vpns" ("id" bigserial primary key, "country_code" character varying, "created_at" timestamp(6) NOT NULL, "metadata" jsonb, "myproxyapi_order_id" character varying, "ovpn_config_content" text, "ovpn_config_url" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL, "vpn_order_id" bigint NOT NULL, "vpn_password" character varying, "vpn_username" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (1.9ms)[0m  [1m[35mCREATE INDEX "index_vpns_on_vpn_order_id" ON "vpns" ("vpn_order_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "wallet_transactions" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE TABLE "wallet_transactions" ("id" bigserial primary key, "amount" decimal, "balance_after" decimal, "balance_before" decimal, "created_at" timestamp(6) NOT NULL, "description" character varying, "entry_hash" character varying, "locked_at" timestamp(6), "metadata" jsonb, "parent_hash" character varying, "transaction_id" bigint NOT NULL, "transaction_type" character varying, "updated_at" timestamp(6) NOT NULL, "wallet_id" bigint NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_wallet_transactions_on_entry_hash" ON "wallet_transactions" ("entry_hash") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_wallet_transactions_on_parent_hash" ON "wallet_transactions" ("parent_hash") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_wallet_transactions_on_transaction_id" ON "wallet_transactions" ("transaction_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_wallet_transactions_on_wallet_id_and_created_at" ON "wallet_transactions" ("wallet_id", "created_at") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mCREATE INDEX "index_wallet_transactions_on_wallet_id" ON "wallet_transactions" ("wallet_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.2ms)[0m  [1m[35mDROP TABLE IF EXISTS "wallets" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE TABLE "wallets" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "owner_id" bigint, "owner_type" character varying, "status" character varying DEFAULT 'active', "updated_at" timestamp(6) NOT NULL, "user_id" bigint) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mCREATE INDEX "index_wallets_on_owner_type_and_owner_id" ON "wallets" ("owner_type", "owner_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_wallets_on_user_id" ON "wallets" ("user_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "webhook_endpoints" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.2ms)[0m  [1m[35mCREATE TABLE "webhook_endpoints" ("id" bigserial primary key, "active" boolean DEFAULT TRUE, "created_at" timestamp(6) NOT NULL, "events" jsonb DEFAULT '[]', "reseller_id" bigint NOT NULL, "secret" character varying NOT NULL, "updated_at" timestamp(6) NOT NULL, "url" character varying NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mCREATE INDEX "index_webhook_endpoints_on_reseller_id_and_active" ON "webhook_endpoints" ("reseller_id", "active") /*application='ProxysockApi'*/[0m
+  [1m[35m (2.3ms)[0m  [1m[35mCREATE INDEX "index_webhook_endpoints_on_reseller_id" ON "webhook_endpoints" ("reseller_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "webhook_events" CASCADE /*application='ProxysockApi'*/[0m
+  [1m[35m (3.5ms)[0m  [1m[35mCREATE TABLE "webhook_events" ("id" bigserial primary key, "attempts" integer, "created_at" timestamp(6) NOT NULL, "event_type" character varying, "last_attempt_at" timestamp(6), "payload" jsonb, "reseller_id" bigint NOT NULL, "response_body" text, "response_code" integer, "signature" character varying, "status" character varying, "updated_at" timestamp(6) NOT NULL, "webhook_url" character varying) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mCREATE INDEX "index_webhook_events_on_reseller_id" ON "webhook_events" ("reseller_id") /*application='ProxysockApi'*/[0m
+  [1m[35m (4.0ms)[0m  [1m[35mALTER TABLE "admin_action_logs" ADD CONSTRAINT "fk_rails_83c2657fc7"
+FOREIGN KEY ("employee_id")
+  REFERENCES "employees" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "ansible_runs" ADD CONSTRAINT "fk_rails_012ec40560"
+FOREIGN KEY ("vm_id")
+  REFERENCES "vms" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "api_tokens" ADD CONSTRAINT "fk_rails_ab993cc58d"
+FOREIGN KEY ("reseller_id")
+  REFERENCES "resellers" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "billing_histories" ADD CONSTRAINT "fk_rails_7c92db159c"
+FOREIGN KEY ("billable_id")
+  REFERENCES "resellers" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "cart_items" ADD CONSTRAINT "fk_rails_6cdb1f0139"
+FOREIGN KEY ("cart_id")
+  REFERENCES "carts" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "cart_items" ADD CONSTRAINT "fk_rails_87f0990da2"
+FOREIGN KEY ("product_pricing_id")
+  REFERENCES "product_pricings" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "cart_items" ADD CONSTRAINT "fk_rails_681a180e84"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "carts" ADD CONSTRAINT "fk_rails_ea59a35211"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mALTER TABLE "conversions" ADD CONSTRAINT "fk_rails_1b40a25c17"
+FOREIGN KEY ("cart_id")
+  REFERENCES "carts" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "conversions" ADD CONSTRAINT "fk_rails_df1ac5423a"
+FOREIGN KEY ("ecommerce_order_id")
+  REFERENCES "ecommerce_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "conversions" ADD CONSTRAINT "fk_rails_b6f56087f6"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "conversions" ADD CONSTRAINT "fk_rails_64f4adf978"
+FOREIGN KEY ("user_session_id")
+  REFERENCES "user_sessions" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "conversions" ADD CONSTRAINT "fk_rails_56a50915d2"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "deposits" ADD CONSTRAINT "fk_rails_e0c0cfabe9"
+FOREIGN KEY ("payment_method_id")
+  REFERENCES "payment_methods" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "deposits" ADD CONSTRAINT "fk_rails_312db20823"
+FOREIGN KEY ("transaction_id")
+  REFERENCES "transactions" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "deposits" ADD CONSTRAINT "fk_rails_88307c7ed2"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "ecommerce_orders" ADD CONSTRAINT "fk_rails_c69256145c"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "ecommerce_orders" ADD CONSTRAINT "fk_rails_e8bc831ae3"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "employees" ADD CONSTRAINT "fk_rails_0025f65a97"
+FOREIGN KEY ("department_id")
+  REFERENCES "departments" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "esim_inventories" ADD CONSTRAINT "fk_rails_4e04c014bb"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mALTER TABLE "esim_orders" ADD CONSTRAINT "fk_rails_6be25960b6"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mALTER TABLE "esims" ADD CONSTRAINT "fk_rails_253981651c"
+FOREIGN KEY ("esim_order_id")
+  REFERENCES "esim_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "mobile_proxies" ADD CONSTRAINT "fk_rails_71d3fbc3da"
+FOREIGN KEY ("mobile_proxy_order_id")
+  REFERENCES "mobile_proxy_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "mobile_proxies" ADD CONSTRAINT "fk_rails_f992a4354f"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mALTER TABLE "mobile_proxy_orders" ADD CONSTRAINT "fk_rails_8200718eed"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "order_items" ADD CONSTRAINT "fk_rails_a3c772e63a"
+FOREIGN KEY ("ecommerce_order_id")
+  REFERENCES "ecommerce_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mALTER TABLE "order_items" ADD CONSTRAINT "fk_rails_debcc2ccfe"
+FOREIGN KEY ("product_pricing_id")
+  REFERENCES "product_pricings" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "order_items" ADD CONSTRAINT "fk_rails_f1a29ddd47"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "orders" ADD CONSTRAINT "fk_rails_931b4f8ca3"
+FOREIGN KEY ("product_pricing_id")
+  REFERENCES "product_pricings" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "orders" ADD CONSTRAINT "fk_rails_dfb33b2de0"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "payment_gateway_transactions" ADD CONSTRAINT "fk_rails_90f6db0d93"
+FOREIGN KEY ("transaction_id")
+  REFERENCES "transactions" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "product_analytics" ADD CONSTRAINT "fk_rails_433739dd0b"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "product_pricings" ADD CONSTRAINT "fk_rails_89cd9d47d0"
+FOREIGN KEY ("product_id")
+  REFERENCES "products" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "products" ADD CONSTRAINT "fk_rails_efe167855e"
+FOREIGN KEY ("product_category_id")
+  REFERENCES "product_categories" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mALTER TABLE "proxmox_operations" ADD CONSTRAINT "fk_rails_b467cd4f02"
+FOREIGN KEY ("vm_id")
+  REFERENCES "vms" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "reseller_orders" ADD CONSTRAINT "fk_rails_10f3b18efc"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "reseller_orders" ADD CONSTRAINT "fk_rails_d266d1ee51"
+FOREIGN KEY ("reseller_id")
+  REFERENCES "resellers" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "residential_proxy_accounts" ADD CONSTRAINT "fk_rails_96f460536e"
+FOREIGN KEY ("residential_rotating_proxy_id")
+  REFERENCES "residential_rotating_proxies" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.2ms)[0m  [1m[35mALTER TABLE "residential_rotating_proxies" ADD CONSTRAINT "fk_rails_e0ed6ba734"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "residential_rotating_proxies" ADD CONSTRAINT "fk_rails_f92cbc672e"
+FOREIGN KEY ("residential_rotating_proxy_order_id")
+  REFERENCES "residential_rotating_proxy_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "residential_rotating_proxy_orders" ADD CONSTRAINT "fk_rails_70c70868d4"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "static_datacenter_proxies" ADD CONSTRAINT "fk_rails_52ddb43369"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "static_datacenter_proxies" ADD CONSTRAINT "fk_rails_8e9d6842e5"
+FOREIGN KEY ("static_datacenter_proxy_order_id")
+  REFERENCES "static_datacenter_proxy_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "static_datacenter_proxy_orders" ADD CONSTRAINT "fk_rails_5d06440b46"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "static_isp_proxies" ADD CONSTRAINT "fk_rails_b8d61a4f35"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.1ms)[0m  [1m[35mALTER TABLE "static_isp_proxies" ADD CONSTRAINT "fk_rails_0dae2fdd6a"
+FOREIGN KEY ("static_isp_proxy_order_id")
+  REFERENCES "static_isp_proxy_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "static_isp_proxy_orders" ADD CONSTRAINT "fk_rails_104bc41dec"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "static_residential_proxies" ADD CONSTRAINT "fk_rails_024a5c2543"
+FOREIGN KEY ("static_residential_proxy_order_id")
+  REFERENCES "static_residential_proxy_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "static_residential_proxy_orders" ADD CONSTRAINT "fk_rails_250d910099"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "ticket_messages" ADD CONSTRAINT "fk_rails_398b98fd8f"
+FOREIGN KEY ("ticket_id")
+  REFERENCES "tickets" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.8ms)[0m  [1m[35mALTER TABLE "tickets" ADD CONSTRAINT "fk_rails_99ff85190e"
+FOREIGN KEY ("assigned_to_id")
+  REFERENCES "employees" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "tickets" ADD CONSTRAINT "fk_rails_c6410ba81d"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "user_impersonation_logs" ADD CONSTRAINT "fk_rails_14fa00f743"
+FOREIGN KEY ("employee_id")
+  REFERENCES "employees" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "user_impersonation_logs" ADD CONSTRAINT "fk_rails_7b3e1a3637"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[35mALTER TABLE "user_sessions" ADD CONSTRAINT "fk_rails_9fa262d742"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "vm_orders" ADD CONSTRAINT "fk_rails_f1a54d47a8"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[35mALTER TABLE "vms" ADD CONSTRAINT "fk_rails_898bd8a82d"
+FOREIGN KEY ("vm_order_id")
+  REFERENCES "vm_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (3.0ms)[0m  [1m[35mALTER TABLE "vpn_accounts" ADD CONSTRAINT "fk_rails_0336c7616c"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (4.6ms)[0m  [1m[35mALTER TABLE "vpn_orders" ADD CONSTRAINT "fk_rails_fbc7d2bfee"
+FOREIGN KEY ("order_id")
+  REFERENCES "orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "vpns" ADD CONSTRAINT "fk_rails_4df145bf1b"
+FOREIGN KEY ("vpn_order_id")
+  REFERENCES "vpn_orders" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.9ms)[0m  [1m[35mALTER TABLE "wallet_transactions" ADD CONSTRAINT "fk_rails_216df4a821"
+FOREIGN KEY ("transaction_id")
+  REFERENCES "transactions" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (10.4ms)[0m  [1m[35mALTER TABLE "wallet_transactions" ADD CONSTRAINT "fk_rails_d07bc24ce3"
+FOREIGN KEY ("wallet_id")
+  REFERENCES "wallets" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (5.1ms)[0m  [1m[35mALTER TABLE "wallets" ADD CONSTRAINT "fk_rails_732f6628c4"
+FOREIGN KEY ("user_id")
+  REFERENCES "users" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.6ms)[0m  [1m[35mALTER TABLE "webhook_endpoints" ADD CONSTRAINT "fk_rails_20cc4a8a9b"
+FOREIGN KEY ("reseller_id")
+  REFERENCES "resellers" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "webhook_events" ADD CONSTRAINT "fk_rails_78c5b7eba3"
+FOREIGN KEY ("reseller_id")
+  REFERENCES "resellers" ("id")
+ /*application='ProxysockApi'*/[0m
+  [1m[35m (3.1ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='ProxysockApi'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20260126234500) /*application='ProxysockApi'*/[0m
+  [1m[35m (2.4ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES
+(20260126233001),
+(20260126231001),
+(20260126225001),
+(20260126204303),
+(20260126204302),
+(20260126204301),
+(20260126203703),
+(20260126203702),
+(20260126203701),
+(20260126201501),
+(20260126200001),
+(20260126190001),
+(20260126180001),
+(20260126170001),
+(20260126160001),
+(20260126120003),
+(20260126120002),
+(20260126120001),
+(20260125090021),
+(20260125090001),
+(20260125085957),
+(20260125085926),
+(20260125085925),
+(20260125085924),
+(20260125083301),
+(20260125083300),
+(20260125083201),
+(20260125083200),
+(20260125083133),
+(20260125083132),
+(20260125083131),
+(20260125083130),
+(20260125083010),
+(20260125083009),
+(20260125083008),
+(20260125083007),
+(20260125083006),
+(20260125083004),
+(20260125083002),
+(20260125083000),
+(20260125082960),
+(20260125082959),
+(20260125082958),
+(20260125082957),
+(20260125082956),
+(20260125082955),
+(20260125082953),
+(20260125082952),
+(20260125082951),
+(20260125082856),
+(20260125082855),
+(20260125082854),
+(20260125082853),
+(20260125082852),
+(20260125082851),
+(20260125082850),
+(20260125082849),
+(20260125082848),
+(20260125082847),
+(20260125082846),
+(20260125082845),
+(20260125082844),
+(20260125082843),
+(20260125082842),
+(20260125082841),
+(20260125082840),
+(20260125082839),
+(20260125082837),
+(20260125082836),
+(20260125082655),
+(20260125082654),
+(20260125082653),
+(20260125082652),
+(20260125082651); /*application='ProxysockApi'*/[0m
+  [1m[35m (3.4ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Create (2.2ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'development', '2026-01-27 17:09:29.883917', '2026-01-27 17:09:29.883920') RETURNING "key" /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.9ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Update (3.1ms)[0m  [1m[33mUPDATE "ar_internal_metadata" SET "value" = 'test', "updated_at" = '2026-01-27 17:09:29.898770' WHERE "ar_internal_metadata"."key" = 'environment' /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.9ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'schema_sha1' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='ProxysockApi'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Create (2.7ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', 'e6159ab4aa25db66531d03d73b60ff8784eb0a7f', '2026-01-27 17:09:29.912578', '2026-01-27 17:09:29.912586') RETURNING "key" /*application='ProxysockApi'*/[0m

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateProviderInventorySyncs < ActiveRecord::Migration[8.1]
   def change
     create_table :provider_inventory_syncs do |t|

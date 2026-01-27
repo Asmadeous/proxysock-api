@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateEsimInventories < ActiveRecord::Migration[8.1]
   def change
     unless table_exists?(:esim_inventories)
@@ -13,20 +15,16 @@ class CreateEsimInventories < ActiveRecord::Migration[8.1]
         t.references :product, foreign_key: true, null: true
         t.timestamps
       end
-      
+
       add_index :esim_inventories, :iccid, unique: true
-      add_index :esim_inventories, [:provider, :status]
+      add_index :esim_inventories, %i[provider status]
     end
-    
+
     # Add new fields to esims table for inventory items
-    unless column_exists?(:esims, :pin1)
-      add_column :esims, :pin1, :string
-    end
-    unless column_exists?(:esims, :puk1)
-      add_column :esims, :puk1, :string
-    end
-    unless column_exists?(:esims, :activation_code)
-      add_column :esims, :activation_code, :string
-    end
+    add_column :esims, :pin1, :string unless column_exists?(:esims, :pin1)
+    add_column :esims, :puk1, :string unless column_exists?(:esims, :puk1)
+    return if column_exists?(:esims, :activation_code)
+
+    add_column :esims, :activation_code, :string
   end
 end

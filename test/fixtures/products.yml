@@ -1,29 +1,26 @@
-vm_product:
-  id: 1
+one:
   name: Basic VM
   description: 2 CPU, 4GB RAM, 50GB SSD
   product_type: vm
   provider_type: proxmox
   available_to: both
-  product_category: product_categories
-  metadata: {"cpu_cores": 2, "ram_gb": 4, "storage_gb": 50}
+  product_category: one
+  metadata: { "cpu_cores": 2, "ram_gb": 4, "storage_gb": 50 }
 
-proxy_product:
-  id: 2
+two:
   name: Mobile Proxy
   description: US Mobile Proxy
   product_type: proxy
   provider_type: xproxy
   available_to: ecommerce
-  product_category: proxy_categories
+  product_category: two
   metadata: {}
 
-esim_product:
-  id: 3
+three:
   name: Global eSIM 1GB
   description: 1GB Data, 30 Days
   product_type: esim
   provider_type: esim_access
   available_to: ecommerce
-  product_category: esim_categories
-  metadata: {"data_gb": 1, "duration_days": 30}
+  product_category: three
+  metadata: { "data_gb": 1, "duration_days": 30 }
