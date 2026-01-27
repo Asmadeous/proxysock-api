@@ -67,3 +67,5 @@ end
 gem 'sidekiq-cron', '~> 2.3'
 
 gem 'mocha', '~> 3.0', group: :test
+
+gem "rack-attack", "~> 6.8"
