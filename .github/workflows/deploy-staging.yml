@@ -13,7 +13,8 @@ jobs:
     deploy-staging:
         name: Deploy to Staging
         runs-on: ubuntu-latest
-        environment: staging
+        # Uncomment after creating 'staging' environment in GitHub Settings → Environments
+        # environment: staging
 
         permissions:
             contents: read
