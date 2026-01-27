@@ -33,10 +33,38 @@ class OrderProvisioningService
     # 4. Provision based on product type
     provision_product!
 
+    NotificationService.notify(
+      recipient: @actor,
+      category: 'success',
+      title: 'Order Completed',
+      message: "Order ##{@order.order_number} has been successfully provisioned.",
+      metadata: { order_id: @order.id }
+    )
+
     true
   rescue StandardError => e
     Rails.logger.error("[OrderProvisioningService] Failed: #{e.message}")
     @order.fail! if @order.may_fail?
+
+    NotificationService.notify(
+      recipient: @actor,
+      category: 'error',
+      title: 'Order Failed',
+      message: "Order ##{@order.order_number} failed to provision. Support has been notified.",
+      metadata: { order_id: @order.id, error: e.message }
+    )
+
+    # Notify Employees (System Alert)
+    Employee.where(active: true).find_each do |employee|
+      NotificationService.notify(
+        recipient: employee,
+        category: 'system_alert',
+        title: 'Provisioning Failure',
+        message: "Order ##{@order.order_number} for #{@actor.ident} failed: #{e.message}",
+        metadata: { order_id: @order.id, actor_id: @actor.id, actor_type: @actor.class.name }
+      )
+    end
+
     raise e
   end
 

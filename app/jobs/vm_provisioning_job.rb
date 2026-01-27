@@ -47,10 +47,18 @@ class VmProvisioningJob < ApplicationJob
     Rails.cache.delete("vm_status_#{vm_id}")
 
     # Send credentials email
-    owner = vm.vm_order&.order&.user || vm.vm_order&.order&.reseller
-    VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later if owner
-
     logger.info "[VmProvisioningJob] VM #{vm_id} provisioned successfully"
+
+    if owner
+      VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later 
+      NotificationService.notify(
+        recipient: owner,
+        category: 'success',
+        title: 'VM Provisioned',
+        message: "VM #{vm.ip_address} is ready.",
+        metadata: { vm_id: vm.id, ip_address: vm.ip_address }
+      )
+    end
   rescue AASM::InvalidTransition => e
     logger.error "[VmProvisioningJob] Invalid state transition: #{e.message}"
     raise e
@@ -58,6 +66,18 @@ class VmProvisioningJob < ApplicationJob
     logger.error "[VmProvisioningJob] Provisioning failed for VM #{vm_id}: #{e.message}"
 
     vm.fail! if vm.may_fail?
+
+    # Notify failure
+    owner = vm.vm_order&.order&.user || vm.vm_order&.order&.reseller
+    if owner
+      NotificationService.notify(
+        recipient: owner,
+        category: 'error',
+        title: 'VM Provisioning Failed',
+        message: "VM ##{vm.id} provisioning failed. Retrying...",
+        metadata: { vm_id: vm.id, error: e.message }
+      )
+    end
 
     # Re-raise to trigger retry
     raise e
