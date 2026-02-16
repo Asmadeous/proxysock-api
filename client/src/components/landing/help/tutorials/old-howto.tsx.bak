@@ -1,0 +1,1608 @@
+import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
+import Navbar from "../components/landing/layout/Navbar";
+import { HowToConnectHeroSection } from "@/components/landing/help/howtoconnect/HowToConnectHeroSection";
+import { HowToConnectTabs } from "@/components/landing/help/howtoconnect/HowToConnectTabs";
+import { HowToConnectTroubleshooting } from "@/components/landing/help/howtoconnect/HowToConnectTroubleshooting";
+import { HowToConnectFooter } from "@/components/landing/help/howtoconnect/HowToConnectFooter";
+
+declare global {
+  interface Window {
+    Tawk_API?: {
+      toggle: () => void;
+      [key: string]: any;
+    };
+  }
+}
+
+export default function HowToConnect() {
+  useEffect(() => {
+    // Tawk.to chat widget
+    const s1 = document.createElement("script");
+    const s0 = document.getElementsByTagName("script")[0];
+    s1.async = true;
+    s1.src = "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo";
+    s1.charset = "UTF-8";
+    s1.setAttribute("crossorigin", "*");
+    if (s0?.parentNode) {
+      s0.parentNode.insertBefore(s1, s0);
+    }
+
+    return () => {
+      s1.remove();
+    };
+  }, []);
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    name: "ProxySock Setup Guides - Complete Connection Tutorials",
+    description:
+      "Comprehensive step-by-step guides for connecting to ProxySock services including proxies, RDP, VPS, and eSIM. Setup instructions for all platforms and devices.",
+    url: window.location.origin + "/HowToConnect",
+    author: {
+      "@type": "Organization",
+      name: "ProxySock",
+      url: window.location.origin,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "ProxySock",
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": window.location.origin + "/HowToConnect",
+    },
+    articleSection: [
+      "Proxy Setup",
+      "RDP Connection",
+      "VPS Management",
+      "eSIM Activation",
+    ],
+  };
+
+  const webPageData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "How to Connect - Setup Guides | ProxySock",
+    description:
+      "Complete setup guides for ProxySock services. Learn how to connect to proxies, RDP servers, VPS hosting, and activate eSIM cards with step-by-step tutorials.",
+    url: window.location.href,
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>
+          How to Connect - Setup Guides | ProxySock
+        </title>
+        <meta
+          name="description"
+          content="Complete setup guides for ProxySock services. Learn how to connect to proxies, RDP servers, VPS hosting, and activate eSIM cards with step-by-step tutorials for all platforms."
+        />
+        <meta
+          name="keywords"
+          content="proxy setup, RDP connection, VPS management, eSIM activation, setup guides, connection tutorials, ProxySock documentation"
+        />
+        <link rel="canonical" href="https://www.proxysock.com/HowToConnect" />
+        <meta
+          property="og:title"
+          content="How to Connect - Setup Guides | ProxySock"
+        />
+        <meta
+          property="og:description"
+          content="Complete setup guides for ProxySock services. Learn how to connect to proxies, RDP servers, VPS hosting, and activate eSIM cards with step-by-step tutorials."
+        />
+        <meta property="og:url" content="https://www.proxysock.com/HowToConnect" />
+        <meta
+          property="og:image"
+          content="https://www.proxysock.com/images/howto-og-image.jpg"
+        />
+        <meta property="og:type" content="article" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="How to Connect - Setup Guides | ProxySock"
+        />
+        <meta
+          name="twitter:description"
+          content="Complete setup guides for ProxySock services. Learn how to connect to proxies, RDP servers, VPS hosting, and activate eSIM cards."
+        />
+        <meta
+          name="twitter:image"
+          content="https://www.proxysock.com/images/howto-og-image.jpg"
+        />
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify(webPageData)}
+        </script>
+      </Helmet>
+
+      <div className="min-h-screen bg-background">
+        <Navbar />
+
+        <div className="pt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <HowToConnectHeroSection />
+            <HowToConnectTabs />
+            <HowToConnectTroubleshooting />
+          </div>
+        </div>
+
+        <HowToConnectFooter />
+      </div>
+    </>
+  );
+}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {proxyTypes.map((type, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="bg-gray-700/50 backdrop-blur-sm p-6 rounded-xl border border-gray-600 hover:border-red-500/50 transition-all duration-300 group"
+            >
+              <div
+                className={`w-12 h-12 ${type.colorClass} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+              >
+                <WifiIcon className={`h-6 w-6 ${type.iconClass}`} />
+              </div>
+              <h3 className="font-semibold text-white mb-3 text-lg">
+                {type.title}
+              </h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                {type.desc}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Enhanced Platform Setup Instructions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Windows Setup */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-red-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center mr-4">
+              <ComputerDesktopIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                Windows Configuration
+              </h3>
+              <p className="text-gray-400 text-sm">
+                System-wide and browser proxy setup
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <Cog6ToothIcon className="h-5 w-5 text-blue-500 mr-2" />
+                System-wide Proxy Setup
+              </h4>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    1
+                  </span>
+                  <span>
+                    Open <strong>Settings</strong> →{" "}
+                    <strong>Network & Internet</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    2
+                  </span>
+                  <span>
+                    Click <strong>Proxy</strong> in the sidebar
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    3
+                  </span>
+                  <span>
+                    Toggle <strong>Use a proxy server</strong> to{" "}
+                    <strong>On</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    4
+                  </span>
+                  <span>Enter your proxy details below:</span>
+                </li>
+              </ol>
+              <div className="bg-gray-800 p-4 rounded-lg mt-4 border-l-4 border-green-500">
+                <pre className="text-sm text-green-400">
+                  {`Address: your_proxy_ip
+Port: your_proxy_port
+Username: your_username
+Password: your_password`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-3 flex items-center">
+                <GlobeAltIcon className="h-5 w-5 text-blue-500 mr-2" />
+                Browser Extensions (Recommended)
+              </h4>
+              <p className="text-sm text-blue-200 mb-3">
+                For Chrome/Firefox, use proxy extensions for better control:
+              </p>
+              <ul className="text-sm space-y-2">
+                <li>
+                  • <strong>FoxyProxy</strong> - Advanced proxy management
+                </li>
+                <li>
+                  • <strong>Proxy SwitchyOmega</strong> - Rule-based switching
+                </li>
+                <li>
+                  • <strong>ProxySwitcher</strong> - Simple toggle interface
+                </li>
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* macOS Setup */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-red-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center mr-4">
+              <CommandLineIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                macOS Configuration
+              </h3>
+              <p className="text-gray-400 text-sm">
+                System preferences proxy setup
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <Cog6ToothIcon className="h-5 w-5 text-purple-500 mr-2" />
+                System Preferences Setup
+              </h4>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    1
+                  </span>
+                  <span>
+                    Open <strong>System Preferences</strong> →{" "}
+                    <strong>Network</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    2
+                  </span>
+                  <span>
+                    Select your network connection → <strong>Advanced</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    3
+                  </span>
+                  <span>
+                    Go to <strong>Proxies</strong> tab
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    4
+                  </span>
+                  <span>
+                    Check <strong>Web Proxy (HTTP)</strong> and{" "}
+                    <strong>Secure Web Proxy (HTTPS)</strong>
+                  </span>
+                </li>
+              </ol>
+              <div className="bg-gray-800 p-4 rounded-lg mt-4 border-l-4 border-green-500">
+                <pre className="text-sm text-green-400">
+                  {`Web Proxy Server: your_proxy_ip:port
+Username: your_username
+Password: your_password`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Mobile Setup */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-red-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center mr-4">
+              <DevicePhoneMobileIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">Mobile Devices</h3>
+              <p className="text-gray-400 text-sm">
+                iOS and Android proxy configuration
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <DevicePhoneMobileIcon className="h-5 w-5 text-green-500 mr-2" />
+                Android Setup
+              </h4>
+              <ol className="space-y-2 text-sm">
+                <li>
+                  1. <strong>Settings</strong> → <strong>Wi-Fi</strong>
+                </li>
+                <li>
+                  2. Long-press network → <strong>Modify Network</strong>
+                </li>
+                <li>
+                  3. <strong>Advanced</strong> → <strong>Proxy</strong> →{" "}
+                  <strong>Manual</strong>
+                </li>
+                <li>4. Enter proxy details and save</li>
+              </ol>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <DevicePhoneMobileIcon className="h-5 w-5 text-blue-500 mr-2" />
+                iOS Setup
+              </h4>
+              <ol className="space-y-2 text-sm">
+                <li>
+                  1. <strong>Settings</strong> → <strong>Wi-Fi</strong>
+                </li>
+                <li>
+                  2. Tap your network → <strong>Configure Proxy</strong>
+                </li>
+                <li>
+                  3. Select <strong>Manual</strong> and enter details
+                </li>
+                <li>
+                  4. Tap <strong>Save</strong> to apply changes
+                </li>
+              </ol>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Programming Integration */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-red-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center mr-4">
+              <CodeBracketIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                Programming Integration
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Code examples for popular languages
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <CodeBracketIcon className="h-5 w-5 text-yellow-500 mr-2" />
+                Python (requests)
+              </h4>
+              <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                <pre className="text-sm text-blue-400 overflow-x-auto">
+                  {`import requests
+
+proxies = {
+    'http': 'http://username:password@proxy_ip:port',
+    'https': 'https://username:password@proxy_ip:port'
+}
+
+response = requests.get('https://httpbin.org/ip', proxies=proxies)
+print(response.json())`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <CodeBracketIcon className="h-5 w-5 text-green-500 mr-2" />
+                Node.js (axios)
+              </h4>
+              <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-green-500">
+                <pre className="text-sm text-green-400 overflow-x-auto">
+                  {`const axios = require('axios');
+
+const proxy = {
+    host: 'proxy_ip',
+    port: proxy_port,
+    auth: {
+        username: 'your_username',
+        password: 'your_password'
+    }
+};
+
+axios.get('https://httpbin.org/ip', { proxy })
+    .then(response => console.log(response.data));`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
+  const ESIMContent = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-12"
+    >
+      <div className="relative bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-xl rounded-2xl p-8 border border-gray-700">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-2xl"></div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 flex items-center">
+          <DevicePhoneMobileIcon className="h-8 w-8 text-red-500 mr-4" />
+          eSIM Card Setup & Activation
+        </h2>
+        <p className="text-gray-300 text-lg">
+          Digital SIM cards for global connectivity without physical SIM
+          swapping.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* iPhone Setup */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-blue-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center mr-4">
+              <DevicePhoneMobileIcon className="h-8 w-8 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                iPhone eSIM Setup
+              </h3>
+              <p className="text-gray-400 text-sm">iOS 12.1+ devices</p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-3">Requirements:</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  iPhone XS, XS Max, XR or newer
+                </li>
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  iOS 12.1 or later
+                </li>
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  Unlocked device (carrier unlocked)
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4">
+                Activation Steps:
+              </h4>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    1
+                  </span>
+                  <span>
+                    Go to <strong>Settings</strong> → <strong>Cellular</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    2
+                  </span>
+                  <span>
+                    Tap <strong>Add Cellular Plan</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    3
+                  </span>
+                  <span>Scan the QR code provided with your eSIM</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    4
+                  </span>
+                  <span>Follow the on-screen instructions</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    5
+                  </span>
+                  <span>
+                    Label your cellular plans (e.g., "Travel", "Work")
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    6
+                  </span>
+                  <span>Set default line for calls, messages, and data</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                <strong>Note:</strong> You can have multiple eSIM profiles
+                stored but only one active at a time (along with physical SIM).
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Android Setup */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-green-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center mr-4">
+              <DevicePhoneMobileIcon className="h-8 w-8 text-green-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                Android eSIM Setup
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Compatible Android devices
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-3">
+                Compatible Devices:
+              </h4>
+              <ul className="space-y-2 text-sm">
+                <li>• Google Pixel 3 and newer</li>
+                <li>• Samsung Galaxy S20 and newer</li>
+                <li>• Samsung Galaxy Note 20 and newer</li>
+                <li>• OnePlus 11 and newer</li>
+              </ul>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4">
+                Activation Steps:
+              </h4>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    1
+                  </span>
+                  <span>
+                    Go to <strong>Settings</strong> →{" "}
+                    <strong>Network & Internet</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    2
+                  </span>
+                  <span>
+                    Tap <strong>Mobile Network</strong> →{" "}
+                    <strong>Add Carrier</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    3
+                  </span>
+                  <span>
+                    Select <strong>Download a SIM instead?</strong>
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    4
+                  </span>
+                  <span>Scan QR code or enter activation code manually</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    5
+                  </span>
+                  <span>Follow setup prompts</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                    6
+                  </span>
+                  <span>Configure dual SIM settings if needed</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-yellow-900/30 border border-yellow-500/50 p-4 rounded-lg">
+              <p className="text-yellow-300 text-sm">
+                <strong>Tip:</strong> Steps may vary slightly between Android
+                manufacturers. Check your device manual for specific
+                instructions.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Management and Troubleshooting */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-purple-500/30 transition-all duration-300 lg:col-span-2"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* eSIM Management */}
+            <div>
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mr-3">
+                  <Cog6ToothIcon className="h-6 w-6 text-purple-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  eSIM Management
+                </h3>
+              </div>
+
+              <div className="space-y-4 text-gray-300">
+                <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+                  <h4 className="font-semibold text-white mb-3">
+                    Switching Between Plans:
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Go to cellular/mobile network settings</li>
+                    <li>• Select the plan you want to activate</li>
+                    <li>• Toggle the plan on/off as needed</li>
+                    <li>• Set preferences for calls, messages, and data</li>
+                  </ul>
+                </div>
+
+                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                  <h4 className="font-semibold text-white mb-3">
+                    Data Usage Monitoring:
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Monitor usage per cellular plan</li>
+                    <li>• Set data limits and alerts</li>
+                    <li>
+                      • Choose which plan to use for background app refresh
+                    </li>
+                    <li>• Configure automatic switching rules</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Troubleshooting */}
+            <div>
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center mr-3">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  Troubleshooting
+                </h3>
+              </div>
+
+              <div className="space-y-4 text-gray-300">
+                <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+                  <h4 className="font-semibold text-white mb-3">
+                    Common Issues:
+                  </h4>
+                  <ul className="space-y-3 text-sm">
+                    <li>
+                      <strong className="text-red-400">
+                        QR Code Won't Scan:
+                      </strong>
+                      <br />
+                      Ensure good lighting, clean camera lens, try manual entry
+                    </li>
+                    <li>
+                      <strong className="text-red-400">No Service:</strong>
+                      <br />
+                      Restart device, check carrier settings, verify plan
+                      activation
+                    </li>
+                    <li>
+                      <strong className="text-red-400">
+                        Can't Remove eSIM:
+                      </strong>
+                      <br />
+                      Contact your carrier, may need to reset network settings
+                    </li>
+                    <li>
+                      <strong className="text-red-400">Slow Data:</strong>
+                      <br />
+                      Check data plan limits, network coverage, APN settings
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4">
+                  <h4 className="font-semibold text-white mb-2">
+                    Reset Network Settings:
+                  </h4>
+                  <p className="text-sm text-orange-200">
+                    If experiencing persistent issues, reset network settings
+                    (this will remove all saved Wi-Fi passwords and cellular
+                    settings).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
+  const RDPContent = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-12"
+    >
+      <div className="relative bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-xl rounded-2xl p-8 border border-gray-700">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl"></div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 flex items-center">
+          <ComputerDesktopIcon className="h-8 w-8 text-red-500 mr-4" />
+          Remote Desktop Protocol (RDP) Setup
+        </h2>
+        <p className="text-gray-300 text-lg">
+          Connect to your Windows RDP server from any device, anywhere in the
+          world.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Windows RDP Client */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-blue-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center mr-4">
+              <ComputerDesktopIcon className="h-8 w-8 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                Windows RDP Client
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Built-in remote desktop connection
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <ol className="space-y-4 text-sm">
+              <li className="flex items-start">
+                <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                  1
+                </span>
+                <span>
+                  Press <strong>Windows + R</strong>, type{" "}
+                  <code className="bg-gray-700 px-2 py-1 rounded text-green-400">
+                    mstsc
+                  </code>
+                </span>
+              </li>
+              <li className="flex items-start">
+                <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                  2
+                </span>
+                <span>Enter your RDP server details:</span>
+              </li>
+            </ol>
+            <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
+              <pre className="text-sm text-green-400">
+                {`Computer: your_rdp_ip:port
+Username: your_rdp_username
+Password: your_rdp_password`}
+              </pre>
+            </div>
+            <ol start={3} className="space-y-4 text-sm">
+              <li className="flex items-start">
+                <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                  3
+                </span>
+                <span>
+                  Click <strong>Connect</strong> and enter credentials when
+                  prompted
+                </span>
+              </li>
+              <li className="flex items-start">
+                <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-3 mt-0.5 flex-shrink-0">
+                  4
+                </span>
+                <span>
+                  For security, enable{" "}
+                  <strong>Network Level Authentication</strong>
+                </span>
+              </li>
+            </ol>
+          </div>
+        </motion.div>
+
+        {/* macOS RDP Client */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-purple-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center mr-4">
+              <CommandLineIcon className="h-8 w-8 text-purple-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                macOS RDP Client
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Microsoft Remote Desktop app
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-4">
+                Microsoft Remote Desktop
+              </h4>
+              <ol className="space-y-3 text-sm">
+                <li>1. Download from Mac App Store</li>
+                <li>
+                  2. Click <strong>Add PC</strong>
+                </li>
+                <li>3. Enter connection details:</li>
+              </ol>
+              <div className="bg-gray-800 p-4 rounded-lg mt-4 border-l-4 border-purple-500">
+                <pre className="text-sm text-purple-400">
+                  {`PC Name: your_rdp_ip:port
+User Account: Add User Account
+Username: your_username
+Password: your_password`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Mobile RDP and Security merged */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-green-500/30 transition-all duration-300 lg:col-span-2"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Mobile Apps */}
+            <div>
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mr-3">
+                  <DevicePhoneMobileIcon className="h-6 w-6 text-green-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  Mobile RDP Apps
+                </h3>
+              </div>
+
+              <div className="space-y-4 text-gray-300">
+                <div>
+                  <h4 className="font-semibold text-white mb-3">
+                    Recommended Apps:
+                  </h4>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-center">
+                      <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                      <strong>Microsoft Remote Desktop</strong> (iOS/Android)
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                      <strong>RD Client</strong> (Android)
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                      <strong>TeamViewer</strong> (Cross-platform)
+                    </li>
+                  </ul>
+                </div>
+                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                  <h4 className="font-semibold text-white mb-2">
+                    Quick Setup:
+                  </h4>
+                  <ol className="space-y-1 text-sm">
+                    <li>1. Install app from store</li>
+                    <li>2. Add new connection</li>
+                    <li>3. Enter server details</li>
+                    <li>4. Save and connect</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            {/* Security */}
+            <div>
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center mr-3">
+                  <ShieldCheckIcon className="h-6 w-6 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  Security Best Practices
+                </h3>
+              </div>
+
+              <div className="space-y-4 text-gray-300">
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Use strong, unique passwords</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Enable Network Level Authentication (NLA)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Use non-standard RDP ports when possible</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Implement IP whitelisting if needed</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Regularly update your RDP client</span>
+                  </li>
+                </ul>
+                <div className="bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg">
+                  <p className="text-blue-300 text-sm">
+                    <strong>Pro Tip:</strong> For enhanced security, consider
+                    using VPN connection before connecting to RDP.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
+  const VPSContent = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-12"
+    >
+      <div className="relative bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-xl rounded-2xl p-8 border border-gray-700">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl"></div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 flex items-center">
+          <ServerIcon className="h-8 w-8 text-red-500 mr-4" />
+          Virtual Private Server (VPS) Management
+        </h2>
+        <p className="text-gray-300 text-lg">
+          Complete guide to accessing and managing your Linux/Windows VPS
+          servers.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* SSH Connection */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-green-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center mr-4">
+              <CommandLineIcon className="h-8 w-8 text-green-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">SSH Connection</h3>
+              <p className="text-gray-400 text-sm">Linux VPS terminal access</p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4 flex items-center">
+                <CommandLineIcon className="h-5 w-5 text-green-500 mr-2" />
+                Command Line (Mac/Linux)
+              </h4>
+              <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-green-500">
+                <pre className="text-sm text-green-400 overflow-x-auto">
+                  {`# Basic SSH connection
+ssh username@your_vps_ip
+
+# SSH with custom port
+ssh -p 2222 username@your_vps_ip
+
+# SSH with private key
+ssh -i /path/to/private_key username@your_vps_ip`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-3">
+                Windows SSH Clients:
+              </h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  • <strong>PuTTY</strong> - Free, lightweight SSH client
+                </li>
+                <li>
+                  • <strong>Windows Terminal</strong> - Built-in SSH support
+                </li>
+                <li>
+                  • <strong>MobaXterm</strong> - Enhanced terminal with X11
+                </li>
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* File Transfer */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-blue-500/30 transition-all duration-300"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center mr-4">
+              <DocumentTextIcon className="h-8 w-8 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">File Transfer</h3>
+              <p className="text-gray-400 text-sm">
+                SCP and SFTP file management
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 text-gray-300">
+            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+              <h4 className="font-semibold text-white mb-4">
+                SCP (Secure Copy):
+              </h4>
+              <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                <pre className="text-sm text-blue-400 overflow-x-auto">
+                  {`# Upload file to VPS
+scp local_file.txt username@vps_ip:/remote/path/
+
+# Download file from VPS
+scp username@vps_ip:/remote/file.txt /local/path/
+
+# Upload directory recursively
+scp -r local_directory/ username@vps_ip:/remote/path/`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-6">
+              <h4 className="font-semibold text-white mb-3">SFTP Clients:</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  • <strong>FileZilla</strong> - Free FTP/SFTP client
+                </li>
+                <li>
+                  • <strong>WinSCP</strong> - Windows SFTP/SCP client
+                </li>
+                <li>
+                  • <strong>Cyberduck</strong> - Mac/Windows FTP client
+                </li>
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Server Management */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 hover:border-yellow-500/30 transition-all duration-300 lg:col-span-2"
+        >
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center mr-4">
+              <Cog6ToothIcon className="h-8 w-8 text-yellow-500" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">
+                Server Management & Control Panels
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Essential commands and web-based management
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Essential Commands */}
+            <div className="space-y-6">
+              <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+                <h4 className="font-semibold text-white mb-4">
+                  Essential Commands:
+                </h4>
+                <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-yellow-500">
+                  <pre className="text-sm text-yellow-400 overflow-x-auto">
+                    {`# System information
+uname -a
+df -h
+free -h
+top
+
+# Package management (Ubuntu/Debian)
+sudo apt update
+sudo apt upgrade
+sudo apt install package_name
+
+# Service management
+sudo systemctl start service_name
+sudo systemctl stop service_name
+sudo systemctl restart service_name
+sudo systemctl status service_name`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Control Panels */}
+            <div className="space-y-6">
+              <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700">
+                <h4 className="font-semibold text-white mb-4 flex items-center">
+                  <GlobeAltIcon className="h-5 w-5 text-purple-500 mr-2" />
+                  Web Control Panels
+                </h4>
+                <ul className="space-y-3 text-sm text-gray-300">
+                  <li className="flex items-center">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                    <strong>cPanel/WHM</strong> - Industry standard
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                    <strong>Plesk</strong> - User-friendly management
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                    <strong>Webmin</strong> - Free web administration
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                    <strong>ISPConfig</strong> - Open source hosting panel
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+                <h5 className="font-semibold text-white mb-2">
+                  Webmin Installation:
+                </h5>
+                <div className="bg-gray-800 p-3 rounded text-xs">
+                  <pre className="text-purple-400 overflow-x-auto">
+                    {`wget -qO - http://www.webmin.com/jcameron-key.asc | sudo apt-key add -
+echo "deb http://download.webmin.com/download/repository sarge contrib" | sudo tee /etc/apt/sources.list.d/webmin.list
+sudo apt update && sudo apt install webmin
+
+# Access: https://your_vps_ip:10000`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
+  const TroubleshootingSection = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+      className="bg-gradient-to-r from-red-900/20 to-orange-900/20 border border-red-500/30 rounded-2xl p-8 mt-12 backdrop-blur-xl"
+    >
+      <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 flex items-center">
+        <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mr-4" />
+        General Troubleshooting & Support
+      </h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <h3 className="font-semibold text-white mb-4 text-xl">
+            Common Solutions:
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ul className="space-y-3 text-gray-300 text-sm">
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Verify all connection details are correct</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Check your internet connection stability</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Restart your device and applications</span>
+              </li>
+            </ul>
+            <ul className="space-y-3 text-gray-300 text-sm">
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Disable firewall/antivirus temporarily</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Clear browser cache and cookies</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Update your software/apps to latest version</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+          <h3 className="font-semibold text-white mb-4 text-xl">Need Help?</h3>
+          <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+            Our expert support team is available 24/7 to assist you with any
+            connection issues or technical questions.
+          </p>
+          <div className="space-y-4">
+            <Link
+              to="/contact"
+              className="w-full inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Contact Support
+            </Link>
+            <a
+              href="mailto:support@proxysock.com"
+              className="w-full inline-flex items-center justify-center px-6 py-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 hover:text-white transition-colors text-sm"
+            >
+              support@proxysock.com
+            </a>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
+      <Navbar />
+
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Enhanced Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-red-500/20 rounded-2xl mb-6">
+              <BookOpenIcon className="h-10 w-10 text-red-500" />
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-bold text-white mb-6">
+              Setup <span className="text-red-500">Guides</span>
+            </h1>
+            <p className="text-gray-400 max-w-4xl mx-auto text-lg sm:text-xl leading-relaxed">
+              Comprehensive step-by-step guides for all ProxySock services. Get
+              connected in minutes with our detailed tutorials.
+            </p>
+
+            {/* Quick Tips */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-12 max-w-6xl mx-auto">
+              {quickTips.map((tip, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+                  className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700 text-center"
+                >
+                  <tip.icon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                  <h3 className="text-white font-semibold text-sm mb-1">
+                    {tip.title}
+                  </h3>
+                  <p className="text-gray-400 text-xs">{tip.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Enhanced Tab Navigation */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex justify-center mb-16"
+          >
+            <div className="bg-gray-800/80 backdrop-blur-xl rounded-2xl p-2 border border-gray-700">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex flex-col items-center px-6 py-4 rounded-xl transition-all duration-300 min-w-[140px] ${
+                      activeTab === tab.id
+                        ? "bg-red-600 text-white shadow-lg shadow-red-500/20"
+                        : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                    }`}
+                  >
+                    <tab.icon className="h-6 w-6 mb-2" />
+                    <span className="font-medium text-sm">{tab.name}</span>
+                    <span className="text-xs mt-1 opacity-80">
+                      {tab.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Tab Content */}
+          <div className="mb-16">
+            {activeTab === "proxies" && <ProxyContent />}
+            {activeTab === "rdp" && <RDPContent />}
+            {activeTab === "vps" && <VPSContent />}
+            {activeTab === "esim" && <ESIMContent />}
+          </div>
+
+          {/* General Troubleshooting */}
+          <TroubleshootingSection />
+        </div>
+      </div>
+
+      {/* Enhanced Footer from About page */}
+      <footer className="bg-gray-900 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Company Info */}
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <img
+                  src={logo}
+                  alt="ProxySock Logo"
+                  className="h-10 w-10 mr-3"
+                />
+                <h3 className="text-xl font-bold text-white">ProxySock</h3>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Global infrastructure provider with premium data centers and
+                worldwide coverage. From premium data centers to global eSIM
+                connectivity, we've got the infrastructure you need.
+              </p>
+              <div className="flex space-x-4">
+                <a
+                  href="https://x.com/cybertwts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition duration-200 transform hover:scale-110"
+                >
+                  <FontAwesomeIcon icon={faTwitter} className="h-6 w-6" />
+                </a>
+                <a
+                  href="https://t.me/Proxy_sock5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition duration-200 transform hover:scale-110"
+                >
+                  <FontAwesomeIcon icon={faTelegram} className="h-6 w-6" />
+                </a>
+              </div>
+            </div>
+
+            {/* Services */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-bold text-white">Our Services</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    to="/proxies"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm flex items-center"
+                  >
+                    🌐 <span className="ml-2">Global Proxy Network</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/rdp"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm flex items-center"
+                  >
+                    🖥️ <span className="ml-2">Windows RDP Hosting</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/vps"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm flex items-center"
+                  >
+                    ⚡ <span className="ml-2">VPS Cloud Servers</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/esim"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm flex items-center"
+                  >
+                    📱 <span className="ml-2">Global eSIM Data Plans</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Infrastructure */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-bold text-white">Infrastructure</h4>
+              <ul className="space-y-2">
+                <li className="text-gray-400 text-sm flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  25+ Data Centers
+                </li>
+                <li className="text-gray-400 text-sm flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  150+ Countries
+                </li>
+                <li className="text-gray-400 text-sm flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  99.9% Uptime SLA
+                </li>
+                <li className="text-gray-400 text-sm flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                  24/7 Monitoring
+                </li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-bold text-white">Support</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    to="/contact"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm"
+                  >
+                    💬 Contact Support
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/faq"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm"
+                  >
+                    ❓ FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/HowToConnect"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm"
+                  >
+                    📚 Documentation
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="mailto:support@proxysock.com"
+                    className="text-gray-400 hover:text-white transition duration-200 text-sm"
+                  >
+                    📧 support@proxysock.com
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Section */}
+          <div className="pt-8 border-t border-gray-800 mt-8">
+            <div className="flex flex-col lg:flex-row justify-between items-center">
+              <p className="text-gray-400 text-sm mb-4 lg:mb-0">
+                © {new Date().getFullYear()} ProxySock. All rights reserved.
+                Global infrastructure with enterprise-grade reliability.
+              </p>
+              <div className="flex flex-wrap gap-6">
+                <Link
+                  to="/terms"
+                  className="text-gray-400 hover:text-white text-sm transition-colors"
+                >
+                  Terms
+                </Link>
+                <Link
+                  to="/privacy"
+                  className="text-gray-400 hover:text-white text-sm transition-colors"
+                >
+                  Privacy
+                </Link>
+                <Link
+                  to="/cookie-policy"
+                  className="text-gray-400 hover:text-white text-sm transition-colors"
+                >
+                  Cookies
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

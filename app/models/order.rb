@@ -11,6 +11,7 @@ class Order < ApplicationRecord
   end
   belongs_to :product
   belongs_to :product_pricing
+  belongs_to :checkout_session, optional: true
   # belongs_to :reseller, optional: true # Reseller orders - Replaced by orderable
   
   def reseller
@@ -63,14 +64,19 @@ class Order < ApplicationRecord
 
   aasm column: :status do
     state :pending, initial: true
+    state :awaiting_payment # For gateway checkout
     state :processing
     state :active
     state :expired
     state :cancelled
     state :failed
 
+    event :await_payment do
+      transitions from: :pending, to: :awaiting_payment
+    end
+
     event :process do
-      transitions from: :pending, to: :processing
+      transitions from: %i[pending awaiting_payment], to: :processing
     end
 
     event :activate do

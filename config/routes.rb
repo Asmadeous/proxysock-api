@@ -54,6 +54,10 @@ Rails.application.routes.draw do
       # Auth
       post 'auth/register', to: 'auth#register'
       post 'auth/login', to: 'auth#login'
+      get 'auth/me', to: 'auth#me'
+      put 'auth/me', to: 'auth#update'
+      post 'auth/refresh', to: 'auth#refresh'
+      delete 'auth/logout', to: 'auth#logout'
       get 'auth/google', to: 'auth#google'
       get 'auth/google/callback', to: 'auth#google_callback'
       get 'auth/twitter', to: 'auth#twitter'
@@ -72,6 +76,7 @@ Rails.application.routes.draw do
       resource :cart, only: [:show] do
         post :add_item
         delete :remove_item
+        post :checkout
       end
 
       resources :tickets, only: %i[index create show] do
@@ -94,6 +99,28 @@ Rails.application.routes.draw do
           post :start
           post :stop
           get :status
+        end
+      end
+
+      resources :analytics, only: [] do
+        collection do
+          post 'reddit-capi', to: 'analytics#reddit_capi'
+        end
+      end
+      
+      resources :tools, only: [] do
+        collection do
+          get :ip_lookup
+        end
+      end
+
+      resources :notifications, only: [:index, :show] do
+        member do
+          put :read
+        end
+        collection do
+          get :unread_count
+          put :read_all
         end
       end
     end

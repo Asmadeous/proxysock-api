@@ -76,3 +76,4 @@ gem "rspec-rails", "~> 8.0", groups: [:development, :test]
 
 gem "sentry-ruby", "~> 6.3"
 gem "sentry-rails", "~> 6.3"
+gem 'dotenv-rails', groups: [:development, :test]

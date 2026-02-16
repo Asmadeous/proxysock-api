@@ -1,0 +1,6 @@
+# File: public/_redirects (update existing)
+/ads.txt  /ads.txt  200
+https://www.proxysock.com/* https://proxysock.com/:splat 301!
+http://www.proxysock.com/* https://proxysock.com/:splat 301!
+http://proxysock.com/* https://proxysock.com/:splat 301!
+/* /index.html 200
