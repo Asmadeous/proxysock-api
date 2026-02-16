@@ -34,7 +34,10 @@ class WebhooksController < ApplicationController
 
     metadata = data['metadata'] || data[:metadata] || {}
 
-    if reference.to_s.start_with?('DEP_')
+    if reference.to_s.start_with?('CHECKOUT_')
+      # Cart checkout session
+      handle_checkout_session(reference, data, gateway, metadata)
+    elsif reference.to_s.start_with?('DEP_')
       # It's a deposit
       handle_deposit(reference, data, gateway)
     elsif reference.to_s.start_with?('ORD_') || metadata['type'] == 'order'
@@ -76,5 +79,35 @@ class WebhooksController < ApplicationController
   rescue StandardError => e
     Rails.logger.error("Order payment processing failed: #{e.message}")
     order&.update(status: 'failed')
+  end
+
+  def handle_checkout_session(reference, _data, gateway, _metadata)
+    session = CheckoutSession.find_by(gateway_reference: reference)
+    return unless session && session.pending?
+
+    Rails.logger.info("[Webhook] Processing checkout session #{session.id} via #{gateway}")
+
+    ActiveRecord::Base.transaction do
+      session.mark_paid!
+
+      # Create transaction record for the payment
+      Transaction.create!(
+        transactable: session.user,
+        amount: session.total_amount,
+        transaction_type: 'debit',
+        status: 'success',
+        currency: session.currency,
+        description: "Cart Checkout via #{gateway}",
+        metadata: { checkout_session_id: session.id, gateway: gateway }
+      )
+    end
+
+    # Provision all orders (async-safe, outside transaction)
+    session.provision_orders!
+
+    Rails.logger.info("[Webhook] Checkout session #{session.id} completed")
+  rescue StandardError => e
+    Rails.logger.error("[Webhook] Checkout session processing failed: #{e.message}")
+    session&.fail! if session&.may_fail?
   end
 end

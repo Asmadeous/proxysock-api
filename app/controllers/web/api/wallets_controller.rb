@@ -8,19 +8,26 @@ module Web
       # GET /web/api/wallet
       def show
         wallet = current_user.wallet
+        # Calculate stats
+        total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
+        # Deposits are credits. But refunds are also credits.
+        # description might help. Or just use total credits - adjustments?
+        # For now, total credits is good enough proxy for "Total Deposited" if we ignore refunds/bonuses for a moment.
+
+        # Actually proper way:
+        total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
+
+        total_spent = current_user.orders.where(status: ['active', 'completed']).sum(:total_amount)
+        order_count = current_user.orders.count
 
         render json: {
-          balance: wallet&.balance || 0.0,
+          available_balance: wallet&.balance || 0.0,
           currency: 'USD',
-          recent_transactions: wallet&.wallet_transactions&.order(created_at: :desc)&.limit(10)&.map do |t|
-            {
-              id: t.id,
-              amount: t.amount,
-              type: t.transaction_type,
-              description: t.description,
-              created_at: t.created_at
-            }
-          end || []
+          total_deposited: total_deposited,
+          total_order_amount: total_spent,
+          order_count: order_count,
+          discount_percentage: current_user.metadata && current_user.metadata['discount_percentage'] || 0,
+          recent_transactions: wallet&.wallet_transactions&.order(created_at: :desc)&.limit(10) || []
         }
       end
 

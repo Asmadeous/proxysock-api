@@ -1,4 +1,22 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
+#!/usr/bin/env bash
 
-exec './bin/rails', 'server', *ARGV
+# Development startup script
+# Starts both Rails server and Vite frontend
+
+set -e
+
+# Check if foreman is installed
+if ! command -v foreman &> /dev/null; then
+  echo "Installing foreman..."
+  gem install foreman
+fi
+
+# Kill any existing servers
+if [ -f tmp/pids/server.pid ]; then
+  echo "Stopping existing Rails server..."
+  kill -9 $(cat tmp/pids/server.pid) 2>/dev/null || true
+  rm -f tmp/pids/server.pid
+fi
+
+# Start services with foreman
+exec foreman start -f Procfile.dev "$@"

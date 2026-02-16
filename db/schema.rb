@@ -10,9 +10,37 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "admin_action_logs", force: :cascade do |t|
     t.string "action_type"
@@ -112,6 +140,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.index ["user_id"], name: "index_carts_on_user_id"
+  end
+
+  create_table "checkout_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "currency", default: "USD", null: false
+    t.string "gateway_reference"
+    t.json "metadata"
+    t.string "payment_method", null: false
+    t.string "status", default: "pending", null: false
+    t.decimal "total_amount", precision: 10, scale: 2, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["gateway_reference"], name: "index_checkout_sessions_on_gateway_reference", unique: true
+    t.index ["status"], name: "index_checkout_sessions_on_status"
+    t.index ["user_id"], name: "index_checkout_sessions_on_user_id"
   end
 
   create_table "conversions", force: :cascade do |t|
@@ -369,6 +412,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
   end
 
   create_table "orders", force: :cascade do |t|
+    t.bigint "checkout_session_id"
     t.datetime "created_at", null: false
     t.string "currency"
     t.datetime "expires_at"
@@ -383,6 +427,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
     t.string "status"
     t.decimal "total_amount"
     t.datetime "updated_at", null: false
+    t.index ["checkout_session_id"], name: "index_orders_on_checkout_session_id"
     t.index ["order_number"], name: "index_orders_on_order_number", unique: true
     t.index ["orderable_type", "orderable_id"], name: "index_orders_on_orderable"
     t.index ["product_id"], name: "index_orders_on_product_id"
@@ -818,8 +863,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
     t.string "status"
     t.string "uid"
     t.datetime "updated_at", null: false
+    t.string "username"
     t.index ["email"], name: "index_users_on_email"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
+    t.index ["username"], name: "index_users_on_username", unique: true
   end
 
   create_table "vm_orders", force: :cascade do |t|
@@ -960,6 +1007,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
     t.index ["reseller_id"], name: "index_webhook_events_on_reseller_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "admin_action_logs", "employees"
   add_foreign_key "ansible_runs", "vms"
   add_foreign_key "api_tokens", "resellers"
@@ -968,6 +1017,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
   add_foreign_key "cart_items", "product_pricings"
   add_foreign_key "cart_items", "products"
   add_foreign_key "carts", "users"
+  add_foreign_key "checkout_sessions", "users"
   add_foreign_key "conversions", "carts"
   add_foreign_key "conversions", "ecommerce_orders"
   add_foreign_key "conversions", "products"
@@ -988,6 +1038,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_27_185115) do
   add_foreign_key "order_items", "ecommerce_orders"
   add_foreign_key "order_items", "product_pricings"
   add_foreign_key "order_items", "products"
+  add_foreign_key "orders", "checkout_sessions"
   add_foreign_key "orders", "product_pricings"
   add_foreign_key "orders", "products"
   add_foreign_key "payment_gateway_transactions", "transactions"

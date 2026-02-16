@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files (sensitive data)
+.env
+.env.*
+!.env.example
+
+# Version control
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files and coverage
+coverage/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Documentation
+*.md
+!README.md
+
+# Docker files (not needed in context)
+Dockerfile
+docker-compose*.yml
+
+# Misc
+.netlify/
+.vercel/
+*.log
+npm-debug.log*

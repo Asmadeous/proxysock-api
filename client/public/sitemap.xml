@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <!-- Homepage - Highest priority -->
+  <url>
+    <loc>https://www.proxysock.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Main Service Pages - High priority -->
+  <url>
+    <loc>https://www.proxysock.com/proxies</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/rdp</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/vps</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/esim</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Important Info Pages -->
+  <url>
+    <loc>https://www.proxysock.com/locations</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/proxy-purpose</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/HowToConnect</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Support & Company Pages -->
+  <url>
+    <loc>https://www.proxysock.com/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/faq</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+  <url>
+    <loc>https://www.proxysock.com/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Tools & Utilities -->
+  <url>
+    <loc>https://www.proxysock.com/ip-checker</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Legal Pages -->
+  <url>
+    <loc>https://www.proxysock.com/cookie-policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+    <lastmod>2025-01-21</lastmod>
+  </url>
+
+  <!-- Note: Removed all private pages like:
+       - /login, /register, /forgot-password (should not be indexed)
+       - /dashboard/* (protected, private content)
+       - /sadmin/* (admin area)
+       - /deposit/* (transactional pages)
+       - /wait-for-verification (temporary pages)
+  -->
+</urlset>

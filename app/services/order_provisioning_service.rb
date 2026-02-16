@@ -9,7 +9,7 @@ class OrderProvisioningService
     @product = order.product
   end
 
-  def process!
+  def process!(skip_payment: false)
     return false unless @order.pending?
 
     ActiveRecord::Base.transaction do
@@ -18,21 +18,23 @@ class OrderProvisioningService
       total = @order.total_amount
 
       # 2. Payment / Balance Check (Resellers always use wallet)
-      if @actor.is_a?(Reseller)
-        validate_and_deduct_balance!(total)
-      elsif @actor.is_a?(User)
-        # Users may have already paid via gateway, or pay from wallet
-        # If this is called, assume wallet payment
-        validate_and_deduct_balance!(total)
+      unless skip_payment
+        if @actor.is_a?(Reseller)
+          validate_and_deduct_balance!(total)
+        elsif @actor.is_a?(User)
+          # Users may have already paid via gateway, or pay from wallet
+          # If this is called, assume wallet payment
+          validate_and_deduct_balance!(total)
+        end
       end
 
       # 3. Transition to processing
       @order.process!
     end
-
+    
     # 4. Provision based on product type
     provision_product!
-
+    
     NotificationService.notify(
       recipient: @actor,
       category: 'success',
@@ -43,6 +45,16 @@ class OrderProvisioningService
 
     true
   rescue StandardError => e
+    handle_failure(e)
+  end
+
+  def process_without_deduction!
+    process!(skip_payment: true)
+  end
+
+  private
+
+  def handle_failure(e)
     Rails.logger.error("[OrderProvisioningService] Failed: #{e.message}")
     @order.fail! if @order.may_fail?
 

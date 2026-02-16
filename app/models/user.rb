@@ -3,6 +3,9 @@
 class User < ApplicationRecord
   has_secure_password validations: false
 
+  has_secure_password validations: false
+  has_one_attached :avatar
+
   has_many :ecommerce_orders
   has_many :orders, through: :ecommerce_orders
   has_many :ecommerce_orders
@@ -12,11 +15,21 @@ class User < ApplicationRecord
   has_many :tickets, as: :user
   has_one :wallet, as: :owner, dependent: :destroy
   has_many :orders, as: :orderable, dependent: :destroy
+  has_many :notifications, as: :recipient, dependent: :destroy
 
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :username, presence: true, uniqueness: true
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
+  
+  generates_token_for :password_reset, expires_in: 15.minutes do
+    password_salt&.last(10)
+  end
+
+  generates_token_for :email_verification, expires_in: 24.hours do
+    email
+  end
 
   # SSO: Find or create user from OAuth provider
   def self.from_omniauth(auth)

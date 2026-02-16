@@ -7,7 +7,14 @@ module Web
 
       # GET /web/api/orders
       def index
-        orders = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc).limit(20)
+        scope = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc)
+        
+        if params[:type].present?
+          scope = scope.joins(:product).where(products: { product_type: params[:type] })
+        end
+
+        orders = scope.limit(20)
+        
         render json: {
           orders: orders.map { |o| serialize_order(o) },
           meta: { total_count: orders.count }
@@ -144,12 +151,16 @@ module Web
       def serialize_order(order)
         {
           id: order.id,
+          order_number: order.order_number,
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
           total_amount: order.total_amount,
+          currency: order.currency,
           status: order.status,
-          created_at: order.created_at
+          created_at: order.created_at,
+          expires_at: order.expires_at,
+          metadata: order.metadata
         }
       end
 

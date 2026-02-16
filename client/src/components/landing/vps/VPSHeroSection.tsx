@@ -1,0 +1,124 @@
+import { ArrowRightIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useThemeStore } from "../../../store/themeStore";
+import backgroundNode from "../../../assets/images/backgroundNode.webp";
+import backgroundNodeRed from "../../../assets/images/backgroundNodeRed.webp";
+
+interface VPSHeroSectionProps {
+  trackConversion?: (
+    eventName: string,
+    eventType: string,
+    pagePath: string
+  ) => void;
+}
+
+export const VPSHeroSection = ({ trackConversion }: VPSHeroSectionProps) => {
+  const { isAuthenticated } = useAuth();
+  const { dark } = useThemeStore();
+
+  return (
+    <div className="relative h-[90vh] mx-auto flex items-center justify-center bg-background">
+      <div
+        className="absolute inset-0 z-0 opacity-20"
+        style={{
+          backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      ></div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
+        <div className="text-center">
+          {/* Trust Badges */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex justify-center gap-4 mb-6 flex-wrap"
+          >
+            <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
+              ✓ Residential IP
+            </span>
+            <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
+              Full Root Access
+            </span>
+            <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
+              99.9% Uptime
+            </span>
+            <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
+              🇨🇦 Starting CAD $23/mo
+            </span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
+          >
+            Residential VPS Hosting
+            <br />
+            <span className="text-primary">From $23 CAD/month</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-6 max-w-2xl mx-auto text-base sm:text-lg font-inter-regular text-muted-foreground"
+          >
+            Deploy Linux or Windows VPS with real residential IPs. Full root
+            access, SSD storage, and unlimited bandwidth. Best prices in
+            Canada!
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-10"
+          >
+            <Link
+              to={isAuthenticated ? "/dashboard/vps" : "/register"}
+              onClick={() =>
+                trackConversion?.(
+                  "vps_purchase_lead",
+                  "conversion",
+                  "/dashboard/vps"
+                )
+              }
+              className="px-8 py-4 text-lg bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all duration-200 inline-flex items-center font-manrope-semibold font-medium shadow-lg"
+            >
+              Deploy Your VPS Now
+              <ArrowRightIcon className="h-5 w-5 ml-2" />
+            </Link>
+            <p className="mt-4 text-muted-foreground text-sm">
+              Deploy in 60 seconds • Residential IPs • Cancel anytime
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-12 flex justify-center"
+          >
+            <div className="bg-card border border-border rounded-full px-6 py-3 inline-flex items-center justify-center gap-8 text-sm flex-wrap">
+              <span className="text-foreground">
+                99.9% Uptime Guarantee
+              </span>
+              <span className="text-foreground">
+                Instant 60-Second Setup
+              </span>
+              <span className="text-foreground">
+                Real Residential IPs
+              </span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+};
