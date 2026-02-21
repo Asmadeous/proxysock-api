@@ -5,9 +5,16 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+<<<<<<< HEAD
 import { isSessionExpired } from "../lib/railsApi";
 import { toast } from "react-hot-toast";
 import { useRedditTracking } from "../utils/redditPixel";
+=======
+import { isSessionExpired } from "../services/auth";
+import { toast } from "react-hot-toast";
+import { useRedditTracking } from "../utils/redditPixel";
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import {
   LoginForm,
@@ -15,10 +22,20 @@ import {
   LoginHeader,
 } from "../components/auth/login";
 import {
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   AuroraBackground,
   LoginFeaturesCarousel,
 } from "../components/auth/carousel";
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 // ProxySock Features Carousel
 
 export default function Login() {
@@ -33,7 +50,11 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [xLoading, setXLoading] = useState(false);
 
+<<<<<<< HEAD
   const { login, signInWithOAuth, isAuthenticated } = useAuth();
+=======
+  const { login, isAuthenticated } = useAuth();
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const navigate = useNavigate();
   const location = useLocation();
   const { trackPageView } = useRedditTracking();
@@ -64,7 +85,11 @@ export default function Login() {
 
     try {
       // Use the login function from AuthContext
+<<<<<<< HEAD
       await login(email, password);
+=======
+      await login(email, password, rememberMe);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
       // Handle remember me
       if (rememberMe) {
@@ -86,6 +111,7 @@ export default function Login() {
   };
 
   // Google OAuth Sign In
+<<<<<<< HEAD
   const handleGoogleSignIn = async () => {
     if (googleLoading || xLoading || isLoading) return;
 
@@ -117,6 +143,19 @@ export default function Login() {
     } finally {
       setXLoading(false);
     }
+=======
+  const handleGoogleSignIn = () => {
+    if (googleLoading || xLoading || isLoading) return;
+    setGoogleLoading(true);
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/google`;
+  };
+
+  // X (Twitter) OAuth Sign In
+  const handleXSignIn = () => {
+    if (googleLoading || xLoading || isLoading) return;
+    setXLoading(true);
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/twitter`;
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   };
 
   const isOAuthDisabled = googleLoading || xLoading || isLoading;

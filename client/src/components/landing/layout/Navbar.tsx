@@ -198,6 +198,7 @@ const Navbar = () => {
               <Link
                 to="/"
                 className="flex items-center"
+<<<<<<< HEAD
                 onClick={() => handleLinkClick("Logo", "/")}
               >
                 <img
@@ -205,6 +206,35 @@ const Navbar = () => {
                   alt="ProxySock Logo"
                   className="h-10 w-auto object-contain"
                 />
+=======
+                onClickCapture={() => handleLinkClick("Logo", "/")}
+              >
+                <div className="relative h-10 w-auto">
+                  {/* Invisible spacer to reserve layout space */}
+                  <img
+                    src={logoDark}
+                    alt="ProxySock Logo Spacer"
+                    className="h-10 w-auto opacity-0 invisible"
+                    aria-hidden="true"
+                  />
+
+                  {/* Dark Mode Logo */}
+                  <img
+                    src={logoDark}
+                    alt="ProxySock Logo"
+                    className={`absolute inset-0 h-10 w-auto object-contain transition-opacity duration-300 ease-in-out ${dark ? "opacity-100" : "opacity-0"
+                      }`}
+                  />
+
+                  {/* Light Mode Logo */}
+                  <img
+                    src={logoLight}
+                    alt="ProxySock Logo"
+                    className={`absolute inset-0 h-10 w-auto object-contain transition-opacity duration-300 ease-in-out ${dark ? "opacity-0" : "opacity-100"
+                      }`}
+                  />
+                </div>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
               </Link>
             </motion.div>
 
@@ -330,7 +360,11 @@ const Navbar = () => {
                   <Link
                     key={item.name}
                     to={item.href}
+<<<<<<< HEAD
                     onClick={() => handleLinkClick(item.name, item.href)}
+=======
+                    onClickCapture={() => handleLinkClick(item.name, item.href)}
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                     className={`text-sm font-medium transition-colors duration-200 ${location.pathname === item.href
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -400,7 +434,11 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/login"
+<<<<<<< HEAD
                     onClick={() => handleLinkClick("Login", "/login")}
+=======
+                    onClickCapture={() => handleLinkClick("Login", "/login")}
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                     className="text-foreground text-sm font-medium hover:text-muted-foreground transition-colors duration-200 font-manrope-medium"
                   >
                     Login
@@ -483,7 +521,11 @@ const Navbar = () => {
                         >
                           <Link
                             to={item.href}
+<<<<<<< HEAD
                             onClick={() =>
+=======
+                            onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                               handleLinkClick(item.name, item.href)
                             }
                             className="flex flex-col items-center p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors duration-200 group min-h-[100px] justify-center"
@@ -518,7 +560,11 @@ const Navbar = () => {
                         >
                           <Link
                             to={item.href}
+<<<<<<< HEAD
                             onClick={() =>
+=======
+                            onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                               handleLinkClick(item.name, item.href)
                             }
                             className="flex items-center p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors duration-200 group"
@@ -555,7 +601,11 @@ const Navbar = () => {
                         >
                           <Link
                             to={item.href}
+<<<<<<< HEAD
                             onClick={() =>
+=======
+                            onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                               handleLinkClick(item.name, item.href)
                             }
                             className="flex items-center p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors duration-200 group"
@@ -594,7 +644,11 @@ const Navbar = () => {
                       >
                         <Link
                           to={item.href}
+<<<<<<< HEAD
                           onClick={() => handleLinkClick(item.name, item.href)}
+=======
+                          onClickCapture={() => handleLinkClick(item.name, item.href)}
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                           className={`flex items-center text-base font-medium py-3 px-4 rounded-lg transition-colors duration-200 ${location.pathname === item.href
                             ? "bg-primary/20 text-primary border border-primary/30"
                             : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -685,7 +739,11 @@ const Navbar = () => {
                       {isAuthenticated ? (
                         <Link
                           to="/dashboard"
+<<<<<<< HEAD
                           onClick={() =>
+=======
+                          onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                             handleLinkClick("Dashboard Mobile", "/dashboard")
                           }
                           className="block w-full bg-red-600 text-white px-6 py-4 rounded-full hover:bg-red-700 transition-colors duration-200 text-center font-medium"
@@ -696,7 +754,11 @@ const Navbar = () => {
                         <>
                           <Link
                             to="/login"
+<<<<<<< HEAD
                             onClick={() =>
+=======
+                            onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                               handleLinkClick("Login Mobile", "/login")
                             }
                             className="block w-full text-foreground text-center px-6 py-4 rounded-full border border-border hover:bg-secondary transition-colors duration-200 font-medium"
@@ -705,7 +767,11 @@ const Navbar = () => {
                           </Link>
                           <Link
                             to="/login"
+<<<<<<< HEAD
                             onClick={() =>
+=======
+                            onClickCapture={() =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                               handleLinkClick("Login/Register Mobile", "/login")
                             }
                             className="block w-full bg-red-600 text-white px-6 py-4 rounded-full hover:bg-red-700 transition-colors duration-200 text-center font-medium"

@@ -4,6 +4,10 @@ import { Outlet } from "react-router-dom";
 import { useThemeStore } from "@/store/themeStore";
 import { Footer } from "@/components/landing/layout/Footer";
 import Navbar from "./Navbar";
+<<<<<<< HEAD
+=======
+import ChatWidget from "@/components/ChatWidget";
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export default function PublicLayout() {
   const dark = useThemeStore((state) => state.dark);
@@ -20,6 +24,10 @@ export default function PublicLayout() {
           <Outlet />
         </main>
         <Footer />
+<<<<<<< HEAD
+=======
+        <ChatWidget />
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       </div>
     </div>
   );

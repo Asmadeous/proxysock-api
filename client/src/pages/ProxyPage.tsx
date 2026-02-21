@@ -82,6 +82,7 @@ export default function ProxyPage() {
   useEffect(() => {
     document.title =
       "Buy Proxies Online - Premium Datacenter, Residential & ISP Proxies | ProxySock";
+<<<<<<< HEAD
 
     const s1 = document.createElement("script");
     const s0 = document.getElementsByTagName("script")[0];
@@ -96,6 +97,8 @@ export default function ProxyPage() {
     return () => {
       s1.remove();
     };
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }, []);
 
   if (isLoading) {

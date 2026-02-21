@@ -37,7 +37,7 @@ module Web
         gateway = params[:gateway] # 'paystack', 'plisio', 'payvra'
         currency = params[:currency] || 'USD'
 
-        return render json: { error: 'Invalid amount' }, status: :bad_request if amount <= 0
+        return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
                                                                                          payvra].include?(gateway)
 
@@ -57,7 +57,7 @@ module Web
         render json: {
           message: 'Deposit initiated',
           deposit_id: deposit.id,
-          transaction_ref: deposit.transaction_id,
+          transaction_ref: deposit.metadata['transaction_ref'],
           payment_url: payment_url
         }
       end
@@ -69,10 +69,12 @@ module Web
 
         case gateway
         when 'paystack'
+          exchange_rate = 1500 # NGN/USD
+          amount_ngn = amount * exchange_rate
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_user.email,
-            amount: (amount * 100).to_i, # Paystack uses kobo/cents
+            amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
             metadata: { deposit_id: deposit.id, user_id: current_user.id }
@@ -82,7 +84,7 @@ module Web
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
-            order_number: deposit.transaction_id,
+            order_number: deposit.metadata['transaction_ref'],
             amount: amount,
             currency: currency,
             callback_url: callback_url,
@@ -95,7 +97,7 @@ module Web
           result = service.create_payment(
             amount: amount,
             currency: currency,
-            reference: deposit.transaction_id,
+            reference: deposit.metadata['transaction_ref'],
             callback_url: callback_url
           )
           result[:payment_url]

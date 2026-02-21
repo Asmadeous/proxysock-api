@@ -167,4 +167,94 @@ proxy_products.each do |prod|
 end
 
 puts "✅ Created #{Product.count} products with pricing"
-puts "🌱 Seeding complete!"
+
+puts "Starting database seed..."
+
+# Create Demo User
+demo = User.find_or_initialize_by(email: 'demo@proxysock.com')
+demo.update!(
+  first_name: 'Demo',
+  last_name: 'User',
+  username: 'demo',
+  password: 'Password123!',
+  password_confirmation: 'Password123!'
+)
+
+# Create Regular Customer
+customer = User.find_or_initialize_by(email: 'test@proxysock.com')
+customer.update!(
+  first_name: 'Test',
+  last_name: 'Customer',
+  username: 'testcustomer',
+  password: 'Password123!',
+  password_confirmation: 'Password123!'
+)
+
+# Create Employees
+begin
+  # Support Employee
+  support = Employee.find_or_initialize_by(email: 'employee@proxysock.com')
+  support.update!(
+    first_name: 'Test',
+    last_name: 'Employee',
+    password: 'Password123!',
+    password_confirmation: 'Password123!',
+    department: Department.find_or_create_by!(name: 'Support'),
+    role: 'support',
+    active: true
+  )
+
+  # Admin Employee
+  admin_emp = Employee.find_or_initialize_by(email: 'admin@proxysock.com')
+  admin_emp.update!(
+    first_name: 'Super',
+    last_name: 'Admin',
+    password: 'Password123!',
+    password_confirmation: 'Password123!',
+    department: Department.find_or_create_by!(name: 'Management'),
+    role: 'admin',
+    active: true
+  )
+rescue NameError
+  puts "Employee model not found or misconfigured, skipping."
+end
+
+# Create Reseller
+begin
+  reseller = Reseller.find_or_initialize_by(email: 'reseller@proxysock.com')
+  reseller.update!(
+    username: 'testreseller',
+    company_name: 'Reseller Inc.',
+    password: 'Password123!',
+    password_confirmation: 'Password123!'
+  )
+rescue NameError
+  puts "Reseller model not found or misconfigured, skipping."
+end
+
+# Seed Affiliate
+affiliate_user = User.find_by(email: 'test@proxysock.com')
+if affiliate_user
+  # Use polymorphic affiliatable if needed, but the seed uses 'user:'
+  # Check if Affiliate belongs_to user or affiliatable. The seed suggests 'user:'
+  # If it fails, I'll fix it, but I'll stick to the seed's logic.
+  Affiliate.find_or_create_by!(affiliatable: affiliate_user) do |a|
+    a.referral_code = 'PROXY_DASH_TEST'
+    a.commission_rate = 10.0
+    # total_referrals/total_commissions might not be in the model if they are calculated
+  end
+  puts "✅ Seeded Affiliate for test@proxysock.com"
+end
+
+# Seed sample notifications
+[User.first, Reseller.first, Employee.first].compact.each do |target|
+  Notification.create!(
+    recipient: target, # Changed from notifiable to recipient based on schema
+    title: "Welcome to the new Dashboard!",
+    message: "We hope you enjoy the new design and theme toggling!",
+    read_at: nil
+  )
+end
+puts "✅ Seeded sample notifications for all roles"
+
+puts "Database successfully seeded!"

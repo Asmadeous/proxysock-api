@@ -1,9 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useCallback, useRef, useEffect } from "react";
+<<<<<<< HEAD
 import * as authService from "../services/railsAuth";
 import { toast } from "react-hot-toast";
 import { conversionTracker } from "../utils/redditPixel";
+=======
+
+import { toast } from "react-hot-toast";
+import { conversionTracker } from "../utils/redditPixel";
+import { registerUser } from "../services/api";
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import {
   RegisterHeader,
@@ -17,6 +24,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogle, faXTwitter } from "@fortawesome/free-brands-svg-icons";
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 export default function Register() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -25,13 +36,20 @@ export default function Register() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+<<<<<<< HEAD
   const [avatar, setAvatar] = useState<File | null>(null);
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+<<<<<<< HEAD
+=======
+  const [profilePictureUrl, setProfilePictureUrl] = useState("");
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   // Enhanced rate limiting state
   const [submitAttempts, setSubmitAttempts] = useState(0);
@@ -143,21 +161,35 @@ export default function Register() {
     return false;
   }, [submitAttempts, isRateLimited, rateLimitResetTime]);
 
+<<<<<<< HEAD
   // Handle rate limit errors
+=======
+  // Handle rate limit errors from Supabase
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const handleRateLimitError = (error: any) => {
     const now = Date.now();
     let resetTime = now + 60 * 60 * 1000; // Default 1 hour
     let type: "email" | "ip" | "general" = "general";
+<<<<<<< HEAD
     const errorMessage = error.message || error.toString();
 
     // Parse different types of rate limit errors
     if (errorMessage.toLowerCase().includes("email rate limit")) {
+=======
+
+    // Parse different types of rate limit errors
+    if (error.message.includes("email rate limit")) {
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       type = "email";
       resetTime = now + 60 * 60 * 1000; // 1 hour for email limits
       toast.error(
         "Email rate limit exceeded. Try a different email or wait 1 hour."
       );
+<<<<<<< HEAD
     } else if (errorMessage.toLowerCase().includes("rate limit")) {
+=======
+    } else if (error.message.includes("rate limit")) {
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       type = "ip";
       resetTime = now + 24 * 60 * 60 * 1000; // 24 hours for IP limits
       toast.error(
@@ -185,17 +217,25 @@ export default function Register() {
   const handleGoogleSignIn = () => {
     if (googleLoading || xLoading || isRateLimited) return;
     setGoogleLoading(true);
+<<<<<<< HEAD
     authService.signInWithOAuth("google");
     // Redirect happens immediately, but if we stay:
     setTimeout(() => setGoogleLoading(false), 5000);
+=======
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/google`;
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   };
 
   // X (Twitter) OAuth Sign In
   const handleXSignIn = () => {
     if (googleLoading || xLoading || isRateLimited) return;
     setXLoading(true);
+<<<<<<< HEAD
     authService.signInWithOAuth("twitter");
     setTimeout(() => setXLoading(false), 5000);
+=======
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/twitter`;
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,11 +258,14 @@ export default function Register() {
       return;
     }
 
+<<<<<<< HEAD
     if (password !== passwordConfirmation) {
       toast.error("Passwords do not match");
       return;
     }
 
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (!agreedToTerms) {
       toast.error("Please agree to the Terms of Service and Privacy Policy");
       return;
@@ -233,14 +276,25 @@ export default function Register() {
     lastSubmitTime.current = Date.now();
 
     try {
+<<<<<<< HEAD
       const data = await authService.register({
+=======
+      const { data } = await registerUser({
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         email,
         password,
         password_confirmation: passwordConfirmation,
         first_name: firstName,
         last_name: lastName,
+<<<<<<< HEAD
         username: username,
         avatar: avatar || undefined,
+=======
+        username,
+        country,
+        city,
+        profile_picture_url: profilePictureUrl,
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       });
 
       // Reset all rate limiting state on success
@@ -254,7 +308,11 @@ export default function Register() {
       if (data.user) {
         try {
           await conversionTracker.trackSignUp({
+<<<<<<< HEAD
             userId: data.user.id.toString(),
+=======
+            userId: data.user.id,
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             email: email,
             method: "email",
           });
@@ -272,7 +330,11 @@ export default function Register() {
       }
 
       console.log("User created:", data.user);
+<<<<<<< HEAD
       toast.success("Account created! Redirecting...");
+=======
+      toast.success("Account created! Check your email to verify.");
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
       // Clear form data on success
       setEmail("");
@@ -283,15 +345,22 @@ export default function Register() {
       setUsername("");
       setCountry("");
       setCity("");
+<<<<<<< HEAD
 
       // Redirect to home or verification page (Rails API handles verification logic internally or returns active user)
       setTimeout(() => navigate("/wait-for-verification"), 1500);
 
+=======
+      setProfilePictureUrl("");
+
+      setTimeout(() => navigate("/wait-for-verification"), 1500);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     } catch (error: any) {
       console.error("Registration failed:", error);
       setSubmitAttempts((prev) => prev + 1);
 
       // Enhanced error messages
+<<<<<<< HEAD
       // Axios error data is usually in error.response.data
       const errorData = error.response?.data;
       const errorMessage = errorData?.error || errorData?.errors?.join(", ") || error.message || "Registration failed";
@@ -304,6 +373,26 @@ export default function Register() {
       } else {
         toast.error(errorMessage);
       }
+=======
+      let errorMessage = "Registration failed. Please check your details.";
+
+      if (error.status === 429 || error.message.includes("rate limit")) {
+        handleRateLimitError(error);
+        return;
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.message.includes("Password")) {
+        errorMessage = "Password doesn't meet requirements.";
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("fetch")
+      ) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      }
+
+      toast.error(errorMessage);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     } finally {
       setIsLoading(false);
     }
@@ -363,6 +452,7 @@ export default function Register() {
           </div>
         </div>
 
+<<<<<<< HEAD
         <div className="flex-1 overflow-y-auto bg-background scroll-smooth">
           <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-12">
             <motion.div
@@ -458,6 +548,100 @@ export default function Register() {
               </div>
             </motion.div>
           </div>
+=======
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="w-full max-w-lg"
+          >
+            <div className="space-y-6">
+              {/* Form Header */}
+              <RegisterHeader />
+
+
+
+              {/* Registration Form */}
+              <RegisterForm
+                firstName={firstName}
+                setFirstName={setFirstName}
+                lastName={lastName}
+                setLastName={setLastName}
+                username={username}
+                setUsername={setUsername}
+                email={email}
+                setEmail={setEmail}
+                password={password}
+                setPassword={setPassword}
+                passwordConfirmation={passwordConfirmation}
+                setPasswordConfirmation={setPasswordConfirmation}
+                country={country}
+                setCountry={setCountry}
+                city={city}
+                setCity={setCity}
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                agreedToTerms={agreedToTerms}
+                setAgreedToTerms={setAgreedToTerms}
+                isLoading={isLoading}
+                isRateLimited={isRateLimited}
+                remainingTime={remainingTime}
+                submitAttempts={submitAttempts}
+                passwordError={passwordError}
+                passwordStrength={passwordStrength}
+                profilePictureUrl={profilePictureUrl}
+                setProfilePictureUrl={setProfilePictureUrl}
+                onSubmit={handleSubmit}
+              />
+
+              {/* Social Login Buttons */}
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-6">
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={isOAuthDisabled}
+                    className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+                  >
+                    {googleLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500 mr-3"></div>
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={faGoogle}
+                        className="h-5 w-5 text-red-500 mr-3"
+                      />
+                    )}
+                    <span className="text-gray-800 font-medium">
+                      {googleLoading
+                        ? "Connecting to Google..."
+                        : "Continue with Google"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleXSignIn}
+                    disabled={isOAuthDisabled}
+                    className="w-full flex items-center justify-center px-6 py-4 bg-black hover:bg-gray-900 border border-gray-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+                  >
+                    {xLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={faXTwitter}
+                        className="h-5 w-5 text-white mr-3"
+                      />
+                    )}
+                    <span className="text-white font-medium">
+                      {xLoading ? "Connecting to X..." : "Continue with X"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         </div>
       </div>
     </div>

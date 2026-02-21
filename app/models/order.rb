@@ -28,7 +28,7 @@ class Order < ApplicationRecord
 
   def provisioned_resource
     case product.product_type
-    when 'vm' then vm
+    when 'vps' then vm
     when 'proxy' then proxy # delegates to correct proxy association
     when 'esim' then esim_order
     when 'vpn' then vpn_account
@@ -44,6 +44,20 @@ class Order < ApplicationRecord
   end
 
   before_save :calculate_total_amount
+  after_create :notify_user_on_order
+
+  private
+
+  def notify_user_on_order
+    Notification.create(
+      recipient: orderable,
+      category: 'success',
+      title: "Order ##{order_number} Placed",
+      message: "Your order for #{product&.name || 'a product'} has been placed successfully."
+    ) if orderable
+  end
+
+  public
 
   include AASM
 

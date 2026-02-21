@@ -4,7 +4,7 @@ module Api
   module V1
     class TicketsController < BaseController
       def index
-        tickets = current_reseller.tickets.order(updated_at: :desc).page(params[:page]).per(20)
+        tickets = current_reseller.tickets.includes(:ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
 
         render json: {
           tickets: tickets.map { |t| serialize_ticket(t) },
@@ -23,13 +23,30 @@ module Api
       end
 
       def create
-        ticket = current_reseller.tickets.build(ticket_params)
+        # Resolve and Validate order_id
+        processed_params = ticket_params.to_h
+        if processed_params[:order_id].present?
+          order = if processed_params[:order_id].to_s.match?(/\A\d+\z/)
+                    Order.find_by(id: processed_params[:order_id])
+                  else
+                    Order.find_by(order_number: processed_params[:order_id])
+                  end
+
+          if order
+            processed_params[:order_id] = order.id
+          else
+            return render json: { errors: { order_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+          end
+        end
+
+        ticket = current_reseller.tickets.build(processed_params.except(:body))
 
         if ticket.save
           # Create initial message
+          body_content = params[:body] || params[:message] || (params[:ticket] && params[:ticket][:body])
           ticket.ticket_messages.create!(
             sender: current_reseller,
-            body: params[:body]
+            body: body_content
           )
           render json: { ticket: serialize_ticket(ticket) }, status: :created
         else
@@ -39,9 +56,10 @@ module Api
 
       def reply
         ticket = current_reseller.tickets.find(params[:id])
+        body_content = params[:body] || params[:message]
 
         message = ticket.ticket_messages.new(
-          body: params[:body],
+          body: body_content,
           sender: current_reseller,
           attachments: params[:attachments]
         )
@@ -57,7 +75,7 @@ module Api
       private
 
       def ticket_params
-        params.require(:ticket).permit(:subject, :priority, :order_id)
+        params.require(:ticket).permit(:subject, :priority, :order_id, :body)
       end
 
       def serialize_ticket(ticket)
@@ -65,6 +83,10 @@ module Api
           id: ticket.id,
           subject: ticket.subject,
           status: ticket.status,
+          user_type: ticket.user_type,
+          messages_count: ticket.ticket_messages.size,
+          body: ticket.ticket_messages.order(created_at: :asc).first&.body,
+          created_at: ticket.created_at,
           updated_at: ticket.updated_at
         }
       end

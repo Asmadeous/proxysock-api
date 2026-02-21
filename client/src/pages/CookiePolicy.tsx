@@ -23,9 +23,14 @@ export default function CookiePolicy() {
         <div
           className="absolute inset-0 z-0 opacity-20"
           style={{
+<<<<<<< HEAD
             backgroundImage: `url(${
               dark ? backgroundNode : backgroundNodeRed
             })`,
+=======
+            backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed
+              })`,
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -361,12 +366,17 @@ export default function CookiePolicy() {
                     </svg>
                   </div>
                   <h3 className="text-foreground font-semibold">
+<<<<<<< HEAD
                     Tawk.to Chat
+=======
+                    Live Support Chat
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                   </h3>
                 </div>
                 <p className="text-muted-foreground text-sm mb-4">
                   Customer support chat functionality
                 </p>
+<<<<<<< HEAD
                 <a
                   href="https://www.tawk.to/privacy-policy/"
                   target="_blank"
@@ -375,6 +385,14 @@ export default function CookiePolicy() {
                 >
                   View Privacy Policy →
                 </a>
+=======
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+                >
+                  Contact Us →
+                </Link>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
               </motion.div>
 
               <motion.div

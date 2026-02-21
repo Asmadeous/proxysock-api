@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_21_001736) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,6 +54,55 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.string "user_agent"
     t.index ["employee_id"], name: "index_admin_action_logs_on_employee_id"
     t.index ["target_type", "target_id"], name: "index_admin_action_logs_on_target"
+  end
+
+  create_table "affiliate_payouts", force: :cascade do |t|
+    t.bigint "affiliate_id", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.text "notes"
+    t.datetime "paid_at"
+    t.jsonb "payment_details", default: {}
+    t.string "payment_method"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliate_id"], name: "index_affiliate_payouts_on_affiliate_id"
+    t.index ["status"], name: "index_affiliate_payouts_on_status"
+  end
+
+  create_table "affiliate_referrals", force: :cascade do |t|
+    t.bigint "affiliate_id", null: false
+    t.decimal "commission_amount", precision: 10, scale: 2
+    t.datetime "converted_at"
+    t.datetime "created_at", null: false
+    t.bigint "order_id"
+    t.decimal "referee_discount_applied", precision: 5, scale: 2
+    t.bigint "referred_id", null: false
+    t.string "referred_type", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliate_id"], name: "index_affiliate_referrals_on_affiliate_id"
+    t.index ["order_id"], name: "index_affiliate_referrals_on_order_id"
+    t.index ["referred_type", "referred_id"], name: "index_affiliate_referrals_on_referred"
+    t.index ["status"], name: "index_affiliate_referrals_on_status"
+  end
+
+  create_table "affiliates", force: :cascade do |t|
+    t.bigint "affiliatable_id", null: false
+    t.string "affiliatable_type", null: false
+    t.decimal "commission_rate", precision: 5, scale: 2, default: "10.0", null: false
+    t.datetime "created_at", null: false
+    t.decimal "discount_rate", precision: 5, scale: 2, default: "5.0", null: false
+    t.datetime "last_payout_at"
+    t.text "notes"
+    t.string "referral_code", null: false
+    t.string "status", default: "active", null: false
+    t.decimal "total_earned", precision: 10, scale: 2, default: "0.0", null: false
+    t.decimal "total_paid_out", precision: 10, scale: 2, default: "0.0", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliatable_type", "affiliatable_id"], name: "index_affiliates_on_affiliatable"
+    t.index ["referral_code"], name: "index_affiliates_on_referral_code", unique: true
+    t.index ["status"], name: "index_affiliates_on_status"
   end
 
   create_table "ansible_runs", force: :cascade do |t|
@@ -113,6 +162,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.decimal "total_revenue"
     t.datetime "updated_at", null: false
     t.index ["billable_id"], name: "index_billing_histories_on_billable_id"
+  end
+
+  create_table "blog_posts", force: :cascade do |t|
+    t.string "author", null: false
+    t.string "category", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.text "excerpt", null: false
+    t.boolean "featured", default: false, null: false
+    t.string "image_url"
+    t.boolean "published", default: false, null: false
+    t.datetime "published_at"
+    t.string "read_time"
+    t.string "slug", null: false
+    t.jsonb "tags", default: [], null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "views_count", default: 0, null: false
+    t.index ["category"], name: "index_blog_posts_on_category"
+    t.index ["featured"], name: "index_blog_posts_on_featured"
+    t.index ["published"], name: "index_blog_posts_on_published"
+    t.index ["published_at"], name: "index_blog_posts_on_published_at"
+    t.index ["slug"], name: "index_blog_posts_on_slug", unique: true
   end
 
   create_table "cart_items", force: :cascade do |t|
@@ -240,7 +312,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.string "first_name"
     t.datetime "last_login_at"
     t.string "last_name"
+    t.datetime "last_seen_at"
     t.string "password_digest"
+    t.string "profile_picture_url"
     t.string "provider"
     t.string "role"
     t.string "uid"
@@ -255,15 +329,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   create_table "esim_inventories", force: :cascade do |t|
     t.string "activation_code"
     t.datetime "created_at", null: false
+    t.string "esim_type", default: "data_only", null: false
     t.string "iccid", null: false
+    t.integer "moq", default: 1, null: false
     t.string "pin1"
     t.string "pin2"
     t.bigint "product_id"
     t.string "provider", null: false
     t.string "puk1"
     t.string "puk2"
+    t.string "qr_code_url"
     t.string "status", default: "available"
     t.datetime "updated_at", null: false
+    t.index ["esim_type"], name: "index_esim_inventories_on_esim_type"
     t.index ["iccid"], name: "index_esim_inventories_on_iccid", unique: true
     t.index ["product_id"], name: "index_esim_inventories_on_product_id"
     t.index ["provider", "status"], name: "index_esim_inventories_on_provider_and_status"
@@ -276,7 +354,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.decimal "data_amount_gb"
     t.integer "duration_days"
     t.string "esim_provider"
+    t.string "esim_type", default: "data_only", null: false
     t.datetime "expires_at"
+    t.integer "moq_quantity", default: 1, null: false
     t.bigint "order_id", null: false
     t.string "package_code"
     t.string "provider_order_no"
@@ -346,6 +426,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.datetime "updated_at", null: false
     t.string "webhook_type"
     t.index ["related_type", "related_id"], name: "index_external_api_webhooks_on_related"
+  end
+
+  create_table "guest_chat_messages", force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.bigint "guest_chat_id", null: false
+    t.bigint "sender_id"
+    t.string "sender_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_guest_chat_messages_on_created_at"
+    t.index ["guest_chat_id"], name: "index_guest_chat_messages_on_guest_chat_id"
+  end
+
+  create_table "guest_chats", force: :cascade do |t|
+    t.bigint "assigned_to_id"
+    t.datetime "created_at", null: false
+    t.string "guest_email", null: false
+    t.string "guest_name", null: false
+    t.string "session_token", null: false
+    t.string "status", default: "open", null: false
+    t.string "subject"
+    t.datetime "updated_at", null: false
+    t.index ["assigned_to_id"], name: "index_guest_chats_on_assigned_to_id"
+    t.index ["session_token"], name: "index_guest_chats_on_session_token", unique: true
+    t.index ["status"], name: "index_guest_chats_on_status"
   end
 
   create_table "mobile_proxies", force: :cascade do |t|
@@ -600,7 +705,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.decimal "discount_percentage"
     t.string "email"
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
+    t.datetime "last_seen_at"
     t.string "password_digest"
+    t.string "referred_by_code"
     t.string "reseller_type", default: "api_only"
     t.string "status"
     t.datetime "token_issued_at"
@@ -609,6 +716,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.string "username"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
+    t.index ["referred_by_code"], name: "index_resellers_on_referred_by_code"
     t.index ["reseller_type"], name: "index_resellers_on_reseller_type"
     t.index ["username"], name: "index_resellers_on_username"
   end
@@ -762,6 +870,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "support_chat_messages", force: :cascade do |t|
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.datetime "read_at"
+    t.bigint "sender_id", null: false
+    t.string "sender_type", null: false
+    t.bigint "support_chat_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sender_type", "sender_id"], name: "index_support_chat_messages_on_sender"
+    t.index ["support_chat_id"], name: "index_support_chat_messages_on_support_chat_id"
+  end
+
+  create_table "support_chats", force: :cascade do |t|
+    t.bigint "assigned_to_id"
+    t.bigint "chatable_id", null: false
+    t.string "chatable_type", null: false
+    t.datetime "created_at", null: false
+    t.string "session_token", null: false
+    t.string "status", default: "open"
+    t.string "subject"
+    t.datetime "updated_at", null: false
+    t.index ["assigned_to_id"], name: "index_support_chats_on_assigned_to_id"
+    t.index ["chatable_type", "chatable_id"], name: "index_support_chats_on_chatable"
+    t.index ["session_token"], name: "index_support_chats_on_session_token"
+  end
+
   create_table "ticket_messages", force: :cascade do |t|
     t.jsonb "attachments", default: []
     t.text "body", null: false
@@ -850,22 +984,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   end
 
   create_table "users", force: :cascade do |t|
+    t.string "city"
+    t.string "country"
     t.datetime "created_at", null: false
     t.string "email"
+    t.string "email_confirmation_token"
     t.datetime "email_verified_at"
     t.string "first_name"
+    t.string "ip_address"
     t.datetime "last_login_at"
     t.string "last_name"
+    t.datetime "last_seen_at"
     t.jsonb "metadata"
     t.string "password_digest"
+    t.datetime "password_reset_sent_at"
+    t.string "password_reset_token"
     t.string "phone"
+    t.string "profile_picture_url"
     t.string "provider"
+    t.string "referred_by_code"
     t.string "status"
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["email"], name: "index_users_on_email"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
+<<<<<<< HEAD
+=======
+    t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
@@ -1010,6 +1157,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "admin_action_logs", "employees"
+  add_foreign_key "affiliate_payouts", "affiliates"
+  add_foreign_key "affiliate_referrals", "affiliates"
+  add_foreign_key "affiliate_referrals", "orders"
   add_foreign_key "ansible_runs", "vms"
   add_foreign_key "api_tokens", "resellers"
   add_foreign_key "billing_histories", "resellers", column: "billable_id"
@@ -1032,6 +1182,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   add_foreign_key "esim_inventories", "products"
   add_foreign_key "esim_orders", "orders"
   add_foreign_key "esims", "esim_orders"
+  add_foreign_key "guest_chat_messages", "guest_chats"
+  add_foreign_key "guest_chats", "employees", column: "assigned_to_id"
   add_foreign_key "mobile_proxies", "mobile_proxy_orders"
   add_foreign_key "mobile_proxies", "orders"
   add_foreign_key "mobile_proxy_orders", "orders"
@@ -1060,6 +1212,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_194247) do
   add_foreign_key "static_isp_proxy_orders", "orders"
   add_foreign_key "static_residential_proxies", "static_residential_proxy_orders"
   add_foreign_key "static_residential_proxy_orders", "orders"
+  add_foreign_key "support_chat_messages", "support_chats"
+  add_foreign_key "support_chats", "employees", column: "assigned_to_id"
   add_foreign_key "ticket_messages", "tickets"
   add_foreign_key "tickets", "employees", column: "assigned_to_id"
   add_foreign_key "tickets", "orders"

@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+<<<<<<< HEAD
 import railsApi from "@/lib/railsApi";
+=======
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import {
   Cpu,
   HardDrive,
@@ -25,6 +29,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+<<<<<<< HEAD
+=======
+import api from "../services/api";
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 interface VPSPlan {
   id: string;
@@ -71,11 +80,19 @@ export default function VPSPlans() {
   const [searchParams] = useSearchParams();
   const countryParam = searchParams.get("country") || "";
 
+<<<<<<< HEAD
   const [vpsPlans, setVpsPlans] = useState<VPSPlan[]>([]);
   const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [osMetadata, setOsMetadata] = useState<OSMetadata[]>([]);
   const [loading, setLoading] = useState(true);
+=======
+  const [plans, setPlans] = useState<VPSPlan[]>([]);
+  const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
+  const [locations, setLocations] = useState<Country[]>([]);
+  const [osOptions, setOsOptions] = useState<OSMetadata[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<VPSPlan | null>(null);
   const [selectedOS, setSelectedOS] = useState("");
@@ -95,15 +112,44 @@ export default function VPSPlans() {
   }, [countryParam]);
 
   const fetchData = async () => {
+<<<<<<< HEAD
     try {
       setLoading(true);
+=======
+    setIsLoading(true);
+    try {
+      const { data } = await api.get('/web/api/products?product_type=vps');
+
+      const products = data.products || [];
+      const mappedPlans: VPSPlan[] = products.map((p: any) => ({
+        id: p.id.toString(),
+        plan_id: p.id,
+        name: p.name,
+        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
+        price: p.price || 0,
+        currency_code: p.currency || 'USD',
+        cpu_cores: p.cpu_cores || 4,
+        ram_gb: p.ram_gb || 4,
+        storage_gb: p.storage_gb || 60,
+        concurrent_users: p.concurrent_users || 1,
+        session_duration_hours: p.session_duration_hours || -1,
+        os_templates: p.os_templates || ['ubuntu-20.04', 'debian-11', 'windows-2019'],
+        features: p.features || ['Full Root Access', 'SSD Storage', 'Premium Bandwidth'],
+        locations: p.locations || ['US', 'DE', 'GB'],
+        is_active: p.active !== false,
+      }));
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
       const managementOptionsFallback = [
         { type: "unmanaged", name: "Unmanaged", description: "Full root access, you manage everything", features: ["Complete control", "Root access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
         { type: "managed", name: "Fully Managed", description: "We handle everything including updates, security & support", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 expert support"], priceMultiplier: 1.5, badge: "Worry-Free" }
       ];
 
+<<<<<<< HEAD
       const countriesFallback = [
+=======
+      const datacenterCountriesFallback = [
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
@@ -114,7 +160,11 @@ export default function VPSPlans() {
         { code: "AU", name: "Australia", flag: "🇦🇺" }
       ];
 
+<<<<<<< HEAD
       const osMetadataFallback = [
+=======
+      const osOptionsFallback = [
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
         { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },
         { name: "Windows 10 Pro", icon: "WindowsIcon", description: "Stable Windows desktop OS" },
@@ -124,6 +174,7 @@ export default function VPSPlans() {
         { name: "CentOS Stream 9", icon: "CentOSIcon", description: "Continuous delivery" }
       ];
 
+<<<<<<< HEAD
       // Fetch from Rails API
       const { data } = await railsApi.get('/products');
 
@@ -177,13 +228,56 @@ export default function VPSPlans() {
       // Fallback data in case of error?
     } finally {
       setLoading(false);
+=======
+      setPlans(mappedPlans.filter(plan => plan.is_active));
+
+      // Use fallbacks for configs since Rails doesn't use system_config
+      setManagementOptions(managementOptionsFallback);
+      setLocations(datacenterCountriesFallback);
+      setOsOptions(osOptionsFallback);
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load VPS plans. Please try again later.");
+      // Fallback data
+      setPlans([]);
+      setManagementOptions([
+        { type: "unmanaged", name: "Unmanaged", description: "Full root access, you manage everything", features: ["Complete control", "Root access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
+        { type: "managed", name: "Fully Managed", description: "We handle everything including updates, security & support", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 expert support"], priceMultiplier: 1.5, badge: "Worry-Free" }
+      ]);
+      setLocations([
+        { code: "US", name: "United States", flag: "🇺🇸" },
+        { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
+        { code: "DE", name: "Germany", flag: "🇩🇪" },
+        { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+        { code: "SG", name: "Singapore", flag: "🇸🇬" },
+        { code: "JP", name: "Japan", flag: "🇯🇵" },
+        { code: "CA", name: "Canada", flag: "🇨🇦" },
+        { code: "AU", name: "Australia", flag: "🇦🇺" }
+      ]);
+      setOsOptions([
+        { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
+        { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },
+        { name: "Windows 10 Pro", icon: "WindowsIcon", description: "Stable Windows desktop OS" },
+        { name: "Ubuntu 22.04 LTS", icon: "UbuntuIcon", description: "Most popular Linux with LTS support" },
+        { name: "Debian 12", icon: "DebianIcon", description: "Rock-solid stability" },
+        { name: "AlmaLinux 9", icon: "RockyIcon", description: "Enterprise-grade, RHEL compatible" },
+        { name: "CentOS Stream 9", icon: "CentOSIcon", description: "Continuous delivery" }
+      ]);
+    } finally {
+      setIsLoading(false);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     }
   };
 
   const getEffectivePrice = (plan: VPSPlan): number => {
     if (!selectedCountry || !plan.country_pricing) return plan.price;
 
+<<<<<<< HEAD
     const countryName = countries.find(c => c.code === selectedCountry)?.name;
+=======
+    const countryName = locations.find(c => c.code === selectedCountry)?.name;
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const possibleKeys = countryName ? [countryName, selectedCountry] : [selectedCountry];
 
     for (const key of possibleKeys) {
@@ -196,7 +290,11 @@ export default function VPSPlans() {
   };
 
   const getBestPlanForOS = (osTemplate: string): number | null => {
+<<<<<<< HEAD
     const plansWithOS = vpsPlans.filter(plan =>
+=======
+    const plansWithOS = plans.filter(plan =>
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       plan.os_templates.some(template =>
         template.toLowerCase().includes(osTemplate.toLowerCase())
       )
@@ -287,7 +385,11 @@ export default function VPSPlans() {
       duration: selectedDuration,
       managementType: selectedManagement,
       productType: "vps",
+<<<<<<< HEAD
       location: { country: countries.find(c => c.code === selectedCountry)?.name || "", countryCode: selectedCountry },
+=======
+      location: { country: locations.find(c => c.code === selectedCountry)?.name || "", countryCode: selectedCountry },
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       effective_base_price: getEffectivePrice(selectedPlan),
       total_amount: calculateTotal()
     };
@@ -335,7 +437,11 @@ export default function VPSPlans() {
   };
 
   const getOSIcon = (osName: string) => {
+<<<<<<< HEAD
     const os = osMetadata.find(o => o.name === osName);
+=======
+    const os = osOptions.find(o => o.name === osName);
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const icons: Record<string, string> = {
       WindowsIcon: "fab fa-windows",
       UbuntuIcon: "fab fa-ubuntu",
@@ -347,9 +453,15 @@ export default function VPSPlans() {
     return os ? <i className={`${icons[os.icon] || "fas fa-server"} text-base mr-2`} /> : null;
   };
 
+<<<<<<< HEAD
   const selectedCountryData = countries.find(c => c.code === selectedCountry);
 
   if (loading) {
+=======
+  // const selectedCountryData = locations.find(c => c.code === selectedCountry);
+
+  if (isLoading) {
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     return (
       <div className="space-y-6">
         {/* Back Button Skeleton */}
@@ -424,6 +536,7 @@ export default function VPSPlans() {
     );
   }
 
+<<<<<<< HEAD
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -460,6 +573,53 @@ export default function VPSPlans() {
       {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {vpsPlans.map((plan) => {
+=======
+  // Filter plans based on selected country
+  const filteredPlans = selectedCountry
+    ? plans.filter((plan) => {
+      // Find the full country name from the selected code
+      const countryName = locations.find((c) => c.code === selectedCountry)?.name;
+      // Check if plan supports either the code or the name
+      return plan.locations?.includes(selectedCountry) ||
+        (countryName && plan.locations?.includes(countryName));
+    })
+    : plans;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <Button variant="ghost" onClick={() => navigate('/dashboard/vps-plans')} className="mb-2 -ml-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to VPS Types
+          </Button>
+          <div className="flex items-center gap-3">
+            <Cpu className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-semibold text-foreground">
+              {countryParam ? `${locations.find(c => c.code === countryParam)?.name || countryParam} VPS Plans` : 'Residential VPS Plans'}
+            </h1>
+          </div>
+          <p className="text-muted-foreground mt-2">High-performance residential IP VPS solutions</p>
+        </div>
+      </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="flex items-center justify-between py-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/20 rounded-full">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Why choose Residential VPS?</h3>
+              <p className="text-sm text-muted-foreground">Get authentic residential IPs that look like real user connections, perfect for high-trust operations.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Plans Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredPlans.map((plan) => {
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           const price = getEffectivePrice(plan);
           const badge = getPlanBadge(plan);
 
@@ -609,7 +769,11 @@ export default function VPSPlans() {
                 </Label>
                 <RadioGroup value={selectedCountry} onValueChange={setSelectedCountry}>
                   <div className="space-y-2">
+<<<<<<< HEAD
                     {countries.map(c => (
+=======
+                    {locations.map(c => (
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                       <Label
                         key={c.code}
                         className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${selectedCountry === c.code ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"

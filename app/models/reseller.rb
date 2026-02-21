@@ -9,6 +9,8 @@ class Reseller < ApplicationRecord
   has_one :wallet, as: :owner, dependent: :destroy
   has_many :api_tokens, dependent: :destroy
   has_many :orders, as: :orderable, dependent: :destroy
+  has_one :affiliate, as: :affiliatable, dependent: :destroy
+  has_many :affiliate_referrals, as: :referred, dependent: :destroy
 
   delegate :balance, to: :wallet, allow_nil: true
 

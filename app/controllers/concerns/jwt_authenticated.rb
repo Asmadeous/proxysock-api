@@ -19,8 +19,10 @@ module JwtAuthenticated
     begin
       @decoded_token = jwt_decode(token)
 
-      if @decoded_token[:reseller_id]
+      if @decoded_token[:reseller_id] && @decoded_token[:jti]
         authenticate_reseller_with_rotation
+      elsif @decoded_token[:reseller_id]
+        @current_reseller = Reseller.find(@decoded_token[:reseller_id])
       elsif @decoded_token[:user_id]
         @current_user = User.find(@decoded_token[:user_id])
       elsif @decoded_token[:employee_id]

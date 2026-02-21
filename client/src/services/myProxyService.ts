@@ -1,11 +1,26 @@
+<<<<<<< HEAD
 import railsApi from '../lib/railsApi';
+=======
+// supabase removed
+// // ============================================================================
+// // VPN INTERFACES
+// // ============================================================================
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 import {
   Category,
   ProxyPlan,
   ISP,
+<<<<<<< HEAD
   LocationCategory,
 } from "@/types/index";
+=======
+} from "@/types/index";
+import api from './api';
+
+
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 // ============================================================================
 // VPN INTERFACES
@@ -21,7 +36,56 @@ export interface VPNPlan {
   features: string[];
   locations: string[];
   is_active: boolean;
+<<<<<<< HEAD
   isp?: ISP[];
+=======
+  isp?: ISP[]; // ADD THIS - ISP data with locations
+}
+
+export interface VPNCategory {
+  id: string;
+  name: string;
+  slug: string;
+  information?: string[];
+  vpn_plans?: VPNPlan[];
+}
+
+
+
+// // ============================================================================
+// // EXISTING PROXY INTERFACES (Updated to exclude VPN)
+// // ============================================================================
+
+
+
+
+
+
+
+// // ============================================================================
+// // PROXY SERVICE FUNCTIONS (Excluding VPN)
+// // ============================================================================
+
+
+
+
+
+// ============================================================================
+// VPN INTERFACES - UPDATED
+// ============================================================================
+
+export interface VPNPlan {
+  id: string;
+  plan_id: number;
+  name: string;
+  price: string | number;
+  currency: string;
+  bandwidth_gb: number;
+  features: string[];
+  locations: string[];
+  is_active: boolean;
+  isp?: ISP[]; // ADD THIS - ISP data with locations
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 }
 
 export interface VPNCategory {
@@ -33,6 +97,7 @@ export interface VPNCategory {
 }
 
 // ============================================================================
+<<<<<<< HEAD
 // ISP CONFIGURATION
 // ============================================================================
 
@@ -89,13 +154,70 @@ const ispToLocation: ISPToLocation = {
     name: 'Premium Datacenter',
     slug: 'premium-datacenter',
     locations: { us: { name: 'United States' } }
+=======
+// VPN SERVICE FUNCTIONS - UPDATED
+// ============================================================================
+
+export const fetchVPNCategory = async (): Promise<VPNCategory | null> => {
+  try {
+    const { data } = await api.get('/web/api/products?product_type=vpn');
+    const allProducts = data.products || [];
+
+    if (allProducts.length === 0) return null;
+
+    const plans: VPNPlan[] = allProducts.map((p: any) => {
+      let isps: ISP[] = [];
+      if (typeof p.isp === 'string') {
+        try { isps = JSON.parse(p.isp); } catch (e) { }
+      } else if (Array.isArray(p.isp)) {
+        isps = p.isp;
+      }
+
+      return {
+        id: String(p.id),
+        plan_id: p.id,
+        name: p.name,
+        price: Number(p.price).toFixed(2),
+        currency: p.currency || 'USD',
+        bandwidth_gb: Number(p.data_gb || 0),
+        features: p.features || [],
+        locations: p.location_name ? [p.location_name] : [],
+        is_active: true,
+        isp: isps
+      };
+    });
+
+    return {
+      id: 'vpn',
+      name: 'VPN Services',
+      slug: 'vpn',
+      information: [
+        'High-speed, secure VPN connections globally.',
+        'No logs policy and kill switch functionality.',
+        'Access to geo-restricted content easily.',
+      ],
+      vpn_plans: plans.sort((a, b) => Number(a.price) - Number(b.price))
+    };
+  } catch (err) {
+    console.error(`Error fetching VPN category:`, err);
+    return null;
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }
 };
 
 // ============================================================================
+<<<<<<< HEAD
 // HELPER FUNCTIONS
 // ============================================================================
 
+=======
+// EXISTING PROXY INTERFACES (Updated to exclude VPN)
+// ============================================================================
+
+
+
+
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 function standardizePlanName(plan: ProxyPlan): string {
   if (plan.is_owned) {
     return plan.name;
@@ -163,6 +285,7 @@ function deduplicatePlans(plans: ProxyPlan[]): ProxyPlan[] {
   });
 }
 
+<<<<<<< HEAD
 function parseISP(isp: any): ISP[] {
   if (typeof isp === 'string' && isp.startsWith('[')) {
     try {
@@ -418,12 +541,91 @@ export const fetchMobileProxiesByLocation = async (locationType: 'usa' | 'premiu
     });
 
     return sortPlans(deduplicatePlans(plans));
+=======
+// ============================================================================
+// PROXY SERVICE FUNCTIONS (Excluding VPN)
+// ============================================================================
+
+export const fetchProductCategories = async (): Promise<Category[]> => {
+  return [
+    { id: '1', slug: 'datacenter', name: 'Datacenter' },
+    { id: '2', slug: 'isp', name: 'ISP' },
+    { id: '3', slug: 'residential', name: 'Residential' },
+    { id: '4', slug: 'mobile', name: 'Mobile' },
+  ];
+};
+
+export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<Category | null> => {
+  try {
+    const { data } = await api.get('/web/api/products?product_type=proxy');
+    const allProducts = data.products || [];
+    const categoryProducts = allProducts.filter((p: any) => p.category_slug === categorySlug);
+
+    if (categoryProducts.length === 0) return null;
+
+    const plans = categoryProducts.map((p: any) => {
+      let planISPs: ISP[] = [];
+      if (typeof p.isp === 'string') {
+        try { planISPs = JSON.parse(p.isp); } catch (e) { }
+      } else if (Array.isArray(p.isp)) {
+        planISPs = p.isp;
+      }
+
+      const mappedPlan: ProxyPlan = {
+        id: String(p.id),
+        name: p.name,
+        price: Number(p.price).toFixed(2),
+        currency: p.currency || 'USD',
+        ips_included: Number(p.ips_included ?? 0),
+        gb_min: Number(p.gb_min ?? 0),
+        gb_max: Number(p.gb_max ?? 0),
+        is_owned: false,
+        source_table: 'proxy_plans' as const,
+        billing_type: p.billing_type,
+        duration_days: p.duration_days,
+        isp: planISPs
+      };
+
+      mappedPlan.display_name = standardizePlanName(mappedPlan);
+      return mappedPlan;
+    });
+
+    const categoryNames: Record<string, string> = {
+      'datacenter': 'Datacenter',
+      'isp': 'ISP',
+      'residential': 'Residential',
+      'mobile': 'Mobile'
+    };
+
+    return {
+      id: categorySlug,
+      name: categoryNames[categorySlug] || categorySlug,
+      slug: categorySlug,
+      proxy_plans: sortPlans(deduplicatePlans(plans))
+    };
+  } catch (err) {
+    console.error(`Error fetching proxy category ${categorySlug}:`, err);
+    return null;
+  }
+};
+
+export const fetchMobileProxiesByLocation = async (locationType: 'usa' | 'premium'): Promise<ProxyPlan[]> => {
+  try {
+    const categoryData = await fetchProxiesByCategorySlug('mobile');
+    if (!categoryData || !categoryData.proxy_plans) return [];
+
+    return categoryData.proxy_plans.filter((plan: ProxyPlan) => {
+      if (!plan.isp || plan.isp.length === 0) return false;
+      return plan.isp.some(isp => isISPValidForLocationType(isp, locationType));
+    });
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   } catch (error) {
     console.error(`Error fetching mobile plans for ${locationType}:`, error);
     throw error;
   }
 };
 
+<<<<<<< HEAD
 // Fetch Owned Proxy Billing Plans
 export const fetchOwnedProxyBillingPlansByType = async (
   planType: 'mobile',
@@ -480,4 +682,11 @@ export const fetchOwnedProxyBillingPlansByType = async (
     console.error(`Error fetching owned proxy billing plans:`, error);
     return [];
   }
+=======
+export const fetchOwnedProxyBillingPlansByType = async (
+  _planType: 'mobile',
+  _locationType?: 'premium'
+): Promise<ProxyPlan[]> => {
+  return [];
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 };
