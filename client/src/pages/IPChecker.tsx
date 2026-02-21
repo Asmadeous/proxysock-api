@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
+<<<<<<< HEAD
 import railsApi from "@/lib/railsApi";
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import backgroundNode from "@/assets/images/backgroundNode.webp";
 import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
 import { useThemeStore } from "@/store/themeStore";
@@ -168,18 +171,37 @@ export default function ModernIPChecker() {
         setLoading(true);
         setLoadingStage("Detecting your IP address...");
 
+<<<<<<< HEAD
 
         // Call Rails API function without IP parameter - it will auto-detect from headers
         const { data: apiData } = await railsApi.get('/tools/ip_lookup');
 
         if (!apiData) {
           throw new Error("Auto-detection failed");
+=======
+        // Call Rails API directly
+        const response = await fetch(
+          `/web/api/tools/ip_checker`,
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Auto-detection failed");
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         }
 
         setLoadingStage("Processing comprehensive analysis...");
         await new Promise((resolve) => setTimeout(resolve, 500)); // UX delay
 
+<<<<<<< HEAD
         const data: IPResult = apiData;
+=======
+        const data: IPResult = await response.json();
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
         if (data.error) {
           setError(data.error);
@@ -210,6 +232,7 @@ export default function ModernIPChecker() {
     setLoadingStage("Analyzing IP address...");
 
     try {
+<<<<<<< HEAD
       const { data: apiData } = await railsApi.get('/tools/ip_lookup', {
         params: { ip: ipAddress.trim() }
       });
@@ -219,6 +242,22 @@ export default function ModernIPChecker() {
       }
 
       const data: IPResult = apiData;
+=======
+      const response = await fetch(
+        `/web/api/tools/ip_checker?ip=${ipAddress.trim()}`,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed");
+      }
+
+      const data: IPResult = await response.json();
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
       if (data.error) {
         setError(data.error);

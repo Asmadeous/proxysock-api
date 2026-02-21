@@ -4,11 +4,15 @@ module Web
   module Api
     class TicketsController < BaseController
       def index
-        tickets = current_user.tickets.order(updated_at: :desc).page(params[:page]).per(20)
+        tickets = current_user.tickets.includes(:ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
 
         render json: {
           tickets: tickets.map { |t| serialize_ticket(t) },
-          meta: pagination_meta(tickets)
+          meta: {
+            current_page: tickets.current_page,
+            total_pages: tickets.total_pages,
+            total_count: tickets.total_count
+          }
         }
       end
 
@@ -23,12 +27,29 @@ module Web
       end
 
       def create
-        ticket = current_user.tickets.build(ticket_params)
+        # Resolve and Validate order_id
+        processed_params = ticket_params.to_h
+        if processed_params[:order_id].present?
+          order = if processed_params[:order_id].to_s.match?(/\A\d+\z/)
+                    Order.find_by(id: processed_params[:order_id])
+                  else
+                    Order.find_by(order_number: processed_params[:order_id])
+                  end
+
+          if order
+            processed_params[:order_id] = order.id
+          else
+            return render json: { errors: { order_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+          end
+        end
+
+        ticket = current_user.tickets.build(processed_params.except(:body))
 
         if ticket.save
+          body_content = params[:body] || params[:message] || (params[:ticket] && params[:ticket][:body])
           ticket.ticket_messages.create!(
             sender: current_user,
-            body: params[:body]
+            body: body_content
           )
           render json: { ticket: serialize_ticket(ticket) }, status: :created
         else
@@ -38,9 +59,10 @@ module Web
 
       def reply
         ticket = current_user.tickets.find(params[:id])
+        body_content = params[:body] || params[:message]
 
         message = ticket.ticket_messages.new(
-          body: params[:body],
+          body: body_content,
           sender: current_user,
           attachments: params[:attachments]
         )
@@ -56,7 +78,7 @@ module Web
       private
 
       def ticket_params
-        params.require(:ticket).permit(:subject, :priority, :order_id)
+        params.require(:ticket).permit(:subject, :priority, :order_id, :body)
       end
 
       def serialize_ticket(ticket)
@@ -64,6 +86,10 @@ module Web
           id: ticket.id,
           subject: ticket.subject,
           status: ticket.status,
+          user_type: ticket.user_type,
+          messages_count: ticket.ticket_messages.size,
+          body: ticket.ticket_messages.order(created_at: :asc).first&.body,
+          created_at: ticket.created_at,
           updated_at: ticket.updated_at
         }
       end
@@ -77,13 +103,6 @@ module Web
         }
       end
 
-      def pagination_meta(collection)
-        {
-          current_page: collection.current_page,
-          total_pages: collection.total_pages,
-          total_count: collection.total_count
-        }
-      end
     end
   end
 end

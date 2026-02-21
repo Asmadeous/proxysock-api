@@ -20,7 +20,11 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
   const { dark } = useThemeStore();
 
   return (
+<<<<<<< HEAD
     <div className="relative h-[100vh] mx-auto flex items-center justify-between lg:px-32 bg-background">
+=======
+    <div className="relative min-h-screen mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-32 bg-background">
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       <div
         className="absolute inset-0 z-0 opacity-20 mt-20"
         style={{
@@ -30,13 +34,21 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
           backgroundRepeat: "no-repeat",
         }}
       ></div>
+<<<<<<< HEAD
       <div className="relative z-10 max-w-full px-4 sm:px-6 lg:px-4 py-32">
+=======
+      <div className="relative z-10 w-full max-w-full py-20 sm:py-32">
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         <div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+<<<<<<< HEAD
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
+=======
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           >
             Premium Digital
             <br />
@@ -111,7 +123,11 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
                   "/HowToConnect",
                 )
               }
+<<<<<<< HEAD
               className="px-10 py-4 text-lg bg-transparent border border-foreground text-foreground rounded-full hover:bg-foreground hover:text-background transition-all duration-200 flex items-center justify-center font-manrope-semibold font-medium"
+=======
+              className="px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-lg bg-transparent border border-foreground text-foreground rounded-full hover:bg-foreground hover:text-background transition-all duration-200 flex items-center justify-center font-manrope-semibold font-medium"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             >
               View Documentation
             </Link>
@@ -121,6 +137,7 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
+<<<<<<< HEAD
             className="mt-12 sm:mt-16 lg:mt-20 flex justify-center"
           >
             <div className="bg-primary border border-primary/20 rounded-full px-4 sm:px-8 py-3 sm:py-4 inline-flex items-center justify-center gap-4 sm:gap-8 lg:gap-12 text-xs sm:text-sm flex-wrap max-w-full">
@@ -128,12 +145,25 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
                 Instant activation
               </span>
               <span className="text-primary-foreground">
+=======
+            className="mt-8 sm:mt-16 lg:mt-20 flex justify-center"
+          >
+            <div className="bg-primary border border-primary/20 rounded-2xl sm:rounded-full px-4 sm:px-8 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-8 lg:gap-12 text-xs sm:text-sm max-w-full">
+              <span className="text-primary-foreground">
+                Instant activation
+              </span>
+              <span className="text-primary-foreground hidden sm:inline">
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                 30 day money back guarantee
               </span>
               <span className="text-primary-foreground">
                 Enterprise grade security
               </span>
+<<<<<<< HEAD
               <span className="text-primary-foreground">
+=======
+              <span className="text-primary-foreground hidden sm:inline">
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                 4.95 ratings from 2500+ reviews
               </span>
             </div>

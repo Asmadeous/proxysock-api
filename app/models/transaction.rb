@@ -6,8 +6,18 @@ class Transaction < ApplicationRecord
 
   validate :validate_immutability, on: :update
   before_destroy :prevent_destroy
+  after_create :notify_user
 
   private
+
+  def notify_user
+    Notification.create(
+      recipient: transactable,
+      category: 'success',
+      title: "Transaction Processed",
+      message: "Your transaction of #{amount} #{currency} has been recorded."
+    ) if transactable
+  end
 
   def validate_immutability
     errors.add(:base, 'Transactions are immutable')

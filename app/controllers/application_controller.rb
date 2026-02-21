@@ -6,6 +6,26 @@ class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
   rescue_from ActionController::ParameterMissing, with: :handle_bad_request
 
+  before_action :update_last_seen_at
+
+  private
+
+  def update_last_seen_at
+    actor = if defined?(current_employee) && current_employee
+              current_employee
+            elsif defined?(current_user) && current_user
+              current_user
+            elsif defined?(current_reseller) && current_reseller
+              current_reseller
+            end
+
+    return unless actor
+    return if actor.has_attribute?(:last_seen_at) && actor.last_seen_at && actor.last_seen_at > 5.minutes.ago
+
+    # Skip validation and callbacks to avoid overhead
+    actor.update_column(:last_seen_at, Time.current) if actor.has_attribute?(:last_seen_at)
+  end
+
   def record_audit_log(action, target, changes = nil)
     # Generic audit log recorder
     # Works for both User and Employee actions

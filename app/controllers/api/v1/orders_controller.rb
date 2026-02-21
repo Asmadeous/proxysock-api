@@ -9,10 +9,10 @@ module Api
       def index
         # Resellers can only see their VM orders
         orders = current_reseller.orders.joins(:product).where(products: { product_type: 'vm' })
-                                 .includes(:product, :vm).order(created_at: :desc).limit(20)
+                                 .includes(:product, :vm).order(created_at: :desc).page(params[:page]).per(20)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
-          meta: { total_count: orders.count } # simplified meta
+          meta: pagination_meta(orders)
         }
       end
 

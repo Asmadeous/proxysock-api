@@ -26,16 +26,25 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
+<<<<<<< HEAD
     "@rails/actioncable": "^8.1.200",
     "@stripe/react-stripe-js": "^3.3.0",
     "@stripe/stripe-js": "^5.9.2",
     "@supabase/supabase-js": "^2.49.1",
+=======
+    "@stripe/react-stripe-js": "^3.3.0",
+    "@stripe/stripe-js": "^5.9.2",
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     "@tanstack/react-query": "^4.36.1",
     "@types/axios": "^0.9.36",
     "axios": "^1.8.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
+<<<<<<< HEAD
+=======
+    "country-state-city": "^3.2.1",
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "framer-motion": "^12.4.10",

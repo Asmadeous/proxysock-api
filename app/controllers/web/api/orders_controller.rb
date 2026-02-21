@@ -7,6 +7,7 @@ module Web
 
       # GET /web/api/orders
       def index
+<<<<<<< HEAD
         scope = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc)
         
         if params[:type].present?
@@ -15,9 +16,12 @@ module Web
 
         orders = scope.limit(20)
         
+=======
+        orders = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc).page(params[:page]).per(20)
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
-          meta: { total_count: orders.count }
+          meta: pagination_meta(orders)
         }
       end
 
@@ -39,6 +43,7 @@ module Web
           product: product,
           product_pricing: pricing,
           quantity: params[:quantity] || 1,
+          metadata: params[:metadata] || {},
           status: 'pending'
         )
 
@@ -86,7 +91,7 @@ module Web
         return render json: { error: 'Order not active' }, status: :bad_request unless order.status == 'active'
 
         case order.product.product_type
-        when 'vm'
+        when 'vps'
           vm = order.vm
           render json: {
             type: 'vm',
@@ -149,19 +154,75 @@ module Web
       private
 
       def serialize_order(order)
-        {
+        # Fetch provisioned resource if applicable
+        resource = order.provisioned_resource
+        
+        base = {
           id: order.id,
+<<<<<<< HEAD
           order_number: order.order_number,
+=======
+          order_number: order.try(:order_number) || [order.id, order.created_at.to_i].join('-'),
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
+          # Specific attributes used by frontend filters
+          proxy_type: order.product.product_type == 'proxy' ? order.product.metadata&.dig('category_slug') : nil,
+          country: order.product.metadata&.dig('location_name') || order.product.metadata&.dig('location_code'),
+          bandwidth_gb: order.product.metadata&.dig('data_gb') || 0,
+          ips_included: order.product.metadata&.dig('ips_included') || 0,
           total_amount: order.total_amount,
+<<<<<<< HEAD
           currency: order.currency,
           status: order.status,
           created_at: order.created_at,
           expires_at: order.expires_at,
           metadata: order.metadata
+=======
+          amount: order.total_amount,
+          currency: order.product_pricing&.currency || 'USD',
+          status: order.status == 'active' ? 'completed' : order.status,
+          created_at: order.created_at,
+          expires_at: resource.try(:expires_at),
+          # Payment method info
+          payment_method: 'wallet'
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         }
+
+        # Include product-specific details
+        case order.product.product_type
+        when 'proxy'
+          base[:proxy_details] = resource&.as_json || {}
+          base[:credentials] = {
+            username: resource&.try(:username),
+            password: resource&.try(:password),
+            endpoints: [resource&.try(:ip_address)].compact
+          }
+        when 'vpn'
+          base[:vpn_details] = resource&.as_json || {}
+          base[:credentials] = {
+            username: resource&.try(:username),
+            password: resource&.try(:password),
+            server: resource&.try(:server)
+          }
+        when 'vps'
+          base[:vm_details] = resource&.as_json || {}
+          base[:credentials] = {
+            username: resource&.try(:ssh_username),
+            password: resource&.try(:ssh_password),
+            ip: resource&.try(:ip_address),
+            port: resource&.try(:ssh_port)
+          }
+        when 'esim', 'usa_esim'
+          base[:esim_details] = resource&.as_json || {}
+          base[:credentials] = {
+            iccid: resource&.try(:iccid),
+            qr_code: resource&.try(:qr_code_data)
+          }
+        end
+
+        base
       end
 
       def pagination_meta(collection)
@@ -178,9 +239,11 @@ module Web
 
         case gateway
         when 'paystack'
+          exchange_rate = 1500 # NGN/USD
+          amount_ngn = amount * exchange_rate
           PaystackService.new.initialize_transaction(
             email: current_user.email,
-            amount: (amount * 100).to_i,
+            amount: (amount_ngn * 100).to_i, # in kobo
             reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
             callback_url: callback_url,
             metadata: { order_id: order.id, user_id: current_user.id, type: 'order' }

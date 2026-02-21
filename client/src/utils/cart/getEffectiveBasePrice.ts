@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { CartItem } from "@/pages/Cart"
+=======
+import { CartItem } from "@/pages/UserDashboard/Cart"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export const getEffectiveBasePrice = (item: CartItem): number => {
     if (item.productType === "vps" && item.vpsPlan) {

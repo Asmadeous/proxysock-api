@@ -15,14 +15,21 @@ class WebhooksController < ApplicationController
   end
 
   def plisio
-    webhook_params = params.permit(:status, :order_number, :reference, :amount, :currency, :txn_id, metadata: {})
-    handle_payment(webhook_params, 'plisio') if %w[completed mismatch].include?(webhook_params[:status])
+    # Plisio webhook parameters
+    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id)
+    # Only process if status is strictly completed. Mismatch or pending should be ignored for automated provisioning.
+    if webhook_params[:status] == 'completed'
+      handle_payment(webhook_params, 'plisio')
+    end
     head :ok
   end
 
   def payvra
+    # Payvra webhook parameters
     webhook_params = params.permit(:status, :order_number, :reference, :amount, :currency, :transaction_id, metadata: {})
-    handle_payment(webhook_params, 'payvra') if webhook_params[:status] == 'success'
+    if webhook_params[:status] == 'success' || webhook_params[:status] == 'completed'
+      handle_payment(webhook_params, 'payvra')
+    end
     head :ok
   end
 
@@ -50,18 +57,26 @@ class WebhooksController < ApplicationController
   end
 
   def handle_deposit(reference, data, gateway)
-    deposit = Deposit.find_by(transaction_id: reference)
+    deposit = Deposit.where("metadata->>'transaction_ref' = ?", reference).first
     return unless deposit && deposit.status == 'pending'
 
-    amount = gateway == 'paystack' ? (data['amount'].to_f / 100.0) : data['amount'].to_f
+    # Extract given amount considering gateway specific formats (Paystack is in kobo)
+    paid_amount = gateway == 'paystack' ? (data['amount'].to_f / 100.0) : data['amount'].to_f
+
+    # Strict amount validation to prevent partial payment exploits
+    if paid_amount < deposit.amount
+      Rails.logger.warn("Deposit #{reference} failed amount validation. Expected #{deposit.amount}, got #{paid_amount}")
+      return
+    end
 
     ActiveRecord::Base.transaction do
       deposit.update!(status: 'completed', completed_at: Time.current)
 
       # Credit wallet
-      deposit.depositable&.wallet&.credit!(amount, "Deposit via #{gateway}", {
+      deposit.depositable&.wallet&.credit!(paid_amount, "Deposit via #{gateway}", {
                                              gateway: gateway,
-                                             gateway_ref: reference
+                                             gateway_ref: reference,
+                                             paid_amount: paid_amount
                                            })
     end
   end

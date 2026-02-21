@@ -1,6 +1,12 @@
 "use client"
+<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import * as authService from '../services/railsAuth';
+=======
+import React, { useState, useEffect, useCallback } from 'react';
+
+import DepositPayment from '../pages/DepositPayments';
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { Wallet, CreditCard, Bitcoin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +18,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+<<<<<<< HEAD
+=======
+import { fetchBalance } from '../services/api';
+import api from '../services/api';
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 interface BalanceProps {
   className?: string;
@@ -66,6 +77,10 @@ const PaymentMethodCard = ({
 
 const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" }) => {
   const [balance, setBalance] = useState<number | null>(null);
+<<<<<<< HEAD
+=======
+  const [currency, setCurrency] = useState<string>('USD');
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
   const [amount, setAmount] = useState('');
@@ -77,6 +92,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
     checkout_url?: string;
     payment_id?: string;
   } | null>(null);
+<<<<<<< HEAD
   const [user, setUser] = useState<any>(null);
 
   // const fetchExchangeRate = async (): Promise<number> => {
@@ -123,6 +139,34 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       setError('Please log in to add funds');
       return;
     }
+=======
+
+  const loadBalance = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('Please log in to view balance');
+        return;
+      }
+      const { data } = await fetchBalance();
+      setBalance(data.available_balance ?? 0);
+      setCurrency(data.currency || 'USD');
+      setError(null);
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        setError('Please log in to view balance');
+      } else {
+        setError('Failed to load balance');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBalance();
+  }, [loadBalance]);
+
+  const handleOpenModal = () => {
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     setIsModalOpen(true);
     setError(null);
     setAmount('');
@@ -141,11 +185,18 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
     e.preventDefault();
     setError(null);
     setLoading(true);
+<<<<<<< HEAD
     let total = Number.parseFloat(amount);
     // let convertedAmount = total;
 
     if (Number.isNaN(total) || total < 0.01) {
       setError('Amount must be at least $0.01');
+=======
+    const total = Number.parseFloat(amount);
+
+    if (Number.isNaN(total) || total < 10) {
+      setError('Amount must be at least $10');
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       setLoading(false);
       return;
     }
@@ -155,6 +206,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       return;
     }
 
+<<<<<<< HEAD
     // Logic irrelevant as endpoint is not implemented
     if (paymentMethod === 'paystack') {
       // Placeholder for future implementation
@@ -166,6 +218,23 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       throw new Error('Deposit system is currently under maintenance. Please contact support.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initiate deposit');
+=======
+    try {
+      const strippedGateway = paymentMethod.replace("crypto_", "");
+      const { data } = await api.post('/web/api/wallet/deposit', {
+        amount: total,
+        gateway: strippedGateway,
+        currency: 'USD'
+      });
+
+      if (data?.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        setError('Failed to generate payment link');
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || 'Failed to initiate deposit');
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     } finally {
       setLoading(false);
     }
@@ -174,7 +243,11 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
   const formatBalance = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
+<<<<<<< HEAD
       currency: 'USD',
+=======
+      currency: currency,
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       minimumFractionDigits: 2
     }).format(val);
   };
@@ -191,7 +264,10 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
           </div>
           <Button
             onClick={handleOpenModal}
+<<<<<<< HEAD
             disabled={!user}
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             size="sm"
             variant="secondary"
             className="w-full h-8 text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
@@ -202,8 +278,12 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       ) : (
         <Button
           onClick={handleOpenModal}
+<<<<<<< HEAD
           disabled={!user}
           title={!user ? "Please log in to view balance" : "Click to add funds"}
+=======
+          title="Click to add funds"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           className="gap-2"
         >
           <Wallet className="h-4 w-4" />
@@ -231,10 +311,17 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+<<<<<<< HEAD
                   placeholder="Enter amount (min: $0.01, max: $10,000)"
                   min="0.01"
                   max="10000"
                   step="0.01"
+=======
+                  placeholder="Enter amount (min: $10.00, max: $10,000)"
+                  min="10"
+                  max="10000"
+                  step="1"
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                   required
                   disabled={loading}
                 />
@@ -252,7 +339,10 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                   Payment Method
                 </Label>
                 <div className="space-y-3">
+<<<<<<< HEAD
 
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                   <PaymentMethodCard
                     id="paystack"
                     title="Pay with Card (Paystack)"
@@ -326,10 +416,22 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
               <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
                 <CardContent className="py-3 px-4">
                   <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+<<<<<<< HEAD
                     Payment processing is coming soon.
                   </p>
                 </CardContent>
               </Card>
+=======
+                    Payment session created successfully! Complete your payment to add funds.
+                  </p>
+                </CardContent>
+              </Card>
+              <DepositPayment
+                clientSecret={paymentData.client_secret}
+                paymentUrl={paymentData.payment_url || paymentData.checkout_url}
+                onCancel={handleCloseModal}
+              />
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             </div>
           )}
         </DialogContent>

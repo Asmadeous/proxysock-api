@@ -2,6 +2,7 @@
 
 module Web
   module Api
+<<<<<<< HEAD
     class NotificationsController < ApplicationController
       include JwtAuthenticated
       before_action :authenticate_request
@@ -20,10 +21,23 @@ module Web
             current_page: @notifications.current_page,
             total_pages: @notifications.total_pages,
             total_count: @notifications.total_count
+=======
+    class NotificationsController < BaseController
+      def index
+        notifications = Notification.where(recipient: current_user).recent.page(params[:page]).per(50)
+        render json: { 
+          notifications: notifications, 
+          unread_count: Notification.where(recipient: current_user, read_at: nil).count,
+          meta: {
+            current_page: notifications.current_page,
+            total_pages: notifications.total_pages,
+            total_count: notifications.total_count
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           }
         }
       end
 
+<<<<<<< HEAD
       # GET /web/api/notifications/:id
       def show
         render json: { notification: serialize_notification(@notification) }
@@ -66,6 +80,11 @@ module Web
           read_at: notification.read_at,
           created_at: notification.created_at
         }
+=======
+      def mark_as_read
+        Notification.where(recipient: current_user, read_at: nil).update_all(read_at: Time.current)
+        render json: { success: true }
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       end
     end
   end

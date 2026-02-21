@@ -1,5 +1,9 @@
 <!doctype html>
+<<<<<<< HEAD
 <html lang="en" class="h-full bg-gray-900">
+=======
+<html lang="en" class="h-full">
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 <head>
   <meta charset="UTF-8" />
@@ -15,8 +19,11 @@
 
   <!-- Preload assets -->
   <link rel="preload" href="/logo.png" as="image" type="image/png" />
+<<<<<<< HEAD
   <link rel="preload" href="https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728" as="font"
     type="font/woff" crossorigin />
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   <!-- DNS prefetch for external domains -->
   <link rel="dns-prefetch" href="//fonts.googleapis.com" />
@@ -29,8 +36,11 @@
   <link rel="dns-prefetch" href="//paystack.com" />
   <link rel="dns-prefetch" href="//checkout.paystack.com" />
   <link rel="dns-prefetch" href="//xknakbxmpznclriiauim.supabase.co" />
+<<<<<<< HEAD
   <link rel="dns-prefetch" href="//va.tawk.to" />
   <link rel="dns-prefetch" href="//embed.tawk.to" />
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   <link rel="dns-prefetch" href="//v6.exchangerate-api.com" />
   <link rel="dns-prefetch" href="//*.datadoghq.com" />
   <link rel="dns-prefetch" href="//www.redditstatic.com" />
@@ -53,8 +63,13 @@
 
   <!-- Updated CSP (ONLY CHANGE: style-src Paystack domains added) -->
   <meta http-equiv="Content-Security-Policy" content="
+<<<<<<< HEAD
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval'
+=======
+      default-src 'self' http://localhost:* ws://localhost:*;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://js.stripe.com
         https://js.paystack.co
         https://checkout.paystack.com
@@ -62,8 +77,11 @@
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
+<<<<<<< HEAD
         https://embed.tawk.to
         https://*.tawk.to
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://cdn.jsdelivr.net
         https://www.redditstatic.com
         https://alb.reddit.com
@@ -75,25 +93,37 @@
       style-src 'self' 'unsafe-inline'
         https://fonts.googleapis.com
         https://cdn.jsdelivr.net
+<<<<<<< HEAD
         https://embed.tawk.to
         https://*.tawk.to
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://checkout.paystack.com
         https://paystack.com
         https://js.paystack.co;
 
       font-src 'self'
         https://fonts.gstatic.com
+<<<<<<< HEAD
         https://embed.tawk.to
         https://*.tawk.to
         data:;
 
       img-src 'self' data: blob:
+=======
+        data:;
+
+      img-src 'self' data: blob: http://localhost:*
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://www.proxysock.com
         https://www.proxystore.net
         https://upload.wikimedia.org
         https://flagcdn.com
+<<<<<<< HEAD
         https://embed.tawk.to
         https://*.tawk.to
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://www.google-analytics.com
         https://www.googletagmanager.com
         https://googleads.g.doubleclick.net
@@ -114,6 +144,7 @@
         https://*.paystack.co
         https://api.dicebear.com;
 
+<<<<<<< HEAD
       connect-src 'self'
         http://localhost:3000
         ws://localhost:3000
@@ -123,6 +154,12 @@
         https://va.tawk.to
         https://*.tawk.to
         wss://*.tawk.to
+=======
+      connect-src 'self' http://localhost:* ws://localhost:*
+        https://www.google-analytics.com
+        https://googleads.g.doubleclick.net
+        https://stats.g.doubleclick.net
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         https://xknakbxmpznclriiauim.supabase.co
         wss://xknakbxmpznclriiauim.supabase.co
         https://v6.exchangerate-api.com
@@ -151,12 +188,15 @@
 
   <!-- Performance optimizations -->
   <style>
+<<<<<<< HEAD
     @font-face {
       font-family: "TawkFont";
       src: url("https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728") format("woff");
       font-display: swap;
     }
 
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     #root {
       min-height: 100vh;
     }
@@ -287,11 +327,17 @@
       error: (...args) => isDev && console.error(...args),
     };
 
+<<<<<<< HEAD
     // Global service availability tracker
     globalThis.serviceStatus = {
       stripe: false,
       paystack: false,
       tawk: false,
+=======
+    globalThis.serviceStatus = {
+      stripe: false,
+      paystack: false,
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       reddit: false,
       datadog: false,
     };
@@ -321,7 +367,10 @@
         "pixel.js",
         "redditstatic",
         "reddit",
+<<<<<<< HEAD
         "tawk",
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         "datadog",
         "stripe",
         "paystack",
@@ -355,7 +404,10 @@
           "reddit",
           "pixel",
           "datadog",
+<<<<<<< HEAD
           "tawk",
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           "stripe",
           "paystack",
           "cloudflare",
@@ -442,6 +494,7 @@
         },
       );
 
+<<<<<<< HEAD
       // Tawk.to
       loadScriptSafely(
         "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
@@ -453,6 +506,8 @@
 
 
 
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       // Datadog RUM
       loadScriptSafely(
         "https://www.datadoghq-browser-agent.com/datadog-rum-v5.js",
@@ -616,6 +671,7 @@
 
       // Non-critical: Chat and analytics load after 5 seconds
       scheduleWhenIdle(() => {
+<<<<<<< HEAD
         // Tawk.to
         loadScriptSafely(
           "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
@@ -625,6 +681,8 @@
           },
         );
 
+=======
+>>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         // Datadog RUM (only in production)
         if (!isDev) {
           loadScriptSafely(

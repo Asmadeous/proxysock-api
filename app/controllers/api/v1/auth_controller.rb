@@ -2,62 +2,73 @@
 
 module Api
   module V1
-    class AuthController < ApplicationController
-      # POST /api/v1/auth/token
-      # Issue initial rotating token for reseller
+    class AuthController < Api::V1::BaseController
+      skip_before_action :authenticate_request, only: %i[token login]
+      skip_before_action :authenticate_reseller!, only: %i[token login refresh]
+
+      # POST /api/v1/auth/token — existing token endpoint
       def token
-        reseller = authenticate_reseller_credentials
+        reseller = Reseller.find_by(email: params[:email])
 
-        if reseller
-          token = reseller.generate_rotating_token
-
-          render json: {
-            message: 'Token issued successfully',
-            token: token,
-            reseller_id: reseller.id,
-            expires_in: 3600, # 1 hour
-            note: 'This token is single-use. Each API response includes X-Next-Token header with your next token.'
-          }
-        else
-          render json: { error: 'Invalid credentials' }, status: :unauthorized
+        unless reseller&.authenticate(params[:password])
+          return render json: { error: 'Invalid credentials' }, status: :unauthorized
         end
+
+        token = reseller.generate_rotating_token
+
+        render json: {
+          message: 'Authentication successful',
+          reseller: serialize_reseller(reseller),
+          token: token,
+          note: 'This token is single-use. Each API response will include a new token.'
+        }
+      end
+
+      # POST /api/v1/auth/login — reseller dashboard login (returns long-lived JWT)
+      def login
+        reseller = Reseller.find_by(email: params[:email])
+
+        unless reseller&.authenticate(params[:password])
+          return render json: { error: 'Invalid email or password' }, status: :unauthorized
+        end
+
+        token = generate_reseller_jwt(reseller)
+
+        render json: {
+          message: 'Login successful',
+          reseller: serialize_reseller(reseller),
+          token: token
+        }
       end
 
       # POST /api/v1/auth/refresh
-      # Manually request new token (if needed)
       def refresh
-        header = request.headers['Authorization']
-        token = header&.split(' ')&.last
-
-        return render json: { error: 'Missing authorization' }, status: :unauthorized unless token
-
-        begin
-          decoded = JWT.decode(token, Rails.application.secret_key_base, true, algorithm: 'HS256')[0]
-          reseller = Reseller.find(decoded['reseller_id'])
-
-          # Generate fresh token
-          new_token = reseller.generate_rotating_token
-
-          render json: {
-            message: 'Token refreshed',
-            token: new_token,
-            expires_in: 3600
-          }
-        rescue JWT::ExpiredSignature
-          render json: { error: 'Token expired. Please authenticate again.' }, status: :unauthorized
-        rescue StandardError => e
-          render json: { error: "Refresh failed: #{e.message}" }, status: :unauthorized
-        end
+        # Token rotation handled by base controller
+        render json: { message: 'Token refreshed' }
       end
 
       private
 
-      def authenticate_reseller_credentials
-        email = params[:email] || params.dig(:reseller, :email)
-        password = params[:password] || params.dig(:reseller, :password)
+      def generate_reseller_jwt(reseller)
+        payload = {
+          reseller_id: reseller.id,
+          email: reseller.email,
+          type: 'reseller',
+          exp: 24.hours.from_now.to_i,
+          iat: Time.current.to_i
+        }
+        JWT.encode(payload, Rails.application.secret_key_base)
+      end
 
-        reseller = Reseller.find_by(email: email)
-        reseller if reseller&.authenticate(password)
+      def serialize_reseller(reseller)
+        {
+          id: reseller.id,
+          email: reseller.email,
+          username: reseller.username,
+          company_name: reseller.company_name,
+          reseller_type: reseller.reseller_type,
+          balance: reseller.balance
+        }
       end
     end
   end
