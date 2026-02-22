@@ -141,6 +141,7 @@ const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
 const ResellerDashboard = lazy(() => import("./pages/Reseller/ResellerDashboard"));
 const ResellerLoginPage = lazy(() => import("./pages/Reseller/ResellerLoginPage"));
 const EmployeeDashboard = lazy(() => import("./pages/Employee/EmployeeDashboard"));
+const AdminLoginPage = lazy(() => import("./pages/SuperAdmin/AdminLoginPage"));
 
 // Initialize Google Analytics (your existing code)
 ReactGA.initialize("UA-XXXXXXXXX-X");
@@ -287,9 +288,15 @@ export default function App() {
               </Route>
 
               {/* SuperAdmin Routes */}
+              <Route path="/sadmin/login" element={<AdminLoginPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/sadmin" element={<SuperAdminDashboard />} />
               </Route>
+
+              {/* Admin / Employee Routes */}
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+              <Route path="/admin" element={<SuperAdminDashboard />} />
+
 
               {/* Payment Result Routes */}
               <Route path="/deposit/success" element={<DepositSuccess />} />
@@ -306,6 +313,6 @@ export default function App() {
           <CookieConsentBanner />
         </AutoSEO>
       </HelmetProvider>
-    </AuthProvider>
+    </AuthProvider >
   );
 }
