@@ -30,6 +30,29 @@ module Admin
         end
       end
 
+      # POST /admin/api/auth/login — direct email/password login for employees
+      def login
+        employee = Employee.find_by(email: params[:email])
+
+        unless employee&.authenticate(params[:password])
+          return render json: { error: 'Invalid email or password' }, status: :unauthorized
+        end
+
+        unless employee.active?
+          return render json: { error: 'Account is deactivated' }, status: :forbidden
+        end
+
+        employee.update_columns(last_login_at: Time.current)
+        token = employee.generate_jwt
+
+        render json: {
+          message: 'Login successful',
+          employee: serialize_employee(employee),
+          token: token,
+          role: employee.role
+        }
+      end
+
       # OAuth failure callback
       def failure
         render json: { error: params[:message] || 'Authentication failed' }, status: :unauthorized
@@ -44,7 +67,8 @@ module Admin
           first_name: employee.first_name,
           last_name: employee.last_name,
           role: employee.role,
-          department: employee.department&.name
+          department: employee.department&.name,
+          profile_picture_url: employee.profile_picture_url
         }
       end
     end

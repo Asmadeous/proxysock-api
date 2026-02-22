@@ -1,0 +1,8 @@
+# Development Procfile - Start both Rails and Vite frontend
+# Usage: bin/dev or foreman start -f Procfile.dev
+#
+# Rails: http://localhost:3000 (API backend)
+# Vite:  http://localhost:5173 (Frontend dev server)
+
+rails: bin/rails server -p 3000
+vite: cd client && npm run dev -- --port 5173

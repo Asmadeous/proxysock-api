@@ -11,6 +11,7 @@ class Order < ApplicationRecord
   end
   belongs_to :product
   belongs_to :product_pricing
+  belongs_to :checkout_session, optional: true
   # belongs_to :reseller, optional: true # Reseller orders - Replaced by orderable
   
   def reseller
@@ -27,7 +28,7 @@ class Order < ApplicationRecord
 
   def provisioned_resource
     case product.product_type
-    when 'vm' then vm
+    when 'vps' then vm
     when 'proxy' then proxy # delegates to correct proxy association
     when 'esim' then esim_order
     when 'vpn' then vpn_account
@@ -43,6 +44,20 @@ class Order < ApplicationRecord
   end
 
   before_save :calculate_total_amount
+  after_create :notify_user_on_order
+
+  private
+
+  def notify_user_on_order
+    Notification.create(
+      recipient: orderable,
+      category: 'success',
+      title: "Order ##{order_number} Placed",
+      message: "Your order for #{product&.name || 'a product'} has been placed successfully."
+    ) if orderable
+  end
+
+  public
 
   include AASM
 
@@ -63,14 +78,19 @@ class Order < ApplicationRecord
 
   aasm column: :status do
     state :pending, initial: true
+    state :awaiting_payment # For gateway checkout
     state :processing
     state :active
     state :expired
     state :cancelled
     state :failed
 
+    event :await_payment do
+      transitions from: :pending, to: :awaiting_payment
+    end
+
     event :process do
-      transitions from: :pending, to: :processing
+      transitions from: %i[pending awaiting_payment], to: :processing
     end
 
     event :activate do

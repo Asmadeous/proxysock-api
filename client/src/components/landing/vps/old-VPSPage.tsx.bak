@@ -1,0 +1,1562 @@
+// // VPSPage.jsx - Dedicated landing page for VPS services
+// // Keeps your existing design system and components
+
+// import { useState} from "react"
+// import { Link } from "react-router-dom"
+// import {
+//   ServerIcon,
+//   ArrowRightIcon,
+//   BoltIcon,
+//   ShieldCheckIcon,
+//   ClockIcon,
+//   CpuChipIcon,
+// } from "@heroicons/react/24/outline"
+// import { StarIcon } from "@heroicons/react/24/solid"
+// import heroBg from "../assets/images/hero-bg.webp"
+// import { motion } from "framer-motion"
+// import Navbar from "../components/Navbar"
+// import { useAuth } from "../context/AuthContext"
+
+// export default function VPSPage() {
+//   const { isAuthenticated, isLoading } = useAuth()
+//   const [vpsSubTab, setVpsSubTab] = useState("standard")
+
+//   if (isLoading) {
+//     return (
+//       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
+//         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-500"></div>
+//       </div>
+//     )
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
+//       <Navbar />
+
+//       {/* Hero Section - Optimized for VPS */}
+//       <div className="relative min-h-[600px] flex items-center justify-center">
+//         <div
+//           className="absolute inset-0 z-0"
+//           style={{
+//             backgroundImage: `url(${heroBg})`,
+//             backgroundSize: "cover",
+//             backgroundPosition: "center",
+//             backgroundRepeat: "no-repeat",
+//           }}
+//         >
+//           <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 to-gray-900/40 backdrop-blur-[1px]"></div>
+//         </div>
+
+//         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
+//           <div className="text-center">
+//             {/* Trust Badges */}
+//             <div className="flex justify-center gap-4 mb-6">
+//               <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm">
+//                 ✓ SSD Storage
+//               </span>
+//               <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+//                 Full Root Access
+//               </span>
+//               <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm">
+//                 99.9% Uptime
+//               </span>
+//             </div>
+
+//             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+//               High-Performance VPS Hosting
+//               <span className="block text-red-500 mt-2">Starting at $8/month</span>
+//             </h1>
+//             <p className="mt-6 max-w-2xl mx-auto text-xl text-gray-300">
+//               Deploy Linux or Windows VPS instantly. Full root access, SSD storage,
+//               and unlimited bandwidth for your applications.
+//             </p>
+
+//             <div className="mt-10">
+//               <Link
+//                 to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                 className="px-8 py-3 text-lg bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 inline-flex items-center font-medium shadow-lg hover:shadow-red-600/20"
+//               >
+//                 Deploy Your VPS Now
+//                 <ArrowRightIcon className="h-5 w-5 ml-2" />
+//               </Link>
+//               <p className="mt-4 text-gray-400 text-sm">
+//                 Deploy in 60 seconds • Multiple OS choices • Cancel anytime
+//               </p>
+//             </div>
+//           </div>
+//         </div>
+//         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-900 to-transparent"></div>
+//       </div>
+
+//       {/* VPS Plans Section - Your existing design */}
+//       <div className="bg-gray-800/50 py-20 relative overflow-hidden">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <div className="text-center mb-8">
+//             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Choose Your VPS Plan</h2>
+//             <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto">
+//               All plans include SSD storage, unlimited bandwidth, and instant deployment
+//             </p>
+//           </div>
+
+//           {/* Sub-tabs for VPS */}
+//           <div className="flex justify-center space-x-4 mb-8">
+//             <button
+//               onClick={() => setVpsSubTab("standard")}
+//               className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${
+//                 vpsSubTab === "standard"
+//                   ? "bg-blue-600 text-white"
+//                   : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+//               }`}
+//             >
+//               Standard VPS
+//             </button>
+//             <button
+//               onClick={() => setVpsSubTab("residential")}
+//               className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${
+//                 vpsSubTab === "residential"
+//                   ? "bg-green-600 text-white"
+//                   : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+//               }`}
+//             >
+//               Residential VPS
+//             </button>
+//           </div>
+
+//           {/* Standard VPS Content */}
+//           {vpsSubTab === "standard" && (
+//             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//               {/* Ubuntu VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-orange-500 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">Ubuntu Server</h3>
+//                 </div>
+//                 <div className="mb-2">
+//                   <span className="bg-orange-500/20 text-orange-400 text-xs px-2 py-1 rounded">MOST POPULAR</span>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$8/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$15/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$30/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$60/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ Ubuntu 22.04 LTS</li>
+//                   <li>✓ Full Root Access</li>
+//                   <li>✓ IPv4 + IPv6</li>
+//                   <li>✓ Instant Deployment</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy Ubuntu VPS →
+//                 </Link>
+//               </motion.div>
+
+//               {/* AlmaLinux VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5, delay: 0.1 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-purple-500 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">AlmaLinux</h3>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$8/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$15/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$30/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$60/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ AlmaLinux 9</li>
+//                   <li>✓ cPanel Compatible</li>
+//                   <li>✓ Full Root Access</li>
+//                   <li>✓ Free Backups</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy AlmaLinux VPS →
+//                 </Link>
+//               </motion.div>
+
+//               {/* Rocky Linux VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5, delay: 0.2 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-green-600 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">Rocky Linux</h3>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$8/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$15/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$30/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$60/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ Rocky Linux 9</li>
+//                   <li>✓ Enterprise Ready</li>
+//                   <li>✓ SELinux Support</li>
+//                   <li>✓ 100% RHEL Compatible</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy Rocky VPS →
+//                 </Link>
+//               </motion.div>
+
+//               {/* Debian VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5, delay: 0.3 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-red-600 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">Debian</h3>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$8/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$15/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$30/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$60/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ Debian 12 Bookworm</li>
+//                   <li>✓ Lightweight & Stable</li>
+//                   <li>✓ APT Package Manager</li>
+//                   <li>✓ Docker Ready</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy Debian VPS →
+//                 </Link>
+//               </motion.div>
+
+//               {/* Windows VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5, delay: 0.4 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-blue-500 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">Windows Server</h3>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$12/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$25/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$45/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$85/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ Windows Server 2022</li>
+//                   <li>✓ Remote Desktop</li>
+//                   <li>✓ IIS & SQL Server Ready</li>
+//                   <li>✓ .NET Framework</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy Windows VPS →
+//                 </Link>
+//               </motion.div>
+
+//               {/* Fedora VPS */}
+//               <motion.div
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 viewport={{ once: true }}
+//                 transition={{ duration: 0.5, delay: 0.5 }}
+//                 className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//               >
+//                 <div className="flex items-center mb-4">
+//                   <ServerIcon className="h-8 w-8 text-blue-600 mr-3" />
+//                   <h3 className="text-xl font-bold text-white">Fedora</h3>
+//                 </div>
+//                 <div className="space-y-2 mb-4">
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$8/mo</span></p>
+//                     <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$15/mo</span></p>
+//                     <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Pro: <span className="text-red-500 font-bold">$30/mo</span></p>
+//                     <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                   </div>
+//                   <div className="bg-gray-800/50 p-2 rounded">
+//                     <p className="text-sm text-gray-300">Enterprise: <span className="text-red-500 font-bold">$60/mo</span></p>
+//                     <p className="text-xs text-gray-400">4 vCPU • 16GB RAM • 320GB SSD</p>
+//                   </div>
+//                 </div>
+//                 <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                   <li>✓ Fedora 39</li>
+//                   <li>✓ Latest Packages</li>
+//                   <li>✓ Developer Friendly</li>
+//                   <li>✓ DNF Package Manager</li>
+//                 </ul>
+//                 <Link
+//                   to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                   className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+//                 >
+//                   Deploy Fedora VPS →
+//                 </Link>
+//               </motion.div>
+//             </div>
+//           )}
+
+//           {/* Residential VPS Content - Now with ALL operating systems */}
+//           {vpsSubTab === "residential" && (
+//             <>
+//               {/* Available Locations Banner */}
+//               <div className="bg-green-600/10 border border-green-600/30 rounded-lg p-4 mb-6">
+//                 <p className="text-green-400 text-center text-sm font-medium">
+//                   🌍 All Residential VPS available in: USA • UK • Canada • Germany • France • Australia • Japan • Singapore
+//                 </p>
+//               </div>
+
+//               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//                 {/* Ubuntu Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">Ubuntu Server</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$35/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$50/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+
+//                 {/* AlmaLinux Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5, delay: 0.1 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">AlmaLinux</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$35/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$50/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+
+//                 {/* Rocky Linux Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5, delay: 0.2 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">Rocky Linux</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$35/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$50/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+
+//                 {/* Debian Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5, delay: 0.3 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">Debian</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$35/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$50/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+
+//                 {/* Windows Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5, delay: 0.4 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">Windows Server</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$45/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$85/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+
+//                 {/* Fedora Residential VPS */}
+//                 <motion.div
+//                   initial={{ opacity: 0, y: 20 }}
+//                   whileInView={{ opacity: 1, y: 0 }}
+//                   viewport={{ once: true }}
+//                   transition={{ duration: 0.5, delay: 0.5 }}
+//                   className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+//                 >
+//                   <div className="flex items-center mb-4">
+//                     <ServerIcon className="h-8 w-8 text-green-500 mr-3" />
+//                     <h3 className="text-xl font-bold text-white">Fedora</h3>
+//                   </div>
+//                   <div className="flex gap-2 mb-3">
+//                     <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
+//                       RESIDENTIAL IP
+//                     </span>
+//                     <span className="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+//                       8 Locations
+//                     </span>
+//                   </div>
+//                   <div className="space-y-2 mb-4">
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Basic: <span className="text-red-500 font-bold">$35/mo</span></p>
+//                       <p className="text-xs text-gray-400">1 vCPU • 2GB RAM • 40GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Standard: <span className="text-red-500 font-bold">$50/mo</span></p>
+//                       <p className="text-xs text-gray-400">2 vCPU • 4GB RAM • 60GB SSD</p>
+//                     </div>
+//                     <div className="bg-gray-800/50 p-2 rounded">
+//                       <p className="text-sm text-gray-300">Premium: <span className="text-red-500 font-bold">$65/mo</span></p>
+//                       <p className="text-xs text-gray-400">3 vCPU • 8GB RAM • 160GB SSD</p>
+//                     </div>
+//                   </div>
+//                   <ul className="text-xs text-gray-400 space-y-1 mb-4">
+//                     <li>✓ Real Residential IP</li>
+//                     <li>✓ Low Detection Rate</li>
+//                     <li>✓ All Global Locations</li>
+//                     <li>✓ Premium Support</li>
+//                   </ul>
+//                   <Link
+//                     to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//                     className="w-full block text-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+//                   >
+//                     Deploy Residential VPS →
+//                   </Link>
+//                 </motion.div>
+//               </div>
+//             </>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Features Section */}
+//       <div className="bg-gray-900 py-20">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <div className="text-center mb-12">
+//             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Why Choose Our VPS Hosting</h2>
+//           </div>
+
+//           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+//             {[
+//               { title: "Instant Deploy", icon: BoltIcon, description: "Server ready in 60 seconds" },
+//               { title: "Full Root Access", icon: ShieldCheckIcon, description: "Complete control" },
+//               { title: "SSD Storage", icon: CpuChipIcon, description: "Fast NVMe SSDs" },
+//               { title: "24/7 Support", icon: ClockIcon, description: "Expert help anytime" },
+//             ].map((feature, index) => (
+//               <div key={index} className="text-center">
+//                 <div className="inline-flex items-center justify-center w-12 h-12 bg-red-500/20 rounded-lg mb-3">
+//                   <feature.icon className="h-6 w-6 text-red-500" />
+//                 </div>
+//                 <h3 className="text-white font-semibold mb-1">{feature.title}</h3>
+//                 <p className="text-gray-400 text-sm">{feature.description}</p>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Use Cases */}
+//       <div className="bg-gray-800 py-20">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <div className="text-center mb-12">
+//             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Perfect For</h2>
+//           </div>
+
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+//             {[
+//               {
+//                 title: "Web Hosting",
+//                 description: "Host websites, blogs, and web applications with full control over your server environment.",
+//               },
+//               {
+//                 title: "Development & Testing",
+//                 description: "Perfect environment for developing and testing applications before production deployment.",
+//               },
+//               {
+//                 title: "Game Servers",
+//                 description: "Run Minecraft, CS:GO, or any game server with low latency and high performance.",
+//               },
+//             ].map((useCase, index) => (
+//               <div key={index} className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800">
+//                 <h3 className="text-xl font-bold text-white mb-3">{useCase.title}</h3>
+//                 <p className="text-gray-300">{useCase.description}</p>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Testimonials */}
+//       <div className="bg-gray-900 py-20">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <div className="text-center mb-12">
+//             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">What Our Customers Say</h2>
+//           </div>
+
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+//             {[
+//               {
+//                 name: "Tom Anderson",
+//                 role: "Web Developer",
+//                 content: "Rock solid VPS hosting. Been running my client sites here for over a year with zero issues.",
+//                 rating: 5,
+//               },
+//               {
+//                 name: "Lisa Chen",
+//                 role: "DevOps Engineer",
+//                 content: "The instant deployment is amazing. Spin up test servers in seconds. Great for CI/CD pipelines.",
+//                 rating: 5,
+//               },
+//               {
+//                 name: "Mark Rodriguez",
+//                 role: "Game Server Admin",
+//                 content: "Running multiple game servers without any lag. The SSD storage makes a huge difference.",
+//                 rating: 5,
+//               },
+//             ].map((testimonial, index) => (
+//               <div key={index} className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl">
+//                 <div className="flex mb-3">
+//                   {[...Array(testimonial.rating)].map((_, i) => (
+//                     <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
+//                   ))}
+//                 </div>
+//                 <p className="text-gray-300 mb-4">"{testimonial.content}"</p>
+//                 <div className="border-t border-gray-700 pt-4">
+//                   <p className="text-white font-semibold">{testimonial.name}</p>
+//                   <p className="text-gray-400 text-sm">{testimonial.role}</p>
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* FAQ Section */}
+//       <div className="bg-gray-800 py-20">
+//         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-center mb-12">
+//             VPS Hosting FAQ
+//           </h2>
+
+//           <div className="space-y-6">
+//             {[
+//               {
+//                 q: "How quickly is my VPS deployed?",
+//                 a: "Your VPS is deployed instantly! Within 60 seconds of payment, you'll receive root access credentials."
+//               },
+//               {
+//                 q: "Can I upgrade my VPS later?",
+//                 a: "Yes! You can upgrade your VPS anytime from your dashboard. Upgrades are processed instantly."
+//               },
+//               {
+//                 q: "What's included with my VPS?",
+//                 a: "Full root access, dedicated IP address, unlimited bandwidth, SSD storage, and 24/7 support."
+//               },
+//               {
+//                 q: "Do you provide backups?",
+//                 a: "We offer automated weekly backups as an add-on service for $5/month. You can also create manual snapshots anytime."
+//               },
+//             ].map((faq, index) => (
+//               <div key={index} className="bg-gray-900/50 rounded-lg p-6">
+//                 <h3 className="text-lg font-semibold text-white mb-2">{faq.q}</h3>
+//                 <p className="text-gray-300">{faq.a}</p>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Final CTA */}
+//       <div className="bg-gradient-to-r from-green-600 to-green-700 py-16">
+//         <div className="max-w-4xl mx-auto px-4 text-center">
+//           <h2 className="text-3xl font-bold text-white mb-4">
+//             Deploy Your VPS in 60 Seconds
+//           </h2>
+//           <p className="text-xl text-white/90 mb-8">
+//             Join thousands of developers and businesses using our VPS hosting
+//           </p>
+//           <Link
+//             to={isAuthenticated ? "/dashboard/vps" : "/register"}
+//             className="inline-flex items-center px-8 py-3 bg-white text-green-600 rounded-md hover:bg-gray-100 transition-colors duration-200 text-lg font-medium"
+//           >
+//             Deploy VPS Now
+//             <ArrowRightIcon className="h-5 w-5 ml-2" />
+//           </Link>
+//           <p className="mt-4 text-white/80 text-sm">
+//             Full root access • SSD storage • Cancel anytime
+//           </p>
+//         </div>
+//       </div>
+
+//       {/* Footer */}
+//       <footer className="bg-gray-900 border-t border-gray-800">
+//         <div className="max-w-7xl mx-auto py-10 px-6 sm:px-8">
+//           <div className="text-center">
+//             <p className="text-gray-400 text-sm">© {new Date().getFullYear()} ProxySock. All rights reserved.</p>
+//           </div>
+//         </div>
+//       </footer>
+//     </div>
+//   )
+// }
+
+import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
+import { useAuth } from "../context/AuthContext";
+import { VPSHeroSection } from "@/components/landing/vps/VPSHeroSection";
+import { VPSPlansSection } from "@/components/landing/vps/VPSPlansSection";
+import { VPSFeatures } from "@/components/landing/vps/VPSFeatures";
+import { VPSUseCases } from "@/components/landing/vps/VPSUseCases";
+import { VPSTestimonials } from "@/components/landing/vps/VPSTestimonials";
+import { VPSFAQ } from "@/components/landing/vps/VPSFAQ";
+import { VPSCTA } from "@/components/landing/vps/VPSCTA";
+
+export default function VPSPage() {
+  const { isLoading } = useAuth();
+
+  // Conversion tracking function
+  const trackConversion = (
+    action: string,
+    _category?: string,
+    href?: string
+  ) => {
+    if (action.includes("navigation") && href) {
+      // Add navigation tracking logic here if needed
+    } else if (action.includes("lead") || action.includes("contact")) {
+      // Add lead tracking logic here if needed
+    } else {
+      // Add general engagement tracking logic here if needed
+    }
+  };
+
+  useEffect(() => {
+    document.title = "Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock";
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Structured Data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "ProxySock VPS Hosting Services",
+    description: "Residential VPS hosting with real IPs for automation, development, and web hosting. Windows Server 2022, Ubuntu, Fedora.",
+    brand: {
+      "@type": "Brand",
+      name: "ProxySock"
+    },
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "CAD",
+      lowPrice: "23.00",
+      highPrice: "88.00",
+      offerCount: "4"
+    }
+  };
+
+  const webPageData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock",
+    description: "Get residential VPS hosting with real IPs for web scraping, automation, and development. Windows Server 2022, Ubuntu, Fedora. Starting from $23 CAD.",
+    url: window.location.href,
+  };
+
+  return (
+    <>
+      <Helmet>
+        {/* Enhanced SEO meta tags */}
+        <title>
+          Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock - 99.9% Uptime
+        </title>
+        <meta
+          name="description"
+          content="Get residential VPS hosting with real IPs for web scraping, automation, and development. Windows Server 2022, Ubuntu, Fedora. Starting from $23 CAD."
+        />
+        <meta
+          name="keywords"
+          content="vps hosting, residential vps, windows server vps, linux vps, virtual private server, automation, web scraping, development"
+        />
+
+        {/* Canonical URL for canonicalization */}
+        <link rel="canonical" href="https://www.proxysock.com/vps" />
+
+        {/* Open Graph tags for social media integration */}
+        <meta
+          property="og:title"
+          content="Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock"
+        />
+        <meta
+          property="og:description"
+          content="Get residential VPS hosting with real IPs for web scraping, automation, and development."
+        />
+        <meta property="og:url" content="https://www.proxysock.com/vps" />
+        <meta
+          property="og:image"
+          content="https://www.proxysock.com/images/vps-og-image.jpg"
+        />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card tags for social media */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock"
+        />
+        <meta
+          name="twitter:description"
+          content="Get residential VPS hosting with real IPs for web scraping, automation, and development."
+        />
+        <meta
+          name="twitter:image"
+          content="https://www.proxysock.com/images/vps-og-image.jpg"
+        />
+
+        {/* Structured Data Scripts */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify(webPageData)}
+        </script>
+      </Helmet>
+
+      <div className="min-h-screen bg-background">
+        {/* Hero Section */}
+        <VPSHeroSection trackConversion={trackConversion} />
+
+        {/* Plans Section */}
+        <VPSPlansSection trackConversion={trackConversion} />
+
+        {/* Features Section */}
+        <VPSFeatures />
+
+        {/* Use Cases */}
+        <VPSUseCases />
+
+        {/* Testimonials */}
+        <VPSTestimonials />
+
+        {/* FAQ Section */}
+        <VPSFAQ />
+
+        {/* Final CTA */}
+        <VPSCTA trackConversion={trackConversion} />
+      </div>
+    </>
+  );
+}
+      <Navbar />
+
+      {/* Hero Section */}
+      <div className="relative min-h-[600px] flex items-center justify-center">
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: `url(${heroBg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 to-gray-900/40 backdrop-blur-[1px]"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
+          <div className="text-center">
+            {/* Trust Badges */}
+            <div className="flex justify-center gap-4 mb-6 flex-wrap">
+              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+                ✓ Residential IP
+              </span>
+              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+                Full Root Access
+              </span>
+              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+                99.9% Uptime
+              </span>
+              <span className="bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-sm">
+                🇨🇦 Starting CAD $23/mo
+              </span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+              Residential VPS Hosting
+              <span className="block text-blue-500 mt-2">
+                From $23 CAD/month
+              </span>
+            </h1>
+            <p className="mt-6 max-w-2xl mx-auto text-xl text-gray-300">
+              Deploy Linux or Windows VPS with real residential IPs. Full root
+              access, SSD storage, and unlimited bandwidth. Best prices in
+              Canada!
+            </p>
+
+            <div className="mt-10">
+              <Link
+                to={isAuthenticated ? "/dashboard/vps" : "/register"}
+                className="px-8 py-3 text-lg bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 inline-flex items-center font-medium shadow-lg hover:shadow-blue-600/20"
+              >
+                Deploy Your VPS Now
+                <ArrowRightIcon className="h-5 w-5 ml-2" />
+              </Link>
+              <p className="mt-4 text-gray-400 text-sm">
+                Deploy in 60 seconds • Residential IPs • Cancel anytime
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-900 to-transparent"></div>
+      </div>
+
+      {/* VPS Plans Section */}
+      <div className="bg-gray-800/50 py-20 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              Choose Your Residential VPS Plan
+            </h2>
+            <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto">
+              All plans include real residential IPs, unlimited bandwidth, and
+              instant deployment
+            </p>
+          </div>
+
+          {/* Location Pricing Banner */}
+          <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-600/30 rounded-lg p-4 mb-8">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <GlobeAltIcon className="h-5 w-5 text-blue-400" />
+              <p className="text-blue-400 text-center text-sm font-medium">
+                🌍 Available in 5 Locations: USA • UK • Germany • Canada •
+                Australia
+              </p>
+              <span className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold">
+                🇨🇦 Cheapest in Canada!
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Basic Residential VPS */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Basic</h3>
+                <ServerIcon className="h-8 w-8 text-blue-500" />
+              </div>
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-bold text-blue-500">$35</span>
+                  <span className="text-gray-400 text-sm">/month USD</span>
+                </div>
+                <div className="bg-orange-500/20 border border-orange-500/50 rounded px-2 py-1 inline-block">
+                  <span className="text-orange-400 text-xs font-semibold">
+                    🇨🇦 $23 CAD/mo
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">1 vCPU</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">2GB RAM</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">40GB SSD Storage</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">Unlimited Bandwidth</span>
+                </div>
+              </div>
+              <ul className="text-xs text-gray-400 space-y-1 mb-4">
+                <li>✓ Real Residential IP</li>
+                <li>✓ Full Root Access</li>
+                <li>✓ 99.9% Uptime</li>
+                <li>✓ 24/7 Support</li>
+              </ul>
+              <Link
+                to={isAuthenticated ? "/dashboard/vps" : "/register"}
+                className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Deploy Now →
+              </Link>
+            </motion.div>
+
+            {/* Standard Residential VPS */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border-2 border-blue-500 relative"
+            >
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <span className="bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-bold">
+                  POPULAR
+                </span>
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Standard</h3>
+                <ServerIcon className="h-8 w-8 text-blue-500" />
+              </div>
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-bold text-blue-500">$50</span>
+                  <span className="text-gray-400 text-sm">/month USD</span>
+                </div>
+                <div className="bg-orange-500/20 border border-orange-500/50 rounded px-2 py-1 inline-block">
+                  <span className="text-orange-400 text-xs font-semibold">
+                    🇨🇦 $38 CAD/mo
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">2 vCPU</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">4GB RAM</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">80GB SSD Storage</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">Unlimited Bandwidth</span>
+                </div>
+              </div>
+              <ul className="text-xs text-gray-400 space-y-1 mb-4">
+                <li>✓ Real Residential IP</li>
+                <li>✓ Full Root Access</li>
+                <li>✓ DDoS Protection</li>
+                <li>✓ Priority Support</li>
+              </ul>
+              <Link
+                to={isAuthenticated ? "/dashboard/vps" : "/register"}
+                className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Deploy Now →
+              </Link>
+            </motion.div>
+
+            {/* Premium Residential VPS */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Premium</h3>
+                <ServerIcon className="h-8 w-8 text-blue-500" />
+              </div>
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-bold text-blue-500">$65</span>
+                  <span className="text-gray-400 text-sm">/month USD</span>
+                </div>
+                <div className="bg-orange-500/20 border border-orange-500/50 rounded px-2 py-1 inline-block">
+                  <span className="text-orange-400 text-xs font-semibold">
+                    🇨🇦 $53 CAD/mo
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">3 vCPU</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">6GB RAM</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">120GB NVMe SSD</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">Unlimited Bandwidth</span>
+                </div>
+              </div>
+              <ul className="text-xs text-gray-400 space-y-1 mb-4">
+                <li>✓ Real Residential IP</li>
+                <li>✓ NVMe SSD Storage</li>
+                <li>✓ DDoS Protection</li>
+                <li>✓ Priority Support</li>
+              </ul>
+              <Link
+                to={isAuthenticated ? "/dashboard/vps" : "/register"}
+                className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Deploy Now →
+              </Link>
+            </motion.div>
+
+            {/* Ultra Residential VPS */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Ultra</h3>
+                <ServerIcon className="h-8 w-8 text-blue-500" />
+              </div>
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-bold text-blue-500">$100</span>
+                  <span className="text-gray-400 text-sm">/month USD</span>
+                </div>
+                <div className="bg-orange-500/20 border border-orange-500/50 rounded px-2 py-1 inline-block">
+                  <span className="text-orange-400 text-xs font-semibold">
+                    🇨🇦 $88 CAD/mo
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">4 vCPU</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">8GB RAM</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">160GB NVMe SSD</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-300">
+                  <span className="font-semibold">Unlimited Bandwidth</span>
+                </div>
+              </div>
+              <ul className="text-xs text-gray-400 space-y-1 mb-4">
+                <li>✓ Real Residential IP</li>
+                <li>✓ High Performance</li>
+                <li>✓ DDoS Protection</li>
+                <li>✓ 24/7 Premium Support</li>
+              </ul>
+              <Link
+                to={isAuthenticated ? "/dashboard/vps" : "/register"}
+                className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Deploy Now →
+              </Link>
+            </motion.div>
+          </div>
+
+          {/* OS Options */}
+          <div className="mt-12 text-center">
+            <p className="text-gray-400 text-sm mb-4">
+              Available Operating Systems:
+            </p>
+            <div className="flex justify-center gap-3 flex-wrap">
+              {[
+                "Ubuntu Server",
+                "Debian",
+                "Rocky Linux",
+                "AlmaLinux",
+                "Windows Server 2022",
+              ].map((os) => (
+                <span
+                  key={os}
+                  className="bg-gray-700/50 text-gray-300 px-3 py-1 rounded text-xs"
+                >
+                  {os}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <div className="bg-gray-900 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              Why Choose Residential VPS
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              {
+                title: "Instant Deploy",
+                icon: BoltIcon,
+                description: "Server ready in 60 seconds",
+              },
+              {
+                title: "Real Residential IPs",
+                icon: GlobeAltIcon,
+                description: "Low detection rates",
+              },
+              {
+                title: "Full Root Access",
+                icon: ShieldCheckIcon,
+                description: "Complete control",
+              },
+              {
+                title: "24/7 Support",
+                icon: ClockIcon,
+                description: "Expert help anytime",
+              },
+            ].map((feature, index) => (
+              <div key={index} className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-lg mb-3">
+                  <feature.icon className="h-6 w-6 text-blue-500" />
+                </div>
+                <h3 className="text-white font-semibold mb-1">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-400 text-sm">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Use Cases */}
+      <div className="bg-gray-800 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              Perfect For
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Web Scraping & Automation",
+                description:
+                  "Run scrapers and bots with residential IPs for better success rates and lower detection.",
+              },
+              {
+                title: "SEO & Marketing",
+                description:
+                  "Host SEO tools and marketing automation with trusted residential IP addresses.",
+              },
+              {
+                title: "Development & Testing",
+                description:
+                  "Test applications from residential IPs to simulate real user environments.",
+              },
+            ].map((useCase, index) => (
+              <div
+                key={index}
+                className="bg-gray-900/80 backdrop-blur-xl rounded-lg p-6 border border-gray-800"
+              >
+                <h3 className="text-xl font-bold text-white mb-3">
+                  {useCase.title}
+                </h3>
+                <p className="text-gray-300">{useCase.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Testimonials */}
+      <div className="bg-gray-900 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              What Our Customers Say
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Tom Anderson",
+                role: "Web Developer",
+                content:
+                  "The residential IPs make a huge difference. My scraping projects run smoothly without blocks.",
+                rating: 5,
+              },
+              {
+                name: "Lisa Chen",
+                role: "SEO Specialist",
+                content:
+                  "Best pricing I've found for residential VPS. The Canada option is incredibly affordable!",
+                rating: 5,
+              },
+              {
+                name: "Mark Rodriguez",
+                role: "Marketing Automation",
+                content:
+                  "Fast deployment and reliable uptime. Perfect for running marketing tools 24/7.",
+                rating: 5,
+              },
+            ].map((testimonial, index) => (
+              <div
+                key={index}
+                className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl"
+              >
+                <div className="flex mb-3">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
+                  ))}
+                </div>
+                <p className="text-gray-300 mb-4">"{testimonial.content}"</p>
+                <div className="border-t border-gray-700 pt-4">
+                  <p className="text-white font-semibold">{testimonial.name}</p>
+                  <p className="text-gray-400 text-sm">{testimonial.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="bg-gray-800 py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-center mb-12">
+            Residential VPS FAQ
+          </h2>
+
+          <div className="space-y-6">
+            {[
+              {
+                q: "What makes a VPS 'residential'?",
+                a: "Residential VPS uses real residential IP addresses from ISPs, making your server appear as a home internet connection rather than a datacenter. This provides better trust scores and lower detection rates.",
+              },
+              {
+                q: "Why are Canada prices cheaper?",
+                a: "We offer special pricing for our Canadian datacenter to provide the best value. All features remain the same across all locations.",
+              },
+              {
+                q: "Can I upgrade my VPS later?",
+                a: "Yes! You can upgrade your VPS anytime from your dashboard. Upgrades are processed instantly with minimal downtime.",
+              },
+              {
+                q: "Which operating systems are available?",
+                a: "All plans support Ubuntu Server, Debian, Rocky Linux, AlmaLinux, and Windows Server 2022. You can choose during deployment.",
+              },
+            ].map((faq, index) => (
+              <div key={index} className="bg-gray-900/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {faq.q}
+                </h3>
+                <p className="text-gray-300">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Final CTA */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 py-16">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Deploy Your Residential VPS Today
+          </h2>
+          <p className="text-xl text-white/90 mb-8">
+            Best prices in Canada • Real residential IPs • All major operating
+            systems
+          </p>
+          <Link
+            to={isAuthenticated ? "/dashboard/vps" : "/register"}
+            className="inline-flex items-center px-8 py-3 bg-white text-blue-600 rounded-md hover:bg-gray-100 transition-colors duration-200 text-lg font-medium"
+          >
+            Deploy VPS Now
+            <ArrowRightIcon className="h-5 w-5 ml-2" />
+          </Link>
+          <p className="mt-4 text-white/80 text-sm">
+            Starting at $23 CAD • Full root access • Cancel anytime
+          </p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto py-10 px-6 sm:px-8">
+          <div className="text-center">
+            <p className="text-gray-400 text-sm">
+              © {new Date().getFullYear()} ProxySock. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -1,0 +1,3 @@
+# ads.txt for ProxySock
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+# Add other ad networks or resellers as needed

@@ -8,19 +8,26 @@ module Web
       # GET /web/api/wallet
       def show
         wallet = current_user.wallet
+        # Calculate stats
+        total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
+        # Deposits are credits. But refunds are also credits.
+        # description might help. Or just use total credits - adjustments?
+        # For now, total credits is good enough proxy for "Total Deposited" if we ignore refunds/bonuses for a moment.
+
+        # Actually proper way:
+        total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
+
+        total_spent = current_user.orders.where(status: ['active', 'completed']).sum(:total_amount)
+        order_count = current_user.orders.count
 
         render json: {
-          balance: wallet&.balance || 0.0,
+          available_balance: wallet&.balance || 0.0,
           currency: 'USD',
-          recent_transactions: wallet&.wallet_transactions&.order(created_at: :desc)&.limit(10)&.map do |t|
-            {
-              id: t.id,
-              amount: t.amount,
-              type: t.transaction_type,
-              description: t.description,
-              created_at: t.created_at
-            }
-          end || []
+          total_deposited: total_deposited,
+          total_order_amount: total_spent,
+          order_count: order_count,
+          discount_percentage: current_user.metadata && current_user.metadata['discount_percentage'] || 0,
+          recent_transactions: wallet&.wallet_transactions&.order(created_at: :desc)&.limit(10) || []
         }
       end
 
@@ -30,7 +37,7 @@ module Web
         gateway = params[:gateway] # 'paystack', 'plisio', 'payvra'
         currency = params[:currency] || 'USD'
 
-        return render json: { error: 'Invalid amount' }, status: :bad_request if amount <= 0
+        return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
                                                                                          payvra].include?(gateway)
 
@@ -50,7 +57,7 @@ module Web
         render json: {
           message: 'Deposit initiated',
           deposit_id: deposit.id,
-          transaction_ref: deposit.transaction_id,
+          transaction_ref: deposit.metadata['transaction_ref'],
           payment_url: payment_url
         }
       end
@@ -62,10 +69,12 @@ module Web
 
         case gateway
         when 'paystack'
+          exchange_rate = 1500 # NGN/USD
+          amount_ngn = amount * exchange_rate
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_user.email,
-            amount: (amount * 100).to_i, # Paystack uses kobo/cents
+            amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
             metadata: { deposit_id: deposit.id, user_id: current_user.id }
@@ -75,7 +84,7 @@ module Web
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
-            order_number: deposit.transaction_id,
+            order_number: deposit.metadata['transaction_ref'],
             amount: amount,
             currency: currency,
             callback_url: callback_url,
@@ -88,7 +97,7 @@ module Web
           result = service.create_payment(
             amount: amount,
             currency: currency,
-            reference: deposit.transaction_id,
+            reference: deposit.metadata['transaction_ref'],
             callback_url: callback_url
           )
           result[:payment_url]

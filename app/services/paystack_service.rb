@@ -24,7 +24,7 @@ class PaystackService
       email: email,
       amount: amount_kobo,
       reference: reference,
-      callback_url: "#{ENV['APP_URL']}/webhooks/paystack/callback"
+      callback_url: "#{ENV['APP_URL']}/webhooks/paystack"
     )[:authorization_url]
   end
 
