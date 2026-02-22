@@ -3,24 +3,13 @@
 class User < ApplicationRecord
   has_secure_password validations: false
 
-  has_secure_password validations: false
   has_one_attached :avatar
 
-  has_many :ecommerce_orders
-  has_many :orders, through: :ecommerce_orders
-  has_many :ecommerce_orders
-  has_many :ecommerce_orders
-  has_many :orders, through: :ecommerce_orders
+  has_many :orders, as: :orderable, dependent: :destroy
   has_many :deposits, as: :depositable
   has_many :tickets, as: :user
   has_one :wallet, as: :owner, dependent: :destroy
-  has_many :orders, as: :orderable, dependent: :destroy
-<<<<<<< HEAD
   has_many :notifications, as: :recipient, dependent: :destroy
-
-  validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :username, presence: true, uniqueness: true
-=======
   has_one :affiliate, as: :affiliatable, dependent: :destroy
   has_many :affiliate_referrals, as: :referred, dependent: :destroy
 
@@ -28,7 +17,6 @@ class User < ApplicationRecord
   validates :username, presence: true, uniqueness: { case_sensitive: false },
             length: { minimum: 3, maximum: 30 },
             format: { with: /\A[a-zA-Z0-9_]+\z/, message: 'can only contain letters, numbers, and underscores' }
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
