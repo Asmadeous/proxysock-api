@@ -2,7 +2,7 @@ import {
   SHOPIFY_TRANSACTION_FEE_FIXED,
   SHOPIFY_TRANSACTION_FEE_PERCENT,
 } from "@/constants/cart";
-import { CartItem } from "@/pages/Cart";
+import { CartItem } from "@/pages/UserDashboard/Cart";
 
 export const useCalculateOrderItems = ({
   cartItems,

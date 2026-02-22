@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, ArrowPathIcon, XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
-import { getCableConsumer } from "../../../services/cable";
 import StatusBadge from "../components/StatusBadge";
 import OnlineBadge from "../../../components/OnlineBadge";
 import { fetchSupportChats, fetchSupportChat, replySupportChat, assignSupportChat, closeSupportChat, fetchEmployees } from "../../../services/adminApi";
@@ -35,7 +34,7 @@ export default function SupportChatsTab() {
     const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([]);
     const [showAssign, setShowAssign] = useState(false);
     const messagesEnd = useRef<HTMLDivElement>(null);
-    const subscriptionRef = useRef<any>(null);
+    const pollRef = useRef<ReturnType<typeof setInterval>>();
 
     const loadChats = useCallback(async () => {
         try {
@@ -56,34 +55,15 @@ export default function SupportChatsTab() {
     };
 
     useEffect(() => {
-        if (subscriptionRef.current) {
-            subscriptionRef.current.unsubscribe();
-            subscriptionRef.current = null;
-        }
-
         if (selectedChat) {
-            const cable = getCableConsumer();
-            subscriptionRef.current = cable.subscriptions.create(
-                { channel: "ChatChannel", chat_id: selectedChat.id, chat_type: "SupportChat" },
-                {
-                    received: (data: any) => {
-                        if (data.action === "message_created") {
-                            setMessages(prev => {
-                                if (prev.find(m => m.id === data.message.id)) return prev;
-                                return [...prev, data.message];
-                            });
-                        }
-                    }
-                }
-            );
+            pollRef.current = setInterval(async () => {
+                try {
+                    const res = await fetchSupportChat(selectedChat.id);
+                    setMessages(res.data.messages || []);
+                } catch { /* ignore */ }
+            }, 5000);
         }
-
-        return () => {
-            if (subscriptionRef.current) {
-                subscriptionRef.current.unsubscribe();
-                subscriptionRef.current = null;
-            }
-        };
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }, [selectedChat]);
 
     useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);

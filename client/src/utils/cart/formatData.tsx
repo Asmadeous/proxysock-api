@@ -1,4 +1,4 @@
-import { CartItem } from "@/pages/Cart";
+import { CartItem } from "@/pages/UserDashboard/Cart";
 
 export const formatDataVolume = (bytes: number) => {
   if (bytes === 0) return "0 Bytes";

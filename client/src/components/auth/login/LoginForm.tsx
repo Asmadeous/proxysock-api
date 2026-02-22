@@ -137,7 +137,7 @@ export default function LoginForm({
             />
             <label
               htmlFor="remember-me"
-              className="ml-2 block text-sm text-foreground font-inter-regular select-none"
+              className="ml-2 block text-sm text-foreground font-inter-regular"
             >
               Remember me
             </label>

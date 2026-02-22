@@ -3,9 +3,6 @@ export interface User {
   username?: string;
   email?: string;
   role: string;
-  balance?: number;
-  currency?: string;
-  profile_picture_url?: string;
   createdAt?: string | Date;
   nextBillingDate?: string | Date;
   // Add other properties as needed
@@ -91,9 +88,6 @@ export interface Order {
   updated_at: string;
   credentials: Record<string, any> | null;
   cart_items: any[] | null; // Adjust based on your cart_items structure
-  total_amount?: number | string;
-  product_type?: string;
-  product_name?: string;
 }
 
 export interface CartItem {

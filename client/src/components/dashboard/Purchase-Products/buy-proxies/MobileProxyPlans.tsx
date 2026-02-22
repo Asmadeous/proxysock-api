@@ -38,7 +38,7 @@ export const renderMobileProxyPlans = ({
   if (!showMobilePlans || !mobileProxyPlans.length) return null;
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <button
           onClick={handleBackToLocationCards}
           className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"

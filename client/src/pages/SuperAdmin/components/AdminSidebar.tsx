@@ -35,6 +35,8 @@ interface AdminSidebarProps {
     userName: string;
     userRole: string;
     accentColor?: string;
+    fetchNotifications?: () => Promise<any>;
+    markNotificationsAsRead?: () => Promise<any>;
 }
 
 export default function AdminSidebar({
@@ -44,6 +46,8 @@ export default function AdminSidebar({
     title,
     userName,
     userRole,
+    fetchNotifications,
+    markNotificationsAsRead,
 }: AdminSidebarProps) {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -101,7 +105,9 @@ export default function AdminSidebar({
                     {title}
                 </h1>
                 <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : ""}`}>
-                    <NotificationBell />
+                    {fetchNotifications && markNotificationsAsRead && (
+                        <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+                    )}
                     {isMobile && (
                         <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
                             <XMarkIcon className="h-5 w-5" />
@@ -241,7 +247,9 @@ export default function AdminSidebar({
                     </button>
                     <h1 className="text-lg font-bold text-foreground">{title}</h1>
                     <div className="flex items-center gap-2">
-                        <NotificationBell />
+                        {fetchNotifications && markNotificationsAsRead && (
+                            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+                        )}
                     </div>
                 </div>
             )}

@@ -1,13 +1,13 @@
+
 import { useCalculateOrderItems } from "./useCalculateOrderTotalSync";
-import { CartItem } from "@/pages/Cart";
+import { CartItem } from "@/pages/UserDashboard/Cart";
 import React from "react";
-import railsApi from "@/lib/railsApi";
+import api from "@/services/api";
 
 interface UsePaymentCheckoutHandlersProps {
   // states
   cartItems: CartItem[];
   userBalance: number;
-  clientIP: string | null;
   exchangeRate: number | null;
   // State setters
   setIsLoadingBalance: React.Dispatch<React.SetStateAction<boolean>>;
@@ -19,6 +19,9 @@ interface UsePaymentCheckoutHandlersProps {
     paymentMethod: string,
   ) => string;
   setUserBalance: React.Dispatch<React.SetStateAction<number>>;
+  setIsLoadingPlisio: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingPayvra: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
   // functions
   clearCart: () => void;
   // constants
@@ -26,25 +29,86 @@ interface UsePaymentCheckoutHandlersProps {
 }
 
 export const usePaymentCheckoutHandlers = ({
-  // states
   cartItems,
   userBalance,
-  clientIP,
   exchangeRate,
-  // State setters
   setIsLoadingBalance,
   setIsAnyPaymentProcessing,
   setError,
   storeOrderDataForSuccess,
   setUserBalance,
-  // functions
+  setIsLoadingPlisio,
+  setIsLoadingPayvra,
+  setIsLoadingPaystack,
   clearCart,
-  // constants
   usaEsimInCart,
 }: UsePaymentCheckoutHandlersProps) => {
   const {
     calculateOrderTotalSync,
   } = useCalculateOrderItems({ cartItems, exchangeRate });
+
+  const getProductId = (item: CartItem): string | number | undefined => {
+    switch (item.productType) {
+      case "proxy":
+      case "residential": return item.plan?.id;
+      case "vps": return item.vpsPlan?.id;
+      case "rdp": return item.rdpPlan?.id;
+      case "esim": return item.esimPackage?.id;
+      case "usa-esim": return item.usaEsimPlan?.id;
+      case "vpn": return item.vpnPlan?.id;
+      default: return undefined;
+    }
+  };
+
+  const getQuantity = (item: CartItem): number => {
+    return item.quantity || item.period || item.duration || 1;
+  };
+
+  const buildMetadata = (item: CartItem) => {
+    const meta: Record<string, any> = {};
+
+    switch (item.productType) {
+      case "vps":
+      case "rdp":
+        meta.os_template = item.osTemplate;
+        meta.hostname = item.hostname;
+        meta.duration_days = (item.duration || 1) * 30; // Assuming duration is in months
+        meta.management_type = item.managementType;
+        if (item.productType === "vps") {
+          meta.cpu_cores = item.vpsPlan?.cpu_cores;
+          meta.ram_gb = item.vpsPlan?.ram_gb;
+          meta.storage_gb = item.vpsPlan?.storage_gb;
+          meta.country_code = item.location?.countryCode;
+        } else {
+          meta.cpu_cores = item.rdpPlan?.cpu_cores;
+          meta.ram_gb = item.rdpPlan?.ram_gb;
+          meta.storage_gb = item.rdpPlan?.storage_gb;
+          meta.country_code = item.location?.countryCode;
+        }
+        break;
+      case "proxy":
+      case "residential":
+        meta.country_code = item.locationId || (item.locations?.city as any)?.country_id || (item.locations?.isp as any)?.country_code || (item.plan as any)?.country_code;
+        meta.protocol = item.protocol;
+        meta.isp = item.locations?.isp?.name;
+        meta.city = item.locations?.city?.name;
+        meta.duration_days = (item.period || 1) * 30;
+        break;
+      case "esim":
+      case "usa-esim":
+        meta.country_code = item.productType === "usa-esim" ? "US" : "global";
+        meta.package_code = item.productType === "usa-esim" ? item.usaEsimPlan?.id : item.esimPackage?.id;
+        meta.data_gb = item.productType === "usa-esim" ? parseInt((item.usaEsimPlan?.data_amount || "0").replace(/\D/g, '')) : (item.esimPackage?.volume || 0);
+        break;
+      case "vpn":
+        meta.country_code = (item.locations?.isp as any)?.country_code || (item.locations?.city as any)?.country_id || "US";
+        meta.protocol = item.protocol || "wireguard";
+        meta.duration_days = (item.period || 1) * 30;
+        break;
+    }
+
+    return meta;
+  };
 
   const handleBalancePayment = async () => {
     setIsLoadingBalance(true);
@@ -52,7 +116,6 @@ export const usePaymentCheckoutHandlers = ({
     setError(null);
     try {
       if (!cartItems.length) throw new Error("Your cart is empty");
-
       const totalUsd = calculateOrderTotalSync();
       if (userBalance < totalUsd) {
         throw new Error(
@@ -60,71 +123,77 @@ export const usePaymentCheckoutHandlers = ({
         );
       }
 
-      // Rails API call
-      const { data } = await railsApi.post('/cart/checkout', {
-        payment_method: 'balance',
-        client_ip: clientIP || "unknown",
-        origin: window.location.origin
-      });
+      let newBalance = userBalance;
 
-      const orderId = data.order_id || storeOrderDataForSuccess(cartItems, totalUsd, "balance");
+      // Process each item in the cart through the standard Rails Orders API
+      for (const item of cartItems) {
+        const payload = {
+          product_id: getProductId(item),
+          quantity: getQuantity(item),
+          payment_method: 'wallet',
+          metadata: buildMetadata(item)
+        };
+        const { data } = await api.post("/web/api/orders", payload);
+        if (data && data.order && data.order.amount) {
+          newBalance -= data.order.amount;
+        }
+      }
 
+      const orderId = storeOrderDataForSuccess(cartItems, totalUsd, "balance");
       clearCart();
-      setUserBalance(userBalance - totalUsd);
-
-      // Redirect to success page
-      window.location.href = `${window.location.origin}/payments/success?payment=balance&type=mixed&amount=${totalUsd.toFixed(2)}&order_id=${orderId}`;
-
+      setUserBalance(newBalance);
+      globalThis.location.href = `${globalThis.location?.origin}/payments/success?payment=balance&type=mixed&amount=${totalUsd.toFixed(2)}&order_id=${orderId}`;
     } catch (err: any) {
-      console.error("Balance payment error:", err);
-      const errorMessage = err.response?.data?.error || err.message || "An error occurred";
-      setError(errorMessage);
+      const msg = err.response?.data?.error || err.message || "An error occurred";
+      setError(msg);
     } finally {
       setIsLoadingBalance(false);
       setIsAnyPaymentProcessing(false);
     }
   };
 
-  const handlePlisioCheckout = async () => {
+  const handleDepositGateway = async (gatewayName: string, setLoadingState: React.Dispatch<React.SetStateAction<boolean>>) => {
     if (usaEsimInCart) {
-      setError("Only Balance payment is accepted for USA eSIM purchases.");
+      setError(
+        "Only Balance payment is accepted for USA eSIM purchases. Other methods will soon be functional.",
+      );
       return;
     }
-    setError("Crypto payment (Plisio) is temporarily disabled during system upgrade. Please use Balance.");
-    /*
-    setIsLoadingPlisio(true);
+    setLoadingState(true);
     setIsAnyPaymentProcessing(true);
     setError(null);
     try {
-       // ... stubbed implementation
+      const totalUsd = calculateOrderTotalSync();
+      storeOrderDataForSuccess(cartItems, totalUsd, gatewayName);
+      if (!cartItems.length) throw new Error("Your cart is empty");
+
+      const payload = {
+        amount: totalUsd,
+        gateway: gatewayName,
+        currency: "USD"
+      };
+
+      const { data } = await api.post("/web/api/wallet/deposit", payload);
+
+      if (!data?.payment_url) {
+        throw new Error("Invalid response: missing payment URL");
+      }
+      globalThis.location.href = data.payment_url;
     } catch (err: any) {
-       setError(err.message);
+      const msg = err.response?.data?.error || err.message || "An error occurred";
+      setError(msg);
     } finally {
-       setIsLoadingPlisio(false);
-       setIsAnyPaymentProcessing(false);
+      setLoadingState(false);
+      setIsAnyPaymentProcessing(false);
     }
-    */
   };
 
-  const handlePayvraCheckout = async () => {
-    if (usaEsimInCart) {
-      setError("Only Balance payment is accepted for USA eSIM purchases.");
-      return;
-    }
-    setError("Crypto payment (Payvra) is temporarily disabled during system upgrade. Please use Balance.");
-  };
-
-  const handlePaystackCheckout = async () => {
-    if (usaEsimInCart) {
-      setError("Only Balance payment is accepted for USA eSIM purchases.");
-      return;
-    }
-    setError("Card payment (Paystack) is temporarily disabled during system upgrade. Please use Balance.");
-  };
+  const handlePlisioCheckout = () => handleDepositGateway('plisio', setIsLoadingPlisio);
+  const handlePayvraCheckout = () => handleDepositGateway('payvra', setIsLoadingPayvra);
+  const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
 
   return {
     handleBalancePayment,
-    // handleShopifyCheckout,
     handlePlisioCheckout,
     handlePayvraCheckout,
     handlePaystackCheckout,

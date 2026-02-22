@@ -1,97 +1,58 @@
+
 "use client";
 
 import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from "react";
-import * as authService from "../services/railsAuth";
-import { isSessionExpired, updateLastActivity, clearToken } from "../lib/railsApi";
-
-interface User {
-  id: number;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  username: string | null;
-  profile_picture_url?: string;
-  balance?: number;
-  currency?: string;
-  role?: string | null;
-  avatar_url?: string | null;
-  status: string;
-  country?: string;
-  city?: string;
-  created_at?: string;
-}
+import { clearSession, updateLastActivity, isSessionExpired, storeSession, getSession } from "../services/auth";
+import { loginUser } from "../services/api";
+import api from "../services/api";
 
 interface AuthContextType {
-  user: User | null;
-  walletBalance: number;
+  user: any;
   accessToken: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (userData: {
-    email: string;
-    password: string;
-    password_confirmation: string;
-    first_name?: string;
-    last_name?: string;
-    username: string;
-  }) => Promise<void>;
-  signInWithOAuth: (provider: "google" | "twitter") => void;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  signInWithOAuth: (provider: 'google' | 'twitter') => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   handleSessionExpiration: () => void;
   refreshSession: () => Promise<boolean>;
-  refreshUserData: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [user, setUser] = useState<any>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Handle session expiration
+  // Handle session expiration - without navigation
   const handleSessionExpiration = () => {
-    clearToken();
+    clearSession();
     setIsAuthenticated(false);
     setUser(null);
     setAccessToken(null);
-    setWalletBalance(0);
-  };
-
-  // Refresh user data
-  const refreshUserData = async (): Promise<void> => {
-    try {
-      const data = await authService.getCurrentUser();
-      if (data) {
-        setUser(data.user);
-        setWalletBalance(data.wallet_balance);
-      }
-    } catch (error) {
-      console.error("Failed to refresh user data:", error);
-    }
   };
 
   // Refresh session function
   const refreshSession = async (): Promise<boolean> => {
     try {
-      const data = await authService.refreshToken();
-
-      if (!data) {
+      const token = getSession();
+      if (!token) {
         handleSessionExpiration();
         return false;
       }
-
-      setUser(data.user);
-      setAccessToken(data.token);
-      setIsAuthenticated(true);
-      updateLastActivity();
-
-      return true;
+      const { data } = await api.get('/web/api/auth/me');
+      if (data.user) {
+        setUser(data.user);
+        setAccessToken(token);
+        setIsAuthenticated(true);
+        return true;
+      }
+      handleSessionExpiration();
+      return false;
     } catch (error) {
-      console.error("Session refresh error:", error);
+      console.error('Session refresh error:', error);
       handleSessionExpiration();
       return false;
     }
@@ -103,30 +64,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
 
       try {
-        // Check if we have a stored token
-        if (!authService.isAuthenticated()) {
-          handleSessionExpiration();
-          return;
-        }
-
-        // Check session expiration
-        if (isSessionExpired()) {
-          // Try to refresh
-          const refreshed = await refreshSession();
-          if (!refreshed) {
+        const token = getSession();
+        if (token) {
+          // Validate the stored token by calling /me
+          const { data } = await api.get('/web/api/auth/me');
+          if (data.user) {
+            setUser(data.user);
+            setAccessToken(token);
+            setIsAuthenticated(true);
+          } else {
             handleSessionExpiration();
-            return;
           }
-        }
-
-        // Get current user from API
-        const data = await authService.getCurrentUser();
-
-        if (data) {
-          setUser(data.user);
-          setWalletBalance(data.wallet_balance);
-          setIsAuthenticated(true);
-          updateLastActivity();
         } else {
           handleSessionExpiration();
         }
@@ -140,7 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     initializeAuth();
 
-    // Activity tracking
+    // supabase auth listener removed
+
     const activityEvents = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
 
     const resetInactivityTimer = () => {
@@ -155,11 +104,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const checkInterval = setInterval(() => {
       if (isAuthenticated && isSessionExpired()) {
-        refreshSession();
+        handleSessionExpiration();
       }
-    }, 60000); // Check every minute
+    }, 30000);
 
-    // Session expiration check interval
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "authToken" && e.newValue === null) {
         handleSessionExpiration();
@@ -177,80 +125,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      const data = await authService.login(email, password);
+      const response = await loginUser({ email, password, remember_me: rememberMe });
+      const { token, user: userData } = response.data;
 
-      setUser(data.user);
-      setAccessToken(data.token);
+      // Store the token and update state
+      storeSession(token, rememberMe);
+      setAccessToken(token);
+      setUser(userData);
       setIsAuthenticated(true);
-      updateLastActivity();
-
-      // Fetch wallet balance
-      const userData = await authService.getCurrentUser();
-      if (userData) {
-        setWalletBalance(userData.wallet_balance);
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
       throw error;
     }
   };
 
-  const register = async (userData: {
-    email: string;
-    password: string;
-    password_confirmation: string;
-    first_name?: string;
-    last_name?: string;
-    username: string;
-  }) => {
+  const signInWithOAuth = async (provider: 'google' | 'twitter') => {
     try {
-      const data = await authService.register(userData);
-
-      setUser(data.user);
-      setAccessToken(data.token);
-      setIsAuthenticated(true);
-      updateLastActivity();
+      throw new Error("OAuth not implemented yet");
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error(`${provider} OAuth failed:`, error);
       throw error;
     }
   };
 
-  const signInWithOAuth = (provider: "google" | "twitter") => {
-    authService.signInWithOAuth(provider);
-  };
-
   const logout = async () => {
     try {
-      await authService.logout();
+      // Backend logout logic placeholder
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error('Logout failed:', error);
     } finally {
-      handleSessionExpiration();
+      clearSession();
+      setUser(null);
+      setAccessToken(null);
+      setIsAuthenticated(false);
     }
   };
 
-  const authContextValue = useMemo(
-    () => ({
-      user,
-      walletBalance,
-      accessToken,
-      isLoading,
-      login,
-      register,
-      signInWithOAuth,
-      logout,
-      isAuthenticated,
-      handleSessionExpiration,
-      refreshSession,
-      refreshUserData,
-    }),
-    [user, walletBalance, accessToken, isLoading, isAuthenticated]
-  );
+  const authContextValue = useMemo(() => ({
+    user,
+    accessToken,
+    isLoading,
+    login,
+    signInWithOAuth,
+    logout,
+    isAuthenticated,
+    handleSessionExpiration,
+    refreshSession,
+  }), [user, accessToken, isLoading, isAuthenticated]);
 
-  return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={authContextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
