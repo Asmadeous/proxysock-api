@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import railsApi from "@/lib/railsApi";
+
 import {
   Monitor,
   Home,
@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+import api from '../services/api';
+
 
 interface Country {
   code: string;
@@ -45,33 +48,18 @@ export default function RDPTypes() {
     try {
       setLoading(true);
 
-      // Fetch ALL products to find RDP ones and calculate min price
-      // Assuming GET /products returns all products or supports filtering
-      const { data } = await railsApi.get('/products', { params: { category: 'rdp' } });
-
-      let plansData: any[] = [];
-      if (Array.isArray(data)) {
-        plansData = data;
-      } else if (data && Array.isArray((data as any).products)) {
-        plansData = (data as any).products;
-      }
+      const { data } = await api.get('/web/api/products?product_type=rdp');
+      const products = data.products || [];
 
       const calculatedMinPrice =
-        plansData && plansData.length > 0
-          ? Math.min(...plansData.map((p) => typeof p.price === 'number' ? p.price : parseFloat(p.price) || 29.99))
+        products && products.length > 0
+          ? Math.min(...products.map((p: any) => p.price))
           : 29.99;
 
-      // Adjust for cents if necessary (assuming Rails returns dollars or I fix it here)
-      // If Rails returns cents, divide by 100. If dollars, keep.
-      // Esim was cents. RDP might be dollars in DB?
-      // I'll assume dollars for now based on 29.99 default. 
-      // If price > 1000, probably cents.
-      const finalMinPrice = calculatedMinPrice > 1000 ? calculatedMinPrice / 100 : calculatedMinPrice;
-
-      setMinPrice(finalMinPrice);
+      setMinPrice(calculatedMinPrice);
 
       // Default countries
-      const countriesData: Country[] = [
+      const countriesFallback: Country[] = [
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
@@ -79,12 +67,10 @@ export default function RDPTypes() {
         { code: "AU", name: "Australia", flag: "🇦🇺" },
       ];
 
-      // Configuration for countries would come from API in future
-      // For now, using static list to remove Supabase dependency
-      setCountries(countriesData);
+      setCountries(countriesFallback);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch data");
-      console.error("Error fetching RDP data:", err);
+      console.error('Failed to load RDP types logic', err);
     } finally {
       setLoading(false);
     }

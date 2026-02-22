@@ -22,7 +22,7 @@ import {
     fetchResellerTickets, createResellerTicket, replyResellerTicket,
     fetchResellerBalance, fetchResellerTransactions,
     createResellerDeposit,
-    
+    fetchResellerNotifications, markResellerNotificationsAsRead,
     sendSupportMessage
 } from "../../services/resellerApi";
 import { toast } from "react-hot-toast";
@@ -72,9 +72,11 @@ export default function ResellerDashboard() {
                 activeTab={activeTab}
                 onTabChange={handleTab}
                 title="Reseller"
-                userName={user?.username || "Reseller"}
-                userRole="Reseller"
-                accentColor="purple"
+                userName={user.company_name || user.username || "Reseller"}
+                userRole={user.reseller_type || "standard"}
+                accentColor="blue"
+                fetchNotifications={fetchResellerNotifications}
+                markNotificationsAsRead={markResellerNotificationsAsRead}
             />
             <main className="flex-1 overflow-hidden">
                 <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
@@ -262,160 +264,26 @@ function ResOrders() {
 }
 
 function ResProducts() {
-    const [products, setProducts] = useState<Record<string, any>[]>([]);
+    const [products, setProducts] = useState<Record<string, unknown>[]>([]);
     const [loading, setLoading] = useState(true);
-    const [purchasing, setPurchasing] = useState<Record<string, any> | null>(null);
-    const [quantity, setQuantity] = useState("1");
-    const [processing, setProcessing] = useState(false);
-    const [filterCategory, setFilterCategory] = useState("all");
 
-    const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
-    // Standard tier pays 1x, infrastructure pays 1x + surcharge
-    const multiplier = user.reseller_type === "api_only" ? 1.0 : 1.15; // Assumption based on typical markup, ideally backend provides this
-
-    const loadProducts = useCallback(async () => {
-        setLoading(true);
-        try {
-            const { data } = await fetchResellerProducts();
-            setProducts(data.products || data || []);
-        } catch {
-            toast.error("Failed to load products");
-        } finally {
-            setLoading(false);
-        }
+    useEffect(() => {
+        fetchResellerProducts().then((r) => { setProducts(r.data.products || r.data || []); setLoading(false); }).catch(() => setLoading(false));
     }, []);
 
-    useEffect(() => { loadProducts(); }, [loadProducts]);
-
-    const handlePurchase = async () => {
-        if (!purchasing) return;
-        setProcessing(true);
-        try {
-            await createResellerOrder({
-                product_id: purchasing.id,
-                quantity: parseInt(quantity, 10) || 1
-            });
-            toast.success(`${purchasing.name} ordered successfully!`);
-            setPurchasing(null);
-            setQuantity("1");
-        } catch (err: any) {
-            toast.error(err.response?.data?.errors?.[0] || "Failed to place order.");
-        } finally {
-            setProcessing(false);
-        }
-    };
-
-    const categories = ["all", ...Array.from(new Set(products.map(p => p.category || "Other")))];
-    const filteredProducts = products.filter(p => filterCategory === "all" || p.category === filterCategory);
-
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-2xl font-bold text-foreground">Available Products</h2>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto">
-                    {categories.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => setFilterCategory(cat)}
-                            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterCategory === cat
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                }`}
-                        >
-                            {cat === "all" ? "All Products" : cat}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={i} className="h-48 rounded-xl bg-muted animate-pulse border border-border" />
-                    ))}
-                </div>
-            ) : filteredProducts.length === 0 ? (
-                <div className="text-center py-20 bg-muted/50 rounded-2xl border border-border border-dashed">
-                    <CubeIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                    <h3 className="text-lg font-medium text-foreground">No Products Found</h3>
-                    <p className="text-muted-foreground mt-1">Check back later for new offerings.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredProducts.map(p => {
-                        const finalPrice = (Number(p.base_price || 0) * multiplier).toFixed(2);
-                        return (
-                            <div key={p.id} className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col group">
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                            <CubeIcon className="w-5 h-5" />
-                                        </div>
-                                        <StatusBadge status={p.provider_type || "proxy"} />
-                                    </div>
-                                    <h3 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{p.name}</h3>
-                                    <p className="text-sm text-muted-foreground mb-4">{p.category || "General Service"}</p>
-                                </div>
-
-                                <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                                    <div>
-                                        <span className="text-xs text-muted-foreground block">Wholesale Rate</span>
-                                        <span className="font-bold text-lg text-foreground">${finalPrice}</span>
-                                    </div>
-                                    <Button size="sm" onClick={() => { setPurchasing(p); setQuantity("1"); }}>
-                                        Purchase
-                                    </Button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            <Dialog open={!!purchasing} onOpenChange={() => !processing && setPurchasing(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Complete Purchase</DialogTitle>
-                        <DialogDescription>
-                            Confirm order details for {purchasing?.name}. Funds will be deducted from your Reseller Wallet.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {purchasing && (
-                        <div className="space-y-4 py-4">
-                            <div className="flex justify-between p-3 bg-muted rounded-lg text-sm">
-                                <span className="text-muted-foreground">Unit Price:</span>
-                                <span className="font-medium">${(Number(purchasing.base_price || 0) * multiplier).toFixed(2)}</span>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="quantity">Quantity</Label>
-                                <Input
-                                    id="quantity"
-                                    type="number"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex justify-between p-4 bg-primary/5 rounded-lg border border-primary/20 mt-4">
-                                <span className="font-semibold text-foreground">Total Deduction:</span>
-                                <span className="font-bold text-primary text-xl">
-                                    ${((Number(purchasing.base_price || 0) * multiplier) * (parseInt(quantity) || 1)).toFixed(2)}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setPurchasing(null)} disabled={processing}>Cancel</Button>
-                        <Button onClick={handlePurchase} disabled={processing || !parseInt(quantity)}>
-                            {processing ? "Processing..." : "Confirm & Pay"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-foreground">Products</h2>
+            <DataTable
+                columns={[
+                    { key: "name", label: "Product" },
+                    { key: "product_type", label: "Type" },
+                    { key: "base_price", label: "Price", render: (r: Record<string, unknown>) => `$${Number(r.base_price || 0).toFixed(2)}` },
+                    { key: "active", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={r.active ? "active" : "inactive"} /> },
+                ]}
+                data={products}
+                loading={loading}
+            />
         </div>
     );
 }

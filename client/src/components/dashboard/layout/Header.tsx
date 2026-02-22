@@ -1,15 +1,15 @@
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ShoppingCart,
   X,
   Menu as MenuIcon,
-  Sun,
-  Moon,
 } from "lucide-react";
 import logoDark from "@/assets/images/PROXY PNG.webp";
 import logoLight from "@/assets/images/PROXY SOCKS DARK FONT.webp";
 import UserBalance from "@/components/UserBalance";
+import NotificationBell from "@/components/NotificationBell";
+import { fetchNotifications, markNotificationsAsRead } from "@/services/api";
 import { useThemeStore } from "@/store/themeStore";
 
 
@@ -26,7 +26,7 @@ export const Header = ({
   cartCount: number;
   userName: string;
 }) => {
-  const { dark, toggleDark } = useThemeStore();
+  const { dark } = useThemeStore();
 
   return (
     <div className="bg-background border-b border-border sticky top-0 z-50">
@@ -79,38 +79,9 @@ export const Header = ({
               )}
             </Link>
 
-            {/* Theme Toggle */}
-            <motion.button
-              onClick={toggleDark}
-              className="p-2 rounded-full hover:bg-gray-200/50 transition-colors duration-200 border border-border"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Toggle theme"
-            >
-              <AnimatePresence mode="wait">
-                {dark ? (
-                  <motion.div
-                    key="sun"
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Sun className="h-4 w-4 text-white" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="moon"
-                    initial={{ rotate: 90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: -90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Moon className="h-4 w-4 text-black" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.button>
+            {/* Notifications */}
+            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+
 
             {/* User Avatar - Restored */}
             <Link

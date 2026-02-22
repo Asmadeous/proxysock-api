@@ -15,30 +15,13 @@ import {
 
 
 export default function WaitForVerification() {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Check verification status - With Rails, users are verified on registration
-  // This page is mostly for email confirmation flows if implemented
+  // Check verification status
   useEffect(() => {
-    const checkVerification = async () => {
-      if (isAuthenticated && user) {
-        // With Rails, if user is authenticated, they're verified
-        // If you implement email verification in Rails, check user.status here
-        if (user.status === 'active') {
-          navigate("/dashboard");
-        }
-      }
-    };
-
-    // Check immediately on mount
-    checkVerification();
-
-    // Poll for verification status changes (if email verification is async)
-    const checkInterval = setInterval(checkVerification, 5000);
-
-    return () => clearInterval(checkInterval);
-  }, [user, isAuthenticated, navigate]);
+    // Supabase removed
+  }, [user, navigate]);
 
   return (
     <div className="flex h-screen bg-background">

@@ -19,12 +19,12 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
-  Ticket,
   MessageSquare,
 } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
 import NotificationBell from "@/components/NotificationBell";
+import { fetchNotifications, markNotificationsAsRead } from "@/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -123,23 +123,17 @@ const navigationSections: NavigationSection[] = [
         icon: Receipt,
         description: "Payment history & invoices",
       },
-    ],
-  },
-  {
-    id: "support",
-    title: "SUPPORT",
-    items: [
       {
         name: "Support Tickets",
         href: "/dashboard/tickets",
-        icon: Ticket,
-        description: "View and create support tickets",
+        icon: MessageSquare,
+        description: "Get help & support",
       },
       {
-        name: "Live Chat",
-        href: "/dashboard/support-chat",
+        name: "Support Chat",
+        href: "/dashboard/support",
         icon: MessageSquare,
-        description: "Chat with support team",
+        description: "Live chat with support",
       },
     ],
   },
@@ -169,9 +163,9 @@ interface SidebarProps {
   handleLogout: () => void;
   cartCount: number;
   userName: string;
-  avatarUrl?: string | null;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
+  onLinkClick?: () => void;
 }
 
 // Simple Tooltip Component
@@ -190,13 +184,13 @@ const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode
 
 export const Sidebar = ({
   isMobile,
-  setSidebarOpen,
+  // setSidebarOpen,
   handleLogout,
   cartCount,
   userName,
-  avatarUrl,
   isCollapsed,
   setIsCollapsed,
+  onLinkClick,
 }: SidebarProps) => {
   const location = useLocation();
   const { dark, toggleDark } = useThemeStore();
@@ -215,6 +209,12 @@ export const Sidebar = ({
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleMobileClick = () => {
+    if (onLinkClick) {
+      onLinkClick();
+    }
   };
 
   return (
@@ -238,10 +238,14 @@ export const Sidebar = ({
 
       {/* 1. Header Section: Avatar & Name */}
       <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center" : ""}`}>
-        <Link to="/dashboard/profile" className="flex-shrink-0 group">
+        <Link
+          to="/dashboard/profile"
+          onClickCapture={handleMobileClick}
+          className="flex-shrink-0 group"
+        >
           <div className={`relative rounded-full overflow-hidden bg-primary/10 flex items-center justify-center ring-2 ring-primary/10 transition-all duration-300 ${isCollapsed ? "h-10 w-10" : "h-12 w-12"}`}>
             <img
-              src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
               alt={userName}
               className="h-full w-full object-cover"
               onError={(e) => {
@@ -255,33 +259,30 @@ export const Sidebar = ({
         </Link>
 
         {!isCollapsed && (
-          <div className="flex flex-col min-w-0 transition-opacity duration-300">
+          <div className="flex flex-col min-w-0 transition-opacity duration-300 flex-1">
             <span className="font-semibold truncate text-sm">{userName}</span>
             <span className="text-xs text-muted-foreground truncate">Welcome back</span>
+          </div>
+        )}
+        {!isCollapsed && (
+          <div className="flex-shrink-0">
+            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
           </div>
         )}
       </div>
 
       <div className="h-px bg-border mx-4 mb-4" />
 
-      {/* 2. User Balance + Notifications */}
-      <div className={`px-4 pb-4 transition-all duration-300 ${isCollapsed ? "flex flex-col items-center gap-2" : ""}`}>
+      {/* 2. User Balance */}
+      <div className={`px-4 pb-4 transition-all duration-300 ${isCollapsed ? "flex justify-center" : ""}`}>
         {isCollapsed ? (
-          <>
-            <SidebarTooltip content="Wallet Balance" show={isCollapsed}>
-              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 cursor-pointer transition-colors relative">
-                <Wallet className="h-5 w-5" />
-              </div>
-            </SidebarTooltip>
-            <SidebarTooltip content="Notifications" show={isCollapsed}>
-              <NotificationBell />
-            </SidebarTooltip>
-          </>
+          <SidebarTooltip content="Wallet Balance" show={isCollapsed}>
+            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 cursor-pointer transition-colors relative">
+              <Wallet className="h-5 w-5" />
+            </div>
+          </SidebarTooltip>
         ) : (
-          <div className="flex items-center gap-2">
-            <UserBalance className="flex-1" variant="sidebar" />
-            <NotificationBell />
-          </div>
+          <UserBalance className="w-full" variant="sidebar" />
         )}
       </div>
 
@@ -302,7 +303,7 @@ export const Sidebar = ({
                   <SidebarTooltip key={item.name} content={item.name} show={isCollapsed}>
                     <Link
                       to={item.href}
-                      onClick={() => isMobile && setSidebarOpen(false)}
+                      onClickCapture={handleMobileClick}
                       className={`group relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${active
                         ? "bg-primary text-white font-medium shadow-sm"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -388,6 +389,7 @@ export const Sidebar = ({
         <SidebarTooltip content="Home" show={isCollapsed}>
           <Link
             to="/"
+            onClickCapture={handleMobileClick}
             className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-foreground hover:bg-background border border-transparent hover:border-border transition-all ${isCollapsed ? "justify-center" : ""}`}
           >
             <Home className="h-4.5 w-4.5 shrink-0" />
@@ -398,7 +400,10 @@ export const Sidebar = ({
         {/* Logout */}
         <SidebarTooltip content="Logout" show={isCollapsed}>
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              handleLogout();
+              handleMobileClick();
+            }}
             className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors ${isCollapsed ? "justify-center" : ""}`}
           >
             <LogOut className="h-4.5 w-4.5 shrink-0" />

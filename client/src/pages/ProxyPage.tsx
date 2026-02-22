@@ -82,20 +82,6 @@ export default function ProxyPage() {
   useEffect(() => {
     document.title =
       "Buy Proxies Online - Premium Datacenter, Residential & ISP Proxies | ProxySock";
-
-    const s1 = document.createElement("script");
-    const s0 = document.getElementsByTagName("script")[0];
-    s1.async = true;
-    s1.src = "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo";
-    s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
-    if (s0?.parentNode) {
-      s0.parentNode.insertBefore(s1, s0);
-    }
-
-    return () => {
-      s1.remove();
-    };
   }, []);
 
   if (isLoading) {

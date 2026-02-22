@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import railsApi from "@/lib/railsApi";
+
 import {
   Cpu,
   HardDrive,
@@ -25,6 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import api from "../services/api";
+
 
 interface VPSPlan {
   id: string;
@@ -71,11 +73,11 @@ export default function VPSPlans() {
   const [searchParams] = useSearchParams();
   const countryParam = searchParams.get("country") || "";
 
-  const [vpsPlans, setVpsPlans] = useState<VPSPlan[]>([]);
+  const [plans, setPlans] = useState<VPSPlan[]>([]);
   const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [osMetadata, setOsMetadata] = useState<OSMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<Country[]>([]);
+  const [osOptions, setOsOptions] = useState<OSMetadata[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<VPSPlan | null>(null);
   const [selectedOS, setSelectedOS] = useState("");
@@ -95,15 +97,35 @@ export default function VPSPlans() {
   }, [countryParam]);
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
+      const { data } = await api.get('/web/api/products?product_type=vps');
+
+      const products = data.products || [];
+      const mappedPlans: VPSPlan[] = products.map((p: any) => ({
+        id: p.id.toString(),
+        plan_id: p.id,
+        name: p.name,
+        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
+        price: p.price || 0,
+        currency_code: p.currency || 'USD',
+        cpu_cores: p.cpu_cores || 4,
+        ram_gb: p.ram_gb || 4,
+        storage_gb: p.storage_gb || 60,
+        concurrent_users: p.concurrent_users || 1,
+        session_duration_hours: p.session_duration_hours || -1,
+        os_templates: p.os_templates || ['ubuntu-20.04', 'debian-11', 'windows-2019'],
+        features: p.features || ['Full Root Access', 'SSD Storage', 'Premium Bandwidth'],
+        locations: p.locations || ['US', 'DE', 'GB'],
+        is_active: p.active !== false,
+      }));
 
       const managementOptionsFallback = [
         { type: "unmanaged", name: "Unmanaged", description: "Full root access, you manage everything", features: ["Complete control", "Root access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
         { type: "managed", name: "Fully Managed", description: "We handle everything including updates, security & support", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 expert support"], priceMultiplier: 1.5, badge: "Worry-Free" }
       ];
 
-      const countriesFallback = [
+      const datacenterCountriesFallback = [
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
@@ -114,7 +136,7 @@ export default function VPSPlans() {
         { code: "AU", name: "Australia", flag: "🇦🇺" }
       ];
 
-      const osMetadataFallback = [
+      const osOptionsFallback = [
         { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
         { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },
         { name: "Windows 10 Pro", icon: "WindowsIcon", description: "Stable Windows desktop OS" },
@@ -124,66 +146,50 @@ export default function VPSPlans() {
         { name: "CentOS Stream 9", icon: "CentOSIcon", description: "Continuous delivery" }
       ];
 
-      // Fetch from Rails API
-      const { data } = await railsApi.get('/products');
+      setPlans(mappedPlans.filter(plan => plan.is_active));
 
-      const products = data.products || [];
-      // Filter for VPS products (checking category or type)
-      const vpsProducts = products.filter((p: any) =>
-        (p.category && p.category.toLowerCase().includes('vps')) ||
-        (p.name && p.name.toLowerCase().includes('vps')) ||
-        (p.provider_type === 'proxmox')
-      );
-
-      const mappedPlans: VPSPlan[] = vpsProducts.map((p: any) => {
-        // Simple heuristic to extract specs from description if metadata is missing
-        const desc = p.description || "";
-        const cpuMatch = desc.match(/(\d+)\s*v?CPU/i);
-        const ramMatch = desc.match(/(\d+)\s*GB RAM/i);
-        const storageMatch = desc.match(/(\d+)\s*GB (SSD|Storage)/i);
-
-        return {
-          id: p.id.toString(),
-          plan_id: p.id,
-          name: p.name,
-          slug: p.id.toString(), // or separate slug if available
-          price: parseFloat(p.price) || 0,
-          currency_code: p.currency || 'USD',
-          cpu_cores: cpuMatch ? parseInt(cpuMatch[1]) : 2,
-          ram_gb: ramMatch ? parseInt(ramMatch[1]) : 4,
-          storage_gb: storageMatch ? parseInt(storageMatch[1]) : 50,
-          concurrent_users: 0, // Not applicable for generic VPS usually
-          session_duration_hours: 0,
-          os_templates: ["Ubuntu 22.04 LTS", "Debian 12", "Windows Server 2022"], // Default choices
-          features: ["Root Access", "DDoS Protection", "1Gbps Port"],
-          locations: countriesFallback.map(c => c.name),
-          is_active: true
-        };
-      });
-
-      // If no plans found from API, use a fallback mock to ensure UI renders (optional, but good for stability during migration)
-      if (mappedPlans.length === 0) {
-        console.warn("No VPS plans found from API, using empty list or consider hardcoded fallback.");
-      }
-
-      setVpsPlans(mappedPlans);
+      // Use fallbacks for configs since Rails doesn't use system_config
       setManagementOptions(managementOptionsFallback);
-      setCountries(countriesFallback);
-      setOsMetadata(osMetadataFallback);
+      setLocations(datacenterCountriesFallback);
+      setOsOptions(osOptionsFallback);
 
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Failed to load data");
-      // Fallback data in case of error?
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load VPS plans. Please try again later.");
+      // Fallback data
+      setPlans([]);
+      setManagementOptions([
+        { type: "unmanaged", name: "Unmanaged", description: "Full root access, you manage everything", features: ["Complete control", "Root access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
+        { type: "managed", name: "Fully Managed", description: "We handle everything including updates, security & support", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 expert support"], priceMultiplier: 1.5, badge: "Worry-Free" }
+      ]);
+      setLocations([
+        { code: "US", name: "United States", flag: "🇺🇸" },
+        { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
+        { code: "DE", name: "Germany", flag: "🇩🇪" },
+        { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+        { code: "SG", name: "Singapore", flag: "🇸🇬" },
+        { code: "JP", name: "Japan", flag: "🇯🇵" },
+        { code: "CA", name: "Canada", flag: "🇨🇦" },
+        { code: "AU", name: "Australia", flag: "🇦🇺" }
+      ]);
+      setOsOptions([
+        { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
+        { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },
+        { name: "Windows 10 Pro", icon: "WindowsIcon", description: "Stable Windows desktop OS" },
+        { name: "Ubuntu 22.04 LTS", icon: "UbuntuIcon", description: "Most popular Linux with LTS support" },
+        { name: "Debian 12", icon: "DebianIcon", description: "Rock-solid stability" },
+        { name: "AlmaLinux 9", icon: "RockyIcon", description: "Enterprise-grade, RHEL compatible" },
+        { name: "CentOS Stream 9", icon: "CentOSIcon", description: "Continuous delivery" }
+      ]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const getEffectivePrice = (plan: VPSPlan): number => {
     if (!selectedCountry || !plan.country_pricing) return plan.price;
 
-    const countryName = countries.find(c => c.code === selectedCountry)?.name;
+    const countryName = locations.find(c => c.code === selectedCountry)?.name;
     const possibleKeys = countryName ? [countryName, selectedCountry] : [selectedCountry];
 
     for (const key of possibleKeys) {
@@ -196,7 +202,7 @@ export default function VPSPlans() {
   };
 
   const getBestPlanForOS = (osTemplate: string): number | null => {
-    const plansWithOS = vpsPlans.filter(plan =>
+    const plansWithOS = plans.filter(plan =>
       plan.os_templates.some(template =>
         template.toLowerCase().includes(osTemplate.toLowerCase())
       )
@@ -287,7 +293,7 @@ export default function VPSPlans() {
       duration: selectedDuration,
       managementType: selectedManagement,
       productType: "vps",
-      location: { country: countries.find(c => c.code === selectedCountry)?.name || "", countryCode: selectedCountry },
+      location: { country: locations.find(c => c.code === selectedCountry)?.name || "", countryCode: selectedCountry },
       effective_base_price: getEffectivePrice(selectedPlan),
       total_amount: calculateTotal()
     };
@@ -335,7 +341,7 @@ export default function VPSPlans() {
   };
 
   const getOSIcon = (osName: string) => {
-    const os = osMetadata.find(o => o.name === osName);
+    const os = osOptions.find(o => o.name === osName);
     const icons: Record<string, string> = {
       WindowsIcon: "fab fa-windows",
       UbuntuIcon: "fab fa-ubuntu",
@@ -347,9 +353,9 @@ export default function VPSPlans() {
     return os ? <i className={`${icons[os.icon] || "fas fa-server"} text-base mr-2`} /> : null;
   };
 
-  const selectedCountryData = countries.find(c => c.code === selectedCountry);
+  // const selectedCountryData = locations.find(c => c.code === selectedCountry);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         {/* Back Button Skeleton */}
@@ -424,42 +430,51 @@ export default function VPSPlans() {
     );
   }
 
+  // Filter plans based on selected country
+  const filteredPlans = selectedCountry
+    ? plans.filter((plan) => {
+      // Find the full country name from the selected code
+      const countryName = locations.find((c) => c.code === selectedCountry)?.name;
+      // Check if plan supports either the code or the name
+      return plan.locations?.includes(selectedCountry) ||
+        (countryName && plan.locations?.includes(countryName));
+    })
+    : plans;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/dashboard/vps")}
-          className="mb-4 gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Location Selection
-        </Button>
-
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-primary/10 rounded-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <Button variant="ghost" onClick={() => navigate('/dashboard/vps-plans')} className="mb-2 -ml-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to VPS Types
+          </Button>
+          <div className="flex items-center gap-3">
             <Cpu className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-semibold text-foreground">
+              {countryParam ? `${locations.find(c => c.code === countryParam)?.name || countryParam} VPS Plans` : 'Residential VPS Plans'}
+            </h1>
           </div>
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">Datacenter VPS Plans</h1>
-            <Badge variant="default" className="mt-1">High Performance</Badge>
-          </div>
+          <p className="text-muted-foreground mt-2">High-performance residential IP VPS solutions</p>
         </div>
-
-        {selectedCountryData && (
-          <div className="flex items-center gap-3 mt-4">
-            <span className="text-5xl">{selectedCountryData.flag}</span>
-            <div>
-              <h2 className="text-2xl font-semibold">{selectedCountryData.name}</h2>
-              <p className="text-sm text-muted-foreground">Datacenter Location</p>
-            </div>
-          </div>
-        )}
       </div>
 
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="flex items-center justify-between py-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/20 rounded-full">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Why choose Residential VPS?</h3>
+              <p className="text-sm text-muted-foreground">Get authentic residential IPs that look like real user connections, perfect for high-trust operations.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {vpsPlans.map((plan) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredPlans.map((plan) => {
           const price = getEffectivePrice(plan);
           const badge = getPlanBadge(plan);
 
@@ -609,7 +624,7 @@ export default function VPSPlans() {
                 </Label>
                 <RadioGroup value={selectedCountry} onValueChange={setSelectedCountry}>
                   <div className="space-y-2">
-                    {countries.map(c => (
+                    {locations.map(c => (
                       <Label
                         key={c.code}
                         className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${selectedCountry === c.code ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"

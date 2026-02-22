@@ -56,4 +56,5 @@ export const replyTicket = (id: number, body: string) => api.post(`/web/api/tick
 
 export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
+
 export default api;

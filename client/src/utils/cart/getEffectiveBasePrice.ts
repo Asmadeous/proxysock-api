@@ -1,4 +1,4 @@
-import { CartItem } from "@/pages/Cart"
+import { CartItem } from "@/pages/UserDashboard/Cart"
 
 export const getEffectiveBasePrice = (item: CartItem): number => {
     if (item.productType === "vps" && item.vpsPlan) {

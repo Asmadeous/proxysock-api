@@ -5,9 +5,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { isSessionExpired } from "../lib/railsApi";
+import { isSessionExpired } from "../services/auth";
 import { toast } from "react-hot-toast";
 import { useRedditTracking } from "../utils/redditPixel";
+
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import {
   LoginForm,
@@ -15,9 +16,13 @@ import {
   LoginHeader,
 } from "../components/auth/login";
 import {
+
+
   AuroraBackground,
   LoginFeaturesCarousel,
 } from "../components/auth/carousel";
+
+
 
 // ProxySock Features Carousel
 
@@ -33,7 +38,7 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [xLoading, setXLoading] = useState(false);
 
-  const { login, signInWithOAuth, isAuthenticated } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { trackPageView } = useRedditTracking();
@@ -64,7 +69,7 @@ export default function Login() {
 
     try {
       // Use the login function from AuthContext
-      await login(email, password);
+      await login(email, password, rememberMe);
 
       // Handle remember me
       if (rememberMe) {
@@ -86,37 +91,17 @@ export default function Login() {
   };
 
   // Google OAuth Sign In
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     if (googleLoading || xLoading || isLoading) return;
-
     setGoogleLoading(true);
-    try {
-      // Use signInWithOAuth from AuthContext which redirects to Rails OAuth
-      signInWithOAuth("google");
-      toast.success("Redirecting to Google...");
-    } catch (error) {
-      console.error("Google OAuth error:", error);
-      toast.error("Something went wrong with Google sign in");
-    } finally {
-      setGoogleLoading(false);
-    }
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/google`;
   };
 
   // X (Twitter) OAuth Sign In
-  const handleXSignIn = async () => {
+  const handleXSignIn = () => {
     if (googleLoading || xLoading || isLoading) return;
-
     setXLoading(true);
-    try {
-      // Use signInWithOAuth from AuthContext which redirects to Rails OAuth
-      signInWithOAuth("twitter");
-      toast.success("Redirecting to X...");
-    } catch (error) {
-      console.error("X OAuth error:", error);
-      toast.error("Something went wrong with X sign in");
-    } finally {
-      setXLoading(false);
-    }
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/twitter`;
   };
 
   const isOAuthDisabled = googleLoading || xLoading || isLoading;
