@@ -77,13 +77,13 @@ import { Loader2 } from "lucide-react";
 
 // Lazy imports
 const Home = lazy(() => import("./pages/Home"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const DashboardHome = lazy(() => import("./pages/DashboardHome"));
-const BuyProxies = lazy(() => import("./pages/BuyProxies"));
-const Cart = lazy(() => import("./pages/Cart"));
-const Profile = lazy(() => import("./pages/Profile"));
-const ChangePassword = lazy(() => import("./pages/ChangePassword"));
-const ProxyOrders = lazy(() => import("./pages/ProxyOrders"));
+const Dashboard = lazy(() => import("./pages/UserDashboard/Dashboard"));
+const DashboardHome = lazy(() => import("./pages/UserDashboard/DashboardHome"));
+const BuyProxies = lazy(() => import("./pages/UserDashboard/BuyProxies"));
+const Cart = lazy(() => import("./pages/UserDashboard/Cart"));
+const Profile = lazy(() => import("./pages/UserDashboard/Profile"));
+const ChangePassword = lazy(() => import("./pages/UserDashboard/ChangePassword"));
+const ProxyOrders = lazy(() => import("./pages/UserDashboard/ProxyOrders"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ProxyPage = lazy(() => import("./pages/ProxyPage"));
@@ -94,6 +94,11 @@ const ProxyPurpose = lazy(() => import("./pages/ProxyPurpose"));
 const Contact = lazy(() => import("./pages/Contact"));
 const HowToConnect = lazy(() => import("./pages/HowToConnect"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdmin/SuperAdminDashboard"));
+const AdminLoginPage = lazy(() => import("./pages/SuperAdmin/AdminLoginPage"));
+const EmployeeDashboard = lazy(() => import("./pages/Employee/EmployeeDashboard"));
+const ResellerDashboard = lazy(() => import("./pages/Reseller/ResellerDashboard"));
+const ResellerLoginPage = lazy(() => import("./pages/Reseller/ResellerLoginPage"));
+const AffiliateDashboard = lazy(() => import("./pages/Affiliate/AffiliateDashboard"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const WaitForVerification = lazy(() => import("./pages/WaitForVerification"));
 const DepositSuccess = lazy(() => import("./pages/DepositSuccess"));
@@ -105,20 +110,21 @@ const VPSTypes = lazy(() => import("./pages/VPSTypes"));
 const VPSPlans = lazy(() => import("./pages/VPSPlans"));
 const RDPTypes = lazy(() => import("./pages/RDPTypes"));
 const RDPPlans = lazy(() => import("./pages/RDPPlans"));
-const ProductManagement = lazy(() => import("./pages/ProductsManagement"));
-const ProxyManagement = lazy(() => import("./pages/ProxyManagement"));
-const VPSManagement = lazy(() => import("./pages/VPSManagement"));
-const RDPPManagement = lazy(() => import("./pages/RDPManagement"));
-const ESIMManagement = lazy(() => import("./pages/ESIMManagement"));
-const Orders = lazy(() => import("./pages/Orders"));
-const EsimOrders = lazy(() => import("./pages/EsimOrders"));
-const VPSOrders = lazy(() => import("./pages/VPSOrders"));
-const RDPOrders = lazy(() => import("./pages/RDPOrders"));
+const ProductManagement = lazy(() => import("./pages/UserDashboard/ProductsManagement"));
+const ProxyManagement = lazy(() => import("./pages/UserDashboard/ProxyManagement"));
+const VPSManagement = lazy(() => import("./pages/UserDashboard/VPSManagement"));
+const RDPPManagement = lazy(() => import("./pages/UserDashboard/RDPManagement"));
+const ESIMManagement = lazy(() => import("./pages/UserDashboard/ESIMManagement"));
+const Orders = lazy(() => import("./pages/UserDashboard/Orders"));
+const EsimOrders = lazy(() => import("./pages/UserDashboard/EsimOrders"));
+const VPSOrders = lazy(() => import("./pages/UserDashboard/VPSOrders"));
+const RDPOrders = lazy(() => import("./pages/UserDashboard/RDPOrders"));
+const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
 const RDPPage = lazy(() => import("./pages/RDPPage"));
 const VPSPage = lazy(() => import("./pages/VPSPage"));
 const ESIMPage = lazy(() => import("./pages/ESIMPage"));
 const VPNPage = lazy(() => import("./pages/VPNpage"));
-const Transactions = lazy(() => import("./pages/TransactionsPage"));
+const Transactions = lazy(() => import("./pages/UserDashboard/TransactionsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const PaymentFailed = lazy(() => import("./pages/PaymentFailed"));
@@ -127,21 +133,16 @@ const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const VPNBuy = lazy(() => import("./pages/VPNPlans"));
-const VPNOrders = lazy(() => import("./pages/VPNOrders"));
-const VPNManagement = lazy(() => import("./pages/VPNManagement"));
+const VPNOrders = lazy(() => import("./pages/UserDashboard/VPNOrders"));
+const VPNManagement = lazy(() => import("./pages/UserDashboard/VPNManagement"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const ResellerProgram = lazy(() => import("./pages/ResellerProgram"));
 const ESIMTypes = lazy(() => import("./pages/ESIMTypes"));
 const USAESIMPlans = lazy(() => import("./pages/USAESIMPlansPage"));
+const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
-const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
-const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
-const ResellerDashboard = lazy(() => import("./pages/Reseller/ResellerDashboard"));
-const ResellerLoginPage = lazy(() => import("./pages/Reseller/ResellerLoginPage"));
-const EmployeeDashboard = lazy(() => import("./pages/Employee/EmployeeDashboard"));
-const AdminLoginPage = lazy(() => import("./pages/SuperAdmin/AdminLoginPage"));
 
 // Initialize Google Analytics (your existing code)
 ReactGA.initialize("UA-XXXXXXXXX-X");
@@ -210,7 +211,10 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/wait-for-verification" element={<WaitForVerification />} />
+                <Route
+                  path="/wait-for-verification"
+                  element={<WaitForVerification />}
+                />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
               </Route>
@@ -251,6 +255,10 @@ export default function App() {
                   <Route path="vps-orders" element={<VPSOrders />} />
                   <Route path="vpn-orders" element={<VPNOrders />} />
 
+                  {/* Support */}
+                  <Route path="tickets" element={<Tickets />} />
+                  <Route path="support" element={<SupportChat />} />
+
                   {/* Management */}
                   <Route path="products" element={<ProductManagement />} />
                   <Route path="proxy-management" element={<ProxyManagement />} />
@@ -268,35 +276,20 @@ export default function App() {
                   {/* Account */}
                   <Route path="profile" element={<Profile />} />
                   <Route path="change-password" element={<ChangePassword />} />
+                  <Route path="affiliate" element={<AffiliateDashboard />} />
                   <Route path="notifications" element={<NotificationsPage />} />
-
-                  {/* Support */}
-                  <Route path="tickets" element={<Tickets />} />
-                  <Route path="support-chat" element={<SupportChat />} />
                 </Route>
-              </Route>
-
-              {/* Reseller Routes */}
-              <Route path="/reseller/login" element={<ResellerLoginPage />} />
-              <Route element={<ProtectedRoute />}>
-                <Route path="/reseller" element={<ResellerDashboard />} />
-              </Route>
-
-              {/* Employee Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/employee" element={<EmployeeDashboard />} />
-              </Route>
-
-              {/* SuperAdmin Routes */}
-              <Route path="/sadmin/login" element={<AdminLoginPage />} />
-              <Route element={<ProtectedRoute />}>
-                <Route path="/sadmin" element={<SuperAdminDashboard />} />
               </Route>
 
               {/* Admin / Employee Routes */}
               <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/admin" element={<SuperAdminDashboard />} />
+              <Route path="/employee" element={<EmployeeDashboard />} />
+              <Route path="/sadmin" element={<SuperAdminDashboard />} />
 
+              {/* Reseller Routes */}
+              <Route path="/reseller/login" element={<ResellerLoginPage />} />
+              <Route path="/reseller" element={<ResellerDashboard />} />
 
               {/* Payment Result Routes */}
               <Route path="/deposit/success" element={<DepositSuccess />} />
@@ -313,6 +306,6 @@ export default function App() {
           <CookieConsentBanner />
         </AutoSEO>
       </HelmetProvider>
-    </AuthProvider >
+    </AuthProvider>
   );
 }
