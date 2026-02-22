@@ -1,0 +1,66 @@
+import { GlobeAltIcon } from "@heroicons/react/24/outline";
+import { motion } from "framer-motion";
+import { BoltIcon, ShieldCheckIcon, ClockIcon } from "lucide-react";
+
+export const VPSFeatures = () => {
+  const features = [
+    {
+      title: "Instant Deploy",
+      icon: BoltIcon,
+      description: "Server ready in 60 seconds",
+    },
+    {
+      title: "Real Residential IPs",
+      icon: GlobeAltIcon,
+      description: "Low detection rates",
+    },
+    {
+      title: "Full Root Access",
+      icon: ShieldCheckIcon,
+      description: "Complete control",
+    },
+    {
+      title: "24/7 Support",
+      icon: ClockIcon,
+      description: "Expert help anytime",
+    },
+  ];
+
+  return (
+    <div className="bg-card py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-manrope-bold font-bold text-foreground mb-3">
+            Why Choose Residential VPS
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {features.map((feature, index) => {
+            const IconComponent = feature.icon;
+            return (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="text-center"
+              >
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/20 rounded-lg mb-3">
+                  <IconComponent className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-foreground font-manrope-semibold font-semibold mb-1">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground text-sm font-inter-regular">
+                  {feature.description}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

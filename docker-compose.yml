@@ -22,5 +22,15 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - default
+
+
 volumes:
   rails_bundle_2026:

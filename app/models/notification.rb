@@ -8,7 +8,27 @@ class Notification < ApplicationRecord
   scope :unread, -> { where(read_at: nil) }
   scope :recent, -> { order(created_at: :desc) }
 
+  after_create_commit :broadcast_to_channel
+
   def mark_as_read!
     update!(read_at: Time.current)
+  end
+
+  private
+
+  def broadcast_to_channel
+    NotificationChannel.broadcast_to(
+      recipient,
+      action: 'notification_created',
+      notification: {
+        id: id,
+        title: title,
+        message: message,
+        category: category,
+        metadata: metadata,
+        created_at: created_at,
+        read_at: read_at
+      }
+    )
   end
 end

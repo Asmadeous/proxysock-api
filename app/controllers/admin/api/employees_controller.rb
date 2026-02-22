@@ -2,58 +2,108 @@
 
 module Admin
   module Api
-    class EmployeesController < BaseController
+    class EmployeesController < Admin::Api::BaseController
+      before_action :require_admin!, only: %i[create destroy]
+      before_action :set_employee, only: %i[show update destroy assign]
+
+      # GET /admin/api/employees
       def index
-        employees = Employee.includes(:department).order(created_at: :desc).page(params[:page]).per(20)
+        employees = Employee.includes(:department).order(created_at: :desc)
+        employees = employees.where("email ILIKE :q OR first_name ILIKE :q OR last_name ILIKE :q", q: "%#{params[:q]}%") if params[:q].present?
+        employees = employees.where(role: params[:role]) if params[:role].present?
+        employees = employees.where(active: params[:active] == 'true') if params[:active].present?
 
         render json: {
-          employees: employees.as_json(include: :department),
-          meta: {
-            current_page: employees.current_page,
-            total_pages: employees.total_pages,
-            total_count: employees.total_count
-          }
+          employees: employees.map { |e| employee_json(e) },
+          total: employees.count
         }
       end
 
+      # GET /admin/api/employees/:id
       def show
-        employee = Employee.find(params[:id])
-        render json: { employee: employee.as_json(include: :department) }
+        render json: employee_json(@employee, full: true)
       end
 
+      # POST /admin/api/employees — onboard new employee
       def create
-        employee = Employee.new(employee_params)
-        employee.password = 'password123' # Temporary/Default
-        # Send invitation email logic here
-
-        if employee.save
-          render json: { employee: employee }, status: :created
-        else
-          render json: { errors: employee.errors }, status: :unprocessable_entity
-        end
+        dept = Department.find_or_create_by!(name: params[:department] || 'General')
+        employee = Employee.create!(
+          email:       params[:email],
+          first_name:  params[:first_name],
+          last_name:   params[:last_name],
+          password:    params[:password] || SecureRandom.hex(8),
+          role:        params[:role] || 'support',
+          department:  dept,
+          active:      true
+        )
+        record_audit_log('employee.created', employee)
+        render json: employee_json(employee), status: :created
       end
 
+      # PATCH /admin/api/employees/:id
       def update
-        employee = Employee.find(params[:id])
-
-        if employee.update(employee_params)
-          render json: { employee: employee }
-        else
-          render json: { errors: employee.errors }, status: :unprocessable_entity
+        attrs = employee_params.to_h
+        if params[:department].present?
+          attrs[:department] = Department.find_or_create_by!(name: params[:department])
         end
+        @employee.update!(attrs)
+        record_audit_log('employee.updated', @employee)
+        render json: employee_json(@employee)
       end
 
+      # DELETE /admin/api/employees/:id
       def destroy
-        employee = Employee.find(params[:id])
-        employee.update(active: false) # Soft delete
+        @employee.update!(active: false)
+        record_audit_log('employee.deactivated', @employee)
         render json: { message: 'Employee deactivated' }
+      end
+
+      # POST /admin/api/employees/:id/assign
+      def assign
+        require_role!('admin', 'manager')
+        # Assign tickets / tasks to employee
+        if params[:ticket_ids].present?
+          tickets = Ticket.where(id: params[:ticket_ids])
+          tickets.update_all(assigned_to_id: @employee.id, assigned_to_type: 'Employee')
+          record_audit_log('employee.assigned_tickets', @employee, { ticket_ids: params[:ticket_ids] })
+        end
+        render json: { message: "Assigned #{params[:ticket_ids]&.length || 0} tickets to #{@employee.full_name}" }
       end
 
       private
 
+      def set_employee
+        @employee = Employee.find(params[:id])
+      end
+
       def employee_params
-        # brakeman:disable:PermitAttributes - Admin controller intentionally allows role assignment
-        params.require(:employee).permit(:first_name, :last_name, :email, :work_email, :department_id, :role, :active)
+        params.permit(:first_name, :last_name, :email, :role, :active, :work_email, :profile_picture_url)
+      end
+
+      def employee_json(e, full: false)
+        data = {
+          id:         e.id,
+          email:      e.email,
+          work_email: e.work_email,
+          first_name: e.first_name,
+          last_name:  e.last_name,
+          full_name:  e.full_name,
+          role:       e.role,
+          department: e.department&.name,
+          active:     e.active?,
+          last_login: e.last_login_at,
+          created_at: e.created_at,
+          profile_picture_url: e.profile_picture_url
+        }
+        if full
+          data[:action_logs] = e.admin_action_logs.order(created_at: :desc).limit(20).map do |l|
+            { action: l.action, created_at: l.created_at }
+          end
+          data[:impersonation_logs] = e.user_impersonation_logs.order(created_at: :desc).limit(10).map do |l|
+            { user_id: l.user_id, ip: l.ip_address, created_at: l.created_at }
+          end
+        end
+        data
       end
     end
   end

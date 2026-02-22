@@ -3,8 +3,14 @@
 class EsimOrder < ApplicationRecord
   belongs_to :order
 
+  has_many :esims, dependent: :destroy
+
+  ESIM_TYPES = %w[data_only voice_data_sms].freeze
+
+  # Renewal is only supported for API-based data-only eSIMs (esim_access).
+  # Inventory-based eSIMs (lyca, colt, any voice_data_sms plan) are fixed-term.
   def can_renew?
-    # BLOCK renewal for inventory items (Lyca/Colt)
+    return false if voice_data_sms?
     return false if %w[lyca colt].include?(esim_provider)
 
     # Allow for API-based (eSIM Access)
@@ -22,6 +28,9 @@ class EsimOrder < ApplicationRecord
     # Assuming API success:
 
     update!(expires_at: (expires_at || Time.current) + duration_days.days)
-    # Also update data allowance if tracking it
+  end
+
+  def voice_data_sms?
+    esim_type == 'voice_data_sms'
   end
 end

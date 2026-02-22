@@ -14,7 +14,7 @@ class PlisioService
                          source_amount: amount,
                          order_number: order_number,
                          order_name: "Deposit #{order_number}",
-                         callback_url: "#{ENV['APP_URL']}/webhooks/plisio/callback",
+                         callback_url: "#{ENV['APP_URL']}/webhooks/plisio",
                          email: 'customer@example.com' # Optional if we passed it
                        })
 

@@ -14,7 +14,7 @@ module Admin
                     Ticket.all
                   end
 
-        tickets = tickets.includes(:user, :last_message).order(updated_at: :desc).page(params[:page]).per(20)
+        tickets = tickets.includes(:user, :last_message, :ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
 
         # Filtering
         tickets = tickets.where(status: params[:status]) if params[:status].present?
@@ -41,7 +41,7 @@ module Admin
         authorize_ticket_access!(ticket)
 
         message = ticket.ticket_messages.new(
-          body: params[:body],
+          body: params[:body] || params[:message],
           sender: current_employee,
           internal_note: params[:internal_note] || false,
           attachments: params[:attachments]
@@ -111,7 +111,11 @@ module Admin
           status: ticket.status,
           priority: ticket.priority,
           user_email: ticket.user&.email,
+          user_type: ticket.user_type,
+          user_online: ticket.user&.respond_to?(:last_seen_at) && ticket.user&.last_seen_at && ticket.user&.last_seen_at > 5.minutes.ago,
           assigned_to: ticket.assigned_to&.full_name,
+          messages_count: ticket.ticket_messages.size,
+          created_at: ticket.created_at,
           updated_at: ticket.updated_at
         }
       end
@@ -122,6 +126,7 @@ module Admin
           body: message.body,
           sender_type: message.sender_type,
           sender_name: message.sender.respond_to?(:full_name) ? message.sender.full_name : 'User',
+          sender_online: message.sender.respond_to?(:last_seen_at) && message.sender.last_seen_at && message.sender.last_seen_at > 5.minutes.ago,
           internal: message.internal_note,
           created_at: message.created_at
         }

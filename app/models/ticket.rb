@@ -6,6 +6,7 @@ class Ticket < ApplicationRecord
   belongs_to :order, optional: true
 
   has_many :ticket_messages, dependent: :destroy
+  has_one :last_message, -> { order(created_at: :desc) }, class_name: 'TicketMessage'
 
   validates :subject, presence: true
   validates :status, inclusion: { in: %w[open in_progress resolved closed] }

@@ -31,14 +31,26 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  # Mailpit local SMTP server (Web UI: http://localhost:8025)
+  config.action_mailer.raise_delivery_errors = true
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: 'localhost',
+    port: 1025
+  }
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
   # Set localhost to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+  config.action_mailer.default_url_options = { host: 'localhost', port: 5173 } # Pointing to frontend port
+  
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: 'localhost',
+    port: 1025,
+    domain: 'localhost'
+  }
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
