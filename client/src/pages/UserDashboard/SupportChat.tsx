@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { getCableConsumer } from "../../services/cable";
 import { fetchUserSupportChat, sendUserSupportMessage } from "../../services/api";
 import { toast } from "react-hot-toast";
 
@@ -8,8 +9,9 @@ export default function SupportChat() {
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(true);
     const [chatMeta, setChatMeta] = useState<any>({});
-    const pollRef = useRef<any>();
+    const [queuedMessages, setQueuedMessages] = useState<any[]>([]);
     const endRef = useRef<HTMLDivElement>(null);
+    const subscriptionRef = useRef<any>(null);
 
     const loadChat = useCallback(async () => {
         try {
@@ -22,20 +24,68 @@ export default function SupportChat() {
 
     useEffect(() => {
         loadChat();
-        pollRef.current = setInterval(loadChat, 5000);
-        return () => clearInterval(pollRef.current);
+
+        // Single initialization wait for chatMeta to populate ID
     }, [loadChat]);
 
-    useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+    // Setup ActionCable
+    useEffect(() => {
+        if (!chatMeta?.id) return;
+
+        const cable = getCableConsumer();
+        subscriptionRef.current = cable.subscriptions.create(
+            { channel: "ChatChannel", chat_id: chatMeta.id, chat_type: "SupportChat" },
+            {
+                received: (data: any) => {
+                    if (data.action === 'message_created') {
+                        // Optimistic UI cleanup: remove matching queued messages
+                        setQueuedMessages(prev => prev.filter(q => q.body !== data.message.body));
+
+                        setMessages(prev => {
+                            // Avoid duplicates if HTTP load fetched it first
+                            if (prev.find(m => m.id === data.message.id)) return prev;
+                            return [...prev, data.message];
+                        });
+                    }
+                }
+            }
+        );
+
+        return () => {
+            if (subscriptionRef.current) {
+                subscriptionRef.current.unsubscribe();
+            }
+        };
+    }, [chatMeta?.id]);
+
+    // Scroll to bottom when messages or queued messages change
+    useEffect(() => {
+        endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, queuedMessages]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
-        const msg = input;
+        if (!input.trim() || !chatMeta?.id) return;
+        const msgText = input;
+
+        // Optimistic UI update
+        const fakeMessage = {
+            id: `temp-${Date.now()}`,
+            body: msgText,
+            sender_type: "User",
+            created_at: new Date().toISOString()
+        };
+        setQueuedMessages(prev => [...prev, fakeMessage]);
         setInput("");
+
         try {
-            await sendUserSupportMessage(msg);
-            loadChat();
-        } catch { toast.error("Failed to send message"); }
+            await sendUserSupportMessage(msgText);
+            // The ActionCable broadcast will arrive shortly to solidify this message
+        } catch {
+            // Restore input and remove optimistic message on failure
+            setInput(msgText);
+            setQueuedMessages(prev => prev.filter(m => m.id !== fakeMessage.id));
+            toast.error("Failed to send message. Please try again.");
+        }
     };
 
     if (loading) return (
@@ -84,11 +134,11 @@ export default function SupportChat() {
                             </div>
                         </div>
                     ) : (
-                        messages.map((m: any) => (
-                            <div key={m.id} className={`flex ${m.sender_type === "User" ? "justify-end" : "justify-start"}`}>
+                        [...messages, ...queuedMessages.map(m => ({ ...m, isQueued: true }))].map((m: any) => (
+                            <div key={m.id} className={`flex ${m.sender_type === "User" ? "justify-end" : "justify-start"} ${m.isQueued ? "opacity-50" : ""}`}>
                                 <div className={`group relative max-w-[80%] p-4 rounded-2xl text-sm transition-all shadow-sm ${m.sender_type === "User"
-                                        ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
-                                        : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
+                                    ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
+                                    : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
                                     }`}>
                                     {m.sender_type === "Employee" && (
                                         <div className="flex items-center gap-2 mb-1.5">
@@ -96,8 +146,9 @@ export default function SupportChat() {
                                         </div>
                                     )}
                                     <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
-                                    <p className={`text-[10px] mt-2 font-medium ${m.sender_type === "User" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                                    <p className={`text-[10px] mt-2 font-medium flex items-center gap-1 ${m.sender_type === "User" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                         {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {m.isQueued && <span className="italic ml-2">(Sending...)</span>}
                                     </p>
                                 </div>
                             </div>

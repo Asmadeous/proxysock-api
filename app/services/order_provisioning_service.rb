@@ -226,12 +226,12 @@ class OrderProvisioningService
   end
 
   def send_proxy_credentials(proxy)
-    owner = @order.user || @order.reseller
-    ProxyMailer.with(
-      owner: owner,
-      proxy: proxy,
-      order: @order
-    ).credentials_email.deliver_later
+    owner = @actor || @order.orderable
+    # ProxyMailer.with(
+    #   owner: owner,
+    #   proxy: proxy,
+    #   order: @order
+    # ).credentials_email.deliver_later
   end
 
   # ========== eSIM Provisioning ==========
@@ -246,19 +246,26 @@ class OrderProvisioningService
     username = "vpn_#{SecureRandom.hex(4)}"
     password = SecureRandom.hex(12)
 
-    # Store VPN credentials (assuming VpnAccount model exists or use metadata)
-    vpn_account = VpnAccount.create!(
+    # Store VPN credentials
+    # Create the VpnOrder first (similar to VmOrder)
+    vpn_order = VpnOrder.create!(
       order: @order,
+      country_code: @product.metadata&.dig('country_code') || 'US',
+      quantity: 1,
+      status: 'active'
+    )
+
+    vpn_account = Vpn.create!(
+      vpn_order: vpn_order,
       username: username,
       password: password,
-      server: @product.metadata&.dig('server') || 'vpn.proxysock.com',
-      protocol: @product.metadata&.dig('protocol') || 'wireguard',
+      server_ip: @product.metadata&.dig('server') || '192.168.1.1',
       status: 'active'
     )
 
     # Send credentials
-    owner = @order.user || @order.reseller
-    VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
+    owner = @actor || @order.orderable
+    # VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
 
     @order.activate!
   end

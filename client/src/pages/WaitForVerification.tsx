@@ -15,7 +15,6 @@ import {
 
 
 export default function WaitForVerification() {
-<<<<<<< HEAD
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -40,15 +39,6 @@ export default function WaitForVerification() {
 
     return () => clearInterval(checkInterval);
   }, [user, isAuthenticated, navigate]);
-=======
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // Check verification status
-  useEffect(() => {
-    // Supabase removed
-  }, [user, navigate]);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   return (
     <div className="flex h-screen bg-background">

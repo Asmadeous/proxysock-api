@@ -13,7 +13,7 @@ import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
 import StatsCard from "../SuperAdmin/components/StatsCard";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
-import adminApi, { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
+import adminApi from "../../services/adminApi";
 import { toast } from "react-hot-toast";
 import SupportChatsTab from "../SuperAdmin/tabs/SupportChatsTab";
 
@@ -63,10 +63,8 @@ export default function EmployeeDashboard() {
                 onTabChange={handleTab}
                 title="Employee"
                 userName={user.full_name || user.email || "Employee"}
-                userRole={user.role || "support"}
+                userRole="Support Agent"
                 accentColor="blue"
-                fetchNotifications={fetchAdminNotifications}
-                markNotificationsAsRead={markAdminNotificationsAsRead}
             />
             <main className="flex-1 overflow-hidden">
                 <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">

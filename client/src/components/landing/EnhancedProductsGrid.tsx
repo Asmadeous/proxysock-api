@@ -44,11 +44,7 @@ export const EnhancedProductsGrid = ({
         <div className="text-center mb-16">
           <h2
             id="services-heading"
-<<<<<<< HEAD
             className="text-4xl sm:text-5xl font-bold text-foreground mb-6 font-manrope-bold"
-=======
-            className="text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6 font-manrope-bold"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           >
             Choose Your Digital Infrastructure Solution
           </h2>
@@ -58,11 +54,7 @@ export const EnhancedProductsGrid = ({
             activation, and 24/7 expert support.
           </p>
         </div>
-<<<<<<< HEAD
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-=======
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           {/* Proxy Services Card */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}

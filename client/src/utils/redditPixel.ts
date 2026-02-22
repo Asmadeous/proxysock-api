@@ -1,17 +1,8 @@
-<<<<<<< HEAD
 // src/utils/redditPixel.ts - Updated to use Rails API
 import { useEffect } from 'react';
 import railsApi from '../lib/railsApi';
 
 // TypeScript declarations
-=======
-
-// src/utils/redditPixel.ts - Updated with navigation tracking
-import { useEffect } from 'react';
-// import { supabase } from '../lib/supabase'; // ✅ FIXED: Use singleton
-
-// ✅ FIXED: Simple TypeScript declarations
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 declare global {
   interface Window {
     rdt: any;
@@ -31,11 +22,7 @@ class RedditPixelTracker {
   private initOfficialPixel() {
     if (typeof globalThis === 'undefined' || !this.pixelId) return;
 
-<<<<<<< HEAD
     // Reddit pixel implementation
-=======
-    // ✅ FIXED: Simple TypeScript-friendly Reddit pixel implementation
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     (function (w: any, d: Document, s: string, r: string) {
       if (w.rdt) return;
       const p = (w.rdt = function (...args: any[]) {
@@ -57,7 +44,6 @@ class RedditPixelTracker {
     console.log('🎯 Reddit Pixel initialized');
   }
 
-<<<<<<< HEAD
   private async getCurrentUser() {
     try {
       const response = await railsApi.get<{ user: any }>('/auth/me');
@@ -65,10 +51,6 @@ class RedditPixelTracker {
     } catch {
       return null;
     }
-=======
-  private async getCurrentUser(): Promise<any> {
-    return null;
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }
 
   private getClickId() {
@@ -90,7 +72,6 @@ class RedditPixelTracker {
     }
   }
 
-<<<<<<< HEAD
   private async sendToConversionsAPI(eventData: any) {
     try {
       // Send to Rails API which will forward to Reddit CAPI
@@ -98,10 +79,6 @@ class RedditPixelTracker {
     } catch (error) {
       console.error('CAPI error:', error);
     }
-=======
-  private async sendToConversionsAPI(_eventData: any) {
-    return null;
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }
 
   async trackPageView() {
@@ -131,10 +108,6 @@ class RedditPixelTracker {
     }
   }
 
-<<<<<<< HEAD
-=======
-  // ✅ NEW: Navigation tracking method
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   async trackNavigation(pageName: string, href: string) {
     if (this.initialized && (globalThis as any).rdt) {
       try {
@@ -171,10 +144,6 @@ class RedditPixelTracker {
     }
   }
 
-<<<<<<< HEAD
-=======
-  // ✅ NEW: Search tracking method
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   async trackSearch(searchTerm: string, category: string = 'general') {
     if (this.initialized && (globalThis as any).rdt) {
       try {
@@ -289,10 +258,6 @@ class RedditPixelTracker {
     }
   }
 
-<<<<<<< HEAD
-=======
-  // ✅ NEW: Lead tracking method for contact forms and inquiries
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   async trackLead(data: {
     interest: string;
     value?: number;
@@ -444,11 +409,7 @@ export const useRedditPixel = (pixelId: string) => {
   }, [pixelId]);
 };
 
-<<<<<<< HEAD
 // Hook for tracking with all methods
-=======
-// ✅ ENHANCED: Hook for tracking with all methods including lead tracking
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 export const useRedditTracking = () => {
   const tracker = (globalThis as any).redditPixelTracker;
 

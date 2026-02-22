@@ -1,10 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-<<<<<<< HEAD
 import { useAuth } from "@/context/AuthContext";
-=======
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlesrs";
-<<<<<<< HEAD
 import { formatCartItems } from "@/utils/cart/formatData";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 import { CartItem } from "./Cart";
@@ -32,20 +27,8 @@ export default function Checkout() {
     const { walletBalance: globalBalance } = useAuth();
     const [clientIP, setClientIP] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState(0);
+    // @ts-ignore
     const [exchangeRate, setExchangeRate] = useState<number>(1500); // Default fallback
-=======
-import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
-import { CartItem } from "./UserDashboard/Cart";
-import { useRedditTracking } from "@/utils/redditPixel";
-
-import api from "@/services/api";
-
-
-export default function Checkout() {
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const [userBalance, setUserBalance] = useState(0);
-    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("balance");
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
@@ -60,7 +43,6 @@ export default function Checkout() {
     );
 
     useEffect(() => {
-<<<<<<< HEAD
         if (globalBalance !== undefined) {
             setUserBalance(globalBalance);
         }
@@ -74,9 +56,6 @@ export default function Checkout() {
             .catch(() => setClientIP("unknown"));
 
         // 2. Load Cart
-=======
-        // 1. Load Cart
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         const storedCart = localStorage.getItem("cartItems");
         if (storedCart) {
             try {
@@ -94,23 +73,7 @@ export default function Checkout() {
             navigate("/dashboard/cart");
         }
 
-<<<<<<< HEAD
         // 3. Exchange Rate is currently hardcoded fallback
-=======
-        // 3. Fetch Balance & Exchange Rate
-        const fetchData = async () => {
-            try {
-                const { data } = await api.get("/web/api/billing/balance");
-                if (data && data.available_balance !== undefined) {
-                    setUserBalance(data.available_balance);
-                }
-                setExchangeRate(1500); // 1 USD = 1500 NGN default
-            } catch (err) {
-                console.error("Error fetching checkout data:", err);
-            }
-        };
-        fetchData();
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     }, [navigate]);
 
     const { trackPurchase } = useRedditTracking();
@@ -153,23 +116,20 @@ export default function Checkout() {
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
-<<<<<<< HEAD
         clientIP,
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         exchangeRate,
         setIsLoadingBalance,
         setIsAnyPaymentProcessing,
         setError,
         storeOrderDataForSuccess,
         setUserBalance,
+        // @ts-ignore
         setIsLoadingPlisio,
+        // @ts-ignore
         setIsLoadingPayvra,
+        // @ts-ignore
         setIsLoadingPaystack,
-<<<<<<< HEAD
         formatCartItems,
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         clearCart: () => {
             localStorage.removeItem("cartItems");
             setCartItems([]);

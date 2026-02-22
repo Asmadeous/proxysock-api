@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
 import railsApi from "@/lib/railsApi";
-=======
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import {
   Monitor,
   Home,
@@ -26,12 +22,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-<<<<<<< HEAD
-=======
-import api from '../services/api';
-
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 interface Country {
   code: string;
   name: string;
@@ -55,7 +45,6 @@ export default function RDPTypes() {
     try {
       setLoading(true);
 
-<<<<<<< HEAD
       // Fetch ALL products to find RDP ones and calculate min price
       // Assuming GET /products returns all products or supports filtering
       const { data } = await railsApi.get('/products', { params: { category: 'rdp' } });
@@ -83,20 +72,6 @@ export default function RDPTypes() {
 
       // Default countries
       const countriesData: Country[] = [
-=======
-      const { data } = await api.get('/web/api/products?product_type=rdp');
-      const products = data.products || [];
-
-      const calculatedMinPrice =
-        products && products.length > 0
-          ? Math.min(...products.map((p: any) => p.price))
-          : 29.99;
-
-      setMinPrice(calculatedMinPrice);
-
-      // Default countries
-      const countriesFallback: Country[] = [
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
@@ -104,19 +79,12 @@ export default function RDPTypes() {
         { code: "AU", name: "Australia", flag: "🇦🇺" },
       ];
 
-<<<<<<< HEAD
       // Configuration for countries would come from API in future
       // For now, using static list to remove Supabase dependency
       setCountries(countriesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch data");
       console.error("Error fetching RDP data:", err);
-=======
-      setCountries(countriesFallback);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch data");
-      console.error('Failed to load RDP types logic', err);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     } finally {
       setLoading(false);
     }

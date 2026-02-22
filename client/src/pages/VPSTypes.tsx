@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
 import railsApi from "@/lib/railsApi";
-=======
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import {
   Server,
   Home,
@@ -20,12 +16,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-<<<<<<< HEAD
-=======
-import api from '../services/api';
-
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 interface Country {
   code: string;
   name: string;
@@ -48,7 +38,6 @@ export default function VPSTypes() {
     try {
       setLoading(true);
 
-<<<<<<< HEAD
       const { data } = await railsApi.get('/products', { params: { category: 'vps' } });
 
       let plansData: any[] = [];
@@ -68,18 +57,6 @@ export default function VPSTypes() {
       setMinPrice(finalMinPrice);
 
       const countriesData: Country[] = [
-=======
-      const { data } = await api.get('/web/api/products?product_type=vps');
-      const products = data.products || [];
-
-      const calculatedMinPrice = products && products.length > 0
-        ? Math.min(...products.map((p: any) => p.price))
-        : 9.99;
-
-      setMinPrice(calculatedMinPrice);
-
-      const countriesFallback: Country[] = [
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         { code: 'US', name: 'United States', flag: '🇺🇸' },
         { code: 'UK', name: 'United Kingdom', flag: '🇬🇧' },
         { code: 'DE', name: 'Germany', flag: '🇩🇪' },
@@ -87,13 +64,9 @@ export default function VPSTypes() {
         { code: 'AU', name: 'Australia', flag: '🇦🇺' }
       ];
 
-<<<<<<< HEAD
       // Use static data instead of system_config
       setCountries(countriesData);
 
-=======
-      setCountries(countriesFallback);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {

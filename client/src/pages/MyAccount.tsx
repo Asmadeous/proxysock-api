@@ -140,11 +140,7 @@ export default function MyAccount() {
               <div className="flex justify-between">
                 <span className="text-gray-400">Member Since</span>
                 <span className="text-white">
-<<<<<<< HEAD
                   {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString() : "N/A"}
-=======
-                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                 </span>
               </div>
               <div className="flex justify-between">
@@ -154,13 +150,8 @@ export default function MyAccount() {
               <div className="flex justify-between">
                 <span className="text-gray-400">Next Billing Date</span>
                 <span className="text-white">
-<<<<<<< HEAD
                   {(user as any)?.nextBillingDate
                     ? new Date((user as any).nextBillingDate).toLocaleDateString()
-=======
-                  {user?.nextBillingDate
-                    ? new Date(user.nextBillingDate).toLocaleDateString()
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
                     : "N/A"}
                 </span>
               </div>

@@ -77,9 +77,6 @@ gem "rspec-rails", "~> 8.0", groups: [:development, :test]
 
 gem "sentry-ruby", "~> 6.3"
 gem "sentry-rails", "~> 6.3"
-<<<<<<< HEAD
-gem 'dotenv-rails', groups: [:development, :test]
-=======
 
+gem 'dotenv-rails', groups: [:development, :test]
 gem "httparty", "~> 0.24.2"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)

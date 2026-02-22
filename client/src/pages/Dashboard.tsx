@@ -84,7 +84,7 @@ export default function Dashboard() {
             handleLogout={handleLogout}
             cartCount={cartCount}
             userName={userName}
-            avatarUrl={user?.avatar_url}
+            avatarUrl={user?.profile_picture_url}
             isCollapsed={isCollapsed}
             setIsCollapsed={setIsCollapsed}
           />
@@ -121,7 +121,7 @@ export default function Dashboard() {
                     handleLogout={handleLogout}
                     cartCount={cartCount}
                     userName={userName}
-                    avatarUrl={user?.avatar_url}
+                    avatarUrl={user?.profile_picture_url}
                     isCollapsed={isCollapsed}
                     setIsCollapsed={setIsCollapsed}
                   />
