@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import railsApi from "@/lib/railsApi";
+
 import {
   Server,
   Home,
@@ -15,6 +15,9 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+import api from '../services/api';
+
 
 interface Country {
   code: string;
@@ -38,25 +41,16 @@ export default function VPSTypes() {
     try {
       setLoading(true);
 
-      const { data } = await railsApi.get('/products', { params: { category: 'vps' } });
+      const { data } = await api.get('/web/api/products?product_type=vps');
+      const products = data.products || [];
 
-      let plansData: any[] = [];
-      if (Array.isArray(data)) {
-        plansData = data;
-      } else if (data && Array.isArray((data as any).products)) {
-        plansData = (data as any).products;
-      }
-
-      const calculatedMinPrice = plansData && plansData.length > 0
-        ? Math.min(...plansData.map(p => typeof p.price === 'number' ? p.price : parseFloat(p.price) || 9.99))
+      const calculatedMinPrice = products && products.length > 0
+        ? Math.min(...products.map((p: any) => p.price))
         : 9.99;
 
-      // Adjust for cents if necessary
-      const finalMinPrice = calculatedMinPrice > 1000 ? calculatedMinPrice / 100 : calculatedMinPrice;
+      setMinPrice(calculatedMinPrice);
 
-      setMinPrice(finalMinPrice);
-
-      const countriesData: Country[] = [
+      const countriesFallback: Country[] = [
         { code: 'US', name: 'United States', flag: '🇺🇸' },
         { code: 'UK', name: 'United Kingdom', flag: '🇬🇧' },
         { code: 'DE', name: 'Germany', flag: '🇩🇪' },
@@ -64,9 +58,7 @@ export default function VPSTypes() {
         { code: 'AU', name: 'Australia', flag: '🇦🇺' }
       ];
 
-      // Use static data instead of system_config
-      setCountries(countriesData);
-
+      setCountries(countriesFallback);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {

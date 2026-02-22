@@ -9,32 +9,10 @@ import { SupportInfoSection } from "@/components/landing/help/contact/SupportInf
 import { SelfHelpResourcesSection } from "@/components/landing/help/contact/SelfHelpResourcesSection";
 
 
-// Add Tawk_API to window type
-declare global {
-  interface Window {
-    Tawk_API?: {
-      toggle: () => void;
-      [key: string]: any;
-    };
-  }
-}
 
 export default function Contact() {
   useEffect(() => {
-    // Tawk.to chat widget
-    const s1 = document.createElement("script");
-    const s0 = document.getElementsByTagName("script")[0];
-    s1.async = true;
-    s1.src = "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo";
-    s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
-    if (s0?.parentNode) {
-      s0.parentNode.insertBefore(s1, s0);
-    }
-
-    return () => {
-      s1.remove();
-    };
+    document.title = "Contact ProxySock - 24/7 Support for Proxy, RDP, VPS & eSIM Services";
   }, []);
 
   // Reddit Ads lead tracking functions
@@ -55,16 +33,14 @@ export default function Contact() {
 
   const handleChatbotClick = () => {
     trackLeadInteraction("chatbot", "support");
-    if ((globalThis as any).Tawk_API) {
-      (globalThis as any).Tawk_API.toggle();
-    }
+    // Trigger global guest chat widget
+    window.dispatchEvent(new CustomEvent("open-chat"));
   };
 
   const handleLiveSupportClick = () => {
     trackLeadInteraction("live_chat", "technical_support");
-    if ((globalThis as any).Tawk_API) {
-      (globalThis as any).Tawk_API.toggle();
-    }
+    // Trigger global guest chat widget
+    window.dispatchEvent(new CustomEvent("open-chat"));
   };
 
   const handleEmailClick = (type: string) => {

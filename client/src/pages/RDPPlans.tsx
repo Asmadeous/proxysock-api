@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import railsApi from "@/lib/railsApi";
+
 import {
   Cpu,
   HardDrive,
@@ -38,12 +38,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+
+
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+import { toast } from "sonner";
+import api from "../services/api";
 
 interface RDPPlan {
   id: string;
@@ -90,13 +95,11 @@ export default function RDPPlans() {
   const [searchParams] = useSearchParams();
   const countryParam = searchParams.get("country") || "";
 
-  const [rdpPlans, setRdpPlans] = useState<RDPPlan[]>([]);
-  const [managementOptions, setManagementOptions] = useState<
-    ManagementOption[]
-  >([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [osMetadata, setOsMetadata] = useState<OSMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<RDPPlan[]>([]);
+  const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
+  const [locations, setLocations] = useState<Country[]>([]);
+  const [osOptions, setOsOptions] = useState<OSMetadata[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<RDPPlan | null>(null);
   const [selectedOS, setSelectedOS] = useState("");
@@ -116,8 +119,28 @@ export default function RDPPlans() {
   }, [countryParam]);
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
+      const { data } = await api.get('/web/api/products?product_type=rdp');
+
+      const products = data.products || [];
+      const mappedPlans: RDPPlan[] = products.map((p: any) => ({
+        id: p.id.toString(),
+        plan_id: p.id,
+        name: p.name,
+        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
+        price: p.price || 0,
+        currency_code: p.currency || 'USD',
+        cpu_cores: p.cpu_cores || 4,
+        ram_gb: p.ram_gb || 4,
+        storage_gb: p.storage_gb || 60,
+        concurrent_users: p.concurrent_users || 1,
+        session_duration_hours: p.session_duration_hours || -1,
+        os_templates: p.os_templates || ['Windows Server 2022', 'Windows 11 Pro', 'Ubuntu Desktop 22.04'],
+        features: p.features || ['Full Admin Access', 'SSD Storage', 'Premium Bandwidth'],
+        locations: p.locations || ['US', 'DE', 'GB'],
+        is_active: p.active !== false,
+      }));
 
       const managementOptionsFallback = [
         {
@@ -148,7 +171,7 @@ export default function RDPPlans() {
         },
       ];
 
-      const countriesFallback = [
+      const datacenterCountriesFallback = [
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
@@ -156,7 +179,7 @@ export default function RDPPlans() {
         { code: "AU", name: "Australia", flag: "🇦🇺" },
       ];
 
-      const osMetadataFallback = [
+      const osOptionsFallback = [
         {
           name: "Windows Server 2022",
           icon: "WindowsIcon",
@@ -199,62 +222,74 @@ export default function RDPPlans() {
         },
       ];
 
-      // Fetch from Rails API
-      const { data } = await railsApi.get('/products');
-      const products = data.products || [];
+      setPlans(mappedPlans.filter(plan => plan.is_active));
 
-      // Filter for RDP products
-      const rdpProducts = products.filter((p: any) =>
-        (p.category && p.category.toLowerCase().includes('rdp')) ||
-        (p.name && p.name.toLowerCase().includes('rdp'))
-      );
-
-      const mappedPlans: RDPPlan[] = rdpProducts.map((p: any) => {
-        const desc = p.description || "";
-        const cpuMatch = desc.match(/(\d+)\s*v?CPU/i);
-        const ramMatch = desc.match(/(\d+)\s*GB RAM/i);
-        const storageMatch = desc.match(/(\d+)\s*GB (SSD|Storage)/i);
-        const usersMatch = desc.match(/(\d+)\s*Users?/i);
-
-        return {
-          id: p.id.toString(),
-          plan_id: p.id,
-          name: p.name,
-          slug: p.id.toString(),
-          price: parseFloat(p.price) || 0,
-          currency_code: p.currency || 'USD',
-          cpu_cores: cpuMatch ? parseInt(cpuMatch[1]) : 2,
-          ram_gb: ramMatch ? parseInt(ramMatch[1]) : 4,
-          storage_gb: storageMatch ? parseInt(storageMatch[1]) : 50,
-          concurrent_users: usersMatch ? parseInt(usersMatch[1]) : 1,
-          session_duration_hours: 0,
-          os_templates: ["Windows 11 Pro", "Windows Server 2022", "Ubuntu Desktop 22.04"],
-          features: ["Admin Access", "Private IP", "SSD Storage"],
-          locations: countriesFallback.map(c => c.name),
-          is_active: true
-        };
-      });
-
-      if (mappedPlans.length === 0) {
-        console.warn("No RDP plans found from API, using empty list.");
-      }
-
-      setRdpPlans(mappedPlans);
+      // Use fallbacks for configs since Rails doesn't use system_config
       setManagementOptions(managementOptionsFallback);
-      setCountries(countriesFallback);
-      setOsMetadata(osMetadataFallback);
+      setLocations(datacenterCountriesFallback);
+      setOsOptions(osOptionsFallback);
+
     } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Failed to load data");
+      console.error("Error fetching data:", err);
+      toast.error("Failed to load RDP plans. Please try again later.");
+      // Fallback data
+      setPlans([]);
+      setManagementOptions([
+        {
+          type: "unmanaged",
+          name: "Unmanaged",
+          description: "Full administrator access, you manage everything",
+          features: [
+            "Complete control",
+            "Admin access",
+            "Custom software installs",
+            "Self-managed updates",
+          ],
+          priceMultiplier: 1.0,
+          badge: "Most Popular",
+        },
+        {
+          type: "managed",
+          name: "Managed",
+          description: "We handle RDP server management for you",
+          features: [
+            "OS updates & patches",
+            "Security monitoring",
+            "Software installations",
+            "24/7 support",
+          ],
+          priceMultiplier: 1.4,
+          badge: "Hassle-Free",
+        },
+      ]);
+      setLocations([
+        { code: "US", name: "United States", flag: "🇺🇸" },
+        { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
+        { code: "DE", name: "Germany", flag: "🇩🇪" },
+        { code: "CA", name: "Canada", flag: "🇨🇦" },
+        { code: "AU", name: "Australia", flag: "🇦🇺" },
+      ]);
+      setOsOptions([
+        {
+          name: "Windows Server 2022",
+          icon: "WindowsIcon",
+          description: "Enterprise-grade Windows server OS",
+        },
+        {
+          name: "Windows 11 Pro",
+          icon: "WindowsIcon",
+          description: "Modern Windows desktop experience",
+        }
+      ]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const getEffectivePrice = (plan: RDPPlan): number => {
     if (!selectedCountry || !plan.country_pricing) return plan.price;
 
-    const countryName = countries.find((c) => c.code === selectedCountry)?.name;
+    const countryName = locations.find((c) => c.code === selectedCountry)?.name;
     const possibleKeys = countryName
       ? [countryName, selectedCountry]
       : [selectedCountry];
@@ -269,7 +304,7 @@ export default function RDPPlans() {
   };
 
   const getBestPlanForOS = (osTemplate: string): number | null => {
-    const plansWithOS = rdpPlans.filter((plan) =>
+    const plansWithOS = plans.filter((plan) =>
       plan.os_templates.some((template) =>
         template.toLowerCase().includes(osTemplate.toLowerCase()),
       ),
@@ -390,7 +425,7 @@ export default function RDPPlans() {
       managementType: selectedManagement,
       productType: "rdp",
       location: {
-        country: countries.find((c) => c.code === selectedCountry)?.name || "",
+        country: locations.find((c) => c.code === selectedCountry)?.name || "",
         countryCode: selectedCountry,
       },
       effective_base_price: getEffectivePrice(selectedPlan),
@@ -446,7 +481,7 @@ export default function RDPPlans() {
   };
 
   const getOSIcon = (osName: string) => {
-    const os = osMetadata.find((o) => o.name === osName);
+    const os = osOptions.find((o) => o.name === osName);
     const icons: Record<string, string> = {
       WindowsIcon: "fab fa-windows",
       UbuntuIcon: "fab fa-ubuntu",
@@ -460,9 +495,9 @@ export default function RDPPlans() {
     ) : null;
   };
 
-  const selectedCountryData = countries.find((c) => c.code === selectedCountry);
+  const selectedCountryData = locations.find((c) => c.code === selectedCountry);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         {/* Back Button Skeleton */}
@@ -542,6 +577,17 @@ export default function RDPPlans() {
     );
   }
 
+  // Filter plans based on selected country
+  const filteredPlans = selectedCountry
+    ? plans.filter((plan) => {
+      // Find the full country name from the selected code
+      const countryName = locations.find((c) => c.code === selectedCountry)?.name;
+      // Check if plan supports either the code or the name
+      return plan.locations?.includes(selectedCountry) ||
+        (countryName && plan.locations?.includes(countryName));
+    })
+    : plans;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -560,32 +606,34 @@ export default function RDPPlans() {
           </div>
           <div>
             <h1 className="text-3xl font-semibold text-foreground">
-              Residential RDP Plans
+              {countryParam ? `${locations.find(c => c.code === countryParam)?.name || countryParam} RDP Plans` : 'Residential RDP Plans'}
             </h1>
             <Badge variant="default" className="mt-1">
-              Premium Remote Desktop
+              High Performance
             </Badge>
           </div>
         </div>
 
-        {selectedCountryData && (
-          <div className="flex items-center gap-3 mt-4">
-            <span className="text-5xl">{selectedCountryData.flag}</span>
-            <div>
-              <h2 className="text-2xl font-semibold">
-                {selectedCountryData.name}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Residential IP Location
-              </p>
-            </div>
-          </div>
-        )}
+        <p className="text-muted-foreground mt-2">Premium residential IP remote desktop access</p>
       </div>
 
+      {selectedCountryData && (
+        <div className="flex items-center gap-3 mt-4">
+          <span className="text-5xl">{selectedCountryData.flag}</span>
+          <div>
+            <h2 className="text-2xl font-semibold">
+              {selectedCountryData.name}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Residential IP Location
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {rdpPlans.map((plan) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredPlans.map((plan) => {
           const price = getEffectivePrice(plan);
           const badge = getPlanBadge(plan);
 
@@ -744,7 +792,7 @@ export default function RDPPlans() {
                         <span className="text-xs uppercase">CPU</span>
                       </div>
                       <span className="font-bold text-foreground">
-                        {selectedPlan.cpu_cores} vCPU
+                        {selectedPlan?.cpu_cores} vCPU
                       </span>
                     </div>
                     <div>
@@ -753,7 +801,7 @@ export default function RDPPlans() {
                         <span className="text-xs uppercase">RAM</span>
                       </div>
                       <span className="font-bold text-foreground">
-                        {selectedPlan.ram_gb} GB
+                        {selectedPlan?.ram_gb} GB
                       </span>
                     </div>
                     <div>
@@ -762,7 +810,7 @@ export default function RDPPlans() {
                         <span className="text-xs uppercase">Users</span>
                       </div>
                       <span className="font-bold text-foreground">
-                        {selectedPlan.concurrent_users}
+                        {selectedPlan?.concurrent_users}
                       </span>
                     </div>
                     <div>
@@ -771,7 +819,7 @@ export default function RDPPlans() {
                         <span className="text-xs uppercase">Session</span>
                       </div>
                       <span className="font-bold text-foreground text-sm">
-                        {selectedPlan.session_duration_hours > 0
+                        {selectedPlan && selectedPlan.session_duration_hours > 0
                           ? `${selectedPlan.session_duration_hours}h`
                           : "Unlimited"}
                       </span>
@@ -791,7 +839,7 @@ export default function RDPPlans() {
                   onValueChange={setSelectedCountry}
                 >
                   <div className="space-y-2">
-                    {countries.map((c) => (
+                    {locations.map((c) => (
                       <Label
                         key={c.code}
                         className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${selectedCountry === c.code
@@ -878,7 +926,7 @@ export default function RDPPlans() {
                 </Label>
                 <RadioGroup value={selectedOS} onValueChange={setSelectedOS}>
                   <div className="space-y-2">
-                    {selectedPlan.os_templates.map((os) => {
+                    {selectedPlan?.os_templates.map((os) => {
                       const osBadge = getPlanBadge(selectedPlan, os);
                       const isRecommended = osBadge.text === "Recommended";
 

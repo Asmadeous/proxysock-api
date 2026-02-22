@@ -1,4 +1,4 @@
-import { CartItem } from "@/pages/Cart";
+import { CartItem } from "@/pages/UserDashboard/Cart";
 import { useCalculateOrderItems } from "./hook/useCalculateOrderTotalSync";
 import { formatDataVolume, formatDuration } from "@/utils/cart/formatData";
 import {

@@ -11,7 +11,6 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTwitter, faTelegram } from "@fortawesome/free-brands-svg-icons";
 import logo from "../assets/images/logo.png"; // Adjust the path to your logo
-import { useEffect } from "react";
 
 export default function Proxies() {
   const proxyTypes = [
@@ -60,24 +59,6 @@ export default function Proxies() {
       ],
     },
   ];
-
-  useEffect(() => {
-    // Tawk.to script
-    const s1 = document.createElement("script");
-    const s0 = document.getElementsByTagName("script")[0];
-    s1.async = true;
-    s1.src = "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo";
-    s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
-    if (s0?.parentNode) {
-      s0.parentNode.insertBefore(s1, s0);
-    }
-
-    // Cleanup function to remove the script on unmount
-    return () => {
-      s1.remove();
-    };
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
