@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,18 +17,17 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlesrs";
-import { formatCartItems } from "@/utils/cart/formatData";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
-import { CartItem } from "./Cart";
+import { CartItem } from "./UserDashboard/Cart";
 import { useRedditTracking } from "@/utils/redditPixel";
+
+import api from "@/services/api";
+
 
 export default function Checkout() {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const { walletBalance: globalBalance } = useAuth();
-    const [clientIP, setClientIP] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState(0);
-    // @ts-ignore
-    const [exchangeRate, setExchangeRate] = useState<number>(1500); // Default fallback
+    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("balance");
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
@@ -43,19 +42,7 @@ export default function Checkout() {
     );
 
     useEffect(() => {
-        if (globalBalance !== undefined) {
-            setUserBalance(globalBalance);
-        }
-    }, [globalBalance]);
-
-    useEffect(() => {
-        // 1. Fetch IP
-        fetch("https://api.ipify.org?format=json")
-            .then((res) => res.json())
-            .then((data) => setClientIP(data.ip))
-            .catch(() => setClientIP("unknown"));
-
-        // 2. Load Cart
+        // 1. Load Cart
         const storedCart = localStorage.getItem("cartItems");
         if (storedCart) {
             try {
@@ -73,7 +60,19 @@ export default function Checkout() {
             navigate("/dashboard/cart");
         }
 
-        // 3. Exchange Rate is currently hardcoded fallback
+        // 3. Fetch Balance & Exchange Rate
+        const fetchData = async () => {
+            try {
+                const { data } = await api.get("/web/api/billing/balance");
+                if (data && data.available_balance !== undefined) {
+                    setUserBalance(data.available_balance);
+                }
+                setExchangeRate(1500); // 1 USD = 1500 NGN default
+            } catch (err) {
+                console.error("Error fetching checkout data:", err);
+            }
+        };
+        fetchData();
     }, [navigate]);
 
     const { trackPurchase } = useRedditTracking();
@@ -116,20 +115,15 @@ export default function Checkout() {
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
-        clientIP,
         exchangeRate,
         setIsLoadingBalance,
         setIsAnyPaymentProcessing,
         setError,
         storeOrderDataForSuccess,
         setUserBalance,
-        // @ts-ignore
         setIsLoadingPlisio,
-        // @ts-ignore
         setIsLoadingPayvra,
-        // @ts-ignore
         setIsLoadingPaystack,
-        formatCartItems,
         clearCart: () => {
             localStorage.removeItem("cartItems");
             setCartItems([]);

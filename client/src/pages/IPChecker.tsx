@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import railsApi from "@/lib/railsApi";
 import backgroundNode from "@/assets/images/backgroundNode.webp";
 import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
 import { useThemeStore } from "@/store/themeStore";
@@ -13,6 +12,7 @@ import {
   IPCheckerThreatAssessment,
   IPCheckerGeolocationCard,
   IPCheckerNetworkCard,
+
   IPCheckerTimezoneCard,
   IPCheckerCurrencyCard,
   IPCheckerCarrierCard,
@@ -30,101 +30,161 @@ interface IPResult {
   city?: string;
   region?: string;
   region_code?: string;
-  country?: string;
   country_name?: string;
   country_code?: string;
+  continent_name?: string;
   continent_code?: string;
   latitude?: number;
   longitude?: number;
   postal?: string;
   calling_code?: string;
   flag?: string;
+  emoji_flag?: string;
+  emoji_unicode?: string;
 
-  // Network & ASN
-  asn?: any;
-  org?: string;
-
-  // Connection Info
-  connection_type?: string;
-
-  // Timezone & Currency
-  timezone?: {
-    id: string;
-    abbr: string;
-    is_dst: boolean;
-    offset: number;
-    utc: string;
-    current_time: string;
-  };
-  currency?: {
+  // ASN Basic
+  asn?: {
+    asn: string;
     name: string;
-    code: string;
-    symbol: string;
-    plural: string;
-    exchange_rate: number;
+    domain?: string;
+    route?: string;
+    type?: string;
   };
 
-  // Threat Intel
+  // Advanced ASN
+  asn_details?: {
+    domain?: string;
+    usage?: string;
+    name?: string;
+    ipv4_prefixes?: string[];
+    ipv6_prefixes?: string[];
+    num_ips?: number;
+    registry?: string;
+    country?: string;
+    date?: string;
+    status?: string;
+    upstream?: Array<{
+      asn: string;
+      name: string;
+      country: string;
+    }>;
+    downstream?: Array<{
+      asn: string;
+      name: string;
+      country: string;
+    }>;
+    peers?: Array<{
+      asn: string;
+      name: string;
+      country: string;
+    }>;
+  };
+
+  // Company
+  company?: {
+    name?: string;
+    domain?: string;
+    network?: string;
+    type?: string;
+  };
+
+  // Mobile Carrier
+  carrier?: {
+    name?: string;
+    mcc?: string;
+    mnc?: string;
+  };
+
+  // Timezone
+  timezone?: {
+    name?: string;
+    abbr?: string;
+    offset?: string;
+    is_dst?: boolean;
+    current_time?: string;
+  };
+
+  // Currency
+  currency?: {
+    name?: string;
+    code?: string;
+    symbol?: string;
+    native?: string;
+    plural?: string;
+  };
+
+  // Comprehensive Threat Intelligence
   threat?: {
-    is_tor: boolean;
-    is_icloud_relay: boolean;
-    is_proxy: boolean;
-    is_datacenter: boolean;
-    is_anonymous: boolean;
-    is_known_attacker: boolean;
-    is_known_abuser: boolean;
-    is_threat: boolean;
-    is_bogon: boolean;
-    blocklists: Array<{
+    is_tor?: boolean;
+    is_vpn?: boolean;
+    is_icloud_relay?: boolean;
+    is_proxy?: boolean;
+    is_datacenter?: boolean;
+    is_anonymous?: boolean;
+    is_known_attacker?: boolean;
+    is_known_abuser?: boolean;
+    is_threat?: boolean;
+    is_bogon?: boolean;
+    blocklists?: Array<{
       name: string;
       site: string;
       type: string;
     }>;
     scores?: {
-      proxy_score: number;
-      vpn_score: number;
-      spam_score: number;
-      threat_score: number;
+      [key: string]: number;
     };
   };
 
-  carrier?: {
-    name: string;
-    mcc: string;
-    mnc: string;
-  };
+  // Usage Type
+  usage_type?: string;
 
-  // Risk Analysis
-  risk?: any;
+  // Languages
+  languages?: Array<{
+    name: string;
+    native: string;
+    code: string;
+  }>;
+
+  // Computed fields for backwards compatibility
   score?: number;
+  risk?: string;
+  url?: string;
 }
 
-export default function IPChecker() {
-  const [ipAddress, setIpAddress] = useState("");
+export default function ModernIPChecker() {
+  const [ipAddress, setIpAddress] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
   const [result, setResult] = useState<IPResult | null>(null);
-  const [loading, setLoading] = useState(true); // Start true for auto-fetch
-  const [error, setError] = useState<string | null>(null);
-  const [loadingStage, setLoadingStage] = useState<string>("Initializing...");
+  const [error, setError] = useState<string>("");
+  const [loadingStage, setLoadingStage] = useState<string>(
+    "Detecting your IP address..."
+  );
 
-  // Auto IP Detection on Mount
+  // Auto-detect and analyze IP on page load
   useEffect(() => {
     const autoAnalyzeIP = async () => {
       try {
-        setLoadingStage("Detecting your connection...");
-        await new Promise((resolve) => setTimeout(resolve, 800)); // UX delay
+        setLoading(true);
+        setLoadingStage("Detecting your IP address...");
 
-        setLoadingStage("Querying threat intelligence databases...");
+        // Call Rails API directly
+        const response = await fetch(
+          `/web/api/tools/ip_checker`,
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          }
+        );
 
-        const { data: apiData } = await railsApi.get('/tools/ip_lookup');
-
-        if (!apiData) {
-          throw new Error("Failed to analyze IP address");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Auto-detection failed");
         }
 
         setLoadingStage("Processing comprehensive analysis...");
         await new Promise((resolve) => setTimeout(resolve, 500)); // UX delay
 
-        const data: IPResult = apiData;
+        const data: IPResult = await response.json();
 
         if (data.error) {
           setError(data.error);
@@ -155,15 +215,20 @@ export default function IPChecker() {
     setLoadingStage("Analyzing IP address...");
 
     try {
-      const { data: apiData } = await railsApi.get('/tools/ip_lookup', {
-        params: { ip: ipAddress.trim() }
-      });
+      const response = await fetch(
+        `/web/api/tools/ip_checker?ip=${ipAddress.trim()}`,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        }
+      );
 
-      if (!apiData) {
-        throw new Error("Analysis failed");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed");
       }
 
-      const data: IPResult = apiData;
+      const data: IPResult = await response.json();
 
       if (data.error) {
         setError(data.error);

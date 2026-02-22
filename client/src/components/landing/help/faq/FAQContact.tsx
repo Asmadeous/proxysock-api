@@ -36,16 +36,12 @@ export const FAQContact = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <button
-                onClick={() => {
-                  if ((window as any).Tawk_API) {
-                    (window as any).Tawk_API.toggle();
-                  }
-                }}
+              <Link
+                to="/contact"
                 className="bg-muted text-foreground px-8 py-4 rounded-lg hover:bg-muted/80 transition-colors font-manrope-semibold text-lg shadow-lg"
               >
                 Start Live Chat
-              </button>
+              </Link>
             </motion.div>
           </div>
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

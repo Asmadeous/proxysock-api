@@ -1,19 +1,26 @@
-import railsApi from "@/lib/railsApi";
+import { useState } from 'react';
+import api from '../../../services/api';
 
 interface VerificationContentProps {
   userEmail?: string;
 }
 
 export default function VerificationContent({ userEmail }: VerificationContentProps) {
+  const [resending, setResending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
   const handleResendEmail = async () => {
     if (!userEmail) return;
+    setResending(true);
+    setMessage(null);
 
     try {
-      await railsApi.post('/auth/confirmation', { email: userEmail });
-      alert("Verification email resent!");
-    } catch (error) {
-      console.error("Failed to resend verification:", error);
-      alert("If your email is not verified, you can retry registration or contact support.");
+      const { data } = await api.post('/web/api/auth/resend_confirmation', { email: userEmail });
+      setMessage(data.message || 'Verification email resent!');
+    } catch (err: any) {
+      setMessage(err.response?.data?.error || 'Failed to resend. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -28,13 +35,19 @@ export default function VerificationContent({ userEmail }: VerificationContentPr
         </p>
       </div>
 
+      {message && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 text-sm text-foreground font-inter-regular">
+          {message}
+        </div>
+      )}
+
       <div className="space-y-3">
         <button
           onClick={handleResendEmail}
-          disabled={!userEmail}
+          disabled={!userEmail || resending}
           className="block w-full bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 px-6 rounded-lg transition-colors font-manrope-semibold"
         >
-          Resend Verification Email
+          {resending ? 'Sending...' : 'Resend Verification Email'}
         </button>
       </div>
 

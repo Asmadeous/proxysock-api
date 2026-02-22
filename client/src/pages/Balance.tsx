@@ -1,25 +1,54 @@
 import { useState, useEffect } from 'react'
-import railsApi from "@/lib/railsApi"
+
 import { BanknotesIcon } from '@heroicons/react/24/outline'
 
-interface Transaction {
-    id: number;
-    amount: string;
-    transaction_type: string;
-    description: string;
-    created_at: string;
-    status: string;
-}
+// Supabase completely removed. Mock object to prevent compile/runtime crash.
+const supabase: any = {
+  auth: {
+    getUser: async () => ({ data: { user: null }, error: null }),
+    getSession: async () => ({ data: { session: null }, error: null }),
+    signInWithPassword: async () => ({ data: {}, error: null }),
+    signInWithOAuth: async () => ({ data: {}, error: null }),
+    signOut: async () => ({ error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    refreshSession: async () => ({ data: { session: null }, error: null })
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: async () => ({ data: null, error: null }),
+        order: async () => ({ data: [], error: null }),
+        not: () => ({ order: async () => ({ data: [], error: null }) })
+      }),
+      order: async () => ({ data: [], error: null }),
+      not: () => ({ order: async () => ({ data: [], error: null }) }),
+      neq: () => ({ order: async () => ({ data: [], error: null }) })
+    }),
+    insert: async () => ({ error: null }),
+    update: () => ({ eq: async () => ({ error: null }) })
+  }),
+  functions: { invoke: async () => ({ data: null, error: null }) },
+  channel: () => ({ on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }) }),
+  removeChannel: async () => {}
+};
+
 
 interface BalanceData {
     available_balance: number;
     currency: string;
     total_deposited: number;
     total_order_amount: number;
+    deposit_transactions: number;
     order_count: number;
+    reseller_id: string;
+    username: string;
     discount_percentage: number;
-    recent_transactions: Transaction[];
-    // Removed unused fields: reseller_id, username
+}
+
+interface BalanceResponse {
+    success: boolean;
+    data?: BalanceData;
+    error?: string;
 }
 
 const Balance = () => {
@@ -33,13 +62,38 @@ const Balance = () => {
                 setLoading(true)
                 setError(null)
 
-                const response = await railsApi.get<BalanceData>('/wallet')
+                // Get current session
+                const { data: { session } } = await supabase.auth.getSession()
 
-                if (response.data) {
-                    setBalanceData(response.data)
-                } else {
-                    throw new Error('No data received')
+                if (!session) {
+                    throw new Error('No active session')
                 }
+
+                // Call the Supabase Edge Function with better error handling
+                const { data, error: functionError } = await supabase.functions.invoke('My_Proxy_API', {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                })
+
+                console.log('Function response:', { data, functionError })
+
+                if (functionError) {
+                    console.error('Function error details:', functionError)
+                    throw new Error(`Function error: ${functionError.message}`)
+                }
+
+                const response = data as BalanceResponse
+
+                if (!response.success) {
+                    throw new Error(response.error || 'Failed to fetch balance')
+                }
+
+                if (!response.data) {
+                    throw new Error('No balance data received')
+                }
+
+                setBalanceData(response.data)
 
             } catch (err) {
                 console.error('Balance fetch error:', err)
@@ -99,7 +153,7 @@ const Balance = () => {
             <div className="space-y-2">
                 <div>
                     <p className="text-2xl font-bold text-white">
-                        {balanceData.currency} {Number.parseFloat(balanceData.available_balance.toString()).toFixed(2)}
+                        {balanceData.currency} {balanceData.available_balance.toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-400">Available Balance</p>
                 </div>
@@ -109,13 +163,13 @@ const Balance = () => {
                     <div className="flex justify-between text-xs">
                         <span className="text-gray-400">Total Deposited:</span>
                         <span className="text-white">
-                            {balanceData.currency} {Number.parseFloat(balanceData.total_deposited.toString()).toFixed(2)}
+                            {balanceData.currency} {balanceData.total_deposited.toFixed(2)}
                         </span>
                     </div>
                     <div className="flex justify-between text-xs">
                         <span className="text-gray-400">Total Spent:</span>
                         <span className="text-white">
-                            {balanceData.currency} {Number.parseFloat(balanceData.total_order_amount.toString()).toFixed(2)}
+                            {balanceData.currency} {balanceData.total_order_amount.toFixed(2)}
                         </span>
                     </div>
                     <div className="flex justify-between text-xs">

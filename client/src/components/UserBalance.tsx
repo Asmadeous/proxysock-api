@@ -1,6 +1,7 @@
 "use client"
-import React, { useState, useEffect } from 'react';
-import * as authService from '../services/railsAuth';
+import React, { useState, useEffect, useCallback } from 'react';
+
+import DepositPayment from '../pages/DepositPayments';
 import { Wallet, CreditCard, Bitcoin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { fetchBalance } from '../services/api';
+import api from '../services/api';
 
 interface BalanceProps {
   className?: string;
@@ -66,6 +69,7 @@ const PaymentMethodCard = ({
 
 const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" }) => {
   const [balance, setBalance] = useState<number | null>(null);
+  const [currency, setCurrency] = useState<string>('USD');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
   const [amount, setAmount] = useState('');
@@ -77,52 +81,32 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
     checkout_url?: string;
     payment_id?: string;
   } | null>(null);
-  const [user, setUser] = useState<any>(null);
 
-  // const fetchExchangeRate = async (): Promise<number> => {
-  //   // TODO: Implement actual exchange rate fetching from Rails API
-  //   // returning mock rate for now to prevent crashes
-  //   return 1500;
-  // };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchUserAndBalance = async () => {
-      try {
-        const meData = await authService.getCurrentUser();
-        if (!mounted) return;
-
-        if (!meData || !meData.user) {
-          setError('Please log in to view balance');
-          return;
-        }
-
-        setUser(meData.user);
-        setBalance(meData.wallet_balance || 0);
-      } catch (err) {
-        if (mounted) {
-          setError('Failed to load balance');
-        }
+  const loadBalance = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('Please log in to view balance');
+        return;
       }
-    };
-
-    fetchUserAndBalance();
-
-    // Poll for balance updates every 30 seconds instead of using websocket
-    const interval = setInterval(fetchUserAndBalance, 30000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
+      const { data } = await fetchBalance();
+      setBalance(data.available_balance ?? 0);
+      setCurrency(data.currency || 'USD');
+      setError(null);
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        setError('Please log in to view balance');
+      } else {
+        setError('Failed to load balance');
+      }
+    }
   }, []);
 
+  useEffect(() => {
+    loadBalance();
+  }, [loadBalance]);
+
   const handleOpenModal = () => {
-    if (!user) {
-      setError('Please log in to add funds');
-      return;
-    }
     setIsModalOpen(true);
     setError(null);
     setAmount('');
@@ -141,11 +125,10 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
     e.preventDefault();
     setError(null);
     setLoading(true);
-    let total = Number.parseFloat(amount);
-    // let convertedAmount = total;
+    const total = Number.parseFloat(amount);
 
-    if (Number.isNaN(total) || total < 0.01) {
-      setError('Amount must be at least $0.01');
+    if (Number.isNaN(total) || total < 10) {
+      setError('Amount must be at least $10');
       setLoading(false);
       return;
     }
@@ -155,17 +138,21 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       return;
     }
 
-    // Logic irrelevant as endpoint is not implemented
-    if (paymentMethod === 'paystack') {
-      // Placeholder for future implementation
-    }
-
     try {
-      // TODO: Implement deposit endpoint in Rails API
-      // For now, we'll just throw an error as the endpoint doesn't exist yet in the new system
-      throw new Error('Deposit system is currently under maintenance. Please contact support.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initiate deposit');
+      const strippedGateway = paymentMethod.replace("crypto_", "");
+      const { data } = await api.post('/web/api/wallet/deposit', {
+        amount: total,
+        gateway: strippedGateway,
+        currency: 'USD'
+      });
+
+      if (data?.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        setError('Failed to generate payment link');
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err.message || 'Failed to initiate deposit');
     } finally {
       setLoading(false);
     }
@@ -174,7 +161,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
   const formatBalance = (val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: currency,
       minimumFractionDigits: 2
     }).format(val);
   };
@@ -191,7 +178,6 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
           </div>
           <Button
             onClick={handleOpenModal}
-            disabled={!user}
             size="sm"
             variant="secondary"
             className="w-full h-8 text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
@@ -202,8 +188,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
       ) : (
         <Button
           onClick={handleOpenModal}
-          disabled={!user}
-          title={!user ? "Please log in to view balance" : "Click to add funds"}
+          title="Click to add funds"
           className="gap-2"
         >
           <Wallet className="h-4 w-4" />
@@ -231,10 +216,10 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount (min: $0.01, max: $10,000)"
-                  min="0.01"
+                  placeholder="Enter amount (min: $10.00, max: $10,000)"
+                  min="10"
                   max="10000"
-                  step="0.01"
+                  step="1"
                   required
                   disabled={loading}
                 />
@@ -252,7 +237,6 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                   Payment Method
                 </Label>
                 <div className="space-y-3">
-
                   <PaymentMethodCard
                     id="paystack"
                     title="Pay with Card (Paystack)"
@@ -326,10 +310,15 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
               <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
                 <CardContent className="py-3 px-4">
                   <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                    Payment processing is coming soon.
+                    Payment session created successfully! Complete your payment to add funds.
                   </p>
                 </CardContent>
               </Card>
+              <DepositPayment
+                clientSecret={paymentData.client_secret}
+                paymentUrl={paymentData.payment_url || paymentData.checkout_url}
+                onCancel={handleCloseModal}
+              />
             </div>
           )}
         </DialogContent>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   EnvelopeIcon,
@@ -11,23 +11,26 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   ArrowRightIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
+import { getCountries, getCitiesForCountry } from "../../../data/countryCities";
+import { checkUsername as checkUsernameApi } from "../../../services/api";
+import SearchableSelect from "../../ui/SearchableSelect";
 
 interface RegisterFormProps {
   firstName: string;
-  setFirstName: (name: string) => void;
+  setFirstName: (v: string) => void;
   lastName: string;
-  setLastName: (name: string) => void;
+  setLastName: (v: string) => void;
   username: string;
-  setUsername: (username: string) => void;
+  setUsername: (v: string) => void;
   email: string;
   setEmail: (email: string) => void;
   password: string;
   setPassword: (password: string) => void;
   passwordConfirmation: string;
-  setPasswordConfirmation: (password: string) => void;
-  avatar: File | null;
-  setAvatar: (file: File | null) => void;
+  setPasswordConfirmation: (v: string) => void;
   country: string;
   setCountry: (country: string) => void;
   city: string;
@@ -42,8 +45,8 @@ interface RegisterFormProps {
   submitAttempts: number;
   passwordError: string | null;
   passwordStrength: number;
-  phone?: string;
-  setPhone?: (phone: string) => void;
+  profilePictureUrl: string;
+  setProfilePictureUrl: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -60,8 +63,6 @@ export default function RegisterForm({
   setPassword,
   passwordConfirmation,
   setPasswordConfirmation,
-  // avatar,
-  // setAvatar,
   country,
   setCountry,
   city,
@@ -76,6 +77,8 @@ export default function RegisterForm({
   submitAttempts,
   passwordError,
   passwordStrength,
+  profilePictureUrl,
+  setProfilePictureUrl,
   onSubmit,
 }: RegisterFormProps) {
   const passwordStrengthColors = [
@@ -87,8 +90,86 @@ export default function RegisterForm({
   ];
   const passwordStrengthLabels = ["", "Weak", "Fair", "Good", "Strong"];
 
-  // Debug log to verify new code is running
-  console.log("RegisterForm rendering - with Name fields");
+  // Username availability state
+  const [usernameStatus, setUsernameStatus] = useState<{
+    checking: boolean;
+    available: boolean | null;
+    message: string;
+  }>({ checking: false, available: null, message: "" });
+  const usernameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced username check
+  useEffect(() => {
+    if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
+
+    if (!username || username.length < 3) {
+      setUsernameStatus({
+        checking: false,
+        available: username.length > 0 ? false : null,
+        message: username.length > 0 ? "Username must be at least 3 characters" : "",
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        message: "Only letters, numbers, and underscores allowed",
+      });
+      return;
+    }
+
+    setUsernameStatus({ checking: true, available: null, message: "Checking..." });
+
+    usernameDebounce.current = setTimeout(async () => {
+      try {
+        const { data } = await checkUsernameApi(username);
+        setUsernameStatus({
+          checking: false,
+          available: data.available,
+          message: data.message,
+        });
+      } catch {
+        setUsernameStatus({
+          checking: false,
+          available: null,
+          message: "Could not verify username",
+        });
+      }
+    }, 500);
+
+    return () => {
+      if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
+    };
+  }, [username]);
+
+  // Password confirmation match
+  const passwordsMatch = passwordConfirmation.length > 0 && password === passwordConfirmation;
+  const passwordsMismatch = passwordConfirmation.length > 0 && password !== passwordConfirmation;
+
+  // Memoize country options with flag URLs
+  const countryOptions = useMemo(() => {
+    return getCountries().map((c) => ({
+      value: c.isoCode,
+      label: c.name,
+      flagUrl: `https://flagcdn.com/w40/${c.isoCode.toLowerCase()}.png`,
+    }));
+  }, []);
+
+  // City options
+  const cityOptions = useMemo(() => {
+    if (!country) return [];
+    return getCitiesForCountry(country).map((c) => ({
+      value: c.name,
+      label: c.name,
+    }));
+  }, [country]);
+
+  const handleCountryChange = (val: string) => {
+    setCountry(val);
+    setCity("");
+  };
 
   return (
     <div className="bg-card/50 backdrop-blur-xl rounded-2xl border border-border shadow-xl p-6">
@@ -104,8 +185,7 @@ export default function RegisterForm({
               <div className="flex items-center space-x-2 mt-1">
                 <ClockIcon className="h-4 w-4 text-destructive" />
                 <p className="text-destructive text-sm font-inter-regular">
-                  Wait {Math.floor(remainingTime / 60)}m{" "}
-                  {remainingTime % 60}s
+                  Wait {Math.floor(remainingTime / 60)}m {remainingTime % 60}s
                 </p>
               </div>
             </div>
@@ -123,16 +203,11 @@ export default function RegisterForm({
         </div>
       )}
 
-      {/* Registration Form */}
       <form onSubmit={onSubmit} className="space-y-4">
-        {/* Name Fields */}
-        {/* Name Fields - Simplified Layout */}
-        <div className="space-y-4">
+        {/* First Name & Last Name */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label
-              htmlFor="firstName"
-              className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-            >
+            <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
               First Name
             </label>
             <div className="relative">
@@ -150,12 +225,8 @@ export default function RegisterForm({
               />
             </div>
           </div>
-
           <div>
-            <label
-              htmlFor="lastName"
-              className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-            >
+            <label htmlFor="lastName" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
               Last Name
             </label>
             <div className="relative">
@@ -175,36 +246,52 @@ export default function RegisterForm({
           </div>
         </div>
 
-        {/* Username Field */}
+        {/* Username with live availability */}
         <div>
-          <label
-            htmlFor="username"
-            className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-          >
+          <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
             Username
           </label>
           <div className="relative">
-            <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-sm font-medium pointer-events-none">@</span>
             <input
               id="username"
               name="username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
               disabled={isLoading || isRateLimited}
               required
-              placeholder="johndoe123"
-              className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
+              placeholder="johndoe"
+              maxLength={30}
+              className={`pl-8 pr-10 py-3 w-full rounded-lg border bg-background focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular ${usernameStatus.available === true
+                ? "border-green-500 focus:border-green-500"
+                : usernameStatus.available === false
+                  ? "border-destructive focus:border-destructive"
+                  : "border-input focus:border-ring"
+                }`}
             />
+            {/* Status icon */}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {usernameStatus.checking ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              ) : usernameStatus.available === true ? (
+                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+              ) : usernameStatus.available === false ? (
+                <XCircleIcon className="h-5 w-5 text-destructive" />
+              ) : null}
+            </div>
           </div>
+          {usernameStatus.message && (
+            <p className={`text-xs mt-1 font-inter-regular ${usernameStatus.available === true ? "text-green-600" : usernameStatus.available === false ? "text-destructive" : "text-muted-foreground"
+              }`}>
+              {usernameStatus.message}
+            </p>
+          )}
         </div>
 
-        {/* Email Field */}
+        {/* Email */}
         <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-          >
+          <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
             Email Address
           </label>
           <div className="relative">
@@ -223,12 +310,9 @@ export default function RegisterForm({
           </div>
         </div>
 
-        {/* Password Field with Strength Indicator */}
+        {/* Password */}
         <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-          >
+          <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
             Password
           </label>
           <div className="relative">
@@ -250,38 +334,26 @@ export default function RegisterForm({
               disabled={isLoading || isRateLimited}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              {showPassword ? (
-                <EyeSlashIcon className="h-5 w-5" />
-              ) : (
-                <EyeIcon className="h-5 w-5" />
-              )}
+              {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
           </div>
-          {/* Password Strength Bar */}
           {password && (
             <div className="mt-2">
               <div className="flex space-x-1">
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < passwordStrength
-                      ? passwordStrengthColors[passwordStrength]
-                      : "bg-muted"
+                    className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < passwordStrength ? passwordStrengthColors[passwordStrength] : "bg-muted"
                       }`}
                   />
                 ))}
               </div>
               {passwordStrength > 0 && (
-                <p
-                  className={`text-xs mt-1 font-inter-regular ${passwordStrength === 1
-                    ? "text-destructive"
-                    : passwordStrength === 2
-                      ? "text-yellow-600"
-                      : passwordStrength === 3
-                        ? "text-blue-600"
-                        : "text-green-600"
-                    }`}
-                >
+                <p className={`text-xs mt-1 font-inter-regular ${passwordStrength === 1 ? "text-destructive"
+                  : passwordStrength === 2 ? "text-yellow-600"
+                    : passwordStrength === 3 ? "text-blue-600"
+                      : "text-green-600"
+                  }`}>
                   {passwordStrengthLabels[passwordStrength]} password
                 </p>
               )}
@@ -289,12 +361,9 @@ export default function RegisterForm({
           )}
         </div>
 
-        {/* Password Confirmation Field */}
+        {/* Confirm Password */}
         <div>
-          <label
-            htmlFor="passwordConfirmation"
-            className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-          >
+          <label htmlFor="passwordConfirmation" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
             Confirm Password
           </label>
           <div className="relative">
@@ -307,65 +376,93 @@ export default function RegisterForm({
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               disabled={isLoading || isRateLimited}
               required
-              placeholder="Confirm your password"
-              className="pl-10 pr-10 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
+              placeholder="Re-enter your password"
+              className={`pl-10 pr-10 py-3 w-full rounded-lg border bg-background focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular ${passwordsMatch
+                ? "border-green-500 focus:border-green-500"
+                : passwordsMismatch
+                  ? "border-destructive focus:border-destructive"
+                  : "border-input focus:border-ring"
+                }`}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {passwordsMatch ? (
+                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+              ) : passwordsMismatch ? (
+                <XCircleIcon className="h-5 w-5 text-destructive" />
+              ) : null}
+            </div>
+          </div>
+          {passwordsMismatch && (
+            <p className="text-xs mt-1 text-destructive font-inter-regular">
+              Passwords do not match
+            </p>
+          )}
+        </div>
+
+        {/* Country & City Dropdowns */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="country" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
+              Country
+            </label>
+            <SearchableSelect
+              id="country"
+              options={countryOptions}
+              value={country}
+              onChange={handleCountryChange}
+              placeholder="Select country"
+              disabled={isLoading || isRateLimited}
+              required
+              icon={<GlobeAltIcon className="h-5 w-5 text-muted-foreground" />}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="city" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
+              City
+            </label>
+            {country && cityOptions.length === 0 ? (
+              <div className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background text-muted-foreground font-inter-regular text-sm relative">
+                <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                No cities available
+              </div>
+            ) : (
+              <SearchableSelect
+                id="city"
+                options={cityOptions}
+                value={city}
+                onChange={setCity}
+                placeholder={country ? "Select city" : "Select country first"}
+                disabled={isLoading || isRateLimited || !country}
+                required={cityOptions.length > 0}
+                icon={<MapPinIcon className="h-5 w-5 text-muted-foreground" />}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Profile Picture URL */}
+        <div>
+          <label htmlFor="profilePictureUrl" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
+            Profile Picture URL (Optional)
+          </label>
+          <div className="relative">
+            <GlobeAltIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <input
+              id="profilePictureUrl"
+              name="profilePictureUrl"
+              type="url"
+              value={profilePictureUrl}
+              onChange={(e) => setProfilePictureUrl(e.target.value)}
+              disabled={isLoading || isRateLimited}
+              placeholder="https://example.com/photo.jpg"
+              className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
             />
           </div>
         </div>
 
-        {/* Avatar Field Removed */}
-
-        {/* Location Fields */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="country"
-              className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-            >
-              Country
-            </label>
-            <div className="relative">
-              <GlobeAltIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                id="country"
-                name="country"
-                type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                disabled={isLoading || isRateLimited}
-                required
-                placeholder="United States"
-                className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="city"
-              className="block text-sm font-medium text-foreground mb-2 font-manrope-medium"
-            >
-              City
-            </label>
-            <div className="relative">
-              <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                id="city"
-                name="city"
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                disabled={isLoading || isRateLimited}
-                required
-                placeholder="New York"
-                className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Terms Checkbox */}
-        <div className="flex items-start items-center">
+        {/* Terms */}
+        <div className="flex items-start">
           <input
             id="terms"
             type="checkbox"
@@ -374,31 +471,22 @@ export default function RegisterForm({
             disabled={isLoading || isRateLimited}
             className="h-4 w-4 rounded border-input text-primary focus:ring-ring disabled:opacity-50"
           />
-          <label
-            htmlFor="terms"
-            className="ml-2 block text-sm text-foreground font-inter-regular"
-          >
+          <label htmlFor="terms" className="ml-2 block text-sm text-foreground font-inter-regular">
             I agree to the{" "}
-            <Link
-              to="/terms"
-              className="text-primary hover:text-primary/80 transition-colors font-manrope-medium"
-            >
+            <Link to="/terms" className="text-primary hover:text-primary/80 transition-colors font-manrope-medium">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link
-              to="/privacy"
-              className="text-primary hover:text-primary/80 transition-colors font-manrope-medium"
-            >
+            <Link to="/privacy" className="text-primary hover:text-primary/80 transition-colors font-manrope-medium">
               Privacy Policy
             </Link>
           </label>
         </div>
 
-        {/* Submit Button */}
+        {/* Submit */}
         <button
           type="submit"
-          disabled={(isLoading || submitAttempts >= 5 || isRateLimited) || !agreedToTerms}
+          disabled={isLoading || submitAttempts >= 5 || isRateLimited || !agreedToTerms || passwordsMismatch || usernameStatus.available !== true}
           className="w-full bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 font-manrope-semibold"
         >
           {isLoading ? (
@@ -423,10 +511,7 @@ export default function RegisterForm({
       <div className="text-center mt-6">
         <p className="text-sm text-muted-foreground font-inter-regular">
           Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-medium text-primary hover:text-primary/80 transition-colors font-manrope-semibold"
-          >
+          <Link to="/login" className="font-medium text-primary hover:text-primary/80 transition-colors font-manrope-semibold">
             Sign in
           </Link>
         </p>

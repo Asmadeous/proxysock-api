@@ -140,7 +140,7 @@ export default function MyAccount() {
               <div className="flex justify-between">
                 <span className="text-gray-400">Member Since</span>
                 <span className="text-white">
-                  {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString() : "N/A"}
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -150,8 +150,8 @@ export default function MyAccount() {
               <div className="flex justify-between">
                 <span className="text-gray-400">Next Billing Date</span>
                 <span className="text-white">
-                  {(user as any)?.nextBillingDate
-                    ? new Date((user as any).nextBillingDate).toLocaleDateString()
+                  {user?.nextBillingDate
+                    ? new Date(user.nextBillingDate).toLocaleDateString()
                     : "N/A"}
                 </span>
               </div>

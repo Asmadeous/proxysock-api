@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useCallback, useRef, useEffect } from "react";
-import * as authService from "../services/railsAuth";
+
 import { toast } from "react-hot-toast";
 import { conversionTracker } from "../utils/redditPixel";
+import { registerUser } from "../services/api";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import {
   RegisterHeader,
@@ -17,6 +18,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogle, faXTwitter } from "@fortawesome/free-brands-svg-icons";
 
 
+
 export default function Register() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -25,13 +27,13 @@ export default function Register() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
-  const [avatar, setAvatar] = useState<File | null>(null);
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState("");
 
   // Enhanced rate limiting state
   const [submitAttempts, setSubmitAttempts] = useState(0);
@@ -143,21 +145,20 @@ export default function Register() {
     return false;
   }, [submitAttempts, isRateLimited, rateLimitResetTime]);
 
-  // Handle rate limit errors
+  // Handle rate limit errors from Supabase
   const handleRateLimitError = (error: any) => {
     const now = Date.now();
     let resetTime = now + 60 * 60 * 1000; // Default 1 hour
     let type: "email" | "ip" | "general" = "general";
-    const errorMessage = error.message || error.toString();
 
     // Parse different types of rate limit errors
-    if (errorMessage.toLowerCase().includes("email rate limit")) {
+    if (error.message.includes("email rate limit")) {
       type = "email";
       resetTime = now + 60 * 60 * 1000; // 1 hour for email limits
       toast.error(
         "Email rate limit exceeded. Try a different email or wait 1 hour."
       );
-    } else if (errorMessage.toLowerCase().includes("rate limit")) {
+    } else if (error.message.includes("rate limit")) {
       type = "ip";
       resetTime = now + 24 * 60 * 60 * 1000; // 24 hours for IP limits
       toast.error(
@@ -185,17 +186,14 @@ export default function Register() {
   const handleGoogleSignIn = () => {
     if (googleLoading || xLoading || isRateLimited) return;
     setGoogleLoading(true);
-    authService.signInWithOAuth("google");
-    // Redirect happens immediately, but if we stay:
-    setTimeout(() => setGoogleLoading(false), 5000);
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/google`;
   };
 
   // X (Twitter) OAuth Sign In
   const handleXSignIn = () => {
     if (googleLoading || xLoading || isRateLimited) return;
     setXLoading(true);
-    authService.signInWithOAuth("twitter");
-    setTimeout(() => setXLoading(false), 5000);
+    window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/web/api/auth/twitter`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,22 +216,26 @@ export default function Register() {
       return;
     }
 
-    if (password !== passwordConfirmation) {
-      toast.error("Passwords do not match");
+    if (!agreedToTerms) {
+      toast.error("Please agree to the Terms of Service and Privacy Policy");
       return;
     }
 
-    try {
-      setIsLoading(true);
+    setIsLoading(true);
+    setPasswordError(null);
+    lastSubmitTime.current = Date.now();
 
-      const data = await authService.register({
+    try {
+      const { data } = await registerUser({
         email,
         password,
         password_confirmation: passwordConfirmation,
         first_name: firstName,
         last_name: lastName,
-        username: username,
-        avatar: avatar || undefined,
+        username,
+        country,
+        city,
+        profile_picture_url: profilePictureUrl,
       });
 
       // Reset all rate limiting state on success
@@ -247,7 +249,7 @@ export default function Register() {
       if (data.user) {
         try {
           await conversionTracker.trackSignUp({
-            userId: data.user.id.toString(),
+            userId: data.user.id,
             email: email,
             method: "email",
           });
@@ -265,7 +267,7 @@ export default function Register() {
       }
 
       console.log("User created:", data.user);
-      toast.success("Account created! Redirecting...");
+      toast.success("Account created! Check your email to verify.");
 
       // Clear form data on success
       setEmail("");
@@ -276,27 +278,32 @@ export default function Register() {
       setUsername("");
       setCountry("");
       setCity("");
+      setProfilePictureUrl("");
 
-      // Redirect to home or verification page (Rails API handles verification logic internally or returns active user)
       setTimeout(() => navigate("/wait-for-verification"), 1500);
-
     } catch (error: any) {
       console.error("Registration failed:", error);
       setSubmitAttempts((prev) => prev + 1);
 
       // Enhanced error messages
-      // Axios error data is usually in error.response.data
-      const errorData = error.response?.data;
-      const errorMessage = errorData?.error || errorData?.errors?.join(", ") || error.message || "Registration failed";
+      let errorMessage = "Registration failed. Please check your details.";
 
-      if (error.response?.status === 429 || errorMessage.toLowerCase().includes("rate limit")) {
-        handleRateLimitError({ message: errorMessage });
+      if (error.status === 429 || error.message.includes("rate limit")) {
+        handleRateLimitError(error);
         return;
-      } else if (errorMessage.includes("already registered") || errorMessage.includes("taken")) {
-        toast.error("An account with this email already exists. Try signing in instead.");
-      } else {
-        toast.error(errorMessage);
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.message.includes("Password")) {
+        errorMessage = "Password doesn't meet requirements.";
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("fetch")
+      ) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
       }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -356,101 +363,98 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-background scroll-smooth">
-          <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-12">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="w-full max-w-lg"
-            >
-              <div className="space-y-6">
-                {/* Form Header */}
-                <RegisterHeader />
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="w-full max-w-lg"
+          >
+            <div className="space-y-6">
+              {/* Form Header */}
+              <RegisterHeader />
 
 
 
-                {/* Registration Form */}
-                {/* Registration Form */}
-                <RegisterForm
-                  firstName={firstName}
-                  setFirstName={setFirstName}
-                  lastName={lastName}
-                  setLastName={setLastName}
-                  username={username}
-                  setUsername={setUsername}
-                  email={email}
-                  setEmail={setEmail}
-                  password={password}
-                  setPassword={setPassword}
-                  passwordConfirmation={passwordConfirmation}
-                  setPasswordConfirmation={setPasswordConfirmation}
-                  country={country}
-                  setCountry={setCountry}
-                  city={city}
-                  setCity={setCity}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  agreedToTerms={agreedToTerms}
-                  setAgreedToTerms={setAgreedToTerms}
-                  isLoading={isLoading}
-                  isRateLimited={isRateLimited}
-                  remainingTime={remainingTime}
-                  submitAttempts={submitAttempts}
-                  passwordError={passwordError}
-                  passwordStrength={passwordStrength}
-                  onSubmit={handleSubmit}
-                  avatar={avatar}
-                  setAvatar={setAvatar}
-                />
+              {/* Registration Form */}
+              <RegisterForm
+                firstName={firstName}
+                setFirstName={setFirstName}
+                lastName={lastName}
+                setLastName={setLastName}
+                username={username}
+                setUsername={setUsername}
+                email={email}
+                setEmail={setEmail}
+                password={password}
+                setPassword={setPassword}
+                passwordConfirmation={passwordConfirmation}
+                setPasswordConfirmation={setPasswordConfirmation}
+                country={country}
+                setCountry={setCountry}
+                city={city}
+                setCity={setCity}
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                agreedToTerms={agreedToTerms}
+                setAgreedToTerms={setAgreedToTerms}
+                isLoading={isLoading}
+                isRateLimited={isRateLimited}
+                remainingTime={remainingTime}
+                submitAttempts={submitAttempts}
+                passwordError={passwordError}
+                passwordStrength={passwordStrength}
+                profilePictureUrl={profilePictureUrl}
+                setProfilePictureUrl={setProfilePictureUrl}
+                onSubmit={handleSubmit}
+              />
 
-                {/* Social Login Buttons */}
-                <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-6">
-                  <div className="space-y-4">
-                    <button
-                      type="button"
-                      onClick={handleGoogleSignIn}
-                      disabled={isOAuthDisabled}
-                      className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
-                    >
-                      {googleLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500 mr-3"></div>
-                      ) : (
-                        <FontAwesomeIcon
-                          icon={faGoogle}
-                          className="h-5 w-5 text-red-500 mr-3"
-                        />
-                      )}
-                      <span className="text-gray-800 font-medium">
-                        {googleLoading
-                          ? "Connecting to Google..."
-                          : "Continue with Google"}
-                      </span>
-                    </button>
+              {/* Social Login Buttons */}
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-6">
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={isOAuthDisabled}
+                    className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+                  >
+                    {googleLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500 mr-3"></div>
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={faGoogle}
+                        className="h-5 w-5 text-red-500 mr-3"
+                      />
+                    )}
+                    <span className="text-gray-800 font-medium">
+                      {googleLoading
+                        ? "Connecting to Google..."
+                        : "Continue with Google"}
+                    </span>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={handleXSignIn}
-                      disabled={isOAuthDisabled}
-                      className="w-full flex items-center justify-center px-6 py-4 bg-black hover:bg-gray-900 border border-gray-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
-                    >
-                      {xLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      ) : (
-                        <FontAwesomeIcon
-                          icon={faXTwitter}
-                          className="h-5 w-5 text-white mr-3"
-                        />
-                      )}
-                      <span className="text-white font-medium">
-                        {xLoading ? "Connecting to X..." : "Continue with X"}
-                      </span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleXSignIn}
+                    disabled={isOAuthDisabled}
+                    className="w-full flex items-center justify-center px-6 py-4 bg-black hover:bg-gray-900 border border-gray-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+                  >
+                    {xLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={faXTwitter}
+                        className="h-5 w-5 text-white mr-3"
+                      />
+                    )}
+                    <span className="text-white font-medium">
+                      {xLoading ? "Connecting to X..." : "Continue with X"}
+                    </span>
+                  </button>
                 </div>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
