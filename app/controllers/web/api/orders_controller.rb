@@ -7,18 +7,7 @@ module Web
 
       # GET /web/api/orders
       def index
-<<<<<<< HEAD
-        scope = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc)
-        
-        if params[:type].present?
-          scope = scope.joins(:product).where(products: { product_type: params[:type] })
-        end
-
-        orders = scope.limit(20)
-        
-=======
         orders = current_user.orders.includes(:product, :product_pricing).order(created_at: :desc).page(params[:page]).per(20)
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
           meta: pagination_meta(orders)
@@ -154,40 +143,25 @@ module Web
       private
 
       def serialize_order(order)
-        # Fetch provisioned resource if applicable
         resource = order.provisioned_resource
         
         base = {
           id: order.id,
-<<<<<<< HEAD
-          order_number: order.order_number,
-=======
           order_number: order.try(:order_number) || [order.id, order.created_at.to_i].join('-'),
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
-          # Specific attributes used by frontend filters
           proxy_type: order.product.product_type == 'proxy' ? order.product.metadata&.dig('category_slug') : nil,
           country: order.product.metadata&.dig('location_name') || order.product.metadata&.dig('location_code'),
           bandwidth_gb: order.product.metadata&.dig('data_gb') || 0,
           ips_included: order.product.metadata&.dig('ips_included') || 0,
           total_amount: order.total_amount,
-<<<<<<< HEAD
-          currency: order.currency,
-          status: order.status,
-          created_at: order.created_at,
-          expires_at: order.expires_at,
-          metadata: order.metadata
-=======
           amount: order.total_amount,
           currency: order.product_pricing&.currency || 'USD',
           status: order.status == 'active' ? 'completed' : order.status,
           created_at: order.created_at,
           expires_at: resource.try(:expires_at),
-          # Payment method info
           payment_method: 'wallet'
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         }
 
         # Include product-specific details
@@ -234,7 +208,6 @@ module Web
       end
 
       def generate_order_payment_link(gateway, order, amount)
-        # Similar to deposit but for orders
         callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
 
         case gateway

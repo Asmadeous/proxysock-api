@@ -4,21 +4,6 @@ module Web
   module Api
     class AuthController < BaseController
       # POST /web/api/auth/register
-<<<<<<< HEAD
-      # POST /web/api/auth/register
-      skip_before_action :authenticate_request, only: %i[register login google twitter google_callback twitter_callback failure verify_email forgot_password reset_password]
-
-      def register
-        user = User.new(register_params)
-        user.status = 'pending'
-
-        if user.save
-          UserMailer.verification_email(user, user.generate_token_for(:email_verification)).deliver_later
-          
-          render json: {
-            message: 'Registration successful. Please verify your email.',
-            user: serialize_user(user)
-=======
       skip_before_action :authenticate_request, only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter google_callback twitter_callback failure]
 
       def register
@@ -36,53 +21,9 @@ module Web
             message: 'Registration successful. Please check your email to confirm your account.',
             user: serialize_user(user),
             token: token
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           }, status: :created
         else
           render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
-        end
-      end
-
-      # POST /web/api/auth/verify_email
-      def verify_email
-        token = params[:token]
-        user = User.find_by_token_for(:email_verification, token)
-
-        if user
-          user.update!(status: 'active', email_verified_at: Time.current)
-          token = user.generate_jwt
-          
-          render json: {
-            message: 'Email verified successfully',
-            user: serialize_user(user),
-            token: token
-          }
-        else
-          render json: { error: 'Invalid or expired verification link' }, status: :unprocessable_entity
-        end
-      end
-
-      # POST /web/api/auth/forgot_password
-      def forgot_password
-        user = User.find_by(email: params[:email])
-
-        if user
-          UserMailer.password_reset_email(user, user.generate_token_for(:password_reset)).deliver_later
-        end
-
-        # Always return success to prevent email enumeration
-        render json: { message: 'If an account exists with this email, you will receive password reset instructions.' }
-      end
-
-      # POST /web/api/auth/reset_password
-      def reset_password
-        token = params[:token]
-        user = User.find_by_token_for(:password_reset, token)
-
-        if user && user.update(password: params[:password], password_confirmation: params[:password_confirmation])
-          render json: { message: 'Password reset successfully. You can now login.' }
-        else
-          render json: { error: 'Invalid or expired reset link, or passwords do not match' }, status: :unprocessable_entity
         end
       end
 
@@ -119,7 +60,6 @@ module Web
         user.update(last_login_at: Time.current)
         token = user.generate_jwt
 
-        # Return token (or redirect to frontend with token)
         render json: {
           message: 'Google login successful',
           user: serialize_user(user),
@@ -161,7 +101,6 @@ module Web
 
       # POST /web/api/auth/refresh - Refresh JWT token
       def refresh
-        # current_user is already authenticated via before_action
         token = current_user.generate_jwt
 
         render json: {
@@ -169,44 +108,6 @@ module Web
           user: serialize_user(current_user),
           token: token
         }
-      end
-
-      # PUT /web/api/auth/me
-      def update
-        if current_user.update(register_params)
-          # Update metadata fields
-          meta = current_user.metadata || {}
-          meta['country'] = params[:user][:country] if params[:user][:country].present?
-          meta['city'] = params[:user][:city] if params[:user][:city].present?
-          current_user.update(metadata: meta)
-
-          render json: {
-            message: 'Profile updated successfully',
-            user: serialize_user(current_user)
-          }
-        else
-          render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
-        end
-      end
-
-      # DELETE /web/api/auth/logout
-      def logout
-        # For stateless JWT, we just return success
-        # Client should discard the token
-        # If using session tracking, invalidate here
-        current_user.user_sessions.where(active: true).update_all(active: false) if current_user.respond_to?(:user_sessions)
-
-        render json: { message: 'Logged out successfully' }
-      end
-
-      # OAuth failure callback
-      def failure
-        render json: { error: params[:message] || 'Authentication failed' }, status: :unauthorized
-      end
-
-      # GET /web/api/auth/me – returns current user from JWT
-      def me
-        render json: { user: serialize_user(current_user) }
       end
 
       # PATCH /web/api/auth/update_profile
@@ -246,6 +147,17 @@ module Web
         else
           render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      # DELETE /web/api/auth/logout
+      def logout
+        current_user.user_sessions.where(active: true).update_all(active: false) if current_user.respond_to?(:user_sessions)
+        render json: { message: 'Logged out successfully' }
+      end
+
+      # OAuth failure callback
+      def failure
+        render json: { error: params[:message] || 'Authentication failed' }, status: :unauthorized
       end
 
       # GET /web/api/auth/check_username?username=foo
@@ -296,7 +208,6 @@ module Web
       # POST /web/api/auth/forgot_password
       def forgot_password
         user = User.find_by(email: params[:email])
-        # Always return success to prevent email enumeration
         if user
           user.update!(
             password_reset_token: SecureRandom.urlsafe_base64(32),
@@ -332,11 +243,7 @@ module Web
       private
 
       def register_params
-<<<<<<< HEAD
-        params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :username, :phone, :avatar)
-=======
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone, :country, :city, :username, :profile_picture_url)
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       end
 
       def login_params
@@ -344,31 +251,19 @@ module Web
       end
 
       def serialize_user(user)
-<<<<<<< HEAD
-        meta = user.metadata || {}
-=======
         wallet = user.wallet
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         {
           id: user.id,
           email: user.email,
           first_name: user.first_name,
           last_name: user.last_name,
           username: user.username,
-<<<<<<< HEAD
-          avatar_url: user.avatar.attached? ? Rails.application.routes.url_helpers.rails_blob_url(user.avatar, only_path: true) : nil,
-          status: user.status,
-          country: meta['country'],
-          city: meta['city'],
-          created_at: user.created_at
-=======
           status: user.status,
           country: user.country,
           city: user.city,
           profile_picture_url: user.profile_picture_url,
           balance: wallet&.balance.to_f || 0.0,
           currency: wallet&.currency || 'USD'
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         }
       end
     end
