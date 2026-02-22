@@ -143,6 +143,7 @@ const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+import ChatWidget from "./components/ChatWidget";
 
 // Initialize Google Analytics (your existing code)
 ReactGA.initialize("UA-XXXXXXXXX-X");
@@ -304,6 +305,7 @@ export default function App() {
             </Routes>
           </Suspense>
           <CookieConsentBanner />
+          <ChatWidget />
         </AutoSEO>
       </HelmetProvider>
     </AuthProvider>
