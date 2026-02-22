@@ -19,6 +19,8 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
+  Ticket,
+  MessageSquare,
 } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
@@ -120,6 +122,24 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard/transactions",
         icon: Receipt,
         description: "Payment history & invoices",
+      },
+    ],
+  },
+  {
+    id: "support",
+    title: "SUPPORT",
+    items: [
+      {
+        name: "Support Tickets",
+        href: "/dashboard/tickets",
+        icon: Ticket,
+        description: "View and create support tickets",
+      },
+      {
+        name: "Live Chat",
+        href: "/dashboard/support-chat",
+        icon: MessageSquare,
+        description: "Chat with support team",
       },
     ],
   },
