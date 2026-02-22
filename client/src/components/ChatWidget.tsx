@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "../context/AuthContext";
+import { fetchUserSupportChat, sendUserSupportMessage } from "../services/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 interface Message {
     id: string;
     body: string;
-    sender_type: "guest" | "employee";
+    sender_type: "guest" | "employee" | "User" | "Employee";
     sender_name?: string;
     sender_online?: boolean;
     created_at: string;
@@ -25,8 +27,11 @@ interface ChatMetadata {
 }
 
 export default function ChatWidget() {
+    const { user } = useAuth();
+    const isAuthenticated = !!user;
+
     const [open, setOpen] = useState(false);
-    const [started, setStarted] = useState(false);
+    const [started, setStarted] = useState(isAuthenticated); // Auto-start for logged-in users
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [chat, setChat] = useState<ChatState>(() => {
@@ -40,19 +45,25 @@ export default function ChatWidget() {
 
     const scrollBottom = () => messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
 
-    // Persist chat state
+    // Auto-start for authenticated users
     useEffect(() => {
-        localStorage.setItem("guestChat", JSON.stringify(chat));
-        if (chat.sessionToken) setStarted(true);
-    }, [chat]);
+        if (isAuthenticated) setStarted(true);
+    }, [isAuthenticated]);
 
-    // Poll for messages if chat is active
+    // Persist guest chat state
+    useEffect(() => {
+        if (!isAuthenticated) {
+            localStorage.setItem("guestChat", JSON.stringify(chat));
+            if (chat.sessionToken) setStarted(true);
+        }
+    }, [chat, isAuthenticated]);
+
+    // Poll for messages
     const fetchMessages = useCallback(async () => {
-        if (!chat.sessionToken) return;
         try {
-            const res = await fetch(`${API_URL}/guest_chats/${chat.sessionToken}`);
-            if (res.ok) {
-                const data = await res.json();
+            if (isAuthenticated) {
+                // Authenticated user → use support_chats API
+                const { data } = await fetchUserSupportChat();
                 setMessages(data.messages || []);
                 if (data.chat) {
                     setChatMetadata({
@@ -60,17 +71,31 @@ export default function ChatWidget() {
                         assigned_to_online: data.chat.assigned_to_online
                     });
                 }
+            } else if (chat.sessionToken) {
+                // Guest → use guest_chats API
+                const res = await fetch(`${API_URL}/guest_chats/${chat.sessionToken}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setMessages(data.messages || []);
+                    if (data.chat) {
+                        setChatMetadata({
+                            assigned_to_name: data.chat.assigned_to_name,
+                            assigned_to_online: data.chat.assigned_to_online
+                        });
+                    }
+                }
             }
         } catch { /* polling error ignored */ }
-    }, [chat.sessionToken]);
+    }, [isAuthenticated, chat.sessionToken]);
 
     useEffect(() => {
-        if (open && chat.sessionToken) {
+        const canPoll = isAuthenticated || chat.sessionToken;
+        if (open && canPoll) {
             fetchMessages();
             pollRef.current = setInterval(fetchMessages, 5000);
         }
         return () => { if (pollRef.current) clearInterval(pollRef.current); };
-    }, [open, chat.sessionToken, fetchMessages]);
+    }, [open, isAuthenticated, chat.sessionToken, fetchMessages]);
 
     // Allow external components to open the chat
     useEffect(() => {
@@ -81,6 +106,7 @@ export default function ChatWidget() {
 
     useEffect(scrollBottom, [messages]);
 
+    // Guest: start new chat
     const startChat = async () => {
         if (!chat.guest_name.trim() || !chat.guest_email.trim()) return;
         setSending(true);
@@ -101,27 +127,46 @@ export default function ChatWidget() {
         setSending(false);
     };
 
+    // Send message (authenticated or guest)
     const sendMessage = async () => {
-        if (!input.trim() || !chat.sessionToken) return;
+        if (!input.trim()) return;
         setSending(true);
         try {
-            await fetch(`${API_URL}/guest_chats/${chat.sessionToken}/messages`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: input }),
-            });
+            if (isAuthenticated) {
+                await sendUserSupportMessage(input);
+            } else if (chat.sessionToken) {
+                await fetch(`${API_URL}/guest_chats/${chat.sessionToken}/messages`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: input }),
+                });
+            }
             setInput("");
             await fetchMessages();
         } catch { /* error */ }
         setSending(false);
     };
 
-    const handleKey = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); started ? sendMessage() : startChat(); } };
+    const handleKey = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            started ? sendMessage() : startChat();
+        }
+    };
 
-    // Don't render on admin/employee/reseller pages
-    if (typeof window !== "undefined" && (window.location.pathname.startsWith("/admin") || window.location.pathname.startsWith("/employee") || window.location.pathname.startsWith("/reseller") || window.location.pathname.startsWith("/dashboard") || window.location.pathname.startsWith("/user"))) {
+    // Don't render on any dashboard pages
+    if (typeof window !== "undefined" && (
+        window.location.pathname.startsWith("/admin") ||
+        window.location.pathname.startsWith("/sadmin") ||
+        window.location.pathname.startsWith("/employee") ||
+        window.location.pathname.startsWith("/reseller") ||
+        window.location.pathname.startsWith("/dashboard")
+    )) {
         return null;
     }
+
+    const isMe = (senderType: string) =>
+        senderType === "guest" || senderType === "User";
 
     return (
         <>
@@ -158,7 +203,7 @@ export default function ChatWidget() {
                     </div>
 
                     {!started ? (
-                        /* Start Form */
+                        /* Guest Start Form */
                         <div className="flex-1 flex flex-col p-4 gap-3 justify-center">
                             <h3 className="text-foreground font-semibold text-center">Start a Conversation</h3>
                             <p className="text-muted-foreground text-xs text-center">Enter your details below and we'll get back to you shortly.</p>
@@ -184,29 +229,43 @@ export default function ChatWidget() {
                     ) : (
                         /* Messages */
                         <>
-                            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                                {messages.length === 0 && (
-                                    <p className="text-muted-foreground text-xs text-center mt-8">Your conversation will appear here…</p>
-                                )}
-                                {messages.map((m) => (
-                                    <div key={m.id} className={`flex ${m.sender_type === "guest" ? "justify-end" : "justify-start"}`}>
-                                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.sender_type === "guest" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md shadow-sm"
-                                            }`}>
-                                            {m.sender_type === "employee" && (
-                                                <p className="text-[10px] text-primary font-bold mb-1 flex items-center gap-1">
-                                                    {m.sender_name || "Support"}
-                                                    <span className={`h-1.5 w-1.5 rounded-full ${m.sender_online ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]' : 'bg-gray-400'}`} title={m.sender_online ? "Online" : "Offline"} />
-                                                </p>
-                                            )}
-                                            <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                                            <p className={`text-[10px] mt-1 ${m.sender_type === "guest" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                                                {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                            </p>
-                                        </div>
+                            {/* Authenticated user greeting */}
+                            {isAuthenticated && messages.length === 0 && (
+                                <div className="p-4 text-center space-y-2 flex-1 flex flex-col items-center justify-center">
+                                    <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <ChatBubbleLeftRightIcon className="h-7 w-7 text-primary" />
                                     </div>
-                                ))}
-                                <div ref={messagesEnd} />
-                            </div>
+                                    <p className="text-sm font-medium text-foreground">
+                                        Hey {user?.first_name || user?.username || "there"}! 👋
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Send a message to chat with our support team.
+                                    </p>
+                                </div>
+                            )}
+
+                            {messages.length > 0 && (
+                                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                                    {messages.map((m) => (
+                                        <div key={m.id} className={`flex ${isMe(m.sender_type) ? "justify-end" : "justify-start"}`}>
+                                            <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${isMe(m.sender_type) ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md shadow-sm"
+                                                }`}>
+                                                {!isMe(m.sender_type) && (
+                                                    <p className="text-[10px] text-primary font-bold mb-1 flex items-center gap-1">
+                                                        {m.sender_name || "Support"}
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${m.sender_online ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]' : 'bg-gray-400'}`} title={m.sender_online ? "Online" : "Offline"} />
+                                                    </p>
+                                                )}
+                                                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                                                <p className={`text-[10px] mt-1 ${isMe(m.sender_type) ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                                                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div ref={messagesEnd} />
+                                </div>
+                            )}
 
                             {/* Input */}
                             <div className="px-3 py-2 border-t border-border flex items-center gap-2 flex-shrink-0">
