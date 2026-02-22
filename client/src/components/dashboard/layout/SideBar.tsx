@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import {
@@ -24,7 +25,7 @@ import {
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
 import NotificationBell from "@/components/NotificationBell";
-import { fetchNotifications, markNotificationsAsRead } from "@/services/api";
+import { fetchNotifications, markNotificationsAsRead, fetchTickets, fetchUserSupportChat } from "@/services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -195,6 +196,64 @@ export const Sidebar = ({
   const location = useLocation();
   const { dark, toggleDark } = useThemeStore();
 
+  // Dynamic badge counts
+  const [unreadTickets, setUnreadTickets] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const loadBadgeCounts = useCallback(async () => {
+    try {
+      const [ticketRes, chatRes, notifRes] = await Promise.allSettled([
+        fetchTickets(),
+        fetchUserSupportChat(),
+        fetchNotifications(),
+      ]);
+
+      if (ticketRes.status === "fulfilled") {
+        const tickets = ticketRes.value.data.tickets || ticketRes.value.data || [];
+        const openCount = Array.isArray(tickets)
+          ? tickets.filter((t: any) => t.status === "open" || t.status === "pending").length
+          : 0;
+        setUnreadTickets(openCount);
+      }
+
+      if (chatRes.status === "fulfilled") {
+        const chats = chatRes.value.data;
+        const unread = Array.isArray(chats)
+          ? chats.filter((c: any) => c.unread_count > 0).length
+          : chats?.unread_count || 0;
+        setUnreadChats(unread);
+      }
+
+      if (notifRes.status === "fulfilled") {
+        setUnreadNotifications(notifRes.value.data.unread_count || 0);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBadgeCounts();
+    const interval = setInterval(loadBadgeCounts, 30000);
+    return () => clearInterval(interval);
+  }, [loadBadgeCounts]);
+
+  // Clear badge when navigating to the page
+  useEffect(() => {
+    if (location.pathname.includes("/dashboard/tickets")) setUnreadTickets(0);
+    if (location.pathname.includes("/dashboard/support")) setUnreadChats(0);
+    if (location.pathname.includes("/dashboard/notifications")) setUnreadNotifications(0);
+  }, [location.pathname]);
+
+  // Map href -> badge count
+  const getBadgeCount = (href: string): number => {
+    if (href === "/dashboard/tickets") return unreadTickets;
+    if (href === "/dashboard/support") return unreadChats;
+    if (href === "/dashboard/notifications") return unreadNotifications;
+    return 0;
+  };
+
   const isActive = (path: string) => {
     return (
       location.pathname === path ||
@@ -316,13 +375,24 @@ export const Sidebar = ({
                             {cartCount > 9 ? "9+" : cartCount}
                           </span>
                         )}
+                        {!item.isCart && getBadgeCount(item.href) > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background animate-pulse">
+                            {getBadgeCount(item.href) > 9 ? "9+" : getBadgeCount(item.href)}
+                          </span>
+                        )}
                       </div>
 
                       {!isCollapsed && (
                         <span className="flex-1 truncate">{item.name}</span>
                       )}
 
-                      {!isCollapsed && item.badge && (
+                      {!isCollapsed && getBadgeCount(item.href) > 0 && !active && (
+                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                          {getBadgeCount(item.href) > 99 ? "99+" : getBadgeCount(item.href)}
+                        </span>
+                      )}
+
+                      {!isCollapsed && item.badge && getBadgeCount(item.href) === 0 && (
                         <span
                           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${item.badge === "New"
                             ? "bg-primary text-white border border-white/20"
