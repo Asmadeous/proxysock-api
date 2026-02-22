@@ -15,8 +15,6 @@
 
   <!-- Preload assets -->
   <link rel="preload" href="/logo.png" as="image" type="image/png" />
-  <link rel="preload" href="https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728" as="font"
-    type="font/woff" crossorigin />
 
   <!-- DNS prefetch for external domains -->
   <link rel="dns-prefetch" href="//fonts.googleapis.com" />
@@ -29,8 +27,6 @@
   <link rel="dns-prefetch" href="//paystack.com" />
   <link rel="dns-prefetch" href="//checkout.paystack.com" />
   <link rel="dns-prefetch" href="//xknakbxmpznclriiauim.supabase.co" />
-  <link rel="dns-prefetch" href="//va.tawk.to" />
-  <link rel="dns-prefetch" href="//embed.tawk.to" />
   <link rel="dns-prefetch" href="//v6.exchangerate-api.com" />
   <link rel="dns-prefetch" href="//*.datadoghq.com" />
   <link rel="dns-prefetch" href="//www.redditstatic.com" />
@@ -63,8 +59,6 @@
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://cdn.jsdelivr.net
         https://www.redditstatic.com
         https://alb.reddit.com
@@ -77,16 +71,12 @@
         https://fonts.googleapis.com
         https://cdn.jsdelivr.net
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://checkout.paystack.com
         https://paystack.com
         https://js.paystack.co;
 
       font-src 'self'
         https://fonts.gstatic.com
-        https://embed.tawk.to
-        https://*.tawk.to
         data:;
 
       img-src 'self' data: blob: http://localhost:*
@@ -95,8 +85,6 @@
         https://upload.wikimedia.org
         https://flagcdn.com
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://www.google-analytics.com
         https://www.googletagmanager.com
         https://googleads.g.doubleclick.net
@@ -121,9 +109,6 @@
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
-        https://va.tawk.to
-        https://*.tawk.to
-        wss://*.tawk.to
         https://xknakbxmpznclriiauim.supabase.co
         wss://xknakbxmpznclriiauim.supabase.co
         https://v6.exchangerate-api.com
@@ -152,23 +137,8 @@
 
   <!-- Performance optimizations -->
   <style>
-    @font-face {
-      font-family: "TawkFont";
-      src: url("https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728") format("woff");
-      font-display: swap;
-    }
-
     #root {
       min-height: 100vh;
-    }
-
-    .tawk-min-container {
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-    }
-
-    .tawk-min-container.loaded {
-      opacity: 1;
     }
 
     /* Ad blocker notice styling */
@@ -284,7 +254,6 @@
     globalThis.serviceStatus = {
       stripe: false,
       paystack: false,
-      tawk: false,
       reddit: false,
       datadog: false,
     };
@@ -314,8 +283,6 @@
         "pixel.js",
         "redditstatic",
         "reddit",
-
-        "tawk",
         "datadog",
         "stripe",
         "paystack",
@@ -349,8 +316,6 @@
           "reddit",
           "pixel",
           "datadog",
-
-          "tawk",
           "stripe",
           "paystack",
           "cloudflare",
@@ -434,16 +399,6 @@
           if (loaded) {
             log.info("Paystack ready");
           }
-        },
-      );
-
-
-      // Tawk.to
-      loadScriptSafely(
-        "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
-        "Tawk.to",
-        (loaded) => {
-          globalThis.serviceStatus.tawk = loaded;
         },
       );
 
@@ -612,14 +567,6 @@
       // Non-critical: Chat and analytics load after 5 seconds
       scheduleWhenIdle(() => {
 
-        // Tawk.to
-        loadScriptSafely(
-          "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
-          "Tawk.to",
-          (loaded) => {
-            globalThis.serviceStatus.tawk = loaded;
-          },
-        );
         // Datadog RUM (only in production)
         if (!isDev) {
           loadScriptSafely(
