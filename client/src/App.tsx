@@ -136,6 +136,11 @@ const USAESIMPlans = lazy(() => import("./pages/USAESIMPlansPage"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
+const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
+const ResellerDashboard = lazy(() => import("./pages/Reseller/ResellerDashboard"));
+const ResellerLoginPage = lazy(() => import("./pages/Reseller/ResellerLoginPage"));
+const EmployeeDashboard = lazy(() => import("./pages/Employee/EmployeeDashboard"));
 
 // Initialize Google Analytics (your existing code)
 ReactGA.initialize("UA-XXXXXXXXX-X");
@@ -263,7 +268,22 @@ export default function App() {
                   <Route path="profile" element={<Profile />} />
                   <Route path="change-password" element={<ChangePassword />} />
                   <Route path="notifications" element={<NotificationsPage />} />
+
+                  {/* Support */}
+                  <Route path="tickets" element={<Tickets />} />
+                  <Route path="support-chat" element={<SupportChat />} />
                 </Route>
+              </Route>
+
+              {/* Reseller Routes */}
+              <Route path="/reseller/login" element={<ResellerLoginPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/reseller" element={<ResellerDashboard />} />
+              </Route>
+
+              {/* Employee Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/employee" element={<EmployeeDashboard />} />
               </Route>
 
               {/* SuperAdmin Routes */}
