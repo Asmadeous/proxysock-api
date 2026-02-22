@@ -1,27 +1,15 @@
 import { Link } from "react-router-dom";
-<<<<<<< HEAD
 import { AnimatePresence, motion } from "framer-motion";
-=======
-import { motion } from "framer-motion";
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import {
   ShoppingCart,
   X,
   Menu as MenuIcon,
-<<<<<<< HEAD
   Sun,
   Moon,
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 } from "lucide-react";
 import logoDark from "@/assets/images/PROXY PNG.webp";
 import logoLight from "@/assets/images/PROXY SOCKS DARK FONT.webp";
 import UserBalance from "@/components/UserBalance";
-<<<<<<< HEAD
-=======
-import NotificationBell from "@/components/NotificationBell";
-import { fetchNotifications, markNotificationsAsRead } from "@/services/api";
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { useThemeStore } from "@/store/themeStore";
 
 
@@ -38,11 +26,7 @@ export const Header = ({
   cartCount: number;
   userName: string;
 }) => {
-<<<<<<< HEAD
   const { dark, toggleDark } = useThemeStore();
-=======
-  const { dark } = useThemeStore();
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   return (
     <div className="bg-background border-b border-border sticky top-0 z-50">
@@ -95,7 +79,6 @@ export const Header = ({
               )}
             </Link>
 
-<<<<<<< HEAD
             {/* Theme Toggle */}
             <motion.button
               onClick={toggleDark}
@@ -128,11 +111,6 @@ export const Header = ({
                 )}
               </AnimatePresence>
             </motion.button>
-=======
-            {/* Notifications */}
-            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
             {/* User Avatar - Restored */}
             <Link

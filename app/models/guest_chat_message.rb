@@ -9,8 +9,23 @@ class GuestChatMessage < ApplicationRecord
 
   after_create :touch_chat
   after_create :notify_staff_on_reply, if: -> { sender_type == 'guest' }
+  after_create_commit :broadcast_to_channel
 
   private
+
+  def broadcast_to_channel
+    ChatChannel.broadcast_to(
+      guest_chat,
+      action: 'message_created',
+      message: {
+        id: id,
+        body: body,
+        sender_type: sender_type,
+        sender_name: sender_type == 'guest' ? guest_chat.guest_name : sender&.full_name || 'Support',
+        created_at: created_at
+      }
+    )
+  end
 
   def notify_staff_on_reply
     # If assigned, notify the specific employee. Otherwise notify all admins.

@@ -9,7 +9,6 @@ export default function About() {
   useEffect(() => {
     document.title =
       "About ProxySock - Premium Digital Infrastructure Provider";
-<<<<<<< HEAD
 
     const s1 = document.createElement("script");
     const s0 = document.getElementsByTagName("script")[0];
@@ -24,8 +23,6 @@ export default function About() {
     return () => {
       s1.remove();
     };
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }, []);
 
   return (

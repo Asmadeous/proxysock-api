@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { CartItem } from "@/pages/Cart";
-=======
-import { CartItem } from "@/pages/UserDashboard/Cart";
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export const formatDataVolume = (bytes: number) => {
   if (bytes === 0) return "0 Bytes";

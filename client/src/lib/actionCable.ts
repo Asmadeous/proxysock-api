@@ -1,48 +1,26 @@
-import { createConsumer, Consumer, Subscription } from "@rails/actioncable";
-import { getStoredToken } from "./railsApi";
+import { Subscription } from "@rails/actioncable";
+import { getCableConsumer } from "../services/cable";
 
-const CABLE_URL =
-    import.meta.env.VITE_RAILS_CABLE_URL ||
-    "ws://localhost:3000/cable";
-
-let consumer: Consumer | null = null;
-
-// Get or create ActionCable consumer
-export const getConsumer = (): Consumer => {
-    if (!consumer) {
-        const token = getStoredToken();
-        const url = token ? `${CABLE_URL}?token=${token}` : CABLE_URL;
-        consumer = createConsumer(url);
-    }
-    return consumer;
-};
-
-// Disconnect consumer
 export const disconnectConsumer = (): void => {
-    if (consumer) {
-        consumer.disconnect();
-        consumer = null;
-    }
+    getCableConsumer().disconnect();
 };
 
-// Subscribe to notifications channel
 export const subscribeToNotifications = (
     onReceived: (data: unknown) => void
 ): Subscription => {
-    const cable = getConsumer();
+    const cable = getCableConsumer();
 
-    return cable.subscriptions.create("NotificationsChannel", {
+    return cable.subscriptions.create("NotificationChannel", {
         received: onReceived,
         connected() {
-            console.log("[ActionCable] Connected to NotificationsChannel");
+            console.log("[ActionCable] Connected to NotificationChannel");
         },
         disconnected() {
-            console.log("[ActionCable] Disconnected from NotificationsChannel");
+            console.log("[ActionCable] Disconnected from NotificationChannel");
         },
     });
 };
 
-// Unsubscribe from a subscription
 export const unsubscribe = (subscription: Subscription): void => {
     subscription.unsubscribe();
 };

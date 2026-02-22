@@ -1,21 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowRight, ArrowLeft, X } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
-<<<<<<< HEAD
 import railsApi from "@/lib/railsApi";
-=======
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-<<<<<<< HEAD
-=======
-import api from '../services/api';
-
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 interface USAESIMPlan {
   id: string;
   provider: 'colt' | 'lyca';
@@ -126,16 +116,11 @@ export default function USAESIMPlansPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-<<<<<<< HEAD
   const [error] = useState<string | null>(null);
-=======
-  const [error, setError] = useState<string | null>(null);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-<<<<<<< HEAD
         const { data } = await railsApi.get('/products', { params: { category: 'usa_esim' } });
 
         let plansData = [];
@@ -181,30 +166,6 @@ export default function USAESIMPlansPage() {
             phone_number_included: true
           }
         ]);
-=======
-        const { data } = await api.get('/web/api/products?product_type=usa_esim');
-
-        const products = data.products || [];
-        const mappedPlans: USAESIMPlan[] = products.map((p: any) => ({
-          id: p.id.toString(),
-          provider: p.provider_type === 'colt' ? 'colt' : 'lyca',
-          name: p.name,
-          price: p.price || 0,
-          currency_code: p.currency || 'USD',
-          voice_minutes: p.calling_minutes === null ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
-          sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
-          data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
-          duration: p.duration_days || 30,
-          duration_unit: "Days",
-          features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-          phone_number_included: p.esim_type === 'voice_data_sms'
-        }));
-
-        setPlans(mappedPlans);
-      } catch (err: any) {
-        setError(err.message || 'Error loading plans. Please try again.');
-        console.error(err);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       } finally {
         setIsLoading(false);
       }

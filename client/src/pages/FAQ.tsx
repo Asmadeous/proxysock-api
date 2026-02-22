@@ -6,7 +6,6 @@ import { FAQTabs } from "@/components/landing/help/faq/FAQTabs";
 import { FAQContact } from "@/components/landing/help/faq/FAQContact";
 
 
-<<<<<<< HEAD
 // Add Tawk_API to window type
 declare global {
   interface Window {
@@ -16,8 +15,6 @@ declare global {
     };
   }
 }
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export default function Faq() {
   // Track FAQ interactions
@@ -34,24 +31,25 @@ export default function Faq() {
     // Set page title
     document.title =
       "FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM Services";
-<<<<<<< HEAD
 
     // Tawk.to script
     const s1 = document.createElement("script");
     const s0 = document.getElementsByTagName("script")[0];
     s1.async = true;
     s1.src = "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo";
-
+    s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
-    if (s0?.parentNode) {
+
+    if (s0 && s0.parentNode) {
       s0.parentNode.insertBefore(s1, s0);
+    } else {
+      document.head.appendChild(s1);
     }
 
+    // Cleanup function to remove the script on unmount
     return () => {
       s1.remove();
     };
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }, []);
 
   // Structured Data for SEO

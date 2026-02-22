@@ -11,10 +11,7 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTwitter, faTelegram } from "@fortawesome/free-brands-svg-icons";
 import logo from "../assets/images/logo.png"; // Adjust the path to your logo
-<<<<<<< HEAD
 import { useEffect } from "react";
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export default function Proxies() {
   const proxyTypes = [
@@ -64,7 +61,6 @@ export default function Proxies() {
     },
   ];
 
-<<<<<<< HEAD
   useEffect(() => {
     // Tawk.to script
     const s1 = document.createElement("script");
@@ -83,8 +79,6 @@ export default function Proxies() {
     };
   }, []);
 
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
       <div className="bg-gray-900 min-h-screen py-24">

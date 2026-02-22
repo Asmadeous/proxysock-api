@@ -123,7 +123,6 @@ export default function Dashboard() {
                     userName={userName}
                     isCollapsed={isCollapsed}
                     setIsCollapsed={setIsCollapsed}
-                    onLinkClick={() => setSidebarOpen(false)}
                   />
                 </div>
               </motion.div>

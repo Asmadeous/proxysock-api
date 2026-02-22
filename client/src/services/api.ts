@@ -1,16 +1,11 @@
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
-<<<<<<< HEAD
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
-=======
 // Use just the host as baseURL — different route prefixes (/api/v1, /web/api) are specified per-call
 const API_HOST = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, '');
 
 const api = axios.create({
   baseURL: API_HOST,
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   headers: {
     "Content-Type": "application/json",
   },
@@ -34,22 +29,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-<<<<<<< HEAD
-    const message = error.response?.data?.message || "An error occurred";
-    toast.error(message);
-=======
     const message = error.response?.data?.error || error.response?.data?.message || "An error occurred";
     // We handle toasts manually in login/register components so we don't spam here for auth failures
     if (error.response?.status !== 401 && error.response?.status !== 422) {
       toast.error(message);
     }
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     return Promise.reject(error);
   }
 );
 
-<<<<<<< HEAD
-=======
 // Auth Service
 export const loginUser = (data: any) => api.post("/web/api/auth/login", { user: data });
 export const registerUser = (data: any) => api.post("/web/api/auth/register", { user: data });
@@ -68,6 +56,4 @@ export const replyTicket = (id: number, body: string) => api.post(`/web/api/tick
 
 export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 export default api;

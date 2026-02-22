@@ -31,10 +31,6 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-<<<<<<< HEAD
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = true
-=======
   # Mailpit local SMTP server (Web UI: http://localhost:8025)
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.delivery_method = :smtp
@@ -42,7 +38,6 @@ Rails.application.configure do
     address: 'localhost',
     port: 1025
   }
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false

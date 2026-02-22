@@ -9,7 +9,6 @@ import { SupportInfoSection } from "@/components/landing/help/contact/SupportInf
 import { SelfHelpResourcesSection } from "@/components/landing/help/contact/SelfHelpResourcesSection";
 
 
-<<<<<<< HEAD
 // Add Tawk_API to window type
 declare global {
   interface Window {
@@ -36,12 +35,6 @@ export default function Contact() {
     return () => {
       s1.remove();
     };
-=======
-
-export default function Contact() {
-  useEffect(() => {
-    document.title = "Contact ProxySock - 24/7 Support for Proxy, RDP, VPS & eSIM Services";
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }, []);
 
   // Reddit Ads lead tracking functions
@@ -62,26 +55,16 @@ export default function Contact() {
 
   const handleChatbotClick = () => {
     trackLeadInteraction("chatbot", "support");
-<<<<<<< HEAD
     if ((globalThis as any).Tawk_API) {
       (globalThis as any).Tawk_API.toggle();
     }
-=======
-    // Trigger global guest chat widget
-    window.dispatchEvent(new CustomEvent("open-chat"));
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   };
 
   const handleLiveSupportClick = () => {
     trackLeadInteraction("live_chat", "technical_support");
-<<<<<<< HEAD
     if ((globalThis as any).Tawk_API) {
       (globalThis as any).Tawk_API.toggle();
     }
-=======
-    // Trigger global guest chat widget
-    window.dispatchEvent(new CustomEvent("open-chat"));
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   };
 
   const handleEmailClick = (type: string) => {

@@ -1009,10 +1009,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_21_001736) do
     t.string "username"
     t.index ["email"], name: "index_users_on_email"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
-<<<<<<< HEAD
-=======
     t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

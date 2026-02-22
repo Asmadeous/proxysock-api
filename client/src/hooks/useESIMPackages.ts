@@ -1,11 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-<<<<<<< HEAD
 import railsApi from '@/lib/railsApi'
-=======
-
-// Supabase has been removed in favor of the Rails API
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export type PackageScope = 'global' | 'regional' | 'country'
 
@@ -72,7 +66,6 @@ export function useESIMPackages(filters: PackageFilters = {}) {
 
       // Regional: package name must match region AND location_code must have multiple countries
       const regionalNames = [
-<<<<<<< HEAD
         'europe', 'eu', 'eur', 'european union',
         'caribbean', 'west indies',
         'asia-pacific', 'asia pacific', 'asia', 'apac',
@@ -87,56 +80,17 @@ export function useESIMPackages(filters: PackageFilters = {}) {
 
       const hasRegionalName = regionalNames.some(regionName => {
         if (regionName === 'africa') {
-=======
-        // Europe
-        'europe', 'eu', 'eur', 'european union',
-        // Caribbean
-        'caribbean', 'west indies',
-        // Asia-Pacific
-        'asia-pacific', 'asia pacific', 'asia', 'apac',
-        // South America
-        'south america', 'latin america', 'suramerica',
-        // Middle East
-        'middle east', 'gulf region', 'arab world',
-        // Africa (but not "south africa" which is a country)
-        'africa',
-        // North America
-        'north america', 'us & canada',
-        // Oceania
-        'oceania', 'pacific islands', 'australia & nz',
-        // Eastern Europe
-        'eastern europe', 'cee', 'eastern eu',
-        // Nordic Region
-        'nordic region', 'scandinavia'
-      ]
-
-      // Check if package name contains regional name (but exclude country names like "South Africa")
-      const hasRegionalName = regionalNames.some(regionName => {
-        if (regionName === 'africa') {
-          // Special check: "africa" but not "south africa"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
           return name.includes('africa') && !name.includes('south africa')
         }
         return name.includes(regionName) || location.includes(regionName)
       })
 
-<<<<<<< HEAD
       const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
 
-=======
-      // Check if location_code has multiple country codes (comma separated)
-      const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
-
-      // Must have both: regional name AND multiple country codes
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       if (hasRegionalName && hasMultipleCountries) {
         return 'regional'
       }
 
-<<<<<<< HEAD
-=======
-      // Everything else with single location codes are countries
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       return 'country'
     }
   }, [])
@@ -219,7 +173,6 @@ export function useESIMPackages(filters: PackageFilters = {}) {
     setError(null)
 
     try {
-<<<<<<< HEAD
       // Build query params for Rails API
       const params: Record<string, any> = {
         type: 'esim',
@@ -306,116 +259,6 @@ export function useESIMPackages(filters: PackageFilters = {}) {
 
       setPackages(filteredPackages)
     } catch (err) {
-=======
-      // Import the API client inline to avoid circular dependencies if any
-      const { default: api } = await import('../services/api');
-
-      // Fetch both usa_esim and esim products
-      const [usaRes, globalRes] = await Promise.all([
-        api.get('/web/api/products?product_type=usa_esim'),
-        api.get('/web/api/products?product_type=esim')
-      ]);
-
-      const allFetchedProducts = [
-        ...(usaRes.data?.products || []),
-        ...(globalRes.data?.products || [])
-      ];
-
-      // Map backend products to ESIMPackage interface
-      let allPackages: ESIMPackage[] = allFetchedProducts.map((p: any) => {
-        // Parse features or default to some basics
-        const features = p.features || [];
-        const hasSMS = p.sms_quota && p.sms_quota > 0;
-        const smsStatus = hasSMS || features.some((f: string) => f.toLowerCase().includes('sms')) ? 1 : 0;
-
-        let locationCode = '!GL'; // Default global
-        let locationName = 'Global';
-
-        // Try to infer location from name or description
-        const nameLower = p.name.toLowerCase();
-        if (nameLower.includes('usa') || nameLower.includes('us ')) {
-          locationCode = 'US';
-          locationName = 'United States';
-        } else if (nameLower.includes('europe') || nameLower.includes('eu ')) {
-          locationCode = '!RG';
-          locationName = 'Europe';
-        } else if (nameLower.includes('global')) {
-          locationCode = '!GL';
-          locationName = 'Global';
-        }
-
-        const calculatedScope = getPackageScope(locationCode, locationName, p.name);
-
-        return {
-          id: String(p.id),
-          package_code: p.slug,
-          slug: p.slug,
-          name: p.name,
-          price: Number.parseFloat(p.price) * 10000, // Convert to cents for UI
-          currency_code: p.currency || 'USD',
-          volume: p.data_gb ? p.data_gb * 1024 * 1024 * 1024 : 0, // Convert GB to bytes
-          duration: p.duration_days || 30,
-          duration_unit: 'days',
-          location_code: locationCode,
-          location_name: locationName,
-          description: p.description || '',
-          data_type: p.data_gb === null ? 0 : 1, // 0 unlimited, 1 fixed
-          sms_status: smsStatus,
-          speed: features.find((f: string) => f.includes('5G') || f.includes('4G')) || '4G/LTE',
-          network: p.provider_type || 'Multiple Networks',
-          scope: calculatedScope,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          packageType: 'base' as const,
-          locationNetworkList: false
-        };
-      });
-
-      // Apply client-side filters
-      if (filters.locationCode && filters.locationCode !== 'all') {
-        if (filters.locationCode === '!GL') {
-          allPackages = allPackages.filter(pkg => pkg.scope === 'global')
-        } else if (filters.locationCode === '!RG') {
-          allPackages = allPackages.filter(pkg => pkg.scope === 'regional')
-        } else {
-          allPackages = allPackages.filter(pkg => pkg.location_code === filters.locationCode)
-        }
-      }
-
-      if (filters.minPrice) {
-        allPackages = allPackages.filter(pkg => pkg.price >= filters.minPrice!)
-      }
-      if (filters.maxPrice) {
-        allPackages = allPackages.filter(pkg => pkg.price <= filters.maxPrice!)
-      }
-      if (filters.search) {
-        const term = filters.search.toLowerCase()
-        allPackages = allPackages.filter(pkg =>
-          pkg.name.toLowerCase().includes(term) ||
-          pkg.description.toLowerCase().includes(term) ||
-          pkg.location_name.toLowerCase().includes(term)
-        )
-      }
-      if (filters.dataType !== undefined) {
-        allPackages = allPackages.filter(pkg => pkg.data_type === filters.dataType)
-      }
-      if (filters.smsSupport) {
-        allPackages = allPackages.filter(pkg => pkg.sms_status >= 1)
-      }
-
-      // Apply client-side scope filter (only if no location filter is set, to avoid conflicts)
-      if (filters.scope && !filters.locationCode) {
-        allPackages = allPackages.filter(pkg => pkg.scope === filters.scope)
-      }
-
-      // Sort by price
-      allPackages.sort((a, b) => a.price - b.price);
-
-      setPackages(allPackages)
-    } catch (err) {
-      console.error("Error fetching eSIM packages:", err);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       setError(err instanceof Error ? err.message : 'Failed to fetch packages')
     } finally {
       setLoading(false)
@@ -499,17 +342,9 @@ export const getLocationDisplayName = (locationCode: string, locationName?: stri
   if (locationCode === '!GL') return '🌍 Global'
   if (locationCode === '!' || locationCode === '!RG') return '🌎 Regional'
 
-<<<<<<< HEAD
   if (locationName && locationName.trim()) {
     const name = locationName
 
-=======
-  // Use provided location name if available
-  if (locationName && locationName.trim()) {
-    const name = locationName
-
-    // If location contains commas (multiple countries), truncate to first 3
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (name.includes(',')) {
       const locations = name.split(',').map(loc => loc.trim())
       if (locations.length > 3) {
@@ -517,10 +352,6 @@ export const getLocationDisplayName = (locationCode: string, locationName?: stri
       }
     }
 
-<<<<<<< HEAD
-=======
-    // If single location name is too long, truncate
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (name.length > 25) {
       return name.substring(0, 25) + '...'
     }
@@ -528,13 +359,7 @@ export const getLocationDisplayName = (locationCode: string, locationName?: stri
     return name
   }
 
-<<<<<<< HEAD
   try {
-=======
-  // Try to convert country code to country name using Intl.DisplayNames
-  try {
-    // Handle multiple country codes (comma separated)
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (locationCode.includes(',')) {
       const codes = locationCode.split(',').map(code => code.trim())
       const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
@@ -553,35 +378,19 @@ export const getLocationDisplayName = (locationCode: string, locationName?: stri
       return countryNames.join(', ')
     }
 
-<<<<<<< HEAD
-=======
-    // Single country code
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
     const countryName = displayNames.of(locationCode.toUpperCase())
 
     if (countryName) {
-<<<<<<< HEAD
-=======
-      // Truncate if too long
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
       if (countryName.length > 25) {
         return countryName.substring(0, 25) + '...'
       }
       return countryName
     }
   } catch (error) {
-<<<<<<< HEAD
     console.warn('Failed to get country name for:', locationCode, error)
   }
 
-=======
-    // Fallback if Intl.DisplayNames fails
-    console.warn('Failed to get country name for:', locationCode, error)
-  }
-
-  // Fallback to original code if conversion fails
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   return locationCode
 }
 
@@ -591,27 +400,15 @@ export function useESIMCountries() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-<<<<<<< HEAD
   // Scope detection function
-=======
-  // Scope detection function (same as main hook)
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   const getPackageScope = (locationCode: string, locationName?: string, packageName?: string): PackageScope => {
     const name = (packageName || '').toLowerCase()
     const location = (locationName || '').toLowerCase()
 
-<<<<<<< HEAD
-=======
-    // Global: if name contains "global"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (name.includes('global')) {
       return 'global'
     }
 
-<<<<<<< HEAD
-=======
-    // Regional: package name must match region AND location_code must have multiple countries
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const regionalNames = [
       'europe', 'eu', 'eur', 'european union',
       'caribbean', 'west indies',
@@ -625,10 +422,6 @@ export function useESIMCountries() {
       'nordic region', 'scandinavia'
     ]
 
-<<<<<<< HEAD
-=======
-    // Check if package name contains regional name (but exclude country names like "South Africa")
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     const hasRegionalName = regionalNames.some(regionName => {
       if (regionName === 'africa') {
         return name.includes('africa') && !name.includes('south africa')
@@ -636,15 +429,8 @@ export function useESIMCountries() {
       return name.includes(regionName) || location.includes(regionName)
     })
 
-<<<<<<< HEAD
     const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
 
-=======
-    // Check if location_code has multiple country codes (comma separated)
-    const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
-
-    // Must have both: regional name AND multiple country codes
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
     if (hasRegionalName && hasMultipleCountries) {
       return 'regional'
     }
@@ -655,7 +441,6 @@ export function useESIMCountries() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-<<<<<<< HEAD
         // Fetch eSIM products from Rails API
         const response = await railsApi.get<{ products: any[] }>('/products', {
           params: { type: 'esim', is_active: true }
@@ -705,84 +490,6 @@ export function useESIMCountries() {
 
         setCountries(uniqueCountries)
       } catch (err) {
-=======
-        const { default: api } = await import('../services/api');
-
-        // Fetch both usa_esim and esim products
-        const [usaRes, globalRes] = await Promise.all([
-          api.get('/web/api/products?product_type=usa_esim'),
-          api.get('/web/api/products?product_type=esim')
-        ]);
-
-        const allFetchedProducts = [
-          ...(usaRes.data?.products || []),
-          ...(globalRes.data?.products || [])
-        ];
-
-        // Process packages to extract locations
-        const allPackages = allFetchedProducts.map((p: any) => {
-          let locationCode = '!GL';
-          let locationName = 'Global';
-
-          const nameLower = p.name.toLowerCase();
-          if (nameLower.includes('usa') || nameLower.includes('us ')) {
-            locationCode = 'US';
-            locationName = 'United States';
-          } else if (nameLower.includes('europe') || nameLower.includes('eu ')) {
-            locationCode = '!RG';
-            locationName = 'Europe';
-          } else if (nameLower.includes('global')) {
-            locationCode = '!GL';
-            locationName = 'Global';
-          }
-
-          return {
-            location_code: locationCode,
-            location_name: locationName,
-            name: p.name
-          };
-        });
-
-        // Calculate scope for each package and filter to only single countries
-        const countryPackages = allPackages.filter(pkg => {
-          const scope = getPackageScope(pkg.location_code, pkg.location_name, pkg.name)
-
-          // Must be country scope AND have single country code (no commas, typically 2-3 letters)
-          const isSingleCountryCode = !pkg.location_code.includes(',') &&
-            pkg.location_code.length <= 3 &&
-            /^[A-Za-z]{2,3}$/i.test(pkg.location_code)
-
-          return scope === 'country' && isSingleCountryCode && pkg.location_code !== '!GL' && pkg.location_code !== '!RG'
-        })
-
-        // Remove duplicates and sort, then convert codes to country names
-        const uniqueCountries = countryPackages
-          .filter((item, index, self) =>
-            index === self.findIndex(t => t.location_code === item.location_code)
-          )
-          .map(item => {
-            // Convert location code to country name using Intl.DisplayNames
-            try {
-              const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
-              const countryName = displayNames.of(item.location_code.toUpperCase())
-              return {
-                ...item,
-                display_name: countryName || item.location_name || item.location_code
-              }
-            } catch (error) {
-
-              return {
-                ...item,
-                display_name: item.location_name || item.location_code
-              }
-            }
-          })
-          .sort((a, b) => a.display_name.localeCompare(b.display_name))
-
-        setCountries(uniqueCountries)
-      } catch (err) {
-        console.error("Error fetching eSIM countries:", err);
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
         setError(err instanceof Error ? err.message : 'Failed to fetch countries')
       } finally {
         setLoading(false)

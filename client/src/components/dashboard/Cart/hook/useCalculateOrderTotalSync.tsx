@@ -2,11 +2,7 @@ import {
   SHOPIFY_TRANSACTION_FEE_FIXED,
   SHOPIFY_TRANSACTION_FEE_PERCENT,
 } from "@/constants/cart";
-<<<<<<< HEAD
 import { CartItem } from "@/pages/Cart";
-=======
-import { CartItem } from "@/pages/UserDashboard/Cart";
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export const useCalculateOrderItems = ({
   cartItems,

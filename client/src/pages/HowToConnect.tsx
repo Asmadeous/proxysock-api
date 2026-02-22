@@ -7,7 +7,6 @@ import backgroundNode from "@/assets/images/backgroundNode.webp";
 import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
 import { useThemeStore } from "@/store/themeStore";
 
-<<<<<<< HEAD
 declare global {
   interface Window {
     Tawk_API?: {
@@ -16,15 +15,11 @@ declare global {
     };
   }
 }
-=======
-
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 
 export default function HowToConnect() {
   const { dark } = useThemeStore();
   useEffect(() => {
     document.title = "How to Connect - Setup Guides | ProxySock";
-<<<<<<< HEAD
 
     // Tawk.to script
     const s1 = document.createElement("script");
@@ -40,8 +35,6 @@ export default function HowToConnect() {
     return () => {
       s1.remove();
     };
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
   }, []);
 
   const structuredData = {

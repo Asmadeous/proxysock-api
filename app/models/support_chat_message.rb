@@ -8,8 +8,23 @@ class SupportChatMessage < ApplicationRecord
 
   after_create :touch_chat
   after_create :notify_recipient
+  after_create_commit :broadcast_to_channel
 
   private
+
+  def broadcast_to_channel
+    ChatChannel.broadcast_to(
+      support_chat,
+      action: 'message_created',
+      message: {
+        id: id,
+        body: body,
+        sender_type: sender_type,
+        sender_name: sender.respond_to?(:full_name) ? sender.full_name : sender_type,
+        created_at: created_at
+      }
+    )
+  end
 
   def notify_recipient
     if sender_type == 'Employee'

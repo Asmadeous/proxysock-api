@@ -3,6 +3,9 @@ export interface User {
   username?: string;
   email?: string;
   role: string;
+  balance?: number;
+  currency?: string;
+  profile_picture_url?: string;
   createdAt?: string | Date;
   nextBillingDate?: string | Date;
   // Add other properties as needed
@@ -88,12 +91,9 @@ export interface Order {
   updated_at: string;
   credentials: Record<string, any> | null;
   cart_items: any[] | null; // Adjust based on your cart_items structure
-<<<<<<< HEAD
   total_amount?: number | string;
   product_type?: string;
   product_name?: string;
-=======
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
 }
 
 export interface CartItem {

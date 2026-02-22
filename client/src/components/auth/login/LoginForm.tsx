@@ -137,11 +137,7 @@ export default function LoginForm({
             />
             <label
               htmlFor="remember-me"
-<<<<<<< HEAD
               className="ml-2 block text-sm text-foreground font-inter-regular select-none"
-=======
-              className="ml-2 block text-sm text-foreground font-inter-regular"
->>>>>>> 83dd057 (feat: implement support chat system, strict ticket order validation, and fix ticket creation body error)
             >
               Remember me
             </label>
