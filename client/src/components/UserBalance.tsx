@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
 
-import DepositPayment from '../pages/DepositPayments';
+import DepositPayment from '../pages/payments/DepositPayments';
 import { Wallet, CreditCard, Bitcoin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

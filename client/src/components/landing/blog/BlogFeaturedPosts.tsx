@@ -6,7 +6,7 @@ import {
   ClockIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
-import { Post } from "@/pages/blogPost";
+import { Post } from "@/data/blogPost";
 
 interface BlogFeaturedPostsProps {
   featuredPosts: Post[];

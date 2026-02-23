@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ExtendedPost } from "@/pages/blogPost";
+import { ExtendedPost } from "@/data/blogPost";
 import { NewspaperIcon } from "@heroicons/react/24/outline";
 
 interface BlogNewsTickerProps {
