@@ -1,6 +1,5 @@
 // // // import { useState, useEffect } from "react";
 // // // import { useParams, useNavigate } from "react-router-dom";
-// // // import { createClient } from "@supabase/supabase-js";
 // // // import { 
 // // //   ServerIcon, 
 // // //   CpuChipIcon, 
@@ -16,7 +15,6 @@
 // // // } from "@heroicons/react/24/outline";
 
 // // // // Initialize Supabase client
-// // // const supabase = createClient(
 // // //   import.meta.env.VITE_SUPABASE_URL,
 // // //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // // // );
@@ -91,7 +89,6 @@
 // // //       setLoading(true);
 
 // // //       // Fetch VPS plans
-// // //       const { data: plansData, error: plansError } = await supabase
 // // //         .from('vps_plans')
 // // //         .select('*')
 // // //         .eq('is_active', true)
@@ -104,7 +101,6 @@
 // // //       console.log('Fetched VPS Plans:', plansData);
 
 // // //       // Fetch config
-// // //       const { data: configData, error: configError } = await supabase
 // // //         .from('system_config')
 // // //         .select('management_options, residential_countries, os_metadata')
 // // //         .eq('config_key', 'vps_settings')
@@ -152,7 +148,6 @@
 
 // // //       if (configError) {
 // // //         console.warn(`Config fetch failed: ${configError.message}. Using fallback data.`);
-// // //         await supabase.from('system_logs').insert({
 // // //           component: 'vps-plans',
 // // //           action: 'fetch_config',
 // // //           level: 'warning',
@@ -167,7 +162,6 @@
 // // //       setOsMetadata(configData?.os_metadata || osMetadataFallback);
 // // //     } catch (err) {
 // // //       setError(err instanceof Error ? err.message : 'Failed to fetch data');
-// // //       await supabase.from('system_logs').insert({
 // // //         component: 'vps-plans',
 // // //         action: 'fetch_data',
 // // //         level: 'error',
@@ -226,8 +220,6 @@
 // // //       detail: { count: updatedCart.length } 
 // // //     }));
 
-// // //     await supabase.from('cart_events').insert({
-// // //       user_id: (await supabase.auth.getUser()).data.user?.id,
 // // //       event_type: 'add_to_cart',
 // // //       product_type: 'vps',
 // // //       plan_id: selectedPlan.plan_id,
@@ -247,7 +239,6 @@
 // // //     console.error("Failed to add to cart:", err);
 // // //     setError('Failed to add item to cart');
     
-// // //     await supabase.from('system_logs').insert({
 // // //       component: 'vps-plans',
 // // //       action: 'add_to_cart',
 // // //       level: 'error',
@@ -855,7 +846,6 @@
 
 // // import { useState, useEffect } from "react";
 // // import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-// // import { createClient } from "@supabase/supabase-js";
 // // import { 
 // //   ServerIcon, 
 // //   CpuChipIcon, 
@@ -872,7 +862,6 @@
 // //   ClockIcon
 // // } from "@heroicons/react/24/outline";
 
-// // const supabase = createClient(
 // //   import.meta.env.VITE_SUPABASE_URL,
 // //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // // );
@@ -955,7 +944,6 @@
 // //     try {
 // //       setLoading(true);
 
-// //       const { data: plansData, error: plansError } = await supabase
 // //         .from('vps_plans')
 // //         .select('*')
 // //         .eq('is_active', true)
@@ -1004,7 +992,6 @@
 // //         { name: 'FreeBSD 14', icon: 'FreeBSDIcon', description: 'High-performance BSD-based OS' }
 // //       ];
 
-// //       const { data: configData, error: configError } = await supabase
 // //         .from('system_config')
 // //         .select('management_options, residential_countries, os_metadata')
 // //         .eq('config_key', 'vps_settings')
@@ -1634,7 +1621,6 @@
 
 // import { useState, useEffect } from "react";
 // import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-// import { createClient } from "@supabase/supabase-js";
 // import { 
 //   ServerIcon, 
 //   CpuChipIcon, 
@@ -1651,7 +1637,6 @@
 //   ClockIcon
 // } from "@heroicons/react/24/outline";
 
-// const supabase = createClient(
 //   import.meta.env.VITE_SUPABASE_URL,
 //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // );
@@ -1736,7 +1721,6 @@
 //     try {
 //       setLoading(true);
 
-//       const { data: plansData, error: plansError } = await supabase
 //         .from('vps_plans')
 //         .select('*')
 //         .eq('is_active', true)
@@ -1785,7 +1769,6 @@
 //         { name: 'FreeBSD 14', icon: 'FreeBSDIcon', description: 'High-performance BSD-based OS' }
 //       ];
 
-//       const { data: configData, error: configError } = await supabase
 //         .from('system_config')
 //         .select('management_options, residential_countries, os_metadata')
 //         .eq('config_key', 'vps_settings')

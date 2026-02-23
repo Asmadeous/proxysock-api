@@ -1,37 +1,6 @@
 import { useState, useEffect } from 'react'
-
 import { BanknotesIcon } from '@heroicons/react/24/outline'
-
-// Supabase completely removed. Mock object to prevent compile/runtime crash.
-const supabase: any = {
-  auth: {
-    getUser: async () => ({ data: { user: null }, error: null }),
-    getSession: async () => ({ data: { session: null }, error: null }),
-    signInWithPassword: async () => ({ data: {}, error: null }),
-    signInWithOAuth: async () => ({ data: {}, error: null }),
-    signOut: async () => ({ error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    refreshSession: async () => ({ data: { session: null }, error: null })
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        single: async () => ({ data: null, error: null }),
-        order: async () => ({ data: [], error: null }),
-        not: () => ({ order: async () => ({ data: [], error: null }) })
-      }),
-      order: async () => ({ data: [], error: null }),
-      not: () => ({ order: async () => ({ data: [], error: null }) }),
-      neq: () => ({ order: async () => ({ data: [], error: null }) })
-    }),
-    insert: async () => ({ error: null }),
-    update: () => ({ eq: async () => ({ error: null }) })
-  }),
-  functions: { invoke: async () => ({ data: null, error: null }) },
-  channel: () => ({ on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }) }),
-  removeChannel: async () => {}
-};
-
+import { fetchBalance as apiFetchBalance } from '../services/api'
 
 interface BalanceData {
     available_balance: number;
@@ -45,56 +14,18 @@ interface BalanceData {
     discount_percentage: number;
 }
 
-interface BalanceResponse {
-    success: boolean;
-    data?: BalanceData;
-    error?: string;
-}
-
 const Balance = () => {
     const [balanceData, setBalanceData] = useState<BalanceData | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        const fetchBalance = async () => {
+        const loadBalance = async () => {
             try {
                 setLoading(true)
                 setError(null)
-
-                // Get current session
-                const { data: { session } } = await supabase.auth.getSession()
-
-                if (!session) {
-                    throw new Error('No active session')
-                }
-
-                // Call the Supabase Edge Function with better error handling
-                const { data, error: functionError } = await supabase.functions.invoke('My_Proxy_API', {
-                    headers: {
-                        Authorization: `Bearer ${session.access_token}`,
-                    },
-                })
-
-                console.log('Function response:', { data, functionError })
-
-                if (functionError) {
-                    console.error('Function error details:', functionError)
-                    throw new Error(`Function error: ${functionError.message}`)
-                }
-
-                const response = data as BalanceResponse
-
-                if (!response.success) {
-                    throw new Error(response.error || 'Failed to fetch balance')
-                }
-
-                if (!response.data) {
-                    throw new Error('No balance data received')
-                }
-
-                setBalanceData(response.data)
-
+                const { data } = await apiFetchBalance()
+                setBalanceData(data?.data ?? data ?? null)
             } catch (err) {
                 console.error('Balance fetch error:', err)
                 setError(err instanceof Error ? err.message : 'Failed to fetch balance')
@@ -103,7 +34,7 @@ const Balance = () => {
             }
         }
 
-        fetchBalance()
+        loadBalance()
     }, [])
 
     if (loading) {

@@ -88,7 +88,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     initializeAuth();
 
-    // supabase auth listener removed
 
     const activityEvents = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
 

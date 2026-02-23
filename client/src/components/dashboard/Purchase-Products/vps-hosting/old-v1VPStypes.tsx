@@ -1,6 +1,5 @@
 // // import { useState, useEffect } from "react";
 // // import { useNavigate } from "react-router-dom";
-// // import { createClient } from "@supabase/supabase-js";
 // // import { 
 // //   ServerIcon,
 // //   HomeIcon,
@@ -15,7 +14,6 @@
 // //   UsersIcon
 // // } from "@heroicons/react/24/outline";
 
-// // const supabase = createClient(
 // //   import.meta.env.VITE_SUPABASE_URL,
 // //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // // );
@@ -51,7 +49,6 @@
 // //       setLoading(true);
 
 // //       // Fetch vps_plans to derive types
-// //       const { data: plansData, error: plansError } = await supabase
 // //         .from('vps_plans')
 // //         .select('service_type, price')
 // //         .eq('is_active', true);
@@ -141,7 +138,6 @@
 // //         { feature: 'Operating Systems', residential: 'Ubuntu, Debian, CentOS, RHEL, Rocky, Windows, FreeBSD', standard: 'Ubuntu, Debian, CentOS, RHEL, Rocky, Windows, FreeBSD', icon: 'ComputerDesktopIcon' }
 // //       ];
 
-// //       const { data: configData, error: configError } = await supabase
 // //         .from('system_config')
 // //         .select('vps_comparison_features')
 // //         .eq('config_key', 'vps_settings')
@@ -149,7 +145,6 @@
 
 // //       if (configError) {
 // //         console.warn(`Config fetch failed: ${configError.message}. Using fallback data.`);
-// //         await supabase.from('system_logs').insert({
 // //           component: 'vps-types',
 // //           action: 'fetch_config',
 // //           level: 'warning',
@@ -162,7 +157,6 @@
 // //       setComparisonFeatures(configData?.vps_comparison_features || comparisonFeaturesFallback);
 // //     } catch (err) {
 // //       setError(err instanceof Error ? err.message : 'Failed to fetch data');
-// //       await supabase.from('system_logs').insert({
 // //         component: 'vps-types',
 // //         action: 'fetch_data',
 // //         level: 'error',
@@ -395,7 +389,6 @@
 
 // import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
-// import { createClient } from "@supabase/supabase-js";
 // import { 
 //   ServerIcon,
 //   HomeIcon,
@@ -409,7 +402,6 @@
 //   GlobeAltIcon
 // } from "@heroicons/react/24/outline";
 
-// const supabase = createClient(
 //   import.meta.env.VITE_SUPABASE_URL,
 //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // );
@@ -447,7 +439,6 @@
 //       setLoading(true);
 
 //       // Fetch vps_plans to derive types and minimum price
-//       const { data: plansData, error: plansError } = await supabase
 //         .from('vps_plans')
 //         .select('service_type, price')
 //         .eq('is_active', true);
@@ -535,7 +526,6 @@
 //       setVpsTypes(vpsTypesData);
 //     } catch (err) {
 //       setError(err instanceof Error ? err.message : 'Failed to fetch data');
-//       await supabase.from('system_logs').insert({
 //         component: 'vps-types',
 //         action: 'fetch_data',
 //         level: 'error',
