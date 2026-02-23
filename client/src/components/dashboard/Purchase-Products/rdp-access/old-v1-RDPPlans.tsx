@@ -1,6 +1,5 @@
 // // import { useState, useEffect } from "react";
 // // import { useParams, useNavigate } from "react-router-dom";
-// // import { createClient } from "@supabase/supabase-js";
 // // import {
 // //   ComputerDesktopIcon,
 // //   CpuChipIcon,
@@ -17,7 +16,6 @@
 // // } from "@heroicons/react/24/outline";
 
 // // // Initialize Supabase client
-// // const supabase = createClient(
 // //   import.meta.env.VITE_SUPABASE_URL,
 // //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // // );
@@ -93,7 +91,6 @@
 // //       setLoading(true);
 
 // //       // Fetch RDP plans
-// //       const { data: plansData, error: plansError } = await supabase
 // //         .from('rdp_plans')
 // //         .select('*')
 // //         .eq('is_active', true)
@@ -142,7 +139,6 @@
 // //       ];
 
 // //       // Fetch config
-// //       const { data: configData, error: configError } = await supabase
 // //         .from('system_config')
 // //         .select('management_options, residential_countries, os_metadata')
 // //         .eq('config_key', 'rdp_settings')
@@ -150,7 +146,6 @@
 
 // //       if (configError) {
 // //         console.warn(`Config fetch failed: ${configError.message}. Using fallback data.`);
-// //         await supabase.from('system_logs').insert({
 // //           component: 'rdp-plans',
 // //           action: 'fetch_config',
 // //           level: 'warning',
@@ -165,7 +160,6 @@
 // //       setOsMetadata(configData?.os_metadata || osMetadataFallback);
 // //     } catch (err) {
 // //       setError(err instanceof Error ? err.message : 'Failed to fetch data');
-// //       await supabase.from('system_logs').insert({
 // //         component: 'rdp-plans',
 // //         action: 'fetch_data',
 // //         level: 'error',
@@ -226,8 +220,6 @@
 // //       detail: { count: updatedCart.length }
 // //     }));
 
-// //     await supabase.from('cart_events').insert({
-// //       user_id: (await supabase.auth.getUser()).data.user?.id,
 // //       event_type: 'add_to_cart',
 // //       product_type: 'rdp',
 // //       plan_id: selectedPlan.plan_id,
@@ -247,7 +239,6 @@
 // //     console.error("Failed to add to cart:", err);
 // //     setError('Failed to add item to cart');
 
-// //     await supabase.from('system_logs').insert({
 // //       component: 'rdp-plans',
 // //       action: 'add_to_cart',
 // //       level: 'error',
@@ -851,7 +842,6 @@
 
 // import { useState, useEffect } from "react";
 // import { useNavigate, useSearchParams } from "react-router-dom";
-// import { createClient } from "@supabase/supabase-js";
 // import {
 //   ComputerDesktopIcon,
 //   CpuChipIcon,
@@ -868,7 +858,6 @@
 //   ShieldCheckIcon
 // } from "@heroicons/react/24/outline";
 
-// const supabase = createClient(
 //   import.meta.env.VITE_SUPABASE_URL,
 //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // );
@@ -945,7 +934,6 @@
 //     try {
 //       setLoading(true);
 
-//       const { data: plansData, error: plansError } = await supabase
 //         .from("rdp_plans")
 //         .select("*")
 //         .eq("is_active", true)
@@ -978,7 +966,6 @@
 //         { name: "Rocky Linux 9", icon: "RockyIcon", description: "Enterprise-grade Linux, CentOS alternative" }
 //       ];
 
-//       const { data: configData } = await supabase.from("system_config").select("management_options, residential_countries, os_metadata").eq("config_key", "rdp_settings").single();
 
 //       setRdpPlans(plansData || []);
 //       setManagementOptions(configData?.management_options || managementOptionsFallback);

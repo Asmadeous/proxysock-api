@@ -22,8 +22,6 @@ vi.mock("../utils/redditPixel", () => ({
     }),
 }));
 
-vi.mock("../supabaseClient", () => ({
-    supabase: {
         auth: {
             signInWithOAuth: vi.fn(),
         },

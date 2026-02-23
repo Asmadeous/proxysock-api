@@ -1,6 +1,5 @@
 // import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
-// import { createClient } from "@supabase/supabase-js";
 // import {
 //   ComputerDesktopIcon,
 //   HomeIcon,
@@ -15,7 +14,6 @@
 //   MapPinIcon
 // } from "@heroicons/react/24/outline";
 
-// const supabase = createClient(
 //   import.meta.env.VITE_SUPABASE_URL,
 //   import.meta.env.VITE_SUPABASE_ANON_KEY
 // );
@@ -51,7 +49,6 @@
 //       setLoading(true);
 
 //       // Fetch rdp_types or derive from rdp_plans
-//       const { data: typesData, error: typesError } = await supabase
 //         .from('rdp_types')
 //         .select('*')
 //         .eq('is_active', true);
@@ -59,7 +56,6 @@
 //       let rdpTypesData: RDPType[] = [];
 //       if (typesError) {
 //         // Fallback: Derive types from rdp_plans
-//         const { data: plansData, error: plansError } = await supabase
 //           .from('rdp_plans')
 //           .select('service_type, price')
 //           .eq('is_active', true);
@@ -147,7 +143,6 @@
 //         { feature: 'Operating Systems', residential: 'Windows, Ubuntu, Debian, CentOS, Fedora', standard: 'Windows, Ubuntu, Debian, CentOS, Fedora, Rocky', icon: 'ComputerDesktopIcon' }
 //       ];
 
-//       const { data: configData, error: configError } = await supabase
 //         .from('system_config')
 //         .select('rdp_comparison_features')
 //         .eq('config_key', 'rdp_settings')
@@ -155,7 +150,6 @@
 
 //       if (configError) {
 //         console.warn(`Config fetch failed: ${configError.message}. Using fallback data.`);
-//         await supabase.from('system_logs').insert({
 //           component: 'rdp-types',
 //           action: 'fetch_config',
 //           level: 'warning',
@@ -168,7 +162,6 @@
 //       setComparisonFeatures(configData?.rdp_comparison_features || comparisonFeaturesFallback);
 //     } catch (err) {
 //       setError(err instanceof Error ? err.message : 'Failed to fetch data');
-//       await supabase.from('system_logs').insert({
 //         component: 'rdp-types',
 //         action: 'fetch_data',
 //         level: 'error',

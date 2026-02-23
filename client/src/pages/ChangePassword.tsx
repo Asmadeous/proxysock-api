@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-// import { supabase } from "../supabaseClient";
 import { toast } from "sonner";
 import {
   Lock,
@@ -84,7 +83,6 @@ export default function ChangePassword() {
       toast.error("Password change is currently disabled. Please contact support.");
 
       /*
-      const { error } = await supabase.auth.updateUser({
         password: formData.newPassword,
       });
 
