@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-import { Post } from "@/pages/blogPost";
+import { Post } from "@/data/blogPost";
 
 interface BlogPostContentProps {
   post: Post;

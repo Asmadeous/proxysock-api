@@ -1,154 +1,103 @@
-// app/src/App.tsx - Updated with Reddit Ads tracking
-
 import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
 import AutoSEO from "./components/AutoSEO";
-// import Home from "./pages/Home";
-// import Dashboard from "./pages/Dashboard";
-// import DashboardHome from "./pages/DashboardHome";
-// import BuyProxies from "./pages/BuyProxies";
-// import Cart from "./pages/Cart";
-// import Profile from "./pages/Profile";
-// import ChangePassword from "./pages/ChangePassword";
-// import ProxyOrders from "./pages/ProxyOrders";
-// import Login from "./pages/Login";
-// import Register from "./pages/Register";
-// import ProxyPage from "./pages/ProxyPage";
-// import Locations from "./pages/Locations";
-// import About from "./pages/About";
-// import Faq from "./pages/FAQ";
-// import ProxyPurpose from "./pages/ProxyPurpose";
-// import Contact from "./pages/Contact";
-// import HowToConnect from "./pages/HowToConnect";
-// import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
-// import ForgotPassword from "./pages/ForgotPassword";
-// import WaitForVerification from "./pages/WaitForVerification";
-// import DepositSuccess from "./pages/DepositSuccess";
-// import DepositFailed from "./pages/DepositFailed";
 import CookieConsentBanner from "./components/CookieConsentBanner";
-// import CookiePolicy from "./pages/CookiePolicy";
-// import IPChecker from "./pages/IPChecker";
-// import ESIMPackages from "./pages/EsimPackages";
-// import VPSTypes from "./pages/VPSTypes";
-// import VPSPlans from "./pages/VPSPlans";
-// import RDPTypes from "./pages/RDPTypes";
-// import RDPPlans from "./pages/RDPPlans";
-// import ProductManagement from "./pages/ProductsManagement";
-// import ProxyManagement from "./pages/ProxyManagement";
-// import VPSManagement from "./pages/VPSManagement";
-// import RDPPManagement from "./pages/RDPManagement";
-// import ESIMManagement from "./pages/ESIMManagement";
-// import Orders from "./pages/Orders";
-// import EsimOrders from "./pages/EsimOrders";
-// import VPSOrders from "./pages/VPSOrders";
-// import RDPOrders from "./pages/RDPOrders";
-// import RDPPage from "./pages/RDPPage";
-// import VPSPage from "./pages/VPSPage";
-// import ESIMPage from "./pages/ESIMPage";
-// import VPNPage from "./pages/VPNpage";
-// import Transactions from "./pages/TransactionsPage";
-// import NotFound from "./pages/NotFound";
 import ReactGA from "react-ga";
-// import PaymentSuccess from "./pages/PaymentSuccess";
-// import PaymentFailed from "./pages/PaymentFailed";
-// import BlogPage from "./pages/BlogPage";
-// import BlogPostPage from "./pages/BlogPostPage";
-import AuthCallback from "./pages/auth/callback"; // Keep this static for faster auth flow
-// import Privacy from "./pages/Privacy";
-// import Terms from "./pages/Terms";
-// import VPNBuy from "./pages/VPNPlans";
-// import VPNOrders from "./pages/VPNOrders";
-// import VPNManagement from "./pages/VPNManagement";
-// import Checkout from "./pages/Checkout";
-// import ResellerProgram from "./pages/ResellerProgram";
-
-// ✅ ADD: Import Reddit tracking
+import AuthCallback from "./pages/auth/callback";
 import { useRedditPixel, conversionTracker } from "./utils/redditPixel";
-// import ESIMTypes from "./pages/ESIMTypes";
-// import USAESIMPlans from "./pages/USAESIMPlansPage";
 import PublicLayout from "./components/landing/layout/PublicLayout";
 import ScrollToTop from "./components/ScrollToTop";
 import AuthLayout from "./components/landing/layout/AuthLayout";
 import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
+import ChatWidget from "./components/ChatWidget";
 
-// Lazy imports
-const Home = lazy(() => import("./pages/Home"));
+// ─── Public pages ──────────────────────────────────────────
+const Home = lazy(() => import("./pages/public/Home"));
+const ProxyPage = lazy(() => import("./pages/public/ProxyPage"));
+const RDPPage = lazy(() => import("./pages/public/RDPPage"));
+const VPSPage = lazy(() => import("./pages/public/VPSPage"));
+const ESIMPage = lazy(() => import("./pages/public/ESIMPage"));
+const VPNPage = lazy(() => import("./pages/public/VPNpage"));
+const ResellerProgram = lazy(() => import("./pages/public/ResellerProgram"));
+const Locations = lazy(() => import("./pages/public/Locations"));
+const About = lazy(() => import("./pages/public/About"));
+const Faq = lazy(() => import("./pages/public/FAQ"));
+const ProxyPurpose = lazy(() => import("./pages/public/ProxyPurpose"));
+const Contact = lazy(() => import("./pages/public/Contact"));
+const HowToConnect = lazy(() => import("./pages/public/HowToConnect"));
+const CookiePolicy = lazy(() => import("./pages/public/CookiePolicy"));
+const IPChecker = lazy(() => import("./pages/public/IPChecker"));
+const BlogPage = lazy(() => import("./pages/public/BlogPage"));
+const BlogPostPage = lazy(() => import("./pages/public/BlogPostPage"));
+const Privacy = lazy(() => import("./pages/public/Privacy"));
+const Terms = lazy(() => import("./pages/public/Terms"));
+
+// ─── Auth pages ─────────────────────────────────────────────
+const Login = lazy(() => import("./pages/auth/Login"));
+const Register = lazy(() => import("./pages/auth/Register"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const WaitForVerification = lazy(() => import("./pages/auth/WaitForVerification"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
+const VerifyEmail = lazy(() => import("./pages/auth/VerifyEmail"));
+
+// ─── Payment result pages ────────────────────────────────────
+const DepositSuccess = lazy(() => import("./pages/payments/DepositSuccess"));
+const DepositFailed = lazy(() => import("./pages/payments/DepositFailed"));
+const PaymentSuccess = lazy(() => import("./pages/payments/PaymentSuccess"));
+const PaymentFailed = lazy(() => import("./pages/payments/PaymentFailed"));
+
+// ─── Product browse pages ────────────────────────────────────
+const VPSTypes = lazy(() => import("./pages/products/VPSTypes"));
+const VPSPlans = lazy(() => import("./pages/products/VPSPlans"));
+const RDPTypes = lazy(() => import("./pages/products/RDPTypes"));
+const RDPPlans = lazy(() => import("./pages/products/RDPPlans"));
+const ESIMPackages = lazy(() => import("./pages/products/EsimPackages"));
+const ESIMTypes = lazy(() => import("./pages/products/ESIMTypes"));
+const USAESIMPlans = lazy(() => import("./pages/products/USAESIMPlansPage"));
+const VPNBuy = lazy(() => import("./pages/products/VPNPlans"));
+
+// ─── Misc pages ──────────────────────────────────────────────
+const NotFound = lazy(() => import("./pages/misc/NotFound"));
+const NotificationsPage = lazy(() => import("./pages/misc/NotificationsPage"));
+
+// ─── User Dashboard ──────────────────────────────────────────
 const Dashboard = lazy(() => import("./pages/UserDashboard/Dashboard"));
 const DashboardHome = lazy(() => import("./pages/UserDashboard/DashboardHome"));
 const BuyProxies = lazy(() => import("./pages/UserDashboard/BuyProxies"));
 const Cart = lazy(() => import("./pages/UserDashboard/Cart"));
+const Checkout = lazy(() => import("./pages/UserDashboard/Checkout"));
 const Profile = lazy(() => import("./pages/UserDashboard/Profile"));
 const ChangePassword = lazy(() => import("./pages/UserDashboard/ChangePassword"));
 const ProxyOrders = lazy(() => import("./pages/UserDashboard/ProxyOrders"));
-const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
-const ProxyPage = lazy(() => import("./pages/ProxyPage"));
-const Locations = lazy(() => import("./pages/Locations"));
-const About = lazy(() => import("./pages/About"));
-const Faq = lazy(() => import("./pages/FAQ"));
-const ProxyPurpose = lazy(() => import("./pages/ProxyPurpose"));
-const Contact = lazy(() => import("./pages/Contact"));
-const HowToConnect = lazy(() => import("./pages/HowToConnect"));
+const Orders = lazy(() => import("./pages/UserDashboard/Orders"));
+const EsimOrders = lazy(() => import("./pages/UserDashboard/EsimOrders"));
+const VPSOrders = lazy(() => import("./pages/UserDashboard/VPSOrders"));
+const RDPOrders = lazy(() => import("./pages/UserDashboard/RDPOrders"));
+const VPNOrders = lazy(() => import("./pages/UserDashboard/VPNOrders"));
+const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
+const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
+const ProductManagement = lazy(() => import("./pages/UserDashboard/ProductsManagement"));
+const ProxyManagement = lazy(() => import("./pages/UserDashboard/ProxyManagement"));
+const VPSManagement = lazy(() => import("./pages/UserDashboard/VPSManagement"));
+const RDPPManagement = lazy(() => import("./pages/UserDashboard/RDPManagement"));
+const ESIMManagement = lazy(() => import("./pages/UserDashboard/ESIMManagement"));
+const VPNManagement = lazy(() => import("./pages/UserDashboard/VPNManagement"));
+const Transactions = lazy(() => import("./pages/UserDashboard/TransactionsPage"));
+
+// ─── Admin / Employee / Reseller / Affiliate ─────────────────
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdmin/SuperAdminDashboard"));
 const AdminLoginPage = lazy(() => import("./pages/SuperAdmin/AdminLoginPage"));
 const EmployeeDashboard = lazy(() => import("./pages/Employee/EmployeeDashboard"));
 const ResellerDashboard = lazy(() => import("./pages/Reseller/ResellerDashboard"));
 const ResellerLoginPage = lazy(() => import("./pages/Reseller/ResellerLoginPage"));
 const AffiliateDashboard = lazy(() => import("./pages/Affiliate/AffiliateDashboard"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const WaitForVerification = lazy(() => import("./pages/WaitForVerification"));
-const DepositSuccess = lazy(() => import("./pages/DepositSuccess"));
-const DepositFailed = lazy(() => import("./pages/DepositFailed"));
-const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
-const IPChecker = lazy(() => import("./pages/IPChecker"));
-const ESIMPackages = lazy(() => import("./pages/EsimPackages"));
-const VPSTypes = lazy(() => import("./pages/VPSTypes"));
-const VPSPlans = lazy(() => import("./pages/VPSPlans"));
-const RDPTypes = lazy(() => import("./pages/RDPTypes"));
-const RDPPlans = lazy(() => import("./pages/RDPPlans"));
-const ProductManagement = lazy(() => import("./pages/UserDashboard/ProductsManagement"));
-const ProxyManagement = lazy(() => import("./pages/UserDashboard/ProxyManagement"));
-const VPSManagement = lazy(() => import("./pages/UserDashboard/VPSManagement"));
-const RDPPManagement = lazy(() => import("./pages/UserDashboard/RDPManagement"));
-const ESIMManagement = lazy(() => import("./pages/UserDashboard/ESIMManagement"));
-const Orders = lazy(() => import("./pages/UserDashboard/Orders"));
-const EsimOrders = lazy(() => import("./pages/UserDashboard/EsimOrders"));
-const VPSOrders = lazy(() => import("./pages/UserDashboard/VPSOrders"));
-const RDPOrders = lazy(() => import("./pages/UserDashboard/RDPOrders"));
-const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
-const RDPPage = lazy(() => import("./pages/RDPPage"));
-const VPSPage = lazy(() => import("./pages/VPSPage"));
-const ESIMPage = lazy(() => import("./pages/ESIMPage"));
-const VPNPage = lazy(() => import("./pages/VPNpage"));
-const Transactions = lazy(() => import("./pages/UserDashboard/TransactionsPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
-const PaymentFailed = lazy(() => import("./pages/PaymentFailed"));
-const BlogPage = lazy(() => import("./pages/BlogPage"));
-const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
-const VPNBuy = lazy(() => import("./pages/VPNPlans"));
-const VPNOrders = lazy(() => import("./pages/UserDashboard/VPNOrders"));
-const VPNManagement = lazy(() => import("./pages/UserDashboard/VPNManagement"));
-const Checkout = lazy(() => import("./pages/Checkout"));
-const ResellerProgram = lazy(() => import("./pages/ResellerProgram"));
-const ESIMTypes = lazy(() => import("./pages/ESIMTypes"));
-const USAESIMPlans = lazy(() => import("./pages/USAESIMPlansPage"));
-const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
-const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
-import ChatWidget from "./components/ChatWidget";
 
-// Initialize Google Analytics (your existing code)
+// ─── Initialize analytics ────────────────────────────────────
 ReactGA.initialize("UA-XXXXXXXXX-X");
-
-// ✅ ADD: Reddit Pixel ID from environment
 const REDDIT_PIXEL_ID = "66fa7c91-95cd-46ad-a920-d8db513caf94";
 
 const PageLoader = () => (
@@ -158,18 +107,14 @@ const PageLoader = () => (
 );
 
 export default function App() {
-  const location = useLocation(); // Hook to track route changes
+  const location = useLocation();
 
-  // ✅ ADD: Initialize Reddit pixel tracking (one line!)
   useRedditPixel(REDDIT_PIXEL_ID);
 
   useEffect(() => {
-    // Track page views on route changes (your existing GA tracking)
     ReactGA.pageview(location.pathname + location.search);
-
-    // ✅ ADD: Track Reddit Ads navigation
-    conversionTracker.trackNavigation(document.title || 'Page View', location.pathname);
-  }, [location]); // Re-run effect when location changes
+    conversionTracker.trackNavigation(document.title || "Page View", location.pathname);
+  }, [location]);
 
   return (
     <AuthProvider>
@@ -212,46 +157,33 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route
-                  path="/wait-for-verification"
-                  element={<WaitForVerification />}
-                />
+                <Route path="/wait-for-verification" element={<WaitForVerification />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
               </Route>
 
-              {/* Protected Routes */}
+              {/* Protected User Dashboard */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />}>
-                  {/* Main Dashboard */}
                   <Route index element={<DashboardHome />} />
 
                   {/* Products & Services */}
-                  {/* proxies routes*/}
                   <Route path="proxies" element={<BuyProxies />} />
-
-                  {/* ESIM routes */}
                   <Route path="global-esim" element={<ESIMPackages />} />
                   <Route path="esim" element={<ESIMTypes />} />
                   <Route path="usa-esim" element={<USAESIMPlans />} />
-
-                  {/* VPS Routes */}
                   <Route path="vps" element={<VPSTypes />} />
                   <Route path="vps-plans" element={<VPSPlans />} />
                   <Route path="vps-plans/:type" element={<VPSPlans />} />
-
-                  {/* RDP Routes */}
                   <Route path="rdp" element={<RDPTypes />} />
                   <Route path="rdp-plans" element={<RDPPlans />} />
                   <Route path="rdp-plans/:type" element={<RDPPlans />} />
-                  {/* VPN routes */}
                   <Route path="vpn" element={<VPNBuy />} />
 
                   {/* Orders */}
                   <Route path="orders" element={<Orders />} />
                   <Route path="proxy-orders" element={<ProxyOrders />} />
                   <Route path="esim-orders" element={<EsimOrders />} />
-                  <Route path="rdp-orders" element={<RDPOrders />} />
                   <Route path="rdp-orders" element={<RDPOrders />} />
                   <Route path="vps-orders" element={<VPSOrders />} />
                   <Route path="vpn-orders" element={<VPNOrders />} />
@@ -264,7 +196,6 @@ export default function App() {
                   <Route path="products" element={<ProductManagement />} />
                   <Route path="proxy-management" element={<ProxyManagement />} />
                   <Route path="Esim-management" element={<ESIMManagement />} />
-                  <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="RDP-management" element={<RDPPManagement />} />
                   <Route path="vpn-management" element={<VPNManagement />} />
@@ -282,23 +213,20 @@ export default function App() {
                 </Route>
               </Route>
 
-              {/* Admin / Employee Routes */}
+              {/* Admin / Employee */}
               <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/admin" element={<SuperAdminDashboard />} />
-              <Route path="/employee" element={<EmployeeDashboard />} />
               <Route path="/sadmin" element={<SuperAdminDashboard />} />
+              <Route path="/employee" element={<EmployeeDashboard />} />
 
-              {/* Reseller Routes */}
+              {/* Reseller */}
               <Route path="/reseller/login" element={<ResellerLoginPage />} />
               <Route path="/reseller" element={<ResellerDashboard />} />
 
-              {/* Payment Result Routes */}
+              {/* Payment Results */}
               <Route path="/deposit/success" element={<DepositSuccess />} />
               <Route path="/deposit/failed" element={<DepositFailed />} />
-              <Route
-                path="/payments/success"
-                element={<PaymentSuccess clearCart={() => { }} />}
-              />
+              <Route path="/payments/success" element={<PaymentSuccess clearCart={() => { }} />} />
               <Route path="/payments/failed" element={<PaymentFailed />} />
 
               <Route path="*" element={<NotFound />} />
