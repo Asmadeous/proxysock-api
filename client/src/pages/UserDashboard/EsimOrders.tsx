@@ -156,7 +156,7 @@ const ESIMOrdersPage = () => {
     const delivered = orders.filter((o) => o.status === "delivered" || o.status === "allocated").length;
     const pending = orders.filter((o) => o.status === "pending").length;
     const failed = orders.filter((o) => o.status === "failed" || o.status === "cancelled").length;
-    const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount / 10000 || 0), 0);
+    const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     const totalEsims = orders.reduce((sum, o) => sum + (o.quantity || 0), 0);
 
     // Calculate total data from profiles
@@ -218,7 +218,7 @@ Package: ${order.package_name}
 Status: ${order.status}
 Purchase Date: ${new Date(order.created_at).toLocaleDateString()}
 Quantity: ${order.quantity}
-Total Amount: ${order.currency_code} ${order.total_amount / 10000}
+Total Amount: ${order.currency_code} ${order.total_amount}
 
 ${order.profiles
         ?.map(
@@ -614,7 +614,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                       <span className="text-muted-foreground">Total Paid</span>
                       <span className="text-xl font-bold">
                         {order.currency_code === "USD" ? "$" : order.currency_code}{" "}
-                        {order.total_amount / 10000}
+                        {order.total_amount}
                       </span>
                     </div>
 
@@ -700,7 +700,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                     <div>
                       <span className="text-muted-foreground text-sm">Total Amount</span>
                       <p className="font-medium mt-1">
-                        {selectedOrder.currency_code} {selectedOrder.total_amount / 10000}
+                        {selectedOrder.currency_code} {selectedOrder.total_amount}
                       </p>
                     </div>
                   </div>

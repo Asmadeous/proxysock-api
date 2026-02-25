@@ -185,6 +185,7 @@ export default function App() {
                   <Route path="proxy-orders" element={<ProxyOrders />} />
                   <Route path="esim-orders" element={<EsimOrders />} />
                   <Route path="rdp-orders" element={<RDPOrders />} />
+                  <Route path="rdp-orders" element={<RDPOrders />} />
                   <Route path="vps-orders" element={<VPSOrders />} />
                   <Route path="vpn-orders" element={<VPNOrders />} />
 
@@ -196,6 +197,7 @@ export default function App() {
                   <Route path="products" element={<ProductManagement />} />
                   <Route path="proxy-management" element={<ProxyManagement />} />
                   <Route path="Esim-management" element={<ESIMManagement />} />
+                  <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="RDP-management" element={<RDPPManagement />} />
                   <Route path="vpn-management" element={<VPNManagement />} />
@@ -226,7 +228,10 @@ export default function App() {
               {/* Payment Results */}
               <Route path="/deposit/success" element={<DepositSuccess />} />
               <Route path="/deposit/failed" element={<DepositFailed />} />
-              <Route path="/payments/success" element={<PaymentSuccess clearCart={() => { }} />} />
+              <Route
+                path="/payments/success"
+                element={<PaymentSuccess clearCart={() => { }} />}
+              />
               <Route path="/payments/failed" element={<PaymentFailed />} />
 
               <Route path="*" element={<NotFound />} />

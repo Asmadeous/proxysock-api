@@ -3,12 +3,12 @@
 module Web
   module Api
     class VmsController < BaseController
-      before_action :authenticate_user!
+      before_action :authenticate_request
       before_action :set_vm, only: %i[show destroy start stop status]
 
       # GET /web/api/vms
       def index
-        @vms = current_user_vms.includes(:vm_order)
+        @vms = current_actor_vms.includes(:vm_order)
 
         render json: {
           vms: @vms.map { |vm| serialize_vm(vm) }
@@ -23,7 +23,9 @@ module Web
       # POST /web/api/vms
       def create
         order = create_vm_order
-        vm = order.orderable.create_vm!(
+        # No need to create VM here if Job does it, but current code does:
+        vm = Vm.create!(
+          vm_order: order.vm_order,
           status: 'pending',
           vm_type: vm_params[:vm_type]
         )
@@ -57,7 +59,8 @@ module Web
 
       # GET /web/api/vms/:id/status
       def status
-        cached_status = Rails.cache.fetch("vm_status_#{@vm.id}", expires_in: 5.minutes) do
+        cache_key = "vm_status_#{@vm.id}_v1_#{@vm.updated_at.to_i}"
+        cached_status = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           @vm.status
         end
 
@@ -72,15 +75,14 @@ module Web
       private
 
       def set_vm
-        @vm = current_user_vms.find(params[:id])
+        @vm = current_actor_vms.find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'VM not found' }, status: :not_found
       end
 
-      def current_user_vms
-        Vm.joins(vm_order: { order: :orderable })
-          .where(orders: { orderable_type: 'EcommerceOrder' })
-          .where(ecommerce_orders: { user_id: @current_user.id })
+      def current_actor_vms
+        # Find VMs where the master order belongs to this actor (either directly or via EcommerceOrder)
+        Vm.joins(vm_order: :order).where(orders: { orderable: current_actor })
       end
 
       def vm_params
@@ -99,20 +101,13 @@ module Web
         product = Product.find_by!(product_type: 'vm', slug: vm_params[:os_template])
         pricing = product.product_pricings.active.first!
 
-        ecommerce_order = @current_user.ecommerce_orders.create!(
-          order: nil, # Will be set after
-          orderable_type: 'VmOrder',
-          orderable_id: 0
-        )
-
+        # Direct Order for both User and Reseller
         order = Order.create!(
-          orderable: ecommerce_order,
+          orderable: current_actor,
           product: product,
           product_pricing: pricing,
           status: 'processing'
         )
-
-        ecommerce_order.update!(order: order)
 
         vm_order = VmOrder.create!(
           order: order,
@@ -124,7 +119,6 @@ module Web
           status: 'pending'
         )
 
-        ecommerce_order.update!(orderable: vm_order)
         order
       end
 

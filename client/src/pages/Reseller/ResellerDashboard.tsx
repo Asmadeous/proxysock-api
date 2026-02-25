@@ -11,7 +11,10 @@ import {
     UserCircleIcon,
     ArrowRightOnRectangleIcon,
     PaperAirplaneIcon,
+    RectangleStackIcon,
 } from "@heroicons/react/24/outline";
+import ResellerCart from "./ResellerCart";
+import ResellerCheckout from "./ResellerCheckout";
 import AdminSidebar, { type SidebarItem } from "../SuperAdmin/components/AdminSidebar";
 import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
@@ -35,8 +38,9 @@ import { Button } from "@/components/ui/button";
 
 const TABS: SidebarItem[] = [
     { id: "overview", name: "Overview", icon: HomeIcon },
-    { id: "orders", name: "Orders", icon: ShoppingCartIcon },
+    { id: "orders", name: "Orders", icon: RectangleStackIcon },
     { id: "products", name: "Products", icon: CubeIcon },
+    { id: "cart", name: "Cart", icon: ShoppingCartIcon },
     { id: "api-keys", name: "API Keys", icon: KeyIcon },
     { id: "wallet", name: "Wallet", icon: WalletIcon },
     { id: "affiliate", name: "Affiliate", icon: LinkIcon },
@@ -48,11 +52,27 @@ const TABS: SidebarItem[] = [
 
 export default function ResellerDashboard() {
     const [activeTab, setActiveTab] = useState("overview");
+    const [cartCount, setCartCount] = useState(0);
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
 
     useEffect(() => {
         if (!localStorage.getItem("resellerToken")) navigate("/reseller/login");
+
+        // Setup cart count
+        const storedCart = localStorage.getItem("cartItems");
+        if (storedCart) {
+            try {
+                const parsed = JSON.parse(storedCart);
+                setCartCount(Array.isArray(parsed) ? parsed.length : 0);
+            } catch { }
+        }
+
+        const handleCartUpdate = (e: any) => {
+            setCartCount(e.detail.count);
+        };
+        globalThis.addEventListener("cart-updated", handleCartUpdate);
+        return () => globalThis.removeEventListener("cart-updated", handleCartUpdate);
     }, [navigate]);
 
     const handleTab = (id: string) => {
@@ -65,10 +85,14 @@ export default function ResellerDashboard() {
         setActiveTab(id);
     };
 
+    const sidebarItems = TABS.map(item =>
+        item.id === "cart" ? { ...item, count: cartCount > 0 ? cartCount : undefined } : item
+    );
+
     return (
         <div className="min-h-screen flex">
             <AdminSidebar
-                items={TABS}
+                items={sidebarItems}
                 activeTab={activeTab}
                 onTabChange={handleTab}
                 title="Reseller"
@@ -83,6 +107,21 @@ export default function ResellerDashboard() {
                     {activeTab === "overview" && <ResOverview />}
                     {activeTab === "orders" && <ResOrders />}
                     {activeTab === "products" && <ResProducts />}
+                    {activeTab === "cart" && (
+                        <ResellerCart
+                            onCheckout={() => setActiveTab("checkout")}
+                            onBrowse={(cat) => setActiveTab(cat === "proxies" ? "products" : "products")}
+                        />
+                    )}
+                    {activeTab === "checkout" && (
+                        <ResellerCheckout
+                            onSuccess={(orderId) => {
+                                toast.success(`Order #${orderId} placed successfully!`);
+                                setActiveTab("orders");
+                            }}
+                            onCancel={() => setActiveTab("cart")}
+                        />
+                    )}
                     {activeTab === "api-keys" && <ResApiKeys />}
                     {activeTab === "wallet" && <ResWallet />}
                     {activeTab === "affiliate" && <ResAffiliate />}
@@ -266,10 +305,27 @@ function ResOrders() {
 function ResProducts() {
     const [products, setProducts] = useState<Record<string, unknown>[]>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    const loadProducts = useCallback(async (p: number) => {
+        setLoading(true);
+        try {
+            const r = await fetchResellerProducts({ page: String(p) });
+            setProducts(r.data.products || r.data || []);
+            setTotalPages(r.data.meta?.total_pages || 1);
+            setTotal(r.data.meta?.total_count || 0);
+        } catch {
+            toast.error("Failed to load products");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        fetchResellerProducts().then((r) => { setProducts(r.data.products || r.data || []); setLoading(false); }).catch(() => setLoading(false));
-    }, []);
+        loadProducts(page);
+    }, [page, loadProducts]);
 
     return (
         <div className="space-y-4">
@@ -277,12 +333,16 @@ function ResProducts() {
             <DataTable
                 columns={[
                     { key: "name", label: "Product" },
-                    { key: "product_type", label: "Type" },
+                    { key: "category", label: "Category", render: (r: Record<string, unknown>) => String(r.category || 'Uncategorized') },
+                    { key: "provider_type", label: "Provider" },
                     { key: "base_price", label: "Price", render: (r: Record<string, unknown>) => `$${Number(r.base_price || 0).toFixed(2)}` },
-                    { key: "active", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={r.active ? "active" : "inactive"} /> },
                 ]}
                 data={products}
                 loading={loading}
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                onPageChange={setPage}
             />
         </div>
     );

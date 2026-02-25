@@ -20,7 +20,7 @@ export const formatDuration = (duration: number, unit: string) => {
 export const formatCartItems = (cartItems: CartItem[]) => {
   return cartItems.map((item) => {
     if (item.productType === "esim" && item.esimPackage) {
-      const scaledPrice = Number(item.esimPackage.price) / 10000;
+      const scaledPrice = Number(item.esimPackage.price);
       return {
         productType: "esim",
         esimPackage: {

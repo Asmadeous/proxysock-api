@@ -207,6 +207,21 @@ export default function ProxyManagement() {
     }
   };
 
+  const handleReorder = async (orderId: string) => {
+    try {
+      setLoading(true);
+      const { data } = await api.post(`/web/api/orders/${orderId}/reorder`);
+      alert('Reorder successful! A new order has been created.');
+      fetchProxyData(); // Refresh list to see new order
+    } catch (error: any) {
+      console.error('Failed to reorder:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to reorder';
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openModal = (type: typeof modalType, order?: ProxyOrder) => {
     setModalType(type);
     setSelectedOrder(order || null);
@@ -329,6 +344,15 @@ export default function ProxyManagement() {
               className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
             >
               <ArrowPathIcon className="h-4 w-4" />
+            </button>
+          )}
+          {order.status === 'expired' && (
+            <button
+              onClick={() => handleReorder(order.id)}
+              className="flex-1 py-2 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <ShoppingCartIcon className="h-4 w-4" />
+              Reorder
             </button>
           )}
         </div>

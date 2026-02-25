@@ -4,10 +4,10 @@ module Web
   module Api
     class NotificationsController < BaseController
       def index
-        notifications = Notification.where(recipient: current_user).recent.page(params[:page]).per(50)
+        notifications = Notification.where(recipient: current_actor).recent.page(params[:page]).per(50)
         render json: { 
           notifications: notifications, 
-          unread_count: Notification.where(recipient: current_user, read_at: nil).count,
+          unread_count: Notification.where(recipient: current_actor, read_at: nil).count,
           meta: {
             current_page: notifications.current_page,
             total_pages: notifications.total_pages,
@@ -17,7 +17,7 @@ module Web
       end
 
       def mark_as_read
-        Notification.where(recipient: current_user, read_at: nil).update_all(read_at: Time.current)
+        Notification.where(recipient: current_actor, read_at: nil).update_all(read_at: Time.current)
         render json: { success: true }
       end
     end

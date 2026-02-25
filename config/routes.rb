@@ -108,6 +108,9 @@ Rails.application.routes.draw do
       end
 
       resources :orders, only: %i[index create show] do
+        collection do
+          post :checkout_cart
+        end
         member do
           get :credentials
           post :renew

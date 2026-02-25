@@ -65,12 +65,23 @@ class ExpirationCleanupJob < ApplicationJob
     Rails.logger.info "Expiring #{resource.class.name} ##{resource.id}"
     begin
       # Check if resource has custom expire logic, otherwise just update status
-      if resource.respond_to?(:expire!)
+      if (resource.respond_to?(:expire!))
         resource.expire!
       else
         resource.update!(status: 'expired')
       end
       resource.order&.update(status: 'expired')
+
+      # Send notification urging reorder
+      if resource.order&.orderable
+        Notification.create(
+          recipient: resource.order.orderable,
+          category: 'warning',
+          title: "#{resource.class.name.titleize} Expired",
+          message: "Your #{resource.class.name.titleize} for Order ##{resource.order.order_number} has expired. Please reorder to continue service.",
+          metadata: { order_id: resource.order.id, reorderable: true }
+        )
+      end
     rescue StandardError => e
       Rails.logger.error "Failed to expire #{resource.class.name} ##{resource.id}: #{e.message}"
     end

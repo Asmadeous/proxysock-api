@@ -5,8 +5,8 @@
 BLOG_POSTS = [
   {
     slug:         'best-proxies-web-scraping-2025',
-    title:        'Best Proxies for Web Scraping in 2025',
-    excerpt:      'Discover which proxy types work best for web scraping and how to choose the right one for your needs.',
+    title:        "Best Proxies for Web Scraping in 2025",
+    excerpt:      "Discover which proxy types work best for web scraping and how to choose the right one for your needs.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '12 min',
@@ -32,8 +32,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'rdp-security-best-practices-2025',
-    title:        'RDP Security Best Practices to Protect Your Remote Desktop',
-    excerpt:      'Essential security measures every RDP user should implement to prevent unauthorized access and data breaches.',
+    title:        "RDP Security Best Practices to Protect Your Remote Desktop",
+    excerpt:      "Essential security measures every RDP user should implement to prevent unauthorized access and data breaches.",
     category:     'RDP',
     author:       'Security Team',
     read_time:    '15 min',
@@ -61,8 +61,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'esim-vs-physical-sim-travel',
-    title:        'eSIM vs Physical SIM: Which is Better for International Travel?',
-    excerpt:      'A comprehensive comparison of eSIM and traditional SIM cards for frequent travelers.',
+    title:        "eSIM vs Physical SIM: Which is Better for International Travel?",
+    excerpt:      "A comprehensive comparison of eSIM and traditional SIM cards for frequent travelers.",
     category:     'eSIM',
     author:       'Travel Tech Team',
     read_time:    '10 min',
@@ -86,8 +86,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'vps-vs-vds-differences',
-    title:        'VPS vs VDS: Key Differences and Which to Choose',
-    excerpt:      'Understanding the technical differences between VPS and VDS hosting and when each solution makes sense.',
+    title:        "VPS vs VDS: Key Differences and Which to Choose",
+    excerpt:      "Understanding the technical differences between VPS and VDS hosting and when each solution makes sense.",
     category:     'VPS',
     author:       'Infrastructure Team',
     read_time:    '8 min',
@@ -109,8 +109,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'vpn-protocols-comparison-2025',
-    title:        'VPN Protocols Compared: WireGuard vs OpenVPN vs IKEv2',
-    excerpt:      'A deep dive into the most popular VPN protocols to help you choose the right one for speed, security, and compatibility.',
+    title:        "VPN Protocols Compared: WireGuard vs OpenVPN vs IKEv2",
+    excerpt:      "A deep dive into the most popular VPN protocols to help you choose the right one for speed, security, and compatibility.",
     category:     'VPN',
     author:       'Security Team',
     read_time:    '11 min',
@@ -134,8 +134,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'residential-proxy-use-cases',
-    title:        'Top 10 Residential Proxy Use Cases in 2025',
-    excerpt:      'Explore the most valuable use cases for residential proxies in business, research, and automation.',
+    title:        "Top 10 Residential Proxy Use Cases in 2025",
+    excerpt:      "Explore the most valuable use cases for residential proxies in business, research, and automation.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '13 min',
@@ -169,8 +169,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'setting-up-rdp-windows-server',
-    title:        'How to Set Up RDP on Windows Server 2022: Step-by-Step Guide',
-    excerpt:      'A complete walkthrough for configuring Remote Desktop Protocol on Windows Server 2022 with security best practices.',
+    title:        "How to Set Up RDP on Windows Server 2022: Step-by-Step Guide",
+    excerpt:      "A complete walkthrough for configuring Remote Desktop Protocol on Windows Server 2022 with security best practices.",
     category:     'RDP',
     author:       'Tech Team',
     read_time:    '18 min',
@@ -196,8 +196,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'esim-global-coverage-guide',
-    title:        'Global eSIM Coverage Guide: Which Countries Support eSIM in 2025',
-    excerpt:      'A comprehensive breakdown of eSIM availability and major carriers offering eSIM plans worldwide.',
+    title:        "Global eSIM Coverage Guide: Which Countries Support eSIM in 2025",
+    excerpt:      "A comprehensive breakdown of eSIM availability and major carriers offering eSIM plans worldwide.",
     category:     'eSIM',
     author:       'Travel Tech Team',
     read_time:    '9 min',
@@ -223,8 +223,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'proxy-for-social-media-management',
-    title:        'Using Proxies for Social Media Management: Complete Guide',
-    excerpt:      'Learn how to safely manage multiple social media accounts using proxies without getting banned.',
+    title:        "Using Proxies for Social Media Management: Complete Guide",
+    excerpt:      "Learn how to safely manage multiple social media accounts using proxies without getting banned.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '14 min',
@@ -250,8 +250,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'vps-wordpress-optimisation',
-    title:        'Optimising WordPress on a VPS: Speed and Performance Guide',
-    excerpt:      'Actionable tips to dramatically improve WordPress performance on a VPS hosting environment.',
+    title:        "Optimising WordPress on a VPS: Speed and Performance Guide",
+    excerpt:      "Actionable tips to dramatically improve WordPress performance on a VPS hosting environment.",
     category:     'VPS',
     author:       'Infrastructure Team',
     read_time:    '16 min',
@@ -277,8 +277,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'understanding-proxy-protocols',
-    title:        'Understanding Proxy Protocols: HTTP, HTTPS, SOCKS4, and SOCKS5',
-    excerpt:      'A technical breakdown of the different proxy protocols and when to use each one.',
+    title:        "Understanding Proxy Protocols: HTTP, HTTPS, SOCKS4, and SOCKS5",
+    excerpt:      "A technical breakdown of the different proxy protocols and when to use each one.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '10 min',
@@ -302,8 +302,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'vpn-vs-proxy-differences',
-    title:        'VPN vs Proxy: What's the Difference and Which Do You Need?',
-    excerpt:      'Clear up the confusion between VPNs and proxies—understand their differences, use cases, and limitations.',
+    title:        "VPN vs Proxy: What's the Difference and Which Do You Need?",
+    excerpt:      "Clear up the confusion between VPNs and proxies—understand their differences, use cases, and limitations.",
     category:     'VPN',
     author:       'Security Team',
     read_time:    '9 min',
@@ -325,8 +325,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'datacenter-proxy-guide',
-    title:        'The Complete Guide to Datacenter Proxies: Speed, IP Ranges, and Detection',
-    excerpt:      'Everything you need to know about datacenter proxies—how they work, why they're fast, and how to avoid detection.',
+    title:        "The Complete Guide to Datacenter Proxies: Speed, IP Ranges, and Detection",
+    excerpt:      "Everything you need to know about datacenter proxies—how they work, why they're fast, and how to avoid detection.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '11 min',
@@ -350,8 +350,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'esim-setup-guide-iphone-android',
-    title:        'How to Set Up an eSIM on iPhone and Android: Step-by-Step',
-    excerpt:      'A complete guide to activating and using eSIM on both iPhone and Android devices.',
+    title:        "How to Set Up an eSIM on iPhone and Android: Step-by-Step",
+    excerpt:      "A complete guide to activating and using eSIM on both iPhone and Android devices.",
     category:     'eSIM',
     author:       'Travel Tech Team',
     read_time:    '7 min',
@@ -385,8 +385,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'proxy-rotation-strategies',
-    title:        'Proxy Rotation Strategies: When and How to Rotate IPs',
-    excerpt:      'Master the art of IP rotation to maximise scraping efficiency and minimise bans.',
+    title:        "Proxy Rotation Strategies: When and How to Rotate IPs",
+    excerpt:      "Master the art of IP rotation to maximise scraping efficiency and minimise bans.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '12 min',
@@ -413,8 +413,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'vps-linux-server-hardening',
-    title:        'Linux VPS Server Hardening: Complete Security Checklist',
-    excerpt:      'A comprehensive checklist to secure your Linux VPS against common attacks and vulnerabilities.',
+    title:        "Linux VPS Server Hardening: Complete Security Checklist",
+    excerpt:      "A comprehensive checklist to secure your Linux VPS against common attacks and vulnerabilities.",
     category:     'VPS',
     author:       'Security Team',
     read_time:    '20 min',
@@ -440,8 +440,8 @@ BLOG_POSTS = [
   },
   {
     slug:         'static-isp-proxies-explained',
-    title:        'Static ISP Proxies Explained: The Best of Both Worlds',
-    excerpt:      'Discover why static ISP proxies are becoming the preferred choice for advanced proxy users.',
+    title:        "Static ISP Proxies Explained: The Best of Both Worlds",
+    excerpt:      "Discover why static ISP proxies are becoming the preferred choice for advanced proxy users.",
     category:     'Proxies',
     author:       'Tech Team',
     read_time:    '8 min',
@@ -465,7 +465,7 @@ BLOG_POSTS = [
   }
 ].freeze
 
-puts "Seeding #{BLOG_POSTS.length} blog posts..."
+puts "📝 Seeding #{BLOG_POSTS.length} blog posts..."
 
 BLOG_POSTS.each do |attrs|
   BlogPost.find_or_create_by!(slug: attrs[:slug]) do |p|
@@ -475,7 +475,6 @@ BLOG_POSTS.each do |attrs|
       )
     )
   end
-  print '.'
 end
 
-puts "\nDone! #{BlogPost.count} blog posts in DB."
+puts "  ✅ #{BlogPost.count} blog posts"

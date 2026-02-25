@@ -214,18 +214,18 @@ export const fetchProductCategories = async (): Promise<Category[]> => {
   return [
     { id: '1', slug: 'datacenter', name: 'Datacenter' },
     { id: '2', slug: 'isp', name: 'ISP' },
-    { id: '3', slug: 'residential', name: 'Residential' },
-    { id: '4', slug: 'mobile', name: 'Mobile' },
+    { id: '3', slug: 'premium-isp', name: 'Premium ISP' },
+    { id: '4', slug: 'static-residential', name: 'Static Residential' },
+    { id: '5', slug: 'residential-rotating', name: 'Residential Rotating Proxies' },
+    { id: '6', slug: 'mobile', name: 'Mobile' },
   ];
 };
 
 export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<Category | null> => {
   try {
-    const { data } = await api.get('/web/api/products?product_type=proxy');
-    const allProducts = data.products || [];
-    const categoryProducts = allProducts.filter((p: any) => p.category_slug === categorySlug);
-
-    if (categoryProducts.length === 0) return null;
+    const { data } = await api.get<{ products: any[] }>(`/web/api/products?product_type=proxy&category_slug=${categorySlug}`);
+    const categoryProducts = data.products || [];
+    // Always return a category object so the UI can show "No plans" instead of "Select category"
 
     const plans = categoryProducts.map((p: any) => {
       let planISPs: ISP[] = [];
@@ -257,16 +257,41 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
     const categoryNames: Record<string, string> = {
       'datacenter': 'Datacenter',
       'isp': 'ISP',
-      'residential': 'Residential',
+      'premium-isp': 'Premium ISP',
+      'static-residential': 'Static Residential',
+      'residential-rotating': 'Residential Rotating Proxies',
       'mobile': 'Mobile'
     };
 
-    return {
+    const result: any = {
       id: categorySlug,
       name: categoryNames[categorySlug] || categorySlug,
       slug: categorySlug,
       proxy_plans: sortPlans(deduplicatePlans(plans))
     };
+
+    if (categorySlug === 'mobile') {
+      result.location_categories = [
+        {
+          id: 'usa',
+          slug: 'usa',
+          name: 'USA',
+          description: 'High-speed 5G/4G Mobile proxies from top USA carriers.',
+          countries: ['USA'],
+          premium: false,
+        },
+        {
+          id: 'premium',
+          slug: 'premium',
+          name: 'Canada',
+          description: 'Premium in-house mobile proxies with high-speed 5G/4G connectivity.',
+          countries: ['Canada'],
+          premium: true,
+        },
+      ];
+    }
+
+    return result;
   } catch (err) {
     console.error(`Error fetching proxy category ${categorySlug}:`, err);
     return null;

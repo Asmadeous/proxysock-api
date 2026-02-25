@@ -123,8 +123,6 @@ class EsimProvisioningService
           activation_code: item.activation_code,
           pin1:            item.pin1,
           puk1:            item.puk1,
-          pin2:            item.pin2,
-          puk2:            item.puk2,
           expires_at:      duration_days.days.from_now
         )
       end

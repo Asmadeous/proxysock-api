@@ -8,38 +8,41 @@ module Web
 
       # GET /web/api/products
       def index
-        cache_key = "products/web/index/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}"
+        stats = Product.unscoped.select("COUNT(*) as count, MAX(updated_at) as last_updated").take
+        cache_version = "#{stats.count}-#{stats.last_updated.to_i}"
+        
+        cache_key = "products/web/index_v6/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
 
-        products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
+        products_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           scope = Product.where(active: true).includes(:product_pricings, :product_category)
           scope = scope.where(product_category_id: params[:category_id]) if params[:category_id].present?
-
-          if params[:product_type].present?
-            product_type = params[:product_type]
-
-            case product_type
-            when 'vps'
-              # Frontend may use 'vps' but DB stores as 'vm'
-              scope = scope.where(product_type: 'vm')
-            when 'rdp'
-              # RDP products stored as 'vm' with rdp metadata flag, or as explicit 'rdp' if it exists
-              scope = scope.where(product_type: %w[rdp vm])
-                           .where("product_type = 'rdp' OR metadata->>'rdp' = 'true'")
-            else
-              # Handles: proxy, esim, usa_esim, vpn, etc.
-              scope = scope.where(product_type: product_type)
-            end
+          
+          if params[:category_slug].present?
+            slugs = params[:category_slug].split(',')
+            scope = scope.joins(:product_category).where(product_categories: { slug: slugs })
           end
 
-          paginated = scope.page(params[:page]).per(20)
+          if params[:product_type].present?
+            # Strict mapping to vps, rdp, proxy, etc.
+            scope = scope.where(product_type: params[:product_type])
+          end
 
-          {
-            products: paginated.map { |p| serialize_product(p) },
-            meta: {
+          if params[:per_page] == 'all'
+            paginated = scope
+            meta = { current_page: 1, total_pages: 1, total_count: scope.size }
+          else
+            per_page = (params[:per_page] || 100).to_i
+            paginated = scope.page(params[:page]).per(per_page)
+            meta = {
               current_page: paginated.current_page,
               total_pages: paginated.total_pages,
               total_count: paginated.total_count
             }
+          end
+
+          {
+            products: paginated.map { |p| serialize_product(p) },
+            meta: meta
           }.to_json
         end
 
@@ -48,10 +51,10 @@ module Web
 
       # GET /web/api/products/:id
       def show
-        cache_key = "products/web/show/#{params[:id]}"
+        product = Product.where(active: true).find(params[:id])
+        cache_key = "products/web/show/#{product.id}/#{product.updated_at.to_i}"
 
-        product_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
-          product = Product.where(active: true).find(params[:id])
+        product_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           { product: serialize_product(product) }.to_json
         end
 
@@ -72,14 +75,24 @@ module Web
           description: product.description,
           product_type: product.product_type,
           category: product.product_category&.name,
+          category_slug: product.product_category&.slug,
           price: pricing&.selling_price,
           currency: pricing&.currency,
-          provider_type: product.provider_type
+          provider_type: product.provider_type,
+          provider: product.provider
         }
 
         # Merge metadata (which contains cpu, ram, storage specs for VMs, or data/days for eSIMs)
         if product.metadata.is_a?(Hash)
           base_data.merge!(product.metadata.symbolize_keys)
+        end
+
+        # Proxy-specific metadata defaults if missing
+        if product.product_type == 'proxy'
+          base_data[:ips_included] ||= 0
+          base_data[:gb_min] ||= 0
+          base_data[:gb_max] ||= 0
+          base_data[:billing_type] ||= 'monthly'
         end
 
         base_data

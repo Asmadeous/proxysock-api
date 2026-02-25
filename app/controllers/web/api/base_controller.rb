@@ -7,6 +7,10 @@ module Web
 
       # Allow public access for some things, but verify user if token present
       # Specific controllers will enforce :authenticate_user!
+      
+      def current_actor
+        @current_user || @current_reseller
+      end
 
       private
 
@@ -14,6 +18,18 @@ module Web
         return if @current_user
 
         render json: { error: 'Unauthorized Access: User account required' }, status: :unauthorized
+      end
+
+      def authenticate_reseller!
+        return if @current_reseller
+
+        render json: { error: 'Unauthorized Access: Reseller account required' }, status: :unauthorized
+      end
+
+      def authenticate_actor!
+        return if current_actor
+
+        render json: { error: 'Unauthorized Access: Account required' }, status: :unauthorized
       end
     end
   end

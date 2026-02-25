@@ -1,8 +1,8 @@
-// BlogPage.tsx - SEO-optimized blog with Reddit pixel tracking and Newsdata.io integration
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRedditTracking } from "../../utils/redditPixel";
-import { blogPosts, type ExtendedPost } from "../../data/blogPost";
+import { type ExtendedPost } from "../../data/blogPost";
+import { getBlogPosts } from "../../services/blog";
 import { BlogHeroSection } from "../../components/landing/blog/BlogHeroSection";
 import { BlogNewsTicker } from "../../components/landing/blog/BlogNewsTicker";
 import { BlogSearchFilter } from "../../components/landing/blog/BlogSearchFilter";
@@ -36,8 +36,6 @@ interface NewsResponse {
   nextPage: string | null;
 }
 
-
-
 interface Category {
   name: string;
   count: number;
@@ -48,31 +46,21 @@ const NEWSDATA_API_KEY =
   import.meta.env.VITE_NEWSDATA_API_KEY || "YOUR_NEWSDATA_API_KEY";
 const NEWSDATA_BASE_URL = "https://newsdata.io/api/1/news";
 
-// Categories for filtering
-const categories: Category[] = [
-  { name: "All", count: blogPosts.length },
-  {
-    name: "Proxies",
-    count: blogPosts.filter((p) => p.category === "Proxies").length,
-  },
-  { name: "RDP", count: blogPosts.filter((p) => p.category === "RDP").length },
-  { name: "VPS", count: blogPosts.filter((p) => p.category === "VPS").length },
-  {
-    name: "eSIM",
-    count: blogPosts.filter((p) => p.category === "eSIM").length,
-  },
-  {
-    name: "Tutorials",
-    count: blogPosts.filter((p) => p.category === "Tutorials").length,
-  },
-  { name: "News", count: 0 }, // Will be updated dynamically
-];
-
 export default function BlogPage() {
   const { dark } = useThemeStore();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filteredPosts, setFilteredPosts] = useState<ExtendedPost[]>(blogPosts);
+  const [backendPosts, setBackendPosts] = useState<ExtendedPost[]>([]);
+  const [categories, setCategories] = useState<Category[]>([
+    { name: "All", count: 0 },
+    { name: "Proxies", count: 0 },
+    { name: "RDP", count: 0 },
+    { name: "VPS", count: 0 },
+    { name: "eSIM", count: 0 },
+    { name: "Tutorials", count: 0 },
+    { name: "News", count: 0 },
+  ]);
+  const [filteredPosts, setFilteredPosts] = useState<ExtendedPost[]>([]);
   const [newsArticles, setNewsArticles] = useState<ExtendedPost[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState<boolean>(false);
   const [newsError, setNewsError] = useState<string | null>(null);
@@ -80,10 +68,31 @@ export default function BlogPage() {
   const navigate = useNavigate();
   const { trackPageView, trackSearch, trackViewContent } = useRedditTracking();
 
+  // Fetch backend blog posts
+  useEffect(() => {
+    getBlogPosts().then((res) => {
+      setBackendPosts(res.posts);
+
+      setCategories((prev) => {
+        const counts = res.posts.reduce((acc, p) => {
+          acc[p.category] = (acc[p.category] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        return prev.map(c => {
+          if (c.name === "All") return { ...c, count: res.total };
+          if (c.name === "News") return c; // keep news count
+          return { ...c, count: counts[c.name] || 0 };
+        });
+      });
+    }).catch(console.error);
+  }, []);
+
   // Fetch news from Newsdata.io
   const fetchNews = async (page: string | null = null) => {
     setIsLoadingNews(true);
     setNewsError(null);
+
 
     try {
       // Build query parameters
@@ -200,7 +209,7 @@ export default function BlogPage() {
           url: "https://proxysock.com/assets/images/logo.svg",
         },
       },
-      blogPost: blogPosts.slice(0, 5).map((post) => ({
+      blogPost: backendPosts.slice(0, 5).map((post) => ({
         "@type": "BlogPosting",
         headline: post.title,
         description: post.excerpt,
@@ -230,14 +239,14 @@ export default function BlogPage() {
     let filtered: ExtendedPost[] = [];
 
     // Combine blog posts and news articles
-    const allContent: ExtendedPost[] = [...blogPosts, ...newsArticles];
+    const allContent: ExtendedPost[] = [...backendPosts, ...newsArticles];
 
     if (selectedCategory === "All") {
       filtered = allContent;
     } else if (selectedCategory === "News") {
       filtered = newsArticles;
     } else {
-      filtered = blogPosts.filter((post) => post.category === selectedCategory);
+      filtered = backendPosts.filter((post) => post.category === selectedCategory);
     }
 
     if (searchTerm) {
@@ -282,7 +291,7 @@ export default function BlogPage() {
     }
   };
 
-  const featuredPosts = blogPosts.filter((post) => post.featured);
+  const featuredPosts = backendPosts.filter((post) => post.featured);
 
   return (
     <div className="min-h-screen bg-background">

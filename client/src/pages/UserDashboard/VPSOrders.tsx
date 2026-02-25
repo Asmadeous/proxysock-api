@@ -84,7 +84,7 @@ const VPSOrdersPage = () => {
   const [orders, setOrders] = useState<VPSOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<VPSOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated' | 'failed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<VPSOrder | null>(null);
   const { accessToken } = useAuth();
@@ -95,6 +95,7 @@ const VPSOrdersPage = () => {
     active: 0,
     pending: 0,
     terminated: 0,
+    failed: 0,
     totalSpent: 0,
     totalVMs: 0,
     totalCores: 0,
@@ -146,7 +147,8 @@ const VPSOrdersPage = () => {
       filtered = filtered.filter(o => {
         if (activeTab === 'active') return o.status === 'active' || o.status === 'provisioning';
         if (activeTab === 'pending') return o.status === 'pending';
-        if (activeTab === 'terminated') return o.status === 'terminated' || o.status === 'suspended' || o.status === 'failed';
+        if (activeTab === 'terminated') return o.status === 'terminated' || o.status === 'suspended';
+        if (activeTab === 'failed') return o.status === 'failed' || o.status === 'cancelled';
         return true;
       });
     }
@@ -167,8 +169,9 @@ const VPSOrdersPage = () => {
     const active = orders.filter(o => o.status === 'active' || o.status === 'provisioning').length;
     const pending = orders.filter(o => o.status === 'pending').length;
     const terminated = orders.filter(o =>
-      o.status === 'terminated' || o.status === 'suspended' || o.status === 'failed'
+      o.status === 'terminated' || o.status === 'suspended'
     ).length;
+    const failed = orders.filter(o => o.status === 'failed' || o.status === 'cancelled').length;
     const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     const totalVMs = orders.filter(o => o.vm_id).length;
     const totalCores = orders.reduce((sum, o) => sum + (o.plan?.cpu_cores || 0), 0);
@@ -179,6 +182,7 @@ const VPSOrdersPage = () => {
       active,
       pending,
       terminated,
+      failed,
       totalSpent,
       totalVMs,
       totalCores,
@@ -512,7 +516,8 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                 { id: 'all', label: 'All', count: stats.total },
                 { id: 'active', label: 'Active', count: stats.active },
                 { id: 'pending', label: 'Pending', count: stats.pending },
-                { id: 'terminated', label: 'Terminated', count: stats.terminated }
+                { id: 'terminated', label: 'Terminated', count: stats.terminated },
+                { id: 'failed', label: 'Failed', count: stats.failed }
               ].map((tab) => (
                 <Button
                   key={tab.id}

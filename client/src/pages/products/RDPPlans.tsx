@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -99,8 +100,6 @@ export default function RDPPlans() {
   const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
   const [locations, setLocations] = useState<Country[]>([]);
   const [osOptions, setOsOptions] = useState<OSMetadata[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<RDPPlan | null>(null);
   const [selectedOS, setSelectedOS] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(1);
@@ -108,28 +107,17 @@ export default function RDPPlans() {
   const [selectedCountry, setSelectedCountry] = useState(countryParam);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (countryParam) {
-      setSelectedCountry(countryParam);
-    }
-  }, [countryParam]);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
+  const { data: plansData = [], isLoading, error: queryError } = useQuery(
+    ['rdpPlans'],
+    async () => {
       const { data } = await api.get('/web/api/products?product_type=rdp');
-
       const products = data.products || [];
-      const mappedPlans: RDPPlan[] = products.map((p: any) => ({
+      return products.map((p: any) => ({
         id: p.id.toString(),
         plan_id: p.id,
         name: p.name,
         slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
-        price: p.price || 0,
+        price: Number(p.price) || 0,
         currency_code: p.currency || 'USD',
         cpu_cores: p.cpu_cores || 4,
         ram_gb: p.ram_gb || 4,
@@ -140,151 +128,39 @@ export default function RDPPlans() {
         features: p.features || ['Full Admin Access', 'SSD Storage', 'Premium Bandwidth'],
         locations: p.locations || ['US', 'DE', 'GB'],
         is_active: p.active !== false,
-      }));
+      })).filter((plan: any) => plan.is_active);
+    }
+  );
 
-      const managementOptionsFallback = [
-        {
-          type: "unmanaged",
-          name: "Unmanaged",
-          description: "Full administrator access, you manage everything",
-          features: [
-            "Complete control",
-            "Admin access",
-            "Custom software installs",
-            "Self-managed updates",
-          ],
-          priceMultiplier: 1.0,
-          badge: "Most Popular",
-        },
-        {
-          type: "managed",
-          name: "Managed",
-          description: "We handle RDP server management for you",
-          features: [
-            "OS updates & patches",
-            "Security monitoring",
-            "Software installations",
-            "24/7 support",
-          ],
-          priceMultiplier: 1.4,
-          badge: "Hassle-Free",
-        },
-      ];
+  const error = queryError ? String(queryError) : null;
 
-      const datacenterCountriesFallback = [
-        { code: "US", name: "United States", flag: "🇺🇸" },
-        { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
-        { code: "DE", name: "Germany", flag: "🇩🇪" },
-        { code: "CA", name: "Canada", flag: "🇨🇦" },
-        { code: "AU", name: "Australia", flag: "🇦🇺" },
-      ];
-
-      const osOptionsFallback = [
-        {
-          name: "Windows Server 2022",
-          icon: "WindowsIcon",
-          description: "Enterprise-grade Windows server OS",
-        },
-        {
-          name: "Windows 11 Pro",
-          icon: "WindowsIcon",
-          description: "Modern Windows desktop experience",
-        },
-        {
-          name: "Windows 10 Pro",
-          icon: "WindowsIcon",
-          description: "Stable Windows desktop OS",
-        },
-        {
-          name: "Ubuntu Desktop 22.04",
-          icon: "UbuntuIcon",
-          description: "User-friendly Linux with LTS support",
-        },
-        {
-          name: "Debian 11",
-          icon: "DebianIcon",
-          description: "Stable and lightweight Linux distribution",
-        },
-        {
-          name: "CentOS Stream 9",
-          icon: "CentOSIcon",
-          description: "Enterprise-focused Linux with continuous updates",
-        },
-        {
-          name: "Fedora 39",
-          icon: "FedoraIcon",
-          description: "Cutting-edge Linux for developers",
-        },
-        {
-          name: "Rocky Linux 9",
-          icon: "RockyIcon",
-          description: "Enterprise-grade Linux, CentOS alternative",
-        },
-      ];
-
-      setPlans(mappedPlans.filter(plan => plan.is_active));
-
-      // Use fallbacks for configs since Rails doesn't use system_config
-      setManagementOptions(managementOptionsFallback);
-      setLocations(datacenterCountriesFallback);
-      setOsOptions(osOptionsFallback);
-
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      toast.error("Failed to load RDP plans. Please try again later.");
-      // Fallback data
-      setPlans([]);
+  useEffect(() => {
+    if (plansData.length > 0) {
+      setPlans(plansData);
       setManagementOptions([
-        {
-          type: "unmanaged",
-          name: "Unmanaged",
-          description: "Full administrator access, you manage everything",
-          features: [
-            "Complete control",
-            "Admin access",
-            "Custom software installs",
-            "Self-managed updates",
-          ],
-          priceMultiplier: 1.0,
-          badge: "Most Popular",
-        },
-        {
-          type: "managed",
-          name: "Managed",
-          description: "We handle RDP server management for you",
-          features: [
-            "OS updates & patches",
-            "Security monitoring",
-            "Software installations",
-            "24/7 support",
-          ],
-          priceMultiplier: 1.4,
-          badge: "Hassle-Free",
-        },
+        { type: "unmanaged", name: "Unmanaged", description: "Full administrator access, you manage everything", features: ["Complete control", "Admin access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
+        { type: "managed", name: "Managed", description: "We handle RDP server management for you", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 support"], priceMultiplier: 1.4, badge: "Hassle-Free" }
       ]);
       setLocations([
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
         { code: "CA", name: "Canada", flag: "🇨🇦" },
-        { code: "AU", name: "Australia", flag: "🇦🇺" },
+        { code: "AU", name: "Australia", flag: "🇦🇺" }
       ]);
       setOsOptions([
-        {
-          name: "Windows Server 2022",
-          icon: "WindowsIcon",
-          description: "Enterprise-grade Windows server OS",
-        },
-        {
-          name: "Windows 11 Pro",
-          icon: "WindowsIcon",
-          description: "Modern Windows desktop experience",
-        }
+        { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
+        { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },
+        { name: "Windows 10 Pro", icon: "WindowsIcon", description: "Stable Windows desktop OS" },
+        { name: "Ubuntu Desktop 22.04", icon: "UbuntuIcon", description: "User-friendly Linux with LTS support" },
+        { name: "Debian 11", icon: "DebianIcon", description: "Stable and lightweight Linux distribution" },
+        { name: "CentOS Stream 9", icon: "CentOSIcon", description: "Enterprise-focused Linux with continuous updates" },
+        { name: "Fedora 39", icon: "FedoraIcon", description: "Cutting-edge Linux for developers" },
+        { name: "Rocky Linux 9", icon: "RockyIcon", description: "Enterprise-grade Linux, CentOS alternative" }
       ]);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [plansData]);
+
 
   const getEffectivePrice = (plan: RDPPlan): number => {
     if (!selectedCountry || !plan.country_pricing) return plan.price;
@@ -461,7 +337,7 @@ export default function RDPPlans() {
 
       alert("Added to cart!");
     } catch (err) {
-      setError("Failed to add to cart");
+      toast.error("Failed to add to cart");
     }
   };
 

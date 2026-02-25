@@ -394,7 +394,6 @@ export default function CookiePolicy() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-                    Stripe
                   </span>
                   <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
                     PayPal
