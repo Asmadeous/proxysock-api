@@ -5,8 +5,8 @@ class CartCheckoutService
 
   SUPPORTED_GATEWAYS = %w[paystack plisio payvra].freeze
 
-  def initialize(user, cart, payment_method: 'wallet')
-    @user = user
+  def initialize(actor, cart, payment_method: 'wallet')
+    @actor = actor
     @cart = cart
     @payment_method = payment_method.to_s.downcase
   end
@@ -29,7 +29,7 @@ class CartCheckoutService
 
   # ========== Wallet Payment ==========
   def process_wallet_payment!(grand_total)
-    wallet = @user.wallet
+    wallet = @actor.wallet
     if wallet.nil? || wallet.balance < grand_total
       return { success: false, error: "Insufficient balance. Required: #{grand_total}, Available: #{wallet&.balance || 0}" }
     end
@@ -37,9 +37,10 @@ class CartCheckoutService
     created_orders = []
 
     ActiveRecord::Base.transaction do
-      # Debit Wallet
+      # Wallet.debit! handles transaction creation internally if transaction is passed?
+      # Actually line 41 creates a Transaction.
       transaction = Transaction.create!(
-        transactable: @user,
+        transactable: @actor,
         amount: grand_total,
         transaction_type: 'debit',
         status: 'success',
@@ -55,7 +56,7 @@ class CartCheckoutService
         item.quantity.times do
           order = create_order_from_item(item)
           created_orders << order
-          OrderProvisioningService.new(order, @user).process_without_deduction!
+          OrderProvisioningService.new(order, @actor).process_without_deduction!
         end
       end
 
@@ -76,7 +77,7 @@ class CartCheckoutService
     ActiveRecord::Base.transaction do
       # Create CheckoutSession
       checkout_session = CheckoutSession.create!(
-        user: @user,
+        orderable: @actor,
         total_amount: grand_total,
         payment_method: @payment_method,
         status: 'pending',
@@ -117,7 +118,7 @@ class CartCheckoutService
 
   def create_order_from_item(item, checkout_session = nil)
     Order.create!(
-      orderable: @user,
+      orderable: @actor,
       product: item.product,
       product_pricing: item.product_pricing,
       checkout_session: checkout_session,
@@ -134,11 +135,11 @@ class CartCheckoutService
     case @payment_method
     when 'paystack'
       PaystackService.new.initialize_transaction(
-        email: @user.email,
+        email: @actor.email,
         amount: (amount * 100).to_i, # Kobo
         reference: reference,
         callback_url: callback_url,
-        metadata: { checkout_session_id: session.id, user_id: @user.id, type: 'cart_checkout' }
+        metadata: { checkout_session_id: session.id, user_id: @actor.id, type: 'cart_checkout' }
       )[:authorization_url]
 
     when 'plisio'

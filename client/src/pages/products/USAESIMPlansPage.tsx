@@ -22,6 +22,7 @@ interface USAESIMPlan {
   duration_unit: string;
   features: string[];
   phone_number_included: boolean;
+  moq: number;
 }
 
 interface CartItem {
@@ -129,17 +130,18 @@ export default function USAESIMPlansPage() {
         const products = data.products || [];
         const mappedPlans: USAESIMPlan[] = products.map((p: any) => ({
           id: p.id.toString(),
-          provider: p.provider_type === 'colt' ? 'colt' : 'lyca',
+          provider: p.provider === 'colt' ? 'colt' : 'lyca',
           name: p.name,
           price: p.price || 0,
           currency_code: p.currency || 'USD',
-          voice_minutes: p.calling_minutes === null ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
+          voice_minutes: (p.calling_minutes == null) ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
           sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
           data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
           duration: p.duration_days || 30,
           duration_unit: "Days",
           features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-          phone_number_included: p.esim_type === 'voice_data_sms'
+          phone_number_included: p.esim_type === 'voice_data_sms',
+          moq: p.moq || 1
         }));
 
         setPlans(mappedPlans);
@@ -194,7 +196,7 @@ export default function USAESIMPlansPage() {
     if (existingItemIndex >= 0) {
       currentCart[existingItemIndex].quantity = (currentCart[existingItemIndex].quantity || 0) + 1;
     } else {
-      currentCart.push({ usaEsimPlan: plan, quantity: 1, productType: 'usa-esim' });
+      currentCart.push({ usaEsimPlan: plan, quantity: plan.moq || 1, productType: 'usa-esim' });
     }
 
     localStorage.setItem('cartItems', JSON.stringify(currentCart));
@@ -244,6 +246,12 @@ export default function USAESIMPlansPage() {
       return;
     }
 
+    // Enforce MOQ
+    const plan = plans.find(p => p.id === planId);
+    if (plan && plan.moq > 1 && quantity < plan.moq) {
+      return;
+    }
+
     const storedCart = localStorage.getItem('cartItems');
     let currentCart = [];
 
@@ -270,8 +278,7 @@ export default function USAESIMPlansPage() {
     return cartItems.find(item => item.usaEsimPlan?.id === plan.id);
   };
 
-  const formatPrice = (priceInCents: number, currency: string = 'USD') => {
-    const price = priceInCents / 100;
+  const formatPrice = (price: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
@@ -390,6 +397,12 @@ export default function USAESIMPlansPage() {
                         <Phone className="h-4 w-4" />
                         {plan.provider.toUpperCase()}
                       </div>
+
+                      {plan.moq > 1 && (
+                        <div className="inline-flex items-center bg-amber-500/10 text-amber-600 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold">
+                          Min. {plan.moq} units
+                        </div>
+                      )}
 
                       {/* Carrier Logo - Sponsored by */}
                       {carrierLogo && (

@@ -3,7 +3,7 @@
 module Web
   module Api
     class BlogPostsController < ApplicationController
-      skip_before_action :authenticate_user!, only: %i[index show]
+
 
       # GET /web/api/blog_posts
       def index

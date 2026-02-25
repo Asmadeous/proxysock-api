@@ -45,9 +45,9 @@ export const renderMobileLocationCards = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {locationCategory.premium && (
-                  <Badge variant="default" className="gap-1">
+                  <Badge variant="default" className="gap-1 bg-amber-500 hover:bg-amber-600 text-white border-none">
                     <Star className="w-3 h-3" />
-                    Premium
+                    In-house
                   </Badge>
                 )}
                 <div className="p-2 bg-emerald-500/10 rounded-lg">

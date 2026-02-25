@@ -4,7 +4,7 @@ module Web
   module Api
     class TicketsController < BaseController
       def index
-        tickets = current_user.tickets.includes(:ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
+        tickets = current_actor.tickets.includes(:ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
 
         render json: {
           tickets: tickets.map { |t| serialize_ticket(t) },
@@ -17,7 +17,7 @@ module Web
       end
 
       def show
-        ticket = current_user.tickets.find(params[:id])
+        ticket = current_actor.tickets.find(params[:id])
         render json: {
           ticket: serialize_ticket(ticket),
           messages: ticket.ticket_messages.where(internal_note: false).includes(:sender).order(created_at: :asc).map do |m|
@@ -43,12 +43,12 @@ module Web
           end
         end
 
-        ticket = current_user.tickets.build(processed_params.except(:body))
+        ticket = current_actor.tickets.build(processed_params.except(:body))
 
         if ticket.save
           body_content = params[:body] || params[:message] || (params[:ticket] && params[:ticket][:body])
           ticket.ticket_messages.create!(
-            sender: current_user,
+            sender: current_actor,
             body: body_content
           )
           render json: { ticket: serialize_ticket(ticket) }, status: :created
@@ -58,12 +58,12 @@ module Web
       end
 
       def reply
-        ticket = current_user.tickets.find(params[:id])
+        ticket = current_actor.tickets.find(params[:id])
         body_content = params[:body] || params[:message]
 
         message = ticket.ticket_messages.new(
           body: body_content,
-          sender: current_user,
+          sender: current_actor,
           attachments: params[:attachments]
         )
 
@@ -98,7 +98,7 @@ module Web
         {
           id: message.id,
           body: message.body,
-          sender_type: message.sender_type == 'User' ? 'You' : 'Support',
+          sender_type: ['User', 'Reseller'].include?(message.sender_type) ? 'You' : 'Support',
           created_at: message.created_at
         }
       end

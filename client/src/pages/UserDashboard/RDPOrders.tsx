@@ -97,6 +97,7 @@ const RDPOrdersPage = () => {
     active: 0,
     pending: 0,
     terminated: 0,
+    failed: 0,
     totalSpent: 0,
     totalVMs: 0,
     totalCores: 0
@@ -147,7 +148,8 @@ const RDPOrdersPage = () => {
       filtered = filtered.filter(o => {
         if (activeTab === 'active') return o.status === 'active' || o.status === 'provisioning';
         if (activeTab === 'pending') return o.status === 'pending';
-        if (activeTab === 'terminated') return o.status === 'terminated' || o.status === 'suspended' || o.status === 'failed';
+        if (activeTab === 'terminated') return o.status === 'terminated' || o.status === 'suspended';
+        if (activeTab === 'failed') return o.status === 'failed' || o.status === 'cancelled';
         return true;
       });
     }
@@ -168,8 +170,9 @@ const RDPOrdersPage = () => {
     const active = orders.filter(o => o.status === 'active' || o.status === 'provisioning').length;
     const pending = orders.filter(o => o.status === 'pending').length;
     const terminated = orders.filter(o =>
-      o.status === 'terminated' || o.status === 'suspended' || o.status === 'failed'
+      o.status === 'terminated' || o.status === 'suspended'
     ).length;
+    const failed = orders.filter(o => o.status === 'failed' || o.status === 'cancelled').length;
     const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     const totalVMs = orders.filter(o => o.vm_id).length;
     const totalCores = orders.reduce((sum, o) => sum + (o.plan?.cpu_cores || 0), 0);
@@ -179,6 +182,7 @@ const RDPOrdersPage = () => {
       active,
       pending,
       terminated,
+      failed,
       totalSpent,
       totalVMs,
       totalCores
@@ -507,7 +511,8 @@ Payment Method: ${order.payment_method || 'N/A'}
                 { id: 'all', label: 'All', count: stats.total },
                 { id: 'active', label: 'Active', count: stats.active },
                 { id: 'pending', label: 'Pending', count: stats.pending },
-                { id: 'terminated', label: 'Terminated', count: stats.terminated }
+                { id: 'terminated', label: 'Terminated', count: stats.terminated },
+                { id: 'failed', label: 'Failed', count: stats.failed }
               ].map((tab) => (
                 <Button
                   key={tab.id}

@@ -87,7 +87,7 @@
 //         <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
 //         <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful</h1>
 //         <p className="text-gray-600 mb-6">Thank you for your payment. Your order is being processed.</p>
-        
+
 //         <div className="space-y-2 text-left mb-6">
 //           <p className="text-gray-700"><span className="font-medium">Order ID:</span> {orderId}</p>
 //           <p className="text-gray-700"><span className="font-medium">Amount Paid:</span> ${amount.toFixed(2)} {currency}</p>
@@ -115,7 +115,7 @@
 //           >
 //             Go to Dashboard
 //           </Link>
-          
+
 //           <Link
 //             to="/dashboard/orders"
 //             className="block w-full bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors"
@@ -166,7 +166,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  
+
   // Get data from query params with fallbacks
   const paymentMethodFromQuery = queryParams.get('payment') || 'Unknown Method';
   const amountFromQuery = Number.parseFloat(queryParams.get('amount') ?? '0');
@@ -211,10 +211,10 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
         try {
           // Determine primary product category
           const categories = orderItems.map(item => item.category);
-          const primaryCategory = categories.length === 1 
-            ? categories[0] 
-            : categories.length > 1 
-              ? 'mixed' 
+          const primaryCategory = categories.length === 1
+            ? categories[0]
+            : categories.length > 1
+              ? 'mixed'
               : 'proxy';
 
           await conversionTracker.trackPurchase({
@@ -250,6 +250,8 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
     // Only track once order data is loaded or after a short delay
     const timer = setTimeout(() => {
       trackPurchaseConversion();
+      // We can clear the frontend cart here because the backend has already
+      // captured the CheckoutSession and will provision the items via webhook.
       clearCart();
     }, 500);
 
@@ -267,10 +269,10 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
   const getProductTypeDisplay = () => {
     if (orderItems.length === 0) return 'Service';
     if (orderItems.length === 1) return orderItems[0].category.toUpperCase();
-    
+
     const uniqueCategories = [...new Set(orderItems.map(item => item.category))];
     if (uniqueCategories.length === 1) return uniqueCategories[0].toUpperCase();
-    
+
     return `MIXED (${uniqueCategories.map(c => c.toUpperCase()).join(', ')})`;
   };
 
@@ -284,7 +286,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
         <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful</h1>
         <p className="text-gray-600 mb-6">Thank you for your payment. Your order is being processed.</p>
-        
+
         <div className="space-y-2 text-left mb-6">
           <p className="text-gray-700">
             <span className="font-medium">Order ID:</span> {displayOrderId}
@@ -298,7 +300,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
           <p className="text-gray-700">
             <span className="font-medium">Service Type:</span> {getProductTypeDisplay()}
           </p>
-          
+
           {/* Show order items if available */}
           {orderItems.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
@@ -307,7 +309,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
                 {orderItems.map((item, index) => (
                   <li key={index} className="text-sm text-gray-600 flex justify-between">
                     <span>
-                      {item.name} 
+                      {item.name}
                       {item.quantity && item.quantity > 1 ? ` (×${item.quantity})` : ''}
                     </span>
                     <span className="font-medium">${item.price.toFixed(2)}</span>
@@ -316,7 +318,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
               </ul>
             </div>
           )}
-          
+
           <p className="text-gray-700 pt-2">
             <span className="font-medium">Date & Time:</span> {formattedDate}
           </p>
@@ -341,7 +343,7 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
           >
             Go to Dashboard
           </Link>
-          
+
           <Link
             to="/dashboard/orders"
             className="block w-full bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors"

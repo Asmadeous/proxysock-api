@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { getCategoryColor } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryColor";
 import { Badge } from "@/components/ui/badge";
-import { renderMobileLocationCards } from "@/components/dashboard/Purchase-Products/buy-proxies/MobileLoctionCards";
+import { renderMobileLocationCards } from "@/components/dashboard/Purchase-Products/buy-proxies/MobileLocationCards";
 import { renderMobileProxyPlans } from "@/components/dashboard/Purchase-Products/buy-proxies/MobileProxyPlans";
 import { Skeleton } from "@/components/ui/skeleton";
 

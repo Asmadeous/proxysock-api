@@ -5,7 +5,6 @@ interface ImportMetaEnv {
   readonly VITE_RAILS_API_URL: string;
   readonly VITE_WS_URL: string;
 
-  readonly VITE_STRIPE_PUBLIC_KEY: string;
 
   readonly VITE_PREMSOCKS_API_KEY: string;
   readonly VITE_PREMSOCKS_BASE_URI: string;

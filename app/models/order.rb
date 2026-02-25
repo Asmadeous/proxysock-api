@@ -24,13 +24,15 @@ class Order < ApplicationRecord
   has_one :mobile_proxy_order, dependent: :destroy
   has_one :mobile_proxy, through: :mobile_proxy_order # Assuming MobileProxyOrder has_one MobileProxy
   has_one :esim_order, dependent: :destroy
+  has_one :usa_esim_order, dependent: :destroy
   has_one :vpn_account, dependent: :destroy
 
   def provisioned_resource
     case product.product_type
-    when 'vps' then vm
+    when 'vps', 'rdp' then vm
     when 'proxy' then proxy # delegates to correct proxy association
     when 'esim' then esim_order
+    when 'usa_esim' then usa_esim_order
     when 'vpn' then vpn_account
     end
   end
@@ -40,7 +42,23 @@ class Order < ApplicationRecord
     MobileProxy.find_by(order_id: id) ||
       StaticDatacenterProxy.find_by(order_id: id) ||
       StaticIspProxy.find_by(order_id: id) ||
+      PremiumIspProxy.find_by(order_id: id) ||
+      StaticResidentialProxy.find_by(order_id: id) ||
       ResidentialRotatingProxy.find_by(order_id: id)
+  end
+
+  def reorderable?(actor)
+    # Check if the product is a proxy or VPN
+    is_proxy_or_vpn = ['proxy', 'vpn'].include?(product.product_type)
+    
+    if actor.is_a?(Reseller)
+      if is_proxy_or_vpn && product.provider != 'myproxyapi'
+        # Resellers cannot reorder expired external proxies/vpn
+        return false if status == 'expired' || (expires_at.present? && expires_at < Time.current)
+      end
+    end
+
+    true
   end
 
   before_save :calculate_total_amount
@@ -66,13 +84,14 @@ class Order < ApplicationRecord
     return unless product_pricing
 
     base_price = product_pricing.selling_price
+    qty = quantity || 1
 
     if reseller
       # Apply reseller surcharge
-      total = base_price * reseller.price_multiplier
+      total = base_price * reseller.price_multiplier * qty
       self.total_amount = total.round(2)
     else
-      self.total_amount = base_price
+      self.total_amount = (base_price * qty).round(2)
     end
   end
 

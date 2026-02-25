@@ -38,11 +38,11 @@ module Web
       end
 
       def checkout
-        # Ensure user is logged in
-        return render json: { error: 'Authentication required' }, status: :unauthorized unless current_user
+        # Ensure actor is logged in
+        return render json: { error: 'Authentication required' }, status: :unauthorized unless current_actor
 
         payment_method = params[:payment_method] || 'wallet'
-        result = CartCheckoutService.new(current_user, @cart, payment_method: payment_method).process!
+        result = CartCheckoutService.new(current_actor, @cart, payment_method: payment_method).process!
 
         if result[:success]
           if result[:payment_url]
@@ -68,16 +68,12 @@ module Web
       private
 
       def ensure_cart
-        # Find active cart for user or session
-        @cart = if current_user
-                  Cart.find_or_create_by(user: current_user, status: 'active')
+        # Find active cart for actor or session
+        @cart = if current_actor
+                  Cart.find_or_create_by(orderable: current_actor, status: 'active')
                 else
-                  # Guest cart logic (requires SessionTracking to have guest user or link by session_id)
-                  # For now, require login or link to session if Cart model supports session_id
+                  # Guest cart logic
                   Cart.find_or_create_by(session_id: current_session&.session_id, status: 'active')
-
-                  # If creating for session without user, ensure User is optional in Cart model
-                  # Schema says `user_id` null: false in Cart? Let's check schema.
                 end
       end
     end

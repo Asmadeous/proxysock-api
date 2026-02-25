@@ -111,7 +111,7 @@ module Api
 
       def create_vm_order
         # Create Order -> VmOrder chain
-        product = Product.find_by!(product_type: 'vm', slug: vm_params[:os_template])
+        product = Product.find_by!(product_type: %w[vps rdp vm], slug: vm_params[:os_template])
         pricing = product.product_pricings.active.first!
 
         reseller_order = @current_reseller.reseller_orders.create!(

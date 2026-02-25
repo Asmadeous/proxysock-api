@@ -4,51 +4,50 @@ import { Helmet } from "react-helmet-async";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 import { useRedditTracking } from "../../utils/redditPixel";
-import { Post, blogPosts } from "../../data/blogPost";
+import { type ExtendedPost } from "../../data/blogPost";
+import { getBlogPost, getBlogPosts } from "../../services/blog";
 import { BlogPostBreadcrumbs } from "../../components/landing/blog/BlogPostBreadcrumbs";
 import { BlogPostHeroSection } from "../../components/landing/blog/BlogPostHeroSection";
 import { BlogPostContent } from "../../components/landing/blog/BlogPostContent";
 import { BlogPostTags } from "../../components/landing/blog/BlogPostTags";
 import { BlogPostRelated } from "../../components/landing/blog/BlogPostRelated";
 import { BlogPostNewsletter } from "../../components/landing/blog/BlogPostNewsletter";
-import { ReadingProgress } from "../../components/landing/blog/ReadingProgress"; // Import data and interface from separate file
+import { ReadingProgress } from "../../components/landing/blog/ReadingProgress";
 
 export default function BlogPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [post, setPost] = useState<Post | null>(null);
-  const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
+  const [post, setPost] = useState<ExtendedPost | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<ExtendedPost[]>([]);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { trackPageView, trackViewContent } = useRedditTracking();
 
   useEffect(() => {
-    const currentPost = blogPosts.find((p) => p.id === id);
+    if (!id) return;
 
-    if (currentPost) {
-      setPost(currentPost);
+    setIsLoading(true);
+    getBlogPost(id)
+      .then((currentPost) => {
+        setPost(currentPost);
 
-      // Find related posts (same category, excluding current post)
-      const related = blogPosts
-        .filter((p) => p.category === currentPost.category && p.id !== id)
-        .slice(0, 3);
-      setRelatedPosts(related);
+        // Fetch related posts
+        getBlogPosts({ category: currentPost.category }).then((res) => {
+          setRelatedPosts(res.posts.filter((p) => p.id !== id).slice(0, 3));
+        });
 
-      // Track page view and content view
-      trackPageView();
-      trackViewContent({
-        productId: currentPost.id,
-        productName: currentPost.title,
-        category: "blog_post",
-        value: 0,
-      });
-    } else {
-      // Optional: Redirect if post not found
-      navigate("/blog");
-    }
+        trackPageView();
+        trackViewContent({
+          productId: currentPost.id,
+          productName: currentPost.title,
+          category: "blog_post",
+          value: 0,
+        });
+      })
+      .catch(() => navigate("/blog"))
+      .finally(() => setIsLoading(false));
+  }, [id, navigate, trackPageView, trackViewContent]);
 
-    setIsLoading(false);
-  }, [id, navigate]);
 
   const handleShare = async () => {
     if (navigator.share) {

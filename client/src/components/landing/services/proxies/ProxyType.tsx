@@ -87,7 +87,7 @@ export const ProxyType = () => {
               ))}
             </ul>
             <Link
-              to="/dashboard/buy-proxies"
+              to="/dashboard/proxies"
               className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-center font-medium text-sm"
             >
               Buy Now
@@ -125,7 +125,7 @@ export const ProxyType = () => {
               ))}
             </ul>
             <Link
-              to="/dashboard/buy-proxies"
+              to="/dashboard/proxies"
               className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-center font-medium text-sm"
             >
               Buy Now
@@ -163,7 +163,7 @@ export const ProxyType = () => {
               ))}
             </ul>
             <Link
-              to="/dashboard/buy-proxies"
+              to="/dashboard/proxies"
               className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-center font-medium text-sm"
             >
               Buy Now

@@ -4,7 +4,7 @@ module Web
   module Api
     class SupportChatsController < BaseController
       def index
-        chat = SupportChat.find_or_create_by!(chatable: current_user)
+        chat = SupportChat.find_or_create_by!(chatable: current_actor)
         render json: {
           chat: serialize_chat(chat),
           messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
@@ -12,7 +12,7 @@ module Web
       end
 
       def show
-        chat = SupportChat.find_by!(chatable: current_user, session_token: params[:id])
+        chat = SupportChat.find_by!(chatable: current_actor, session_token: params[:id])
         render json: {
           chat: serialize_chat(chat),
           messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
@@ -20,12 +20,12 @@ module Web
       end
 
       def add_message
-        chat = SupportChat.find_or_create_by!(chatable: current_user)
+        chat = SupportChat.find_or_create_by!(chatable: current_actor)
         return render json: { error: 'Chat is closed' }, status: :forbidden if chat.status == 'closed'
 
         message = chat.support_chat_messages.create!(
           body: params[:message] || params[:body],
-          sender: current_user
+          sender: current_actor
         )
 
         render json: { message: serialize_message(message) }, status: :created

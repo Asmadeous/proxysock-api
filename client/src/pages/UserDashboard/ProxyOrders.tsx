@@ -67,7 +67,7 @@ const ProxyOrdersPage: FC = () => {
   const [orders, setOrders] = useState<ProxyOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<ProxyOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "expired">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "failed">("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
   const { user, accessToken } = useAuth();
@@ -78,6 +78,7 @@ const ProxyOrdersPage: FC = () => {
     active: 0,
     pending: 0,
     expired: 0,
+    failed: 0,
     totalSpent: 0,
     totalBandwidth: 0,
     totalIPs: 0,
@@ -140,8 +141,8 @@ const ProxyOrdersPage: FC = () => {
         filtered = filtered.filter((o) => o.status === "completed");
       } else if (activeTab === "pending") {
         filtered = filtered.filter((o) => o.status === "pending");
-      } else if (activeTab === "expired") {
-        filtered = filtered.filter((o) => o.expires_at && new Date(o.expires_at) < new Date());
+      } else if (activeTab === "failed") {
+        filtered = filtered.filter((o) => o.status === "failed" || o.status === "cancelled");
       }
     }
 
@@ -162,6 +163,7 @@ const ProxyOrdersPage: FC = () => {
     const active = orders.filter((o) => o.status === "completed").length;
     const pending = orders.filter((o) => o.status === "pending").length;
     const expired = orders.filter((o) => o.expires_at && new Date(o.expires_at) < new Date()).length;
+    const failed = orders.filter((o) => o.status === "failed" || o.status === "cancelled").length;
     const totalSpent = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
     const totalBandwidth = orders.reduce((sum, o) => sum + (o.bandwidth_gb || 0), 0);
     const totalIPs = orders.reduce((sum, o) => sum + (o.ips_included || 0), 0);
@@ -171,6 +173,7 @@ const ProxyOrdersPage: FC = () => {
       active,
       pending,
       expired,
+      failed,
       totalSpent,
       totalBandwidth,
       totalIPs,
@@ -465,12 +468,12 @@ IPs Included: ${order.ips_included || 0}
                 { id: "all", label: "All", count: stats.total },
                 { id: "active", label: "Active", count: stats.active },
                 { id: "pending", label: "Pending", count: stats.pending },
-                { id: "expired", label: "Expired", count: stats.expired },
+                { id: "failed", label: "Failed", count: stats.failed },
               ].map((tab) => (
                 <Button
                   key={tab.id}
                   onClick={() =>
-                    setActiveTab(tab.id as "all" | "active" | "pending" | "expired")
+                    setActiveTab(tab.id as "all" | "active" | "pending" | "failed")
                   }
                   variant={activeTab === tab.id ? "default" : "ghost"}
                   size="sm"

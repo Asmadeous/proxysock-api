@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class CheckoutSession < ApplicationRecord
-  belongs_to :user
+  belongs_to :orderable, polymorphic: true
   has_many :orders, dependent: :nullify
 
   include AASM

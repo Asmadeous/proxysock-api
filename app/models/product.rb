@@ -16,7 +16,8 @@ class Product < ApplicationRecord
   scope :for_resellers,  -> { where(available_to: %w[reseller both]) }
   scope :for_ecommerce,  -> { where(available_to: %w[ecommerce both]) }
 
-  scope :vms,     -> { where(product_type: 'vm') }
+  scope :vps,     -> { where(product_type: 'vps') }
+  scope :rdps,    -> { where(product_type: 'rdp') }
   scope :proxies, -> { where(product_type: 'proxy') }
   scope :esims,   -> { where(product_type: 'esim') }
   scope :vpns,    -> { where(product_type: 'vpn') }
@@ -27,7 +28,8 @@ class Product < ApplicationRecord
   scope :data_esims,  -> { esims.where("metadata->>'esim_type' = 'data_only'").or(esims.where("metadata->>'esim_type' IS NULL")) }
 
   validates :available_to, inclusion: { in: %w[reseller ecommerce both] }
-  validates :product_type, inclusion: { in: %w[vm proxy esim usa_esim vpn rdp] }
+  validates :product_type, inclusion: { in: %w[vm vps rdp proxy esim usa_esim vpn] }
+
 
   belongs_to :product_category
   has_many :product_pricings, dependent: :destroy

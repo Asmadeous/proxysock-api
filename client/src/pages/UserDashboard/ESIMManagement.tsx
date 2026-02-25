@@ -101,6 +101,32 @@ const ESIMManagement = () => {
     navigator.clipboard.writeText(text);
   };
 
+  const handleReorder = async (orderId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/web/api/orders/${orderId}/reorder`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert("Reorder successful! A new order has been created.");
+        fetchESIMProfiles(); // Refresh data
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to reorder");
+      }
+    } catch (error) {
+      console.error("Failed to reorder:", error);
+      alert("Failed to reorder");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDataSize = (mb: number) => {
     if (mb >= 1024) {
       return `${(mb / 1024).toFixed(2)} GB`;
@@ -447,11 +473,21 @@ const ESIMManagement = () => {
                   >
                     <EyeIcon className="h-4 w-4" />
                   </button>
+                  {profile.is_expired && (
+                    <button
+                      onClick={() => handleReorder(profile.esim_order_id)}
+                      className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors flex items-center gap-2"
+                      title="Reorder"
+                    >
+                      <ArrowPathIcon className="h-4 w-4" />
+                      Reorder
+                    </button>
+                  )}
                 </div>
 
                 {/* Validity Info */}
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Cost: <span className="text-primary font-semibold">${(profile.order_total / 10000).toFixed(2) || 'N/A'}</span></span>
+                  <span>Cost: <span className="text-primary font-semibold">${profile.order_total?.toFixed(2) || 'N/A'}</span></span>
                   <span>
                     {profile.expired_time
                       ? `Expires: ${new Date(profile.expired_time).toLocaleDateString()}`
@@ -677,7 +713,7 @@ const ESIMManagement = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground text-sm">Total Cost</span>
-                      <span className="text-primary font-semibold">${(selectedProfile.order_total / 10000).toFixed(2) || 'N/A'}</span>
+                      <span className="text-primary font-semibold">${selectedProfile.order_total?.toFixed(2) || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground text-sm">Purchase Date</span>
