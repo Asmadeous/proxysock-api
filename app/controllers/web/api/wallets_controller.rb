@@ -7,7 +7,7 @@ module Web
 
       # GET /web/api/wallet
       def show
-        wallet = current_user.wallet
+        wallet = current_actor.wallet
         # Calculate stats
         total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
         # Deposits are credits. But refunds are also credits.
@@ -17,8 +17,8 @@ module Web
         # Actually proper way:
         total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
 
-        total_spent = current_user.orders.where(status: ['active', 'completed']).sum(:total_amount)
-        order_count = current_user.orders.count
+        total_spent = current_actor.orders.where(status: %w[active completed]).sum(:total_amount)
+        order_count = current_actor.orders.count
 
         render json: {
           available_balance: wallet&.balance || 0.0,
@@ -26,7 +26,7 @@ module Web
           total_deposited: total_deposited,
           total_order_amount: total_spent,
           order_count: order_count,
-          discount_percentage: current_user.metadata && current_user.metadata['discount_percentage'] || 0,
+          discount_percentage: current_actor.metadata && current_actor.metadata['discount_percentage'] || 0,
           recent_transactions: wallet&.wallet_transactions&.order(created_at: :desc)&.limit(10) || []
         }
       end
@@ -44,7 +44,7 @@ module Web
         # Create pending deposit
         transaction_ref = "DEP_#{SecureRandom.hex(8)}"
         deposit = Deposit.create!(
-          depositable: current_user,
+          depositable: current_actor,
           amount: amount,
           gateway: gateway,
           status: 'pending',
@@ -73,11 +73,11 @@ module Web
           amount_ngn = amount * exchange_rate
           service = PaystackService.new
           result = service.initialize_transaction(
-            email: current_user.email,
+            email: current_actor.email,
             amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
-            metadata: { deposit_id: deposit.id, user_id: current_user.id }
+            callback_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=deposit&amount=#{deposit.amount}",
+            metadata: { deposit_id: deposit.id, user_id: current_actor.id }
           )
           result[:authorization_url]
 
@@ -88,7 +88,7 @@ module Web
             amount: amount,
             currency: currency,
             callback_url: callback_url,
-            email: current_user.email
+            email: current_actor.email
           )
           result[:invoice_url]
 

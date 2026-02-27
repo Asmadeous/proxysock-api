@@ -108,6 +108,9 @@ Rails.application.routes.draw do
       end
 
       resources :orders, only: %i[index create show] do
+        collection do
+          post :checkout_cart
+        end
         member do
           get :credentials
           post :renew
@@ -126,7 +129,16 @@ Rails.application.routes.draw do
         member do
           post :start
           post :stop
+          post :reboot
           get :status
+        end
+      end
+
+      resources :credential_changes, only: [] do
+        collection do
+          post 'vm/:id/password', to: 'credential_changes#vm_password'
+          post 'proxy/:id/credentials', to: 'credential_changes#proxy_credentials'
+          post 'proxy/:id/rotate_ip', to: 'credential_changes#proxy_rotate_ip'
         end
       end
 
@@ -253,6 +265,9 @@ Rails.application.routes.draw do
           post :close
         end
       end
+
+      # System Monitoring
+      get 'monitoring', to: 'monitoring#index'
     end
   end
 
@@ -276,6 +291,12 @@ Rails.application.routes.draw do
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
   end
+
+  # VM Status Callback (Ansible playbooks POST here on completion/failure)
+  post 'vm/:id/status', to: 'vm_callbacks#status', as: :vm_callback_status
+
+  # Prometheus metrics scrape endpoint
+  get 'metrics', to: 'metrics#index'
 
   get 'up' => 'rails/health#show', as: :rails_health_check
 end

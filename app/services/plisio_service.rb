@@ -7,20 +7,20 @@ class PlisioService
     @secret_key = ENV['PLISIO_SECRET_KEY']
   end
 
-  def create_invoice(amount, _currency, order_number)
+  def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil)
     # Convert local currency to crypto or use Plisio's fiat conversion
     response = request(:get, '/invoices/new', {
-                         source_currency: 'USD',
+                         source_currency: currency || 'USD',
                          source_amount: amount,
                          order_number: order_number,
-                         order_name: "Deposit #{order_number}",
-                         callback_url: "#{ENV['APP_URL']}/webhooks/plisio",
-                         email: 'customer@example.com' # Optional if we passed it
+                         order_name: "Order #{order_number}",
+                         callback_url: callback_url,
+                         email: email || 'customer@example.com'
                        })
 
     if response['status'] == 'success'
       return {
-        url: response['data']['invoice_url'],
+        invoice_url: response['data']['invoice_url'],
         txn_id: response['data']['txn_id']
       }
     end

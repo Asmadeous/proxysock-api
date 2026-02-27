@@ -10,7 +10,7 @@ class OrderProvisioningService
   end
 
   def process!(skip_payment: false)
-    return false unless @order.pending?
+    return false unless @order.pending? || @order.awaiting_payment?
 
     ActiveRecord::Base.transaction do
       # 1. Price Calculation
@@ -30,10 +30,16 @@ class OrderProvisioningService
 
       # 3. Transition to processing
       @order.process!
+
+      # 3a. Send Invoice (New)
+      InvoiceMailer.with(order: @order).invoice_email.deliver_later
     end
     
     # 4. Provision based on product type
     provision_product!
+    
+    # 5. Record affiliate commission if applicable
+    AffiliateService.record_commission!(@order)
     
     NotificationService.notify(
       recipient: @actor,
@@ -109,12 +115,14 @@ class OrderProvisioningService
 
   def provision_product!
     case @product.product_type
-    when 'vps'
+    when 'vps', 'rdp', 'vm'
       provision_vm!
     when 'proxy'
       provision_proxy!
     when 'esim'
       provision_esim!
+    when 'usa_esim'
+      provision_usa_esim!
     when 'vpn'
       provision_vpn!
     else
@@ -124,6 +132,9 @@ class OrderProvisioningService
 
   # ========== VM Provisioning ==========
   def provision_vm!
+    # Extract explicit user country selection or fallback to product default
+    country = @order.metadata['countryCode'].presence || @product.metadata&.dig('country_code') || 'US'
+
     # Create VM Order first
     vm_order = VmOrder.create!(
       order: @order,
@@ -132,7 +143,7 @@ class OrderProvisioningService
       cpu_cores: @product.metadata&.dig('cpu_cores') || 1,
       ram_gb: @product.metadata&.dig('ram_gb') || 1,
       disk_gb: @product.metadata&.dig('storage_gb') || 20,
-      country_code: @product.metadata&.dig('country_code') || 'US',
+      country_code: country,
       status: 'provisioning'
     )
 
@@ -143,12 +154,50 @@ class OrderProvisioningService
       vm_type: vm_order.vm_type
     )
 
-    VmProvisioningJob.perform_later(vm.id, {
-                                      'os_template' => vm_order.os_type,
-                                      'cpu_cores' => vm_order.cpu_cores,
-                                      'ram_gb' => vm_order.ram_gb,
-                                      'storage_gb' => vm_order.disk_gb
-                                    })
+    job_params = {
+      'os_template' => vm_order.os_type,
+      'cpu_cores' => vm_order.cpu_cores,
+      'ram_gb' => vm_order.ram_gb,
+      'storage_gb' => vm_order.disk_gb,
+      'country_code' => vm_order.country_code
+    }
+
+    # Intercept non-Canadian VMs and bundle a localized proxy for Ansible configurations
+    if vm_order.country_code.to_s.upcase != 'CA' && vm_order.country_code.to_s.upcase != 'CANADA'
+      proxy_slug = @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true' ? 'static-residential' : 'datacenter'
+
+      # Find a base 1x product corresponding to the target slug
+      proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where('products.name LIKE ?', '1 x%').first
+      if proxy_pr.nil?
+        Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
+        raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
+      end
+
+      # Execute MyProxyApi Purchase
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362')
+      begin
+        client = MyProxyApiClient.new
+        response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
+
+        # Store the API response metadata securely for recordkeeping
+        @order.metadata['my_proxy_api_response'] = response
+        @order.save!
+
+        # Attach to the Ansible Job params
+        job_params['proxy_ip'] = response['ip']
+        job_params['proxy_port'] = response['port'] || response['http_port'] || response['socks5_port']
+        job_params['proxy_username'] = response['username']
+        job_params['proxy_password'] = response['password']
+        job_params['proxy_protocol'] = 'http'
+        
+        Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
+      rescue => e
+        Rails.logger.error("Failed to provision intercept proxy for VM: #{e.message}")
+        raise ProvisioningError, "Dependency error acquiring proxy for VM: #{e.message}"
+      end
+    end
+
+    VmProvisioningJob.perform_later(vm.id, job_params)
 
     # Order stays in processing until job completes
   end
@@ -161,12 +210,28 @@ class OrderProvisioningService
       @order.activate!
 
     when 'myproxyapi'
-      # Find available proxy from synced inventory
-      proxy = assign_proxy_from_inventory('myproxyapi')
-      send_proxy_credentials(proxy)
+      # The frontend captures 'period' as GB Traffic amount for residential rotating, or months/days for others.
+      period = @order.metadata['period'] || 1
+      locations = @order.metadata['locationsString'] || 1
+      client_ip = @order.metadata['client_ip']
+      protocol = @order.metadata['protocol'] || 'http'
+      api_id = @product.provider_product_id
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362') # From API docs example user_id
+
+      # Place the order via Reseller API for ALL myproxyapi products
+      client = MyProxyApiClient.new
+      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
+
+      # "put it in a metadata tag" -> store API payload/response in order metadata
+      @order.metadata['my_proxy_api_response'] = response
+      @order.save!
       @order.activate!
 
-    when 'static_datacenter', 'static_isp', 'residential'
+      # Send credentials email using the API response data
+      owner = @actor || @order.orderable
+      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+
+    when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
       proxy = assign_proxy_from_inventory(@product.provider_type)
       send_proxy_credentials(proxy)
       @order.activate!
@@ -181,21 +246,27 @@ class OrderProvisioningService
     proxy_class = case provider_type
                   when 'static_datacenter' then StaticDatacenterProxy
                   when 'static_isp' then StaticIspProxy
-                  when 'residential' then ResidentialRotatingProxy
+                  when 'premium-isp' then PremiumIspProxy
+                  when 'static-residential' then StaticResidentialProxy
+                  when 'residential', 'residential-rotating' then ResidentialRotatingProxy
                   else MobileProxy
                   end
 
     proxy_order_class = case provider_type
                         when 'static_datacenter' then StaticDatacenterProxyOrder
                         when 'static_isp' then StaticIspProxyOrder
-                        when 'residential' then ResidentialRotatingProxyOrder
+                        when 'premium-isp' then PremiumIspProxyOrder
+                        when 'static-residential' then StaticResidentialProxyOrder
+                        when 'residential', 'residential-rotating' then ResidentialRotatingProxyOrder
                         else MobileProxyOrder
                         end
 
     proxy_order_foreign_key = case provider_type
                               when 'static_datacenter' then :static_datacenter_proxy_order_id
                               when 'static_isp' then :static_isp_proxy_order_id
-                              when 'residential' then :residential_rotating_proxy_order_id
+                              when 'premium-isp' then :premium_isp_proxy_order_id
+                              when 'static-residential' then :static_residential_proxy_order_id
+                              when 'residential', 'residential-rotating' then :residential_rotating_proxy_order_id
                               else :mobile_proxy_order_id
                               end
 
@@ -227,11 +298,11 @@ class OrderProvisioningService
 
   def send_proxy_credentials(proxy)
     owner = @actor || @order.orderable
-    # ProxyMailer.with(
-    #   owner: owner,
-    #   proxy: proxy,
-    #   order: @order
-    # ).credentials_email.deliver_later
+    ProxyMailer.with(
+      owner: owner,
+      proxy: proxy,
+      order: @order
+    ).credentials_email.deliver_later
   end
 
   # ========== eSIM Provisioning ==========
@@ -240,9 +311,77 @@ class OrderProvisioningService
     # eSIM service handles order status and mailer internally
   end
 
+  # ========== USA eSIM Provisioning ==========
+  def provision_usa_esim!
+    provider = @product.provider
+    quantity = @order.quantity.to_i <= 0 ? 1 : @order.quantity
+    moq = @product.metadata&.dig('moq').to_i
+    moq = 1 if moq <= 0
+
+    if quantity < moq
+      raise ProvisioningError, "Minimum order quantity for USA eSIM #{provider} is #{moq} line(s). Requested: #{quantity}."
+    end
+
+    UsaEsimCredential.transaction do
+      creds = UsaEsimCredential.lock("FOR UPDATE SKIP LOCKED").where(provider: provider, status: 'available').limit(quantity).to_a
+
+      if creds.size < quantity
+        raise ProvisioningError, "Insufficient stock for USA eSIM #{provider}. Requested: #{quantity}, Available: #{creds.size}."
+      end
+
+      usa_esim_order = UsaEsimOrder.create!(
+        order: @order,
+        status: 'active',
+        provider: provider,
+        quantity: quantity,
+        total_amount: @order.total_amount || 0.0
+      )
+
+      # Claim credentials
+      creds.each do |cred|
+        puts "ACTOR_EVAL: is_user=#{@actor.is_a?(User)}, actor_id=#{@actor&.id}, actor_class=#{@actor.class}"
+        cred.update!(
+          status: 'assigned',
+          order_id: usa_esim_order.id,
+          user_id: @actor.is_a?(User) ? @actor.id : nil,
+          assigned_at: Time.current
+        )
+      end
+
+      # Send credentials email
+      UsaEsimMailer.with(owner: @actor, credentials: creds, order: @order).credentials_email.deliver_later
+
+      @order.update!(
+        status: 'active',
+        total_amount: @order.product.product_pricings.first&.selling_price.to_f * quantity
+      )
+    end
+  end
+
   # ========== VPN Provisioning ==========
   def provision_vpn!
-    # Generate VPN credentials
+    if @product.provider_type == 'myproxyapi'
+      period = @order.metadata['period'] || 1
+      locations = @order.metadata['locationsString'] || 1
+      client_ip = @order.metadata['client_ip']
+      protocol = @order.metadata['protocol'] || 'http'
+      api_id = @product.provider_product_id
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362')
+
+      client = MyProxyApiClient.new
+      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
+
+      @order.metadata['my_proxy_api_response'] = response
+      @order.save!
+      @order.activate!
+
+      # Send credentials email
+      owner = @actor || @order.orderable
+      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+      return
+    end
+
+    # Generate VPN credentials (for local inventory fallback)
     username = "vpn_#{SecureRandom.hex(4)}"
     password = SecureRandom.hex(12)
 
@@ -263,9 +402,8 @@ class OrderProvisioningService
       status: 'active'
     )
 
-    # Send credentials
     owner = @actor || @order.orderable
-    # VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
+    VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
 
     @order.activate!
   end

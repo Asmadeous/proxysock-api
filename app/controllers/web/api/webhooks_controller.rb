@@ -29,29 +29,93 @@ module Web
       end
 
       def payvra
-        # Mock logic based on typical webhooks
+        payload = request.body.read
+        event = begin
+          JSON.parse(payload)
+        rescue JSON::ParserError
+          params.to_unsafe_h.stringify_keys
+        end
+
+        # Accept common 'paid' / 'completed' status values Payvra may send
+        status = event['status'] || event['payment_status']
+        if %w[paid completed success].include?(status.to_s.downcase)
+          handle_deposit(event, 'payvra')
+        end
         render json: { status: 'received' }
       end
 
       private
 
       def handle_deposit(data, gateway)
-        # Find deposit by reference
         reference = data['reference'] || data['order_number']
         return unless reference
 
-        deposit = Deposit.find_by(transaction_id: reference)
+        # Check if this reference belongs to a CheckoutSession first
+        checkout_session = CheckoutSession.find_by(gateway_reference: reference)
+        
+        if checkout_session
+          handle_checkout_session(checkout_session, data, gateway)
+          return
+        end
 
+        # Fallback to Deposit
+        # metadata['transaction_ref'] is where we store the gateway reference
+        deposit = Deposit.where("metadata ->> 'transaction_ref' = ?", reference).first
         return unless deposit&.pending?
 
-        amount = gateway == 'paystack' ? (data['amount'] / 100.0) : data['amount']
-
+        amount = gateway == 'paystack' ? (data['amount'].to_f / 100.0) : data['amount'].to_f
         deposit.update!(status: 'completed', completed_at: Time.current)
 
-        # Credit Wallet (using polymorphic owner/depositable)
         return unless deposit.depositable&.wallet
 
         deposit.depositable.wallet.credit!(amount, "Deposit via #{gateway}", { gateway_ref: reference })
+
+        # Send deposit receipt invoice
+        InvoiceMailer.with(deposit: deposit, gateway: gateway, amount: amount).deposit_receipt_email.deliver_later
+      end
+
+      def handle_checkout_session(session, data, gateway)
+        return unless session.status == 'pending'
+
+        amount = gateway == 'paystack' ? (data['amount'] / 100.0) : data['amount'].to_f
+        
+        ActiveRecord::Base.transaction do
+          session.update!(status: 'completed')
+          
+          actor = session.orderable
+          wallet = actor.wallet
+          
+          # Virtual deposit processing to keep ledger accurate:
+          # Credit for the inbound gateway amount
+          transaction_in = Transaction.create!(
+            transactable: actor,
+            amount: amount,
+            transaction_type: 'credit',
+            status: 'success',
+            currency: 'USD',
+            description: "Checkout Session Funding via #{gateway}"
+          )
+          wallet.credit!(amount, "Checkout via #{gateway}", { session_id: session.id }, transaction_in)
+          
+          # Debit for the total orders
+          transaction_out = Transaction.create!(
+            transactable: actor,
+            amount: session.total_amount,
+            transaction_type: 'debit',
+            status: 'success',
+            currency: 'USD',
+            description: "Cart Checkout (#{session.orders.count} items)"
+          )
+          wallet.debit!(session.total_amount, 'Cart Checkout Payment', { session_id: session.id }, transaction_out)
+
+          # Provision all orders
+          session.orders.each do |order|
+            OrderProvisioningService.new(order, actor).process_without_deduction!
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.error("Checkout Session Webhook Failed: #{e.message}")
+        session.update!(status: 'failed') rescue nil
       end
     end
   end

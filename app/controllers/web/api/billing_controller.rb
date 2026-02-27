@@ -5,10 +5,12 @@ module Web
     class BillingController < BaseController
       # GET /web/api/billing/balance
       def balance
-        cache_key = "user_#{current_user.id}_wallet_balance"
+        wallet = current_actor.wallet
+        return render json: { error: 'Wallet not found' }, status: :not_found unless wallet
 
-        balance_json = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
-          wallet = current_user.wallet || current_user.create_wallet!
+        cache_key = "#{current_actor.class.name.downcase}_#{current_actor.id}_wallet_balance_v1_#{wallet.updated_at.to_i}"
+
+        balance_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           {
             available_balance: wallet.balance.to_f,
             currency: wallet.currency,
@@ -22,24 +24,41 @@ module Web
 
       # GET /web/api/billing/transactions
       def transactions
-        wallet = current_user.wallet
-        return render(json: { transactions: [] }) unless wallet
+        wallet = current_actor.wallet
+        txns = wallet&.wallet_transactions&.order(created_at: :desc) || []
+        
+        # Include deposits that haven't been completed (completed ones are already in wallet_transactions)
+        deps = current_actor.deposits.where.not(status: 'completed').order(created_at: :desc)
 
-        txns = wallet.wallet_transactions.order(created_at: :desc).page(params[:page]).per(50)
+        all_items = (txns.to_a + deps.to_a).sort_by(&:created_at).reverse
+        paginated_items = Kaminari.paginate_array(all_items).page(params[:page]).per(50)
+
         render json: {
-          transactions: txns.map { |t|
-            {
-              id: t.id,
-              amount: t.amount.to_f,
-              description: t.description,
-              transaction_type: t.transaction_type,
-              created_at: t.created_at
-            }
+          transactions: paginated_items.map { |item|
+            if item.is_a?(WalletTransaction)
+              {
+                id: item.id,
+                amount: item.amount.to_f,
+                description: item.description,
+                transaction_type: item.transaction_type,
+                status: 'completed',
+                created_at: item.created_at
+              }
+            else # Deposit (Pending or Failed)
+              {
+                id: "dep_#{item.id}",
+                amount: item.amount.to_f,
+                description: "Deposit via #{item.gateway}",
+                transaction_type: 'deposit',
+                status: item.status,
+                created_at: item.created_at
+              }
+            end
           },
           meta: {
-            current_page: txns.current_page,
-            total_pages: txns.total_pages,
-            total_count: txns.total_count
+            current_page: paginated_items.current_page,
+            total_pages: paginated_items.total_pages,
+            total_count: paginated_items.total_count
           }
         }
       end

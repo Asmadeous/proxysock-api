@@ -26,6 +26,7 @@ interface UsePaymentCheckoutHandlersProps {
   clearCart: () => void;
   // constants
   usaEsimInCart: boolean;
+  onSuccess?: (orderId: string) => void;
 }
 
 export const usePaymentCheckoutHandlers = ({
@@ -42,6 +43,7 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingPaystack,
   clearCart,
   usaEsimInCart,
+  onSuccess,
 }: UsePaymentCheckoutHandlersProps) => {
   const {
     calculateOrderTotalSync,
@@ -78,12 +80,12 @@ export const usePaymentCheckoutHandlers = ({
           meta.cpu_cores = item.vpsPlan?.cpu_cores;
           meta.ram_gb = item.vpsPlan?.ram_gb;
           meta.storage_gb = item.vpsPlan?.storage_gb;
-          meta.country_code = item.location?.countryCode;
+          meta.countryCode = item.location?.countryCode;
         } else {
           meta.cpu_cores = item.rdpPlan?.cpu_cores;
           meta.ram_gb = item.rdpPlan?.ram_gb;
           meta.storage_gb = item.rdpPlan?.storage_gb;
-          meta.country_code = item.location?.countryCode;
+          meta.countryCode = item.location?.countryCode;
         }
         break;
       case "proxy":
@@ -110,6 +112,19 @@ export const usePaymentCheckoutHandlers = ({
     return meta;
   };
 
+  const buildCartPayload = () => {
+    return cartItems.map(item => ({
+      product_id: getProductId(item),
+      quantity: getQuantity(item),
+      metadata: {
+        ...buildMetadata(item),
+        ...(item.period ? { period: item.period } : {}),
+        ...(item.locationsString ? { locationsString: item.locationsString } : {}),
+        ...(item.protocol ? { protocol: item.protocol } : {})
+      }
+    }));
+  };
+
   const handleBalancePayment = async () => {
     setIsLoadingBalance(true);
     setIsAnyPaymentProcessing(true);
@@ -123,26 +138,23 @@ export const usePaymentCheckoutHandlers = ({
         );
       }
 
-      let newBalance = userBalance;
+      const payload = {
+        items: buildCartPayload(),
+        payment_method: 'wallet'
+      };
 
-      // Process each item in the cart through the standard Rails Orders API
-      for (const item of cartItems) {
-        const payload = {
-          product_id: getProductId(item),
-          quantity: getQuantity(item),
-          payment_method: 'wallet',
-          metadata: buildMetadata(item)
-        };
-        const { data } = await api.post("/web/api/orders", payload);
-        if (data && data.order && data.order.amount) {
-          newBalance -= data.order.amount;
-        }
-      }
+      await api.post("/web/api/orders/checkout_cart", payload);
 
       const orderId = storeOrderDataForSuccess(cartItems, totalUsd, "balance");
       clearCart();
-      setUserBalance(newBalance);
-      globalThis.location.href = `${globalThis.location?.origin}/payments/success?payment=balance&type=mixed&amount=${totalUsd.toFixed(2)}&order_id=${orderId}`;
+      const { data: balanceData } = await api.get('/web/api/billing/balance');
+      setUserBalance(balanceData?.available_balance || (userBalance - totalUsd));
+
+      if (onSuccess) {
+        onSuccess(orderId);
+      } else {
+        globalThis.location.href = `${globalThis.location?.origin}/payments/success?payment=balance&type=mixed&amount=${totalUsd.toFixed(2)}&order_id=${orderId}`;
+      }
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || "An error occurred";
       setError(msg);
@@ -163,21 +175,25 @@ export const usePaymentCheckoutHandlers = ({
     setIsAnyPaymentProcessing(true);
     setError(null);
     try {
-      const totalUsd = calculateOrderTotalSync();
-      storeOrderDataForSuccess(cartItems, totalUsd, gatewayName);
       if (!cartItems.length) throw new Error("Your cart is empty");
+      const totalUsd = calculateOrderTotalSync();
 
       const payload = {
-        amount: totalUsd,
-        gateway: gatewayName,
-        currency: "USD"
+        items: buildCartPayload(),
+        payment_method: 'gateway',
+        gateway: gatewayName
       };
 
-      const { data } = await api.post("/web/api/wallet/deposit", payload);
+      const { data } = await api.post("/web/api/orders/checkout_cart", payload);
 
       if (!data?.payment_url) {
         throw new Error("Invalid response: missing payment URL");
       }
+
+      storeOrderDataForSuccess(cartItems, totalUsd, gatewayName);
+
+      // Do not clear the cart yet! Let them complete payment.
+      // The success page will clear the cart when they return.
       globalThis.location.href = data.payment_url;
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || "An error occurred";

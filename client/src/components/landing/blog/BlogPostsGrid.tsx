@@ -11,7 +11,7 @@ import {
   NewspaperIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { ExtendedPost } from "@/pages/blogPost";
+import { ExtendedPost } from "@/data/blogPost";
 
 interface BlogPostsGridProps {
   filteredPosts: ExtendedPost[];

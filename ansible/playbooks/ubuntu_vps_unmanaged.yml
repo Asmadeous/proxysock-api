@@ -1,0 +1,213 @@
+---
+- name: Configure Ubuntu VPS UNMANAGED
+  hosts: linux
+  become: yes
+  vars:
+    new_root_password: "{{ root_password | default('SecurePass123!') }}"
+    new_user: "{{ hostname | default('vps-user') }}"
+    # Sudo password for odin user
+    ansible_become_password: "temporary"
+    ansible_ssh_pass: "{{ ansible_become_password }}"
+    
+    # Improved SSH settings
+    ansible_ssh_common_args: >
+      -o ControlMaster=no
+      -o ControlPersist=no
+      -o ServerAliveInterval=30
+      -o ServerAliveCountMax=5
+      -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null
+      -o ConnectTimeout=30
+    
+    # Significantly increased timeouts for slow systems
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
+    
+    # Retry strategy for task failures
+    ansible_retries: 5
+  
+  pre_tasks:
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+    
+    - name: Establish SSH connection with extended wait
+      wait_for_connection:
+        timeout: 900
+        delay: 30
+        connect_timeout: 30
+      register: ssh_result
+  
+  tasks:
+    - block:
+        - name: Gather facts
+          setup:
+          retries: 3
+          delay: 10
+        
+        - name: Wait for apt lock (system may be initializing)
+          shell: |
+            for i in {1..120}; do
+              if ! lsof /var/lib/apt/lists/lock 2>/dev/null && \
+                 ! lsof /var/cache/apt/archives/lock 2>/dev/null && \
+                 ! pgrep -f "apt|dpkg|unattended-upgrade" > /dev/null; then
+                echo "APT locks released"
+                exit 0
+              fi
+              echo "Attempt $i: Waiting for apt/dpkg to finish..."
+              sleep 10
+            done
+            echo "Warning: APT still locked after 20 minutes, proceeding anyway"
+            exit 0
+          changed_when: false
+          register: apt_lock_result
+          ignore_errors: yes
+        
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 0
+          retries: 5
+          delay: 20
+          register: apt_update
+          until: apt_update is succeeded
+        
+        - name: Create new user
+          user:
+            name: "{{ new_user }}"
+            password: "{{ new_root_password | password_hash('sha512') }}"
+            shell: /bin/bash
+            state: present
+            groups: sudo
+            append: yes
+          retries: 3
+          delay: 10
+        
+        - name: Debug password being set
+          debug:
+            msg: "Setting root password with value length: {{ new_root_password | length }}"
+          become: no
+        
+        - name: Generate password hash
+          set_fact:
+            password_hash: "{{ new_root_password | password_hash('sha512') }}"
+          become: no
+        
+        - name: Set root password
+          user:
+            name: root
+            password: "{{ password_hash }}"
+            update_password: always
+          register: root_password_result
+        
+        - name: Verify root password was set
+          debug:
+            msg: "Root password changed: {{ root_password_result.changed }}"
+        
+        - name: Set hostname
+          hostname:
+            name: "{{ hostname }}"
+          retries: 3
+          delay: 10
+        
+        - name: Apply hostname to running system
+          command: hostnamectl set-hostname "{{ hostname }}"
+          changed_when: true
+        
+        - name: Update /etc/hosts with new hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.1\.1'
+            line: "127.0.1.1 {{ hostname }}"
+            state: present
+        
+        - name: Upgrade packages
+          apt:
+            upgrade: dist
+            autoremove: yes
+            autoclean: yes
+          retries: 3
+          delay: 30
+          register: apt_upgrade
+          until: apt_upgrade is succeeded
+          timeout: 1200
+        
+        - name: Install basic packages
+          apt:
+            name:
+              - curl
+              - wget
+              - vim
+              - openssh-client
+              - openssh-server
+            state: present
+          retries: 5
+          delay: 20
+          register: install_result
+          until: install_result is succeeded
+        
+        - name: Validate configuration
+          command: >
+            bash -c "
+            test -n '{{ hostname }}' &&
+            id {{ new_user }} > /dev/null 2>&1 &&
+            echo 'Configuration validated successfully'
+            "
+          register: validation
+          changed_when: false
+        
+        - name: Final configuration step
+          debug:
+            msg: "Configuration complete: {{ validation.stdout }}"
+        
+        - name: Notify API - Success
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "configured"
+              os_template: "{{ os_template }}"
+              management_type: "{{ management_type }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+          delegate_to: localhost
+          register: api_success
+      
+      rescue:
+        - name: Capture failure details
+          set_fact:
+            failure_task: "{{ ansible_failed_task.name | default('Unknown task') }}"
+            failure_msg: "{{ ansible_failed_result.msg | default('No error details available') }}"
+            failure_module: "{{ ansible_failed_result._module_name | default('Unknown module') }}"
+        
+        - name: Log detailed failure information
+          debug:
+            msg: |
+              Task failed: {{ failure_task }}
+              Module: {{ failure_module }}
+              Error: {{ failure_msg }}
+        
+        - name: Notify API - Failure
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "failed"
+              os_template: "{{ os_template }}"
+              management_type: "{{ management_type }}"
+              failed_task: "{{ failure_task }}"
+              error_message: "{{ failure_msg }}"
+              error_module: "{{ failure_module }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+          delegate_to: localhost
+          ignore_errors: yes

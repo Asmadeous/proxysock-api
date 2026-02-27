@@ -174,4 +174,8 @@ export const assignSupportChat = (id: string, employeeId: string) =>
 export const closeSupportChat = (id: string) =>
     adminApi.post(`/support_chats/${id}/close`);
 
+// ── System Monitoring ─────────────────────────────
+export const fetchMonitoringData = () =>
+    adminApi.get("/monitoring");
+
 export default adminApi;

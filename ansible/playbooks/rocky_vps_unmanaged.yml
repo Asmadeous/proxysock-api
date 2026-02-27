@@ -1,0 +1,81 @@
+- name: Configure Rocky Linux VPS Unmanaged
+  hosts: linux
+  become: yes
+  vars:
+    new_user_password: "{{ root_password | default('SecurePass123!') }}"
+    ansible_become_password: "temporary"
+  tasks:
+    - block:
+        - name: Wait for SSH
+          wait_for_connection:
+            timeout: 300
+    
+        - name: Update package cache
+          dnf:
+            update_cache: yes
+    
+        - name: Create hostname user
+          user:
+            name: "{{ hostname }}"
+            password: "{{ new_user_password | password_hash('sha512') }}"
+            groups: wheel
+            shell: /bin/bash
+            create_home: yes
+            state: present
+          when: hostname is defined
+    
+        - name: Set hostname
+          hostname:
+            name: "{{ hostname }}"
+          when: hostname is defined
+    
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.1\.1'
+            line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
+          when: hostname is defined
+    
+        - name: Install basic packages
+          dnf:
+            name:
+              - curl
+              - wget
+              - vim
+            state: present
+
+        - name: Final configuration step
+          command: echo "Configuration complete"
+          
+        - name: Notify API - Success
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "configured"
+              os_template: "{{ os_template }}"
+              management_type: "{{ management_type }}"
+          delegate_to: localhost
+
+      rescue:
+        - name: Notify API - Failure
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "failed"
+              os_template: "{{ os_template }}"
+              management_type: "{{ management_type }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
+          delegate_to: localhost
+          ignore_errors: yes

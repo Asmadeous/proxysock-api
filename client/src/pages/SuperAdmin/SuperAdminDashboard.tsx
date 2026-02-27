@@ -33,6 +33,7 @@ import SystemLogsTab from "./tabs/SystemLogsTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
 import GuestChatsTab from "./tabs/GuestChatsTab";
 import SupportChatsTab from "./tabs/SupportChatsTab";
+import MonitoringTab from "./tabs/MonitoringTab";
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -48,6 +49,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "tickets", name: "Tickets", icon: ChatBubbleLeftRightIcon },
   { id: "support_chats", name: "Support Chats", icon: InboxIcon },
   { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleLeftRightIcon },
+  { id: "monitoring", name: "Monitoring", icon: ChartBarSquareIcon },
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
 
@@ -65,6 +67,7 @@ const TAB_COMPONENTS: Record<string, React.FC> = {
   tickets: TicketsTab,
   guest_chats: GuestChatsTab,
   support_chats: SupportChatsTab,
+  monitoring: MonitoringTab,
   logs: SystemLogsTab,
 };
 

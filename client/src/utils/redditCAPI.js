@@ -1,5 +1,4 @@
 // src/utils/redditCAPI.js
-// import { supabase } from './supabase'
 
 class RedditCAPI {
   constructor() {

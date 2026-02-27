@@ -31,9 +31,21 @@ module ProxysockApi
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # Use UUIDs as the default primary key type for migrations
+    config.generators do |g|
+      g.orm :active_record, primary_key_type: :uuid
+    end
+
     # Enable session management for OmniAuth
     config.session_store :cookie_store, key: '_proxysock_api_session'
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, config.session_options
+
+    # Prometheus HTTP request instrumentation
+    require_relative '../app/middleware/prometheus_middleware'
+    config.middleware.use PrometheusMiddleware
+
+    # Autoload app/middleware
+    config.autoload_paths << Rails.root.join('app', 'middleware')
   end
 end

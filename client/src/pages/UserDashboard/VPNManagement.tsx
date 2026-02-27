@@ -105,6 +105,21 @@ export default function VPNManagement() {
         }
     };
 
+    const handleReorder = async (orderId: string) => {
+        try {
+            setLoading(true);
+            const { data } = await api.post(`/web/api/orders/${orderId}/reorder`);
+            alert("Reorder successful! A new order has been created.");
+            fetchVPNData(); // Refresh data
+        } catch (error: any) {
+            console.error("Failed to reorder:", error);
+            const errorMsg = error.response?.data?.error || "Failed to reorder";
+            alert(errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "active":
@@ -216,6 +231,15 @@ export default function VPNManagement() {
                         >
                             <Eye className="h-4 w-4" /> Manage
                         </Button>
+                        {order.status === "expired" && (
+                            <Button
+                                className="flex-1 gap-2"
+                                variant="outline"
+                                onClick={() => handleReorder(order.id)}
+                            >
+                                <ShoppingCart className="h-4 w-4" /> Reorder
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>

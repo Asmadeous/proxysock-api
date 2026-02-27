@@ -14,6 +14,7 @@ class XProxyService
   end
 
   # Sync all proxies from XProxy to DB
+  # NOTE: In-house proxy credential changes are not yet automated. Manual execution required.
   def sync_proxies
     @logger.info('[XProxyService] Starting sync...')
 
