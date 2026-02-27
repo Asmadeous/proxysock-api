@@ -1,0 +1,107 @@
+- name: Configure Windows Server VPS UNMANAGED
+  hosts: windows
+  gather_facts: no
+  vars:
+    admin_password: "{{ rdp_password | default('SecurePass123!') }}"
+    api_url: "{{ api_url | default('') }}"
+    api_key: "{{ api_key | default('') }}"
+    
+  tasks:
+    - block:
+        - name: Wait for WinRM
+          win_ping:
+          retries: 30
+          delay: 10
+
+        - name: Gather facts
+          setup:
+
+        - name: Configure Administrator account
+          block:
+            - name: Enable Administrator account
+              win_user:
+                name: Administrator
+                account_disabled: false
+                state: present
+
+            - name: Set Administrator password
+              win_user:
+                name: Administrator
+                password: "{{ admin_password }}"
+                password_never_expires: yes
+                state: present
+
+            - name: Ensure Administrator is in Administrators group
+              win_group_membership:
+                name: Administrators
+                members:
+                  - Administrator
+                state: present
+
+        - name: Enable RDP for remote management
+          win_regedit:
+            path: "{{ item.path }}"
+            name: "{{ item.name }}"
+            data: "{{ item.data }}"
+            type: dword
+          loop:
+            - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server"
+              name: "fDenyTSConnections"
+              data: 0
+            - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+              name: "UserAuthentication"
+              data: 0
+
+        - name: Allow RDP through Windows Firewall
+          win_firewall_rule:
+            name: Remote Desktop
+            localport: 3389
+            action: allow
+            direction: in
+            protocol: tcp
+            state: present
+            enabled: yes
+
+        - name: Set hostname
+          win_hostname:
+            name: "{{ hostname }}"
+          register: hostname_result
+          when: hostname is defined
+
+        - name: Reboot if hostname changed
+          win_reboot:
+          when: hostname_result is defined and hostname_result.reboot_required
+
+        - name: Notify API - Success
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "configured"
+              os_template: "{{ os_template | default('windows-server') }}"
+              management_type: "unmanaged"
+          delegate_to: localhost
+          when: api_url != "" and api_key != "" and vm_id is defined
+
+      rescue:
+        - name: Notify API - Failure
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "failed"
+              os_template: "{{ os_template | default('windows-server') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }}: {{ ansible_failed_result.msg | default('No error') }}"
+          delegate_to: localhost
+          ignore_errors: yes
+          when: vm_id is defined

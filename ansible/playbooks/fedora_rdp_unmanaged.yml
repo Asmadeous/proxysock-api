@@ -1,0 +1,255 @@
+---
+- name: Configure Fedora Desktop RDP Basic
+  hosts: linux
+  become: yes
+  gather_facts: no
+  vars:
+    admin_username: "administrator"
+    admin_password: "{{ rdp_password | default('SecurePass123!') }}"
+
+    whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"  # unused now
+
+    ansible_become_password: "temporary"
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    - block:
+        - name: Wait for SSH
+          wait_for_connection:
+            timeout: 300
+
+        - name: Install Python libdnf5 for Fedora 41+ compatibility
+          raw: |
+            if command -v dnf5 >/dev/null 2>&1 || [ -f /usr/bin/dnf5 ]; then
+              dnf install -y python3-libdnf5
+            fi
+          register: libdnf5_install
+          changed_when: "'Nothing to do' not in libdnf5_install.stdout"
+
+        - name: Gather facts after connection is established
+          setup:
+
+        - name: Install RDP packages only
+          dnf:
+            name:
+              - xrdp
+              - xrdp-selinux
+              - xorgxrdp
+            state: present
+          retries: 3
+          delay: 10
+
+        - name: Create Administrator user for RDP
+          user:
+            name: "{{ admin_username }}"
+            password: "{{ admin_password | password_hash('sha512') }}"
+            groups: wheel
+            shell: /bin/bash
+            create_home: yes
+
+        - name: Configure complete xrdp.ini
+          copy:
+            content: |
+              [Globals]
+              ini_version=1
+              fork=true
+              port=3389
+              tcp_nodelay=true
+              tcp_keepalive=true
+              security_layer=rdp
+              certificate=
+              key_file=
+              ssl_protocols=TLSv1.2, TLSv1.3
+              autorun=
+              allow_channels=true
+              allow_multimon=true
+              bitmap_cache=true
+              bitmap_compression=true
+              bulk_compression=true
+              max_bpp=32
+              new_cursors=true
+              use_fastpath=both
+              use_vsock=false
+              rdp_compress_type=1
+              implicit_user=true
+
+              [Logging]
+              LogFile=xrdp.log
+              LogLevel=INFO
+              EnableSyslog=true
+              SyslogLevel=INFO
+
+              [Channels]
+              rdpdr=true
+              rdpsnd=true
+              drdynvc=true
+              cliprdr=true
+              rail=true
+              xrdpvr=true
+              tcutils=true
+
+              [Xorg]
+              name=Xorg
+              lib=libxup.so
+              username=ask
+              password=ask
+              ip=127.0.0.1
+              port=-1
+              code=20
+
+              [Xvnc]
+              name=Xvnc
+              lib=libvnc.so
+              username=ask
+              password=ask
+              ip=127.0.0.1
+              port=-1
+              xserverbpp=24
+              code=10
+
+              [vnc-any]
+              name=vnc-any
+              lib=libvnc.so
+              ip=ask
+              port=ask5900
+              username=na
+              password=ask
+              code=10
+
+              [sesman-any]
+              name=sesman-any
+              lib=libvnc.so
+              ip=ask
+              port=ask3350
+              username=ask
+              password=ask
+              code=10
+
+              [neutrinordp-any]
+              name=neutrinordp-any
+              lib=libneutrinordp.so
+              ip=ask
+              port=ask3389
+              username=ask
+              password=ask
+              code=10
+            dest: /etc/xrdp/xrdp.ini
+            backup: yes
+          notify: restart xrdp
+
+        - name: Enable and start xrdp services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - xrdp
+            - xrdp-sesman
+
+        - name: Set hostname
+          hostname:
+            name: "{{ hostname | default('fedora-rdp') }}"
+
+        # OPTIONAL: completely disable firewalld (uncomment if you want it off)
+        # - name: Disable firewalld completely
+        #   systemd:
+        #     name: firewalld
+        #     state: stopped
+        #     enabled: no
+
+        - name: Configure SELinux for xrdp
+          seboolean:
+            name: "{{ item }}"
+            state: yes
+            persistent: yes
+          loop:
+            - allow_polyinstantiation
+            - use_nfs_home_dirs
+          ignore_errors: yes
+          when: ansible_selinux.status == "enabled"
+
+        - name: Verify RDP configuration
+          shell: |
+            echo "=== Fedora Basic RDP Configuration Verification ==="
+            echo "Administrator user: {{ admin_username }}"
+            echo "User exists: $(id {{ admin_username }} &>/dev/null && echo 'YES' || echo 'NO')"
+            echo "XRDP service status: $(systemctl is-active xrdp)"
+            echo "XRDP-sesman service status: $(systemctl is-active xrdp-sesman)"
+            echo "RDP port listening: $(netstat -ln | grep ':3389' &>/dev/null && echo 'YES' || echo 'NO')"
+          register: verification_result
+
+        - name: Display verification results
+          debug:
+            msg: "{{ verification_result.stdout_lines }}"
+
+        - name: Final configuration step
+          shell: |
+            echo "=== Fedora Basic RDP Configuration Complete ==="
+            echo "✅ Administrator user '{{ admin_username }}' created"
+            echo "✅ XRDP packages installed (basic configuration)"
+            echo "✅ Firewall NOT managed by this playbook"
+            echo "Configuration complete"
+
+        - name: Notify API - Success
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "configured"
+              os_template: "{{ os_template | default('fedora') }}"
+              management_type: "{{ management_type | default('basic') }}"
+              whitelist_ip: "{{ whitelist_ip }}"
+              admin_configured: true
+              rdp_configured: true
+              configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
+            status_code: [200, 201, 202]
+            validate_certs: no
+            timeout: 30
+          delegate_to: localhost
+          when: api_url is defined and api_key is defined
+
+      rescue:
+        - name: Notify API - Failure
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "failed"
+              os_template: "{{ os_template | default('fedora') }}"
+              management_type: "{{ management_type | default('basic') }}"
+              whitelist_ip: "{{ whitelist_ip | default('') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
+              failed_at: "{{ ansible_date_time.iso8601 }}"
+            status_code: [200, 201, 202]
+            validate_certs: no
+            timeout: 30
+          delegate_to: localhost
+          ignore_errors: yes
+          when: api_url is defined and api_key is defined
+
+        - name: Final failure notification
+          debug:
+            msg:
+              - "❌ Fedora Basic RDP Configuration FAILED!"
+              - "❌ VM ID: {{ vm_id | default('unknown') }}"
+              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
+              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+  handlers:
+    - name: restart xrdp
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - xrdp
+        - xrdp-sesman

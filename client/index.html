@@ -15,8 +15,6 @@
 
   <!-- Preload assets -->
   <link rel="preload" href="/logo.png" as="image" type="image/png" />
-  <link rel="preload" href="https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728" as="font"
-    type="font/woff" crossorigin />
 
   <!-- DNS prefetch for external domains -->
   <link rel="dns-prefetch" href="//fonts.googleapis.com" />
@@ -29,8 +27,6 @@
   <link rel="dns-prefetch" href="//paystack.com" />
   <link rel="dns-prefetch" href="//checkout.paystack.com" />
   <link rel="dns-prefetch" href="//xknakbxmpznclriiauim.supabase.co" />
-  <link rel="dns-prefetch" href="//va.tawk.to" />
-  <link rel="dns-prefetch" href="//embed.tawk.to" />
   <link rel="dns-prefetch" href="//v6.exchangerate-api.com" />
   <link rel="dns-prefetch" href="//*.datadoghq.com" />
   <link rel="dns-prefetch" href="//www.redditstatic.com" />
@@ -53,9 +49,8 @@
 
   <!-- Updated CSP (ONLY CHANGE: style-src Paystack domains added) -->
   <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' http://localhost:* ws://localhost:*;
+      default-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com;
       script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*
-        https://js.stripe.com
         https://js.paystack.co
         https://checkout.paystack.com
         https://www.googletagmanager.com
@@ -63,8 +58,6 @@
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://cdn.jsdelivr.net
         https://www.redditstatic.com
         https://alb.reddit.com
@@ -77,26 +70,20 @@
         https://fonts.googleapis.com
         https://cdn.jsdelivr.net
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://checkout.paystack.com
         https://paystack.com
         https://js.paystack.co;
 
       font-src 'self'
         https://fonts.gstatic.com
-        https://embed.tawk.to
-        https://*.tawk.to
         data:;
 
-      img-src 'self' data: blob: http://localhost:*
+      img-src 'self' data: blob: http://localhost:* https://*.trycloudflare.com
         https://www.proxysock.com
         https://www.proxystore.net
         https://upload.wikimedia.org
         https://flagcdn.com
 
-        https://embed.tawk.to
-        https://*.tawk.to
         https://www.google-analytics.com
         https://www.googletagmanager.com
         https://googleads.g.doubleclick.net
@@ -113,23 +100,17 @@
         https://payvra.com
         https://img.freepik.com
         https://*.supabase.co
-        https://*.stripe.com
         https://*.paystack.co
         https://api.dicebear.com;
 
-      connect-src 'self' http://localhost:* ws://localhost:*
+      connect-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
-        https://va.tawk.to
-        https://*.tawk.to
-        wss://*.tawk.to
         https://xknakbxmpznclriiauim.supabase.co
         wss://xknakbxmpznclriiauim.supabase.co
         https://v6.exchangerate-api.com
-        https://api.stripe.com
-        https://*.datadoghq.com
-        https://r.stripe.com
+        https://api.paystack.co
         https://pixel-config.reddit.com
         https://conversions-config.reddit.com
         https://alb.reddit.com
@@ -141,8 +122,7 @@
         https://*.cloudflareinsights.com;
 
       frame-src 'self'
-        https://checkout.paystack.com
-        https://js.stripe.com;
+        https://checkout.paystack.com;
 
       object-src 'none';
       base-uri 'self';
@@ -152,23 +132,8 @@
 
   <!-- Performance optimizations -->
   <style>
-    @font-face {
-      font-family: "TawkFont";
-      src: url("https://embed.tawk.to/_s/v4/assets/fonts/tawk-font-icon-3.woff?55755728") format("woff");
-      font-display: swap;
-    }
-
     #root {
       min-height: 100vh;
-    }
-
-    .tawk-min-container {
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-    }
-
-    .tawk-min-container.loaded {
-      opacity: 1;
     }
 
     /* Ad blocker notice styling */
@@ -282,28 +247,28 @@
 
     // Global service availability tracker
     globalThis.serviceStatus = {
-      stripe: false,
       paystack: false,
-      tawk: false,
       reddit: false,
       datadog: false,
     };
 
-    // Handle postMessage errors
+    // Handle postMessage errors with improved safety check
     (function () {
       const originalPostMessage = globalThis.postMessage;
       globalThis.postMessage = function (msg, targetOrigin, transferable) {
         try {
-          if (!targetOrigin || targetOrigin === "null") {
-            log.warn(
-              "🛡️ Suppressing invalid postMessage with null origin:",
-              msg,
-            );
+          // Allow valid origins and '*' (broadcast)
+          // Only warn if targetOrigin is literally the string "null" which is insecure
+          if (targetOrigin === "null") {
+            log.warn("🛡️ Security: blocked postMessage with 'null' target origin");
             return;
           }
-          originalPostMessage.call(globalThis, msg, targetOrigin, transferable);
+          originalPostMessage.call(globalThis, msg, targetOrigin || "*", transferable);
         } catch (e) {
-          log.warn("🛡️ postMessage error handled:", e.message);
+          // Only log technical failures if we're in debug mode
+          if (globalThis.location.search.includes("debug=true")) {
+            log.warn("🛡️ postMessage dispatch failed:", e.message);
+          }
         }
       };
     })();
@@ -314,10 +279,7 @@
         "pixel.js",
         "redditstatic",
         "reddit",
-
-        "tawk",
         "datadog",
-        "stripe",
         "paystack",
         "cloudflareinsights",
       ];
@@ -349,16 +311,12 @@
           "reddit",
           "pixel",
           "datadog",
-
-          "tawk",
-          "stripe",
           "paystack",
           "cloudflare",
         ];
 
         if (
           thirdPartyServices.some((service) => reason.includes(service)) ||
-          e.reason.includes("r.stripe.com") ||
           e.reason.includes("static.cloudflareinsights.com")
         ) {
           log.warn("🛡️ Third-party promise rejection handled:", e.reason);
@@ -413,17 +371,6 @@
 
     // Initialize services
     function initializeServices() {
-      // Stripe - load only once
-      if (!document.querySelector('script[src="https://js.stripe.com/v3"]')) {
-        loadScriptSafely("https://js.stripe.com/v3", "Stripe", (loaded) => {
-          globalThis.serviceStatus.stripe = loaded;
-          if (loaded && globalThis.Stripe) {
-            log.info("Stripe ready for initialization");
-          }
-        });
-      } else {
-        log.warn("Stripe already loaded, skipping duplicate load");
-      }
 
       // Paystack
       loadScriptSafely(
@@ -434,16 +381,6 @@
           if (loaded) {
             log.info("Paystack ready");
           }
-        },
-      );
-
-
-      // Tawk.to
-      loadScriptSafely(
-        "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
-        "Tawk.to",
-        (loaded) => {
-          globalThis.serviceStatus.tawk = loaded;
         },
       );
 
@@ -496,7 +433,7 @@
           document.body.removeChild(testAd);
 
           const servicesBlocked =
-            !globalThis.serviceStatus.stripe && !globalThis.serviceStatus.paystack;
+            !globalThis.serviceStatus.paystack;
 
           if (adBlocked || servicesBlocked) {
             const notice = document.createElement("div");
@@ -531,7 +468,6 @@
         const suppressedMessages = [
           "Multiple GoTrueClient instances",
           "React Router Future Flag Warning",
-          "You may test your Stripe.js integration over HTTP",
           "No storage available for session",
           "reportIncident",
           "invalid source",
@@ -592,13 +528,6 @@
 
       // Critical: Payment scripts load after 3 seconds
       scheduleWhenIdle(() => {
-        // Stripe - load only once
-        if (!document.querySelector('script[src="https://js.stripe.com/v3"]')) {
-          loadScriptSafely("https://js.stripe.com/v3", "Stripe", (loaded) => {
-            globalThis.serviceStatus.stripe = loaded;
-          });
-        }
-
         // Paystack
         loadScriptSafely(
           "https://js.paystack.co/v1/inline.js",
@@ -612,14 +541,6 @@
       // Non-critical: Chat and analytics load after 5 seconds
       scheduleWhenIdle(() => {
 
-        // Tawk.to
-        loadScriptSafely(
-          "https://embed.tawk.to/67bef4165710c5190bd5e864/1il0uiubo",
-          "Tawk.to",
-          (loaded) => {
-            globalThis.serviceStatus.tawk = loaded;
-          },
-        );
         // Datadog RUM (only in production)
         if (!isDev) {
           loadScriptSafely(

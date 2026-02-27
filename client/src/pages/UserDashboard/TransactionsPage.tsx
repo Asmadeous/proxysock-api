@@ -116,8 +116,8 @@ const TransactionsPage = () => {
           payment_id: t.description || `TXN-${t.id}`,
           amount: Math.abs(t.amount), // Backend has negative for spent, positive for deposited
           currency: 'USD',
-          payment_status: 'completed',
-          payment_method: 'wallet',
+          payment_status: t.status || 'completed',
+          payment_method: t.payment_method || 'wallet',
           transaction_type: t.transaction_type || (t.amount > 0 ? 'deposit' : 'payment'),
           created_at: t.created_at,
           updated_at: t.created_at,

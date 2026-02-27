@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { Post } from "../../../pages/blogPost";
+import { Post } from "../../../data/blogPost";
 
 interface BlogPostRelatedProps {
   relatedPosts: Post[];

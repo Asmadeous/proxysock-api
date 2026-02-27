@@ -85,7 +85,7 @@ export const useCalculateOrderItems = ({
   const calculateItemTotalSync = (item: CartItem): number => {
     if (item.totalPrice !== undefined) return item.totalPrice;
     if (item.productType === "esim" && item.esimPackage) {
-      return (item.esimPackage.price / 10000) * (item.quantity || 1);
+      return item.esimPackage.price * (item.quantity || 1);
     } else if (item.productType === "proxy" && item.plan) {
       return calculateProxyItemTotal(item);
     } else if (item.productType === "residential" && item.plan) {

@@ -67,7 +67,8 @@ class Vm < ApplicationRecord
       update!(
         ip_address: result[:ip_address],
         proxmox_vm_id: result[:vm_id].to_s,
-        rdp_port: result[:external_port], # Assuming internal mapping for now or external
+        rdp_port: result[:protocol] == 'rdp' ? 3389 : nil,
+        ssh_port: result[:protocol] == 'ssh' ? 22 : nil,
         expires_at: 30.days.from_now # Set initial expiry
       )
 
@@ -81,7 +82,7 @@ class Vm < ApplicationRecord
 
   def terminate!
     service = VmProvisioningService.new(nil, Rails.logger)
-    service.cleanup_vm(proxmox_vm_id, ip_address, rdp_port, "vm-#{id}")
+    service.cleanup_vm(proxmox_vm_id, ip_address, "vm-#{id}")
     terminate
   end
 end

@@ -1,7 +1,6 @@
 
 // src/utils/redditPixel.ts - Updated with navigation tracking
 import { useEffect } from 'react';
-// import { supabase } from '../lib/supabase'; // ✅ FIXED: Use singleton
 
 // ✅ FIXED: Simple TypeScript declarations
 declare global {

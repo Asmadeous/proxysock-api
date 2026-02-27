@@ -34,7 +34,8 @@ module Web
         if user&.authenticate(login_params[:password])
           user.update(last_login_at: Time.current, ip_address: request.remote_ip)
           
-          duration = params.dig(:user, :remember_me) ? 30.days.from_now.to_i : 24.hours.from_now.to_i
+          duration = login_params[:remember_me].in?([true, "true", "1"]) ? 30.days.from_now.to_i : 24.hours.from_now.to_i
+
           token = user.generate_jwt(duration)
 
           render json: {
@@ -247,8 +248,9 @@ module Web
       end
 
       def login_params
-        params.require(:user).permit(:email, :password)
+        params.require(:user).permit(:email, :password, :remember_me)
       end
+
 
       def serialize_user(user)
         wallet = user.wallet

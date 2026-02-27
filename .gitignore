@@ -53,3 +53,13 @@ Thumbs.db
 
 # Ignore precompiled assets
 /public/assets
+
+# Ignore Ansible plugins (mitogen — installed locally, not committed)
+/ansible/plugins/
+
+# Ignore generated Ansible inventory files
+/ansible/inventory/*.ini
+
+# Ignore monitoring data volumes
+/monitoring/prometheus/data/
+/monitoring/grafana/data/

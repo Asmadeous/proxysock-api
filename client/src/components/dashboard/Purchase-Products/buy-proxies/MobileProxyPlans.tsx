@@ -131,7 +131,7 @@ export const renderMobileProxyPlans = ({
                         Object.keys(isp.locations).length > 0) ||
                         selectedLocationCategory === "usa") && (
                           <img
-                            src={`https://flagcdn.com/16x12/${selectedLocationCategory === "usa" ? "us" : Object.keys(isp.locations || {})[0]?.toLowerCase()}.png`}
+                            src={`https://flagcdn.com/16x12/${selectedLocationCategory === "usa" ? "us" : "ca"}.png`}
                             alt="flag"
                             className="w-4 h-3 rounded-sm"
                             onError={(e) => {

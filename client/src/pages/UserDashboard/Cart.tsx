@@ -32,6 +32,7 @@ export interface CartItem {
   locations?: { isp: ISP | null; city: City | null };
   period?: number;
   protocol?: "http" | "socks5";
+  locationsString?: string;
   esimPackage?: ESIMPackage | null;
   quantity?: number;
   vpsPlan?: VPSPlan | null;

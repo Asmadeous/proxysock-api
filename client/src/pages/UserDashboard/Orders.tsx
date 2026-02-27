@@ -37,11 +37,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Define interfaces for order stats and recent orders
 interface OrderStats {
-  proxy: { total: number; active: number; pending: number; revenue: number };
-  esim: { total: number; active: number; pending: number; revenue: number };
-  rdp: { total: number; active: number; pending: number; revenue: number };
-  vps: { total: number; active: number; pending: number; revenue: number };
-  vpn: { total: number; active: number; pending: number; revenue: number };
+  proxy: { total: number; active: number; pending: number; failed: number; revenue: number };
+  esim: { total: number; active: number; pending: number; failed: number; revenue: number };
+  rdp: { total: number; active: number; pending: number; failed: number; revenue: number };
+  vps: { total: number; active: number; pending: number; failed: number; revenue: number };
+  vpn: { total: number; active: number; pending: number; failed: number; revenue: number };
 }
 
 interface RecentOrder {
@@ -56,11 +56,11 @@ interface RecentOrder {
 const UnifiedOrdersDashboard: FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<OrderStats>({
-    proxy: { total: 0, active: 0, pending: 0, revenue: 0 },
-    esim: { total: 0, active: 0, pending: 0, revenue: 0 },
-    rdp: { total: 0, active: 0, pending: 0, revenue: 0 },
-    vps: { total: 0, active: 0, pending: 0, revenue: 0 },
-    vpn: { total: 0, active: 0, pending: 0, revenue: 0 },
+    proxy: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+    esim: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+    rdp: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+    vps: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+    vpn: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -91,11 +91,11 @@ const UnifiedOrdersDashboard: FC = () => {
       const orders = data.orders || [];
 
       const newStats: OrderStats = {
-        proxy: { total: 0, active: 0, pending: 0, revenue: 0 },
-        esim: { total: 0, active: 0, pending: 0, revenue: 0 },
-        rdp: { total: 0, active: 0, pending: 0, revenue: 0 },
-        vps: { total: 0, active: 0, pending: 0, revenue: 0 },
-        vpn: { total: 0, active: 0, pending: 0, revenue: 0 },
+        proxy: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        esim: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        rdp: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        vps: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        vpn: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
       };
 
       const allRecentOrders: RecentOrder[] = [];
@@ -111,6 +111,9 @@ const UnifiedOrdersDashboard: FC = () => {
           }
           if (order.status === 'pending') {
             newStats[key].pending++;
+          }
+          if (order.status === 'failed' || order.status === 'cancelled') {
+            newStats[key].failed++;
           }
           newStats[key].revenue += Number.parseFloat(order.total_amount) || 0;
         }

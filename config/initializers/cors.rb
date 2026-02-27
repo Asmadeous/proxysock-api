@@ -9,7 +9,19 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins /http:\/\/localhost:\d+/, /http:\/\/127\.0\.0\.1:\d+/, "http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173"
+    # Development origins
+    dev_origins = [/http:\/\/localhost:\d+/, /http:\/\/127\.0\.0\.1:\d+/,
+                   "http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173",
+                   "https://literally-immortal-sunbird.ngrok-free.app", /https:\/\/.+\.trycloudflare\.com/]
+
+    # Production origin from ENV
+    if ENV['APP_URL'].present?
+      dev_origins << ENV['APP_URL']
+      # Also allow www subdomain
+      dev_origins << ENV['APP_URL'].sub('://', '://www.')
+    end
+
+    origins(*dev_origins)
 
     resource "*",
       headers: :any,

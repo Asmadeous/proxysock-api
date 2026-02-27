@@ -14,7 +14,7 @@ class VmProvisioningJob < ApplicationJob
 
     service = VmProvisioningService.new(nil, logger)
 
-    # Merge VM order data with params
+    # Merge VM order data with params (including proxy details for Ansible)
     provision_params = {
       'job_id' => "vm-#{vm_id}-#{Time.now.to_i}",
       'os_template' => vm.vm_order.os_type,
@@ -22,8 +22,15 @@ class VmProvisioningJob < ApplicationJob
       'cpu_cores' => vm.vm_order.cpu_cores,
       'ram_gb' => vm.vm_order.ram_gb,
       'storage_gb' => vm.vm_order.disk_gb,
-      'hostname' => "vm-#{vm_id}",
-      'management_type' => params['management_type'] || 'unmanaged'
+      'hostname' => params['hostname'].presence || "vm-#{vm_id}",
+      'management_type' => params['management_type'] || 'unmanaged',
+      'root_password' => params['root_password'] || SecureRandom.hex(12),
+      # Proxy params are passed through from OrderProvisioningService
+      'proxy_ip' => params['proxy_ip'],
+      'proxy_port' => params['proxy_port'],
+      'proxy_username' => params['proxy_username'],
+      'proxy_password' => params['proxy_password'],
+      'proxy_protocol' => params['proxy_protocol'] || 'http'
     }.merge(params.stringify_keys)
 
     result = service.provision(provision_params)
@@ -33,8 +40,8 @@ class VmProvisioningJob < ApplicationJob
       ip_address: result[:ip_address],
       proxmox_vm_id: result[:vm_id].to_s,
       proxmox_node: VmProvisioningService::PROXMOX_NODE,
-      rdp_port: result[:external_port],
-      ssh_port: result[:protocol] == 'ssh' ? result[:external_port] : 22,
+      rdp_port: result[:protocol] == 'rdp' ? 3389 : nil,
+      ssh_port: result[:protocol] == 'ssh' ? 22 : nil,
       ssh_username: result[:username] || 'root',
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],

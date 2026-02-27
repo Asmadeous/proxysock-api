@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Tag } from "lucide-react";
-import { Post } from "../../../pages/blogPost";
+import { Post } from "../../../data/blogPost";
 
 interface BlogPostTagsProps {
   post: Post;

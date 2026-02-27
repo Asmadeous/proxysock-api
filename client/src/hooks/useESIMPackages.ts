@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 // Supabase has been removed in favor of the Rails API
 
@@ -51,9 +52,16 @@ interface CategorizedPackages {
  * Main Hook
  */
 export function useESIMPackages(filters: PackageFilters = {}) {
-  const [packages, setPackages] = useState<ESIMPackage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: allPackagesRaw = [], isLoading: loading, error: queryError } = useQuery(
+    ['esimPackages'],
+    async () => {
+      const { default: api } = await import('../services/api');
+      const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
+      return data.products || [];
+    }
+  );
+
+  const error = queryError ? String(queryError) : null;
 
   // Scope detection: regions must match region name AND have multiple country codes
   const getPackageScope = useMemo(() => {
@@ -119,7 +127,7 @@ export function useESIMPackages(filters: PackageFilters = {}) {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currencyCode,
-      }).format(priceInCents / 10000)
+      }).format(priceInCents)
     }
   }, [])
 
@@ -184,130 +192,105 @@ export function useESIMPackages(filters: PackageFilters = {}) {
     }
   }, [getPackageScope])
 
-  // Apply filters to query
-  const applyFilters = async () => {
-    setLoading(true)
-    setError(null)
+  // Process and filter packages
+  const packages = useMemo(() => {
+    if (!allPackagesRaw.length) return [];
 
-    try {
-      // Import the API client inline to avoid circular dependencies if any
-      const { default: api } = await import('../services/api');
+    // Map backend products to ESIMPackage interface
+    let processed: ESIMPackage[] = allPackagesRaw.map((p: any) => {
+      // Use metadata fields directly from the API
+      const locationCode = p.location_code || '!GL';
+      const locationName = p.location_name || 'Global';
+      const packageCode = p.package_code || p.slug || '';
 
-      // Fetch both usa_esim and esim products
-      const [usaRes, globalRes] = await Promise.all([
-        api.get('/web/api/products?product_type=usa_esim'),
-        api.get('/web/api/products?product_type=esim')
-      ]);
-
-      const allFetchedProducts = [
-        ...(usaRes.data?.products || []),
-        ...(globalRes.data?.products || [])
-      ];
-
-      // Map backend products to ESIMPackage interface
-      let allPackages: ESIMPackage[] = allFetchedProducts.map((p: any) => {
-        // Parse features or default to some basics
-        const features = p.features || [];
-        const hasSMS = p.sms_quota && p.sms_quota > 0;
-        const smsStatus = hasSMS || features.some((f: string) => f.toLowerCase().includes('sms')) ? 1 : 0;
-
-        let locationCode = '!GL'; // Default global
-        let locationName = 'Global';
-
-        // Try to infer location from name or description
-        const nameLower = p.name.toLowerCase();
-        if (nameLower.includes('usa') || nameLower.includes('us ')) {
-          locationCode = 'US';
-          locationName = 'United States';
-        } else if (nameLower.includes('europe') || nameLower.includes('eu ')) {
-          locationCode = '!RG';
-          locationName = 'Europe';
-        } else if (nameLower.includes('global')) {
-          locationCode = '!GL';
-          locationName = 'Global';
-        }
-
-        const calculatedScope = getPackageScope(locationCode, locationName, p.name);
-
-        return {
-          id: String(p.id),
-          package_code: p.slug,
-          slug: p.slug,
-          name: p.name,
-          price: Number.parseFloat(p.price) * 10000, // Convert to cents for UI
-          currency_code: p.currency || 'USD',
-          volume: p.data_gb ? p.data_gb * 1024 * 1024 * 1024 : 0, // Convert GB to bytes
-          duration: p.duration_days || 30,
-          duration_unit: 'days',
-          location_code: locationCode,
-          location_name: locationName,
-          description: p.description || '',
-          data_type: p.data_gb === null ? 0 : 1, // 0 unlimited, 1 fixed
-          sms_status: smsStatus,
-          speed: features.find((f: string) => f.includes('5G') || f.includes('4G')) || '4G/LTE',
-          network: p.provider_type || 'Multiple Networks',
-          scope: calculatedScope,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          packageType: 'base' as const,
-          locationNetworkList: false
-        };
-      });
-
-      // Apply client-side filters
-      if (filters.locationCode && filters.locationCode !== 'all') {
-        if (filters.locationCode === '!GL') {
-          allPackages = allPackages.filter(pkg => pkg.scope === 'global')
-        } else if (filters.locationCode === '!RG') {
-          allPackages = allPackages.filter(pkg => pkg.scope === 'regional')
-        } else {
-          allPackages = allPackages.filter(pkg => pkg.location_code === filters.locationCode)
-        }
+      // SMS status: check direct sms_status field first, fallback to esim_type checking
+      let smsStatus = 0;
+      if (p.sms_status !== undefined && p.sms_status !== null) {
+        smsStatus = Number(p.sms_status);
+      } else {
+        const hasSMS = (p.sms_quota && p.sms_quota > 0) ||
+          p.esim_type === 'voice_data_sms' ||
+          p.esim_type === 'data_sms' ||
+          (p.features || []).some((f: string) => f.toLowerCase().includes('sms'));
+        smsStatus = hasSMS ? 1 : 0;
       }
 
-      if (filters.minPrice) {
-        allPackages = allPackages.filter(pkg => pkg.price >= filters.minPrice!)
-      }
-      if (filters.maxPrice) {
-        allPackages = allPackages.filter(pkg => pkg.price <= filters.maxPrice!)
-      }
-      if (filters.search) {
-        const term = filters.search.toLowerCase()
-        allPackages = allPackages.filter(pkg =>
-          pkg.name.toLowerCase().includes(term) ||
-          pkg.description.toLowerCase().includes(term) ||
-          pkg.location_name.toLowerCase().includes(term)
-        )
-      }
-      if (filters.dataType !== undefined) {
-        allPackages = allPackages.filter(pkg => pkg.data_type === filters.dataType)
-      }
-      if (filters.smsSupport) {
-        allPackages = allPackages.filter(pkg => pkg.sms_status >= 1)
+      // Check direct data_type first
+      let dataType = p.data_gb === null ? 0 : 1;
+      if (p.data_type !== undefined && p.data_type !== null) {
+        dataType = Number(p.data_type);
       }
 
-      // Apply client-side scope filter (only if no location filter is set, to avoid conflicts)
-      if (filters.scope && !filters.locationCode) {
-        allPackages = allPackages.filter(pkg => pkg.scope === filters.scope)
+      const calculatedScope = getPackageScope(locationCode, locationName, p.name);
+
+      return {
+        id: String(p.id),
+        package_code: packageCode,
+        slug: p.slug,
+        name: p.name,
+        price: Number.parseFloat(p.price), // Already in dollars from DB
+        currency_code: p.currency || 'USD',
+        volume: p.volume_bytes || (p.data_gb ? p.data_gb * 1024 * 1024 * 1024 : 0),
+        duration: p.duration || p.duration_days || 30,
+        duration_unit: (p.duration_unit || 'days').toLowerCase(),
+        location_code: locationCode,
+        location_name: locationName,
+        description: p.description || '',
+        data_type: dataType,
+        sms_status: smsStatus,
+        speed: p.speed || (p.features || []).find((f: string) => f.includes('5G') || f.includes('4G')) || '4G/LTE',
+        network: p.network || p.provider_type || 'Multiple Networks',
+        scope: p.scope || calculatedScope,
+        is_active: true,
+        created_at: p.created_at || new Date().toISOString(),
+        updated_at: p.updated_at || new Date().toISOString(),
+        packageType: 'base' as const,
+        locationNetworkList: p.location_network_list || false
+      };
+    });
+
+    // Apply client-side filters
+    if (filters.locationCode && filters.locationCode !== 'all') {
+      if (filters.locationCode === '!GL') {
+        processed = processed.filter(pkg => pkg.scope === 'global')
+      } else if (filters.locationCode === '!RG') {
+        processed = processed.filter(pkg => pkg.scope === 'regional')
+      } else {
+        processed = processed.filter(pkg => pkg.location_code === filters.locationCode)
       }
-
-      // Sort by price
-      allPackages.sort((a, b) => a.price - b.price);
-
-      setPackages(allPackages)
-    } catch (err) {
-      console.error("Error fetching eSIM packages:", err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch packages')
-    } finally {
-      setLoading(false)
     }
-  }
 
-  // Fetch filtered packages
-  useEffect(() => {
-    applyFilters()
-  }, [filters])
+    if (filters.minPrice) {
+      processed = processed.filter(pkg => pkg.price >= filters.minPrice!)
+    }
+    if (filters.maxPrice) {
+      processed = processed.filter(pkg => pkg.price <= filters.maxPrice!)
+    }
+    if (filters.search) {
+      const term = filters.search.toLowerCase()
+      processed = processed.filter(pkg =>
+        pkg.name.toLowerCase().includes(term) ||
+        pkg.description.toLowerCase().includes(term) ||
+        pkg.location_name.toLowerCase().includes(term)
+      )
+    }
+    if (filters.dataType !== undefined) {
+      processed = processed.filter(pkg => pkg.data_type === filters.dataType)
+    }
+    if (filters.smsSupport) {
+      processed = processed.filter(pkg => pkg.sms_status >= 1)
+    }
+
+    // Apply client-side scope filter (only if no location filter is set, to avoid conflicts)
+    if (filters.scope && !filters.locationCode) {
+      processed = processed.filter(pkg => pkg.scope === filters.scope)
+    }
+
+    // Sort by price
+    processed.sort((a, b) => a.price - b.price);
+
+    return processed;
+  }, [allPackagesRaw, filters, getPackageScope]);
 
   // Return state and utilities
   return {
@@ -323,7 +306,7 @@ export function useESIMPackages(filters: PackageFilters = {}) {
     categorizePackages,
 
     // Helper actions
-    refresh: applyFilters,
+    refresh: () => { },
   }
 }
 
@@ -333,7 +316,7 @@ export const formatPrice = (priceInCents: number, currencyCode = 'USD'): string 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currencyCode,
-  }).format(priceInCents / 10000)
+  }).format(priceInCents)
 }
 
 export const formatDataVolume = (bytes: number): string => {
@@ -444,140 +427,74 @@ export const getLocationDisplayName = (locationCode: string, locationName?: stri
 
 // Hook for fetching countries (filtered to exclude globals and regions)
 export function useESIMCountries() {
-  const [countries, setCountries] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: countries = [], isLoading: loading, error: queryError } = useQuery(
+    ['esimCountries'],
+    async () => {
+      const { default: api } = await import('../services/api');
 
-  // Scope detection function (same as main hook)
-  const getPackageScope = (locationCode: string, locationName?: string, packageName?: string): PackageScope => {
-    const name = (packageName || '').toLowerCase()
-    const location = (locationName || '').toLowerCase()
-
-    // Global: if name contains "global"
-    if (name.includes('global')) {
-      return 'global'
-    }
-
-    // Regional: package name must match region AND location_code must have multiple countries
-    const regionalNames = [
-      'europe', 'eu', 'eur', 'european union',
-      'caribbean', 'west indies',
-      'asia-pacific', 'asia pacific', 'asia', 'apac',
-      'south america', 'latin america', 'suramerica',
-      'middle east', 'gulf region', 'arab world',
-      'africa',
-      'north america', 'us & canada',
-      'oceania', 'pacific islands', 'australia & nz',
-      'eastern europe', 'cee', 'eastern eu',
-      'nordic region', 'scandinavia'
-    ]
-
-    // Check if package name contains regional name (but exclude country names like "South Africa")
-    const hasRegionalName = regionalNames.some(regionName => {
-      if (regionName === 'africa') {
-        return name.includes('africa') && !name.includes('south africa')
-      }
-      return name.includes(regionName) || location.includes(regionName)
-    })
-
-    // Check if location_code has multiple country codes (comma separated)
-    const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
-
-    // Must have both: regional name AND multiple country codes
-    if (hasRegionalName && hasMultipleCountries) {
-      return 'regional'
-    }
-
-    return 'country'
-  }
-
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const { default: api } = await import('../services/api');
-
-        // Fetch both usa_esim and esim products
-        const [usaRes, globalRes] = await Promise.all([
-          api.get('/web/api/products?product_type=usa_esim'),
-          api.get('/web/api/products?product_type=esim')
-        ]);
-
-        const allFetchedProducts = [
-          ...(usaRes.data?.products || []),
-          ...(globalRes.data?.products || [])
-        ];
-
-        // Process packages to extract locations
-        const allPackages = allFetchedProducts.map((p: any) => {
-          let locationCode = '!GL';
-          let locationName = 'Global';
-
-          const nameLower = p.name.toLowerCase();
-          if (nameLower.includes('usa') || nameLower.includes('us ')) {
-            locationCode = 'US';
-            locationName = 'United States';
-          } else if (nameLower.includes('europe') || nameLower.includes('eu ')) {
-            locationCode = '!RG';
-            locationName = 'Europe';
-          } else if (nameLower.includes('global')) {
-            locationCode = '!GL';
-            locationName = 'Global';
-          }
-
-          return {
-            location_code: locationCode,
-            location_name: locationName,
-            name: p.name
-          };
-        });
-
-        // Calculate scope for each package and filter to only single countries
-        const countryPackages = allPackages.filter(pkg => {
-          const scope = getPackageScope(pkg.location_code, pkg.location_name, pkg.name)
-
-          // Must be country scope AND have single country code (no commas, typically 2-3 letters)
-          const isSingleCountryCode = !pkg.location_code.includes(',') &&
-            pkg.location_code.length <= 3 &&
-            /^[A-Za-z]{2,3}$/i.test(pkg.location_code)
-
-          return scope === 'country' && isSingleCountryCode && pkg.location_code !== '!GL' && pkg.location_code !== '!RG'
+      // Scope detection function (needed internally)
+      const getPackageScopeInternal = (locationCode: string, locationName?: string, packageName?: string): PackageScope => {
+        const name = (packageName || '').toLowerCase()
+        const location = (locationName || '').toLowerCase()
+        if (name.includes('global')) return 'global'
+        const regionalNames = ['europe', 'eu', 'eur', 'european union', 'caribbean', 'west indies', 'asia-pacific', 'asia pacific', 'asia', 'apac', 'south america', 'latin america', 'suramerica', 'middle east', 'gulf region', 'arab world', 'africa', 'north america', 'us & canada', 'oceania', 'pacific islands', 'australia & nz', 'eastern europe', 'cee', 'eastern eu', 'nordic region', 'scandinavia']
+        const hasRegionalName = regionalNames.some(regionName => {
+          if (regionName === 'africa') return name.includes('africa') && !name.includes('south africa')
+          return name.includes(regionName) || location.includes(regionName)
         })
-
-        // Remove duplicates and sort, then convert codes to country names
-        const uniqueCountries = countryPackages
-          .filter((item, index, self) =>
-            index === self.findIndex(t => t.location_code === item.location_code)
-          )
-          .map(item => {
-            // Convert location code to country name using Intl.DisplayNames
-            try {
-              const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
-              const countryName = displayNames.of(item.location_code.toUpperCase())
-              return {
-                ...item,
-                display_name: countryName || item.location_name || item.location_code
-              }
-            } catch (error) {
-
-              return {
-                ...item,
-                display_name: item.location_name || item.location_code
-              }
-            }
-          })
-          .sort((a, b) => a.display_name.localeCompare(b.display_name))
-
-        setCountries(uniqueCountries)
-      } catch (err) {
-        console.error("Error fetching eSIM countries:", err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch countries')
-      } finally {
-        setLoading(false)
+        const hasMultipleCountries = locationCode.includes(',') || locationCode.split(',').length > 1
+        if (hasRegionalName && hasMultipleCountries) return 'regional'
+        return 'country'
       }
-    }
 
-    fetchCountries()
-  }, [])
+      // Fetch ONLY esim products (Global)
+      const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
+      const allFetchedProducts: any[] = data.products || [];
+
+      // Process packages to extract locations
+      const allPackages = allFetchedProducts.map((p: any) => {
+        const locationCode = p.location_code || '!GL';
+        const locationName = p.location_name || 'Global';
+
+        return {
+          location_code: locationCode,
+          location_name: locationName,
+          name: p.name
+        };
+      });
+
+      // Calculate scope for each package and filter to only single countries
+      const countryPackages = allPackages.filter((pkg: any) => {
+        const scope = getPackageScopeInternal(pkg.location_code, pkg.location_name, pkg.name)
+        const isSingleCountryCode = !pkg.location_code.includes(',') && pkg.location_code.length <= 3 && /^[A-Za-z]{2,3}$/i.test(pkg.location_code)
+        return scope === 'country' && isSingleCountryCode && pkg.location_code !== '!GL' && pkg.location_code !== '!RG'
+      })
+
+      // Remove duplicates and sort, then convert codes to country names
+      const uniqueCountries = countryPackages
+        .filter((item: any, index: number, self: any[]) => index === self.findIndex((t: any) => t.location_code === item.location_code))
+        .map((item: any) => {
+          try {
+            const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
+            const countryName = displayNames.of(item.location_code.toUpperCase())
+            return {
+              ...item,
+              display_name: countryName || item.location_name || item.location_code
+            }
+          } catch (error) {
+            return {
+              ...item,
+              display_name: item.location_name || item.location_code
+            }
+          }
+        })
+        .sort((a: any, b: any) => a.display_name.localeCompare(b.display_name))
+
+      return uniqueCountries;
+    }
+  );
+
+  const error = queryError ? String(queryError) : null;
 
   return { countries, loading, error }
 }

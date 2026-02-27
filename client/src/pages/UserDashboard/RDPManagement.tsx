@@ -17,44 +17,45 @@ import {
   GlobeAltIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
+  KeyIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
+import { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import { toast } from "react-hot-toast";
+import { PencilIcon } from "@heroicons/react/24/outline";
 
 interface RDPInstance {
-  vm_external_port: number;
-  id: string;
-  rdp_order_id: string;
-  user_id: string;
+  id: string | number;
   vm_id: number;
+  proxmox_vm_id: string;
+  vm_type: 'vps' | 'rdp' | 'mobile_proxy';
   node: string;
-  status: 'creating' | 'active' | 'stopped' | 'suspended' | 'terminated' | 'error';
+  status: 'pending' | 'provisioning' | 'active' | 'failed' | 'terminated' | 'starting' | 'stopping' | 'rebooting' | 'running' | 'stopped';
   cpu_cores: number;
   ram_gb: number;
   storage_gb: number;
   ip_address: string;
+  proxmox_public_ip: string;
   hostname: string;
   os_template: string;
   rdp_username: string;
   rdp_password: string;
+  root_password?: string;
   rdp_port: number;
+  ssh_port?: number;
+  external_port: number;
   concurrent_users: number;
   active_sessions: number;
   service_type: 'residential' | 'standard';
-  network_config: any;
-  resource_usage: {
+  resource_usage?: {
     cpu_percent: number;
     ram_percent: number;
     disk_percent: number;
   };
-  session_logs: any[];
-  last_connection: string;
-  last_ping: string;
   expires_at: string;
   created_at: string;
-  updated_at: string;
   plan_name?: string;
   monthly_cost?: number;
-  features?: string[];
 }
 
 interface RDPFiltersProps {
@@ -149,6 +150,7 @@ interface RDPInstanceCardProps {
   copyToClipboard: (text: string) => void;
   downloadRDPFile: (id: string) => Promise<void>;
   downloadingRDP: string | null;
+  onShowPasswordModal: (instance: RDPInstance) => void;
 }
 
 const RDPInstanceCard = ({
@@ -159,8 +161,11 @@ const RDPInstanceCard = ({
   setShowPassword,
   copyToClipboard,
   downloadRDPFile,
-  downloadingRDP
-}: RDPInstanceCardProps) => {
+  downloadingRDP,
+  handleAction,
+  refreshing,
+  onShowPasswordModal
+}: RDPInstanceCardProps & { handleAction: (id: string | number, action: any) => Promise<void>, refreshing: Record<string, boolean> }) => {
   const StatusIcon = getStatusIcon(instance.status);
 
   return (
@@ -260,7 +265,7 @@ const RDPInstanceCard = ({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">RDP Port:</span>
-          <span className="text-sm font-mono">{instance.vm_external_port || instance.rdp_port || 3389}</span>
+          <span className="text-sm font-mono">{instance.rdp_port || 3389}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Username:</span>
@@ -278,16 +283,16 @@ const RDPInstanceCard = ({
           <span className="text-xs text-muted-foreground">Password:</span>
           <div className="flex items-center space-x-2">
             <span className="text-sm font-mono">
-              {showPassword[instance.id] ? instance.rdp_password : '••••••••'}
+              {showPassword[instance.id.toString()] ? instance.rdp_password : '••••••••'}
             </span>
             <button
               onClick={() => setShowPassword(prev => ({
                 ...prev,
-                [instance.id]: !prev[instance.id]
+                [instance.id.toString()]: !prev[instance.id.toString()]
               }))}
               className="p-1 text-muted-foreground hover:text-foreground transition-colors"
             >
-              {showPassword[instance.id] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
             </button>
             <button
               onClick={() => copyToClipboard(instance.rdp_password)}
@@ -299,8 +304,41 @@ const RDPInstanceCard = ({
         </div>
       </div>
 
+      {/* Control Actions */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <button
+          onClick={() => handleAction(instance.id, 'start')}
+          disabled={refreshing[instance.id] || ['active', 'running', 'starting'].includes(instance.status)}
+          className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors disabled:opacity-50"
+          title="Start VM"
+        >
+          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
+          <span className="text-[10px] font-medium">Start</span>
+        </button>
+
+        <button
+          onClick={() => handleAction(instance.id, 'stop')}
+          disabled={refreshing[instance.id] || ['stopped', 'terminated', 'stopping'].includes(instance.status)}
+          className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
+          title="Stop VM"
+        >
+          <XCircleIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
+          <span className="text-[10px] font-medium">Stop</span>
+        </button>
+
+        <button
+          onClick={() => handleAction(instance.id, 'reboot')}
+          disabled={refreshing[instance.id] || instance.status === 'rebooting'}
+          className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors disabled:opacity-50"
+          title="Reboot VM"
+        >
+          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
+          <span className="text-[10px] font-medium">Reboot</span>
+        </button>
+      </div>
+
       <button
-        onClick={() => downloadRDPFile(instance.id)}
+        onClick={() => downloadRDPFile(instance.id.toString())}
         disabled={downloadingRDP === instance.id || instance.status !== 'active' || !instance.ip_address}
         className="w-full flex items-center justify-center px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -314,7 +352,7 @@ const RDPInstanceCard = ({
           <div className="text-foreground">
             <span className="text-muted-foreground">Host:</span>
             <span className="font-mono ml-1">
-              {instance.ip_address || 'Pending'}:{instance.vm_external_port || instance.rdp_port || 3389}
+              {instance.ip_address || 'Pending'}:{instance.rdp_port || 3389}
             </span>
           </div>
           <div className="text-foreground">
@@ -339,6 +377,7 @@ interface RDPInstanceDetailsModalProps {
   showPassword: Record<string, boolean>;
   setShowPassword: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   copyToClipboard: (text: string) => void;
+  onShowPasswordModal: (instance: RDPInstance) => void;
 }
 
 const RDPInstanceDetailsModal = ({
@@ -347,7 +386,8 @@ const RDPInstanceDetailsModal = ({
   getStatusTextColor,
   showPassword,
   setShowPassword,
-  copyToClipboard
+  copyToClipboard,
+  onShowPasswordModal
 }: RDPInstanceDetailsModalProps) => (
   <AnimatePresence>
     {instance && (
@@ -416,7 +456,7 @@ const RDPInstanceDetailsModal = ({
                     )}
                   </div>
                 </div>
-                <div className="flex justify-between"><span className="text-gray-400">RDP Port:</span><span className="text-white font-mono">{instance.vm_external_port || instance.rdp_port || 3389}</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">RDP Port:</span><span className="text-white font-mono">{instance.rdp_port || 3389}</span></div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Username:</span>
                   <div className="flex items-center space-x-2">
@@ -429,12 +469,19 @@ const RDPInstanceDetailsModal = ({
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Password:</span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-white font-mono">{showPassword[instance.id] ? instance.rdp_password : '••••••••••••'}</span>
-                    <button onClick={() => setShowPassword(prev => ({ ...prev, [instance.id]: !prev[instance.id] }))} className="p-1 text-gray-400 hover:text-white transition-colors">
-                      {showPassword[instance.id] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    <span className="text-white font-mono">{showPassword[instance.id.toString()] ? instance.rdp_password : '••••••••••••'}</span>
+                    <button onClick={() => setShowPassword(prev => ({ ...prev, [instance.id.toString()]: !prev[instance.id.toString()] }))} className="p-1 text-gray-400 hover:text-white transition-colors">
+                      {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                     </button>
                     <button onClick={() => copyToClipboard(instance.rdp_password)} className="p-1 text-gray-400 hover:text-white transition-colors">
                       <ClipboardDocumentIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onShowPasswordModal(instance)}
+                      className="p-1 text-primary hover:text-primary/80 transition-colors"
+                      title="Change Password"
+                    >
+                      <PencilIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -457,12 +504,16 @@ const RDPInstanceDetailsModal = ({
   </AnimatePresence>
 );
 
-const RDPPManagement = () => {
+const RDPManagement = () => {
   const [rdpInstances, setRdpInstances] = useState<RDPInstance[]>([]);
   const [filteredInstances, setFilteredInstances] = useState<RDPInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [selectedInstance, setSelectedInstance] = useState<RDPInstance | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState<RDPInstance | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [downloadingRDP, setDownloadingRDP] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -471,7 +522,7 @@ const RDPPManagement = () => {
 
   useEffect(() => {
     if (accessToken) {
-      fetchRDPInstances();
+      loadRDPInstances();
     }
   }, [accessToken]);
 
@@ -503,32 +554,56 @@ const RDPPManagement = () => {
     setFilteredInstances(filtered);
   }, [rdpInstances, searchTerm, statusFilter, serviceTypeFilter]);
 
-  const fetchRDPInstances = async () => {
-    if (!accessToken) {
-      console.error('No authentication token available');
-      setLoading(false);
-      return;
-    }
-
+  const loadRDPInstances = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rdp-instances`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRdpInstances(data.instances || []);
-      } else {
-        console.error('Failed to fetch RDP instances:', response.status);
-      }
+      const response = await fetchVms();
+      // Filter for RDP instances only
+      const allVms: RDPInstance[] = response.data.vms || [];
+      const rdpOnly = allVms.filter(vm => vm.vm_type === 'rdp');
+      setRdpInstances(rdpOnly);
     } catch (error) {
       console.error('Failed to fetch RDP instances:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAction = async (id: string | number, action: 'start' | 'stop' | 'reboot' | 'delete') => {
+    try {
+      setRefreshing(prev => ({ ...prev, [id]: true }));
+      let response;
+
+      switch (action) {
+        case 'start': response = await startVm(id); break;
+        case 'stop': response = await stopVm(id); break;
+        case 'reboot': response = await rebootVm(id); break;
+        case 'delete': response = await deleteVm(id); break;
+      }
+
+      toast.success(response?.data?.message || `Action ${action} initiated`);
+      setTimeout(loadRDPInstances, 2000);
+    } catch (error) {
+      // Error is already toasted by api.ts interceptor
+    } finally {
+      setRefreshing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!showPasswordModal || !newPassword) return;
+
+    try {
+      setIsUpdatingPassword(true);
+      await changeVmPassword(showPasswordModal.id, newPassword);
+      toast.success('Password change initiated via Ansible');
+      setShowPasswordModal(null);
+      setNewPassword('');
+      loadRDPInstances();
+    } catch (error) {
+      // Error is toasted by interceptor
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -537,9 +612,6 @@ const RDPPManagement = () => {
       setDownloadingRDP(instanceId);
       const instance = rdpInstances.find(i => i.id === instanceId);
       if (!instance) return;
-
-      // Use vm_external_port instead of rdp_port
-      const rdpPort = instance.vm_external_port || instance.rdp_port || 3389;
 
       const rdpContent = `screen mode id:i:2
 use multimon:i:0
@@ -564,7 +636,7 @@ disable menu anims:i:1
 disable themes:i:0
 disable cursor setting:i:0
 bitmapcachepersistenable:i:1
-full address:s:${instance.ip_address}:${rdpPort}
+full address:s:${instance.ip_address}:${instance.rdp_port || 3389}
 audiomode:i:0
 redirectprinters:i:1
 redirectcomports:i:0
@@ -755,7 +827,7 @@ username:s:${instance.rdp_username}`;
         </div>
         <div className="flex items-center space-x-4">
           <button
-            onClick={fetchRDPInstances}
+            onClick={loadRDPInstances}
             disabled={loading || !accessToken}
             className="flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
           >
@@ -811,6 +883,9 @@ username:s:${instance.rdp_username}`;
               copyToClipboard={copyToClipboard}
               downloadRDPFile={downloadRDPFile}
               downloadingRDP={downloadingRDP}
+              handleAction={handleAction}
+              refreshing={refreshing}
+              onShowPasswordModal={setShowPasswordModal}
             />
           ))}
         </div>
@@ -823,9 +898,10 @@ username:s:${instance.rdp_username}`;
         showPassword={showPassword}
         setShowPassword={setShowPassword}
         copyToClipboard={copyToClipboard}
+        onShowPasswordModal={setShowPasswordModal}
       />
     </div>
   );
 };
 
-export default RDPPManagement;
+export default RDPManagement;

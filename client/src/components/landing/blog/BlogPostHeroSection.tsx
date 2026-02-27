@@ -9,7 +9,7 @@ import {
   StarIcon,
 } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
-import { Post } from "@/pages/blogPost";
+import { Post } from "@/data/blogPost";
 
 interface BlogPostHeroSectionProps {
   post: Post;
