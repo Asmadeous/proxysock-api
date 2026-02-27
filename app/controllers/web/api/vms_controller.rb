@@ -49,12 +49,20 @@ module Web
 
       # POST /web/api/vms/:id/start
       def start
-        render json: { message: 'Start command sent', vm_id: @vm.id }
+        VmControlJob.perform_later(@vm.id, 'start')
+        render json: { message: 'Start command sent', vm_id: @vm.id, status: 'starting' }
       end
 
       # POST /web/api/vms/:id/stop
       def stop
-        render json: { message: 'Stop command sent', vm_id: @vm.id }
+        VmControlJob.perform_later(@vm.id, 'stop')
+        render json: { message: 'Stop command sent', vm_id: @vm.id, status: 'stopping' }
+      end
+
+      # POST /web/api/vms/:id/reboot
+      def reboot
+        VmControlJob.perform_later(@vm.id, 'reboot')
+        render json: { message: 'Reboot command sent', vm_id: @vm.id, status: 'rebooting' }
       end
 
       # GET /web/api/vms/:id/status
@@ -123,15 +131,35 @@ module Web
       end
 
       def serialize_vm(vm)
+        vm_order = vm.vm_order
+        order = vm_order&.order
+        product = order&.product
+        pricing = order&.product_pricing
+        
+        os_template = (vm_order&.os_type || '').downcase
+        is_windows = os_template.include?('windows')
+        is_rdp = vm.vm_type == 'rdp' || os_template.include?('rdp') || is_windows
+
         {
           id: vm.id,
           status: vm.status,
           vm_type: vm.vm_type,
           ip_address: vm.ip_address,
           proxmox_vm_id: vm.proxmox_vm_id,
-          ssh_port: vm.ssh_port,
-          rdp_port: vm.rdp_port,
-          created_at: vm.created_at
+          ssh_port: vm.ssh_port || (is_rdp ? nil : 22),
+          rdp_port: vm.rdp_port || (is_rdp ? 3389 : nil),
+          external_port: vm.rdp_port || vm.ssh_port || (is_rdp ? 3389 : 22),
+          hostname: "vm-#{vm.id}",
+          os_template: os_template,
+          cpu_cores: vm_order&.cpu_cores,
+          ram_gb: vm_order&.ram_gb,
+          storage_gb: vm_order&.disk_gb,
+          root_password: vm.root_password,
+          expires_at: vm.expires_at,
+          created_at: vm.created_at,
+          plan_name: product&.name,
+          monthly_cost: pricing&.selling_price,
+          proxmox_public_ip: ENV['PUBLIC_IP'] || '127.0.0.1'
         }
       end
     end

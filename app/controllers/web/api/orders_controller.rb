@@ -93,33 +93,22 @@ module Web
         orders_to_create = []
 
         items.each do |item|
-          product = Product.for_ecommerce.find_by(id: item[:product_id])
+          product = Product.for_ecommerce.find_by(id: item[:product_id] || item['product_id'])
           next unless product
           
           # Use active pricing or default to unit price logic if dynamic
-          # Just trusting frontend total for simplicity is risky. Recalculate based on base price.
-          # Here we'll do a basic sum for the demonstration but ideally recalulate from ProductPricing.
-          # We'll expect the frontend to pass the metadata correctly formatted.
-          
-          # In a real scenario we'd re-verify the price here.
-          # For now, we will use the quantity * some base price, or if not provided just use the payload's total to match frontend logic temporarily.
-          # We will actually create the orders
           pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
           
           order = Order.new(
             orderable: current_actor,
             product: product,
             product_pricing: pricing,
-            quantity: item[:quantity] || 1,
-            metadata: item[:metadata] || {},
+            quantity: item[:quantity] || item['quantity'] || 1,
+            metadata: item[:metadata] || item['metadata'] || {},
             status: 'pending'
           )
           
-          # Re-apply period/duration logic if it affects price
-          # Since cart calculates effective_base_price, we will trust the calculated sum from frontend for now, or just calculate from pricing.
-          # To be safe, we calculate it here if possible, but the `create` logic above also just takes `order.total_amount` which relies on `Order#calculate_total_amount`.
-          
-          order.calculate_total_amount # ensure it calculates before saving
+          order.calculate_total_amount # Securely recalculate based on backend logic
           total_amount += order.total_amount.to_f
           orders_to_create << order
         end
@@ -161,15 +150,8 @@ module Web
               total_amount: total_amount,
               payment_method: gateway,
               status: 'pending',
-              metadata: { item_count: orders_to_create.count }
+              metadata: { item_count: orders_to_create.count, items: items }
             )
-
-            orders_to_create.each do |order|
-              order.checkout_session = checkout_session
-              order.save!
-              order.await_payment! if order.may_await_payment?
-              created_orders << order
-            end
             
             checkout_session.generate_reference!
           end
@@ -432,11 +414,12 @@ module Web
         when 'paystack'
           exchange_rate = 1500 # NGN/USD
           amount_ngn = amount * exchange_rate
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}"
           PaystackService.new.initialize_transaction(
             email: current_actor.email,
             amount: (amount_ngn * 100).to_i, # in kobo
             reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
-            callback_url: callback_url,
+            callback_url: frontend_callback_url,
             metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
           )[:authorization_url]
         when 'plisio'
@@ -465,11 +448,12 @@ module Web
         when 'paystack'
           exchange_rate = 1500 # NGN/USD
           amount_ngn = amount * exchange_rate
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
           PaystackService.new.initialize_transaction(
             email: current_actor.email,
             amount: (amount_ngn * 100).to_i, # in kobo
             reference: reference,
-            callback_url: callback_url,
+            callback_url: frontend_callback_url,
             metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
           )[:authorization_url]
         when 'plisio'

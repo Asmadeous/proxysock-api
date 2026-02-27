@@ -66,7 +66,7 @@ interface VPSOrder {
   duration: number;
   activated_at: string;
   ip_address: string;
-  vm_external_port: number;
+  ssh_port: number;
   // Related plan data
   plan?: {
     name: string;
@@ -257,7 +257,7 @@ Network Information
 ==================
 IP Address: ${order.ip_address || 'Not assigned'}
 SSH Port: 22
-External Port: ${order.vm_external_port || 'Default'}
+External Port: ${order.ssh_port || 'Default'}
 
 Billing
 =======

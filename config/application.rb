@@ -40,5 +40,12 @@ module ProxysockApi
     config.session_store :cookie_store, key: '_proxysock_api_session'
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, config.session_options
+
+    # Prometheus HTTP request instrumentation
+    require_relative '../app/middleware/prometheus_middleware'
+    config.middleware.use PrometheusMiddleware
+
+    # Autoload app/middleware
+    config.autoload_paths << Rails.root.join('app', 'middleware')
   end
 end

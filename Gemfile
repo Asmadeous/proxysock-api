@@ -77,6 +77,11 @@ gem "rspec-rails", "~> 8.0", groups: [:development, :test]
 
 gem "sentry-ruby", "~> 6.3"
 gem "sentry-rails", "~> 6.3"
+gem "stackprof"
 
 gem 'dotenv-rails', groups: [:development, :test]
 gem "httparty", "~> 0.24.2"
+
+gem "prometheus-client", "~> 4.2"
+
+gem "rack-attack", "~> 6.8"

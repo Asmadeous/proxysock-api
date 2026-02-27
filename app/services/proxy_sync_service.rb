@@ -126,4 +126,6 @@ class ProxySyncService
       record.username != new_attributes[:username] ||
       record.password != new_attributes[:password]
   end
+
+  # NOTE: Credential changes for in-house/XProxy sources must be handled manually or via provider directly.
 end

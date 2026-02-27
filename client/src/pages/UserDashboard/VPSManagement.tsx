@@ -19,57 +19,60 @@ import {
   Squares2X2Icon,
   ListBulletIcon,
   ChevronDownIcon,
-  TagIcon
+  TagIcon,
+  PencilIcon,
+  KeyIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
 
 interface VPSInstance {
-  id: string;
-  vps_order_id: string;
-  user_id: string;
+  id: string | number;
   vm_id: number;
+  proxmox_vm_id: string;
+  vm_type: 'vps' | 'rdp' | 'mobile_proxy';
   node: string;
-  status: 'creating' | 'running' | 'stopped' | 'suspended' | 'terminated' | 'error';
+  status: 'pending' | 'provisioning' | 'active' | 'failed' | 'terminated' | 'starting' | 'stopping' | 'rebooting' | 'running' | 'stopped' | 'suspended' | 'error';
   cpu_cores: number;
   ram_gb: number;
   storage_gb: number;
   ip_address: string;
+  proxmox_public_ip: string;
   hostname: string;
   os_template: string;
   root_password: string;
-  ssh_keys: string[];
-  network_config: any;
-  resource_usage: {
+  ssh_port: number;
+  rdp_port: number;
+  external_port: number;
+  resource_usage?: {
     cpu_percent: number;
     ram_percent: number;
     disk_percent: number;
-    bandwidth_used: number;
   };
-  last_ping: string;
-  expired_at: string;
+  expires_at: string;
+  expired_at?: string; // fallback
   created_at: string;
-  updated_at: string;
-  rdp_enabled: boolean;
-  rdp_users_configured: number;
-  active_sessions: number;
-  session_logs: any[];
-  last_connection: string;
   plan_name?: string;
   monthly_cost?: number;
   bandwidth_gb?: number;
-  vm_external_port?: number;
-  proxmox_public_ip?: string;
+  rdp_enabled?: boolean;
 }
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'status' | 'created' | 'cost' | 'usage';
 type SortOrder = 'asc' | 'desc';
 
+import { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import { toast } from "react-hot-toast";
+
 const VPSManagement = () => {
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [selectedInstance, setSelectedInstance] = useState<VPSInstance | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState<VPSInstance | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { accessToken } = useAuth();
 
   // Filter and search states
@@ -85,36 +88,62 @@ const VPSManagement = () => {
 
   useEffect(() => {
     if (accessToken) {
-      fetchVPSInstances();
+      loadVPSInstances();
     }
   }, [accessToken]);
 
-  const fetchVPSInstances = async () => {
-    if (!accessToken) {
-      console.error('No authentication token available');
-      setLoading(false);
-      return;
-    }
-
+  const loadVPSInstances = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vps-instances`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setVpsInstances(data.instances || []);
-      } else {
-        console.error('Failed to fetch VPS instances:', response.status, response.statusText);
-      }
+      const response = await fetchVms();
+      // Filter for VPS instances only
+      const allVms: VPSInstance[] = response.data.vms || [];
+      const vpsOnly = allVms.filter(vm => vm.vm_type === 'vps');
+      setVpsInstances(vpsOnly);
     } catch (error) {
       console.error('Failed to fetch VPS instances:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAction = async (id: string | number, action: 'start' | 'stop' | 'reboot' | 'delete') => {
+    try {
+      setRefreshing(prev => ({ ...prev, [id]: true }));
+      let response;
+
+      switch (action) {
+        case 'start': response = await startVm(id); break;
+        case 'stop': response = await stopVm(id); break;
+        case 'reboot': response = await rebootVm(id); break;
+        case 'delete': response = await deleteVm(id); break;
+      }
+
+      toast.success(response?.data?.message || `Action ${action} initiated`);
+
+      // OPTIONAL: Poll status or just refresh after a delay
+      setTimeout(loadVPSInstances, 2000);
+    } catch (error) {
+      // Error is already toasted by api.ts interceptor
+    } finally {
+      setRefreshing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!showPasswordModal || !newPassword) return;
+
+    try {
+      setIsUpdatingPassword(true);
+      await changeVmPassword(showPasswordModal.id, newPassword);
+      toast.success('Password change initiated via Ansible');
+      setShowPasswordModal(null);
+      setNewPassword('');
+      loadVPSInstances();
+    } catch (error) {
+      // Error is toasted by interceptor
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -213,7 +242,11 @@ const VPSManagement = () => {
   };
 
   const getSSHPort = (instance: VPSInstance) => {
-    return instance.vm_external_port || 22;
+    const template = instance.os_template?.toLowerCase() || '';
+    if (template.includes('windows') || template.includes('rdp')) {
+      return instance.rdp_port || 3389;
+    }
+    return instance.ssh_port || 22;
   };
 
   const getSSHCommand = (instance: VPSInstance) => {
@@ -236,11 +269,17 @@ const VPSManagement = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'running': return CheckCircleIcon;
-      case 'stopped': return XCircleIcon;
-      case 'creating': return ArrowPathIcon;
-      case 'suspended': return ExclamationTriangleIcon;
+      case 'running':
+      case 'active': return CheckCircleIcon;
+      case 'stopped':
       case 'terminated': return XCircleIcon;
+      case 'creating':
+      case 'provisioning':
+      case 'starting':
+      case 'stopping':
+      case 'rebooting': return ArrowPathIcon;
+      case 'suspended':
+      case 'failed':
       case 'error': return ExclamationTriangleIcon;
       default: return XCircleIcon;
     }
@@ -417,6 +456,16 @@ const VPSManagement = () => {
                   <ClipboardDocumentIcon className="h-4 w-4" />
                 </button>
               )}
+              <button
+                onClick={() => {
+                  setShowPasswordModal(instance);
+                  setNewPassword('');
+                }}
+                className="p-1 text-primary hover:text-primary/80 transition-colors"
+                title="Change Password"
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -429,8 +478,8 @@ const VPSManagement = () => {
           </div>
           {instance.rdp_enabled && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">RDP Users:</span>
-              <span className="text-sm">{instance.rdp_users_configured}</span>
+              <span className="text-xs text-muted-foreground">RDP Status:</span>
+              <span className="text-sm">Enabled</span>
             </div>
           )}
         </div>
@@ -456,10 +505,43 @@ const VPSManagement = () => {
           </code>
         </div>
 
+        {/* Control Actions */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <button
+            onClick={() => handleAction(instance.id, 'start')}
+            disabled={refreshing[instance.id] || instance.status === 'active' || instance.status === 'running'}
+            className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors disabled:opacity-50"
+            title="Start VM"
+          >
+            <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-medium">Start</span>
+          </button>
+
+          <button
+            onClick={() => handleAction(instance.id, 'stop')}
+            disabled={refreshing[instance.id] || instance.status === 'stopped' || instance.status === 'terminated'}
+            className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
+            title="Stop VM"
+          >
+            <XCircleIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-medium">Stop</span>
+          </button>
+
+          <button
+            onClick={() => handleAction(instance.id, 'reboot')}
+            disabled={refreshing[instance.id]}
+            className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors disabled:opacity-50"
+            title="Reboot VM"
+          >
+            <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-medium">Reboot</span>
+          </button>
+        </div>
+
         {/* Instance Info Button */}
         <button
           onClick={() => setSelectedInstance(instance)}
-          className="w-full mt-4 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors flex items-center justify-center"
+          className="w-full mt-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors flex items-center justify-center text-sm font-medium"
         >
           View Details
         </button>
@@ -674,7 +756,7 @@ const VPSManagement = () => {
             )}
           </button>
           <button
-            onClick={fetchVPSInstances}
+            onClick={loadVPSInstances}
             disabled={loading || !accessToken}
             className="flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
           >
@@ -1071,6 +1153,79 @@ const VPSManagement = () => {
                       <span className="text-foreground ml-2">{selectedInstance.expired_at ? new Date(selectedInstance.expired_at).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Change Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            onClick={() => setShowPasswordModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-xl p-6 max-w-md w-full border border-primary/20 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center">
+                  <KeyIcon className="h-5 w-5 mr-2 text-primary" />
+                  Change Password
+                </h2>
+                <button
+                  onClick={() => setShowPasswordModal(null)}
+                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4">
+                Updating password for <strong>{showPasswordModal.hostname || `VM ${showPasswordModal.vm_id}`}</strong>.
+                This will trigger an Ansible playbook to securely update the credentials on the instance.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new strong password"
+                    className="w-full px-4 py-2 bg-background border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                  />
+                </div>
+
+                <div className="flex space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowPasswordModal(null)}
+                    className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isUpdatingPassword || !newPassword}
+                    className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isUpdatingPassword ? (
+                      <>
+                        <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : 'Update Password'}
+                  </button>
                 </div>
               </div>
             </motion.div>

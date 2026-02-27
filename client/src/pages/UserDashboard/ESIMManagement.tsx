@@ -58,6 +58,8 @@ const ESIMManagement = () => {
   const [esimProfiles, setEsimProfiles] = useState<ESIMProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<ESIMProfile | null>(null);
+  // NOTE: In-house eSIM credentials (e.g., SM-DP+ address and activation code) 
+  // cannot be changed programmatically. These are fixed per profile by the provider.
   const [showActivationCode, setShowActivationCode] = useState<{ [key: string]: boolean }>({});
   const [showQRModal, setShowQRModal] = useState<ESIMProfile | null>(null);
   const { accessToken } = useAuth();

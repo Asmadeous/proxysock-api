@@ -49,7 +49,7 @@
 
   <!-- Updated CSP (ONLY CHANGE: style-src Paystack domains added) -->
   <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' http://localhost:* ws://localhost:*;
+      default-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com;
       script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*
         https://js.paystack.co
         https://checkout.paystack.com
@@ -78,7 +78,7 @@
         https://fonts.gstatic.com
         data:;
 
-      img-src 'self' data: blob: http://localhost:*
+      img-src 'self' data: blob: http://localhost:* https://*.trycloudflare.com
         https://www.proxysock.com
         https://www.proxystore.net
         https://upload.wikimedia.org
@@ -103,7 +103,7 @@
         https://*.paystack.co
         https://api.dicebear.com;
 
-      connect-src 'self' http://localhost:* ws://localhost:*
+      connect-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net

@@ -14,7 +14,8 @@ class CartCheckoutService
   def process!
     return { success: false, error: 'Cart is empty' } if @cart.cart_items.empty?
 
-    grand_total = @cart.cart_items.sum(&:total_price)
+    # Securely calculate grand total from source of truth
+    grand_total = calculate_secure_total
 
     if @payment_method == 'wallet'
       process_wallet_payment!(grand_total)
@@ -22,6 +23,20 @@ class CartCheckoutService
       process_gateway_payment!(grand_total)
     else
       { success: false, error: "Unsupported payment method: #{@payment_method}" }
+    end
+  end
+
+  private
+
+  def calculate_secure_total
+    @cart.cart_items.sum do |item|
+      PricingService.new(
+        @actor,
+        item.product,
+        item.product_pricing,
+        quantity: item.quantity,
+        metadata: item.metadata # Check if metadata exists on cart_item table
+      ).calculate_total
     end
   end
 
@@ -41,6 +56,7 @@ class CartCheckoutService
       # Actually line 41 creates a Transaction.
       transaction = Transaction.create!(
         transactable: @actor,
+        reference: @cart,
         amount: grand_total,
         transaction_type: 'debit',
         status: 'success',
@@ -129,7 +145,10 @@ class CartCheckoutService
   end
 
   def generate_payment_url(session, amount)
-    callback_url = "#{ENV['APP_URL']}/webhooks/#{@payment_method}"
+    # The callback_url is where the USER is redirected after payment.
+    # The webhook URL is configured in Paystack dashboard, or we can pass it if supported.
+    # Currently we want the user back on the FRONTEND success page.
+    callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{@payment_method}&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
     reference = session.gateway_reference
 
     case @payment_method

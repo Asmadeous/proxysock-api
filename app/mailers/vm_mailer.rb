@@ -7,6 +7,7 @@ class VmMailer < ApplicationMailer
     @vm = params[:vm]
     @order = @vm.vm_order.order
     @owner = params[:owner] || @order.orderable
+    @title = "Your VM Credentials - Order ##{@order.order_number}"
 
     mail(
       to: @owner.email,

@@ -90,6 +90,18 @@ class MyProxyApiClient
     response_data
   end
 
+  def update_credentials(order_id, username, password)
+    body = {
+      username: username,
+      password: password
+    }
+    request(:post, "/api/v1/orders/#{order_id}/update_credentials", body)
+  end
+
+  def rotate_ip(order_id)
+    request(:post, "/api/v1/orders/#{order_id}/rotate_ip")
+  end
+
   private
 
   def request(method, url, body = nil)

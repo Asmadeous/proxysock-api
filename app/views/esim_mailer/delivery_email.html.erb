@@ -1,48 +1,36 @@
-<div style="font-family: sans-serif; line-height: 1.5;">
-  <h2>Hello <%= @user.first_name %>,</h2>
+<p>Dear <%= @user.try(:username) || @user.try(:email) %>,</p>
+
+<p>Your eSIM for order <strong>#<%= @order.order_number %></strong> is now ready.</p>
+
+<div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+  <h3 style="margin-top: 0;">eSIM Details</h3>
+  <p><strong>Package:</strong> <%= @esim.esim_order.package_code %></p>
   
-  <p>Your eSIM order (<b>#<%= @esim.esim_order.order.order_number %></b>) has been processed.</p>
-
-  <% if @type == 'api' %>
-    <h3>Scan QR Code to Activate</h3>
-    <% if @esim.qr_code_data.present? %>
-      <!-- Typically QR code data is a string like LPA:1$.... -->
-      <!-- We need to render it as an image. Assuming we use a helper or simple text if image gen not available -->
-      <!-- Ideally, use a gem like rqrcode to generate base64 image here. For now, displaying code. -->
-      <p><b>Activation Code:</b> <%= @esim.activation_code %></p>
-      
-      <p><i>Please use this code manually if you cannot scan.</i></p>
+  <% if @type == 'inventory' %>
+    <p><strong>ICCID:</strong> <%= @esim.iccid %></p>
+    <p><strong>Activation Code:</strong> <%= @esim.activation_code %></p>
+    <% if @esim.qr_code_url.present? %>
+      <div style="text-align: center; margin: 20px 0;">
+        <p>Scan this QR Code to install your eSIM:</p>
+        <img src="<%= @esim.qr_code_url %>" alt="QR Code" width="200" style="max-width: 100%; height: auto;">
+      </div>
     <% end %>
-    
   <% else %>
-    <h3>Your eSIM Details</h3>
-    <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">
-      <tr>
-        <th>ICCID</th>
-        <td><%= @esim.iccid %></td>
-      </tr>
-      <tr>
-        <th>Activation Code</th>
-        <td><%= @esim.activation_code %></td>
-      </tr>
-      <tr>
-        <th>PIN 1</th>
-        <td><%= @esim.pin1 %></td>
-      </tr>
-      <tr>
-        <th>PUK 1</th>
-        <td><%= @esim.puk1 %></td>
-      </tr>
-       <tr>
-        <th>PIN 2</th>
-        <td><%= @esim.pin2 %></td>
-      </tr>
-      <tr>
-        <th>PUK 2</th>
-        <td><%= @esim.puk2 %></td>
-      </tr>
-    </table>
+    <p><strong>ICCID:</strong> <%= @esim.iccid %></p>
+    <div style="text-align: center; margin: 20px 0;">
+      <p>Please scan the QR code below to install your eSIM:</p>
+      <img src="<%= @esim.qr_code_url %>" alt="QR Code" width="200" style="max-width: 100%; height: auto;">
+    </div>
   <% end %>
-
-  <p>Thank you for choosing ProxySock!</p>
 </div>
+
+<p><strong>Installation Guide:</strong></p>
+<ol>
+  <li>Go to <strong>Settings</strong> > <strong>Cellular</strong> (or Mobile Data) on your device.</li>
+  <li>Tap <strong>Add Cellular Plan</strong> (or Add eSIM).</li>
+  <li>Scan the QR code provided above.</li>
+</ol>
+
+<p>You can also find these details in your dashboard: <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/orders" style="color: #3b82f6; text-decoration: none;">View Orders</a></p>
+
+<p>Best Regards,<br>The ProxySock Team</p>

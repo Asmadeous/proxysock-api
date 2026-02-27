@@ -10,7 +10,7 @@ class OrderProvisioningService
   end
 
   def process!(skip_payment: false)
-    return false unless @order.pending?
+    return false unless @order.pending? || @order.awaiting_payment?
 
     ActiveRecord::Base.transaction do
       # 1. Price Calculation
@@ -30,10 +30,16 @@ class OrderProvisioningService
 
       # 3. Transition to processing
       @order.process!
+
+      # 3a. Send Invoice (New)
+      InvoiceMailer.with(order: @order).invoice_email.deliver_later
     end
     
     # 4. Provision based on product type
     provision_product!
+    
+    # 5. Record affiliate commission if applicable
+    AffiliateService.record_commission!(@order)
     
     NotificationService.notify(
       recipient: @actor,
@@ -182,6 +188,7 @@ class OrderProvisioningService
         job_params['proxy_port'] = response['port'] || response['http_port'] || response['socks5_port']
         job_params['proxy_username'] = response['username']
         job_params['proxy_password'] = response['password']
+        job_params['proxy_protocol'] = 'http'
         
         Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
       rescue => e
@@ -219,6 +226,10 @@ class OrderProvisioningService
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!
+
+      # Send credentials email using the API response data
+      owner = @actor || @order.orderable
+      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
       proxy = assign_proxy_from_inventory(@product.provider_type)
@@ -287,11 +298,11 @@ class OrderProvisioningService
 
   def send_proxy_credentials(proxy)
     owner = @actor || @order.orderable
-    # ProxyMailer.with(
-    #   owner: owner,
-    #   proxy: proxy,
-    #   order: @order
-    # ).credentials_email.deliver_later
+    ProxyMailer.with(
+      owner: owner,
+      proxy: proxy,
+      order: @order
+    ).credentials_email.deliver_later
   end
 
   # ========== eSIM Provisioning ==========
@@ -337,6 +348,9 @@ class OrderProvisioningService
         )
       end
 
+      # Send credentials email
+      UsaEsimMailer.with(owner: @actor, credentials: creds, order: @order).credentials_email.deliver_later
+
       @order.update!(
         status: 'active',
         total_amount: @order.product.product_pricings.first&.selling_price.to_f * quantity
@@ -360,6 +374,10 @@ class OrderProvisioningService
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!
+
+      # Send credentials email
+      owner = @actor || @order.orderable
+      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
       return
     end
 
@@ -384,9 +402,8 @@ class OrderProvisioningService
       status: 'active'
     )
 
-    # Send credentials
     owner = @actor || @order.orderable
-    # VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
+    VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
 
     @order.activate!
   end
