@@ -1,0 +1,414 @@
+---
+# FILE: /opt/ansible/playbooks/windows_managed_v2.yml
+- name: Configure Windows Server with Management
+  hosts: windows
+  gather_facts: no
+  pre_tasks:
+    - name: Set rdp_password default if undefined
+      set_fact:
+        rdp_password: "SecurePass123!"
+      when: rdp_password is not defined
+  vars:
+    admin_password: "{{ rdp_password }}"
+   
+    whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"
+   
+    provisioning_api_url: "{{ api_url | default('http://localhost:5000') }}"
+    provisioning_api_key: "{{ api_key | default('your_api_key') }}"
+   
+    proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
+    proxy_ip: "{{ proxy_config.proxy_ip | default('') }}"
+    proxy_port: "{{ proxy_config.proxy_port | default('') }}"
+    proxy_username: "{{ proxy_config.proxy_username | default('') }}"
+    proxy_password: "{{ proxy_config.proxy_password | default('') }}"
+   
+    vm_id: "{{ vm_id | default('vm123') }}"
+    hostname: "{{ hostname | default('windows-server') }}"
+    management_type: "{{ management_type | default('managed') }}"
+   
+  tasks:
+    - block:
+        # ========================================
+        # PHASE 1: Initial Connection
+        # ========================================
+        - name: Wait for WinRM
+          win_ping:
+          retries: 30
+          delay: 10
+        
+        - name: Gather facts after connection
+          setup:
+        
+        - name: Display Windows version
+          debug:
+            msg: "Configuring {{ ansible_distribution }} {{ ansible_distribution_version }}"
+        
+        # ========================================
+        # PHASE 2: Administrator Account
+        # ========================================
+        - name: Configure Administrator account
+          block:
+            - name: Enable and configure Administrator
+              win_user:
+                name: Administrator
+                account_disabled: false
+                password: "{{ admin_password }}"
+                password_never_expires: yes
+                state: present
+            
+            - name: Ensure Administrator is in Administrators group
+              win_group_membership:
+                name: Administrators
+                members:
+                  - Administrator
+                state: present
+          tags: users
+        
+        # ========================================
+        # PHASE 3: Proxy Configuration
+        # ========================================
+        - name: Configure system-wide proxy settings
+          block:
+            - name: Set system proxy via netsh
+              win_shell: |
+                netsh winhttp set proxy "{{ proxy_ip }}:{{ proxy_port }}"
+                Write-Output "System proxy configured"
+              register: proxy_netsh
+            
+            - name: Configure WinHTTP proxy with bypass
+              win_shell: |
+                netsh winhttp set proxy proxy-server="{{ proxy_ip }}:{{ proxy_port }}" bypass-list="localhost;127.0.0.1;*.local"
+                Write-Output "WinHTTP proxy with bypass configured"
+            
+            - name: Set user-level Internet Settings proxy
+              win_regedit:
+                path: "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
+                name: "{{ item.name }}"
+                data: "{{ item.data }}"
+                type: "{{ item.type }}"
+              loop:
+                - { name: "ProxyEnable", data: 1, type: dword }
+                - { name: "ProxyServer", data: "{{ proxy_ip }}:{{ proxy_port }}", type: string }
+                - { name: "ProxyOverride", data: "localhost;127.0.0.1;*.local", type: string }
+            
+            - name: Set machine-level proxy for all users
+              win_regedit:
+                path: "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
+                name: "{{ item.name }}"
+                data: "{{ item.data }}"
+                type: "{{ item.type }}"
+              loop:
+                - { name: "ProxyEnable", data: 1, type: dword }
+                - { name: "ProxyServer", data: "{{ proxy_ip }}:{{ proxy_port }}", type: string }
+            
+            - name: Configure environment variables for proxy
+              win_environment:
+                name: "{{ item.name }}"
+                value: "{{ item.value }}"
+                level: machine
+                state: present
+              loop:
+                - { name: "HTTP_PROXY", value: "{{ proxy_server }}" }
+                - { name: "HTTPS_PROXY", value: "{{ proxy_server }}" }
+                - { name: "NO_PROXY", value: "localhost,127.0.0.1,*.local" }
+            
+            - name: Configure PowerShell proxy settings
+              win_shell: |
+                [System.Net.WebRequest]::DefaultWebProxy = New-Object System.Net.WebProxy('{{ proxy_ip }}:{{ proxy_port }}')
+                [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
+                Write-Output "PowerShell proxy configured"
+              ignore_errors: yes
+          when: proxy_config is defined and proxy_ip != ""
+          tags: proxy
+        
+        # ========================================
+        # PHASE 4: Windows Update
+        # ========================================
+        - name: Configure Windows Update for managed mode
+          block:
+            - name: Set Windows Update registry settings
+              win_regedit:
+                path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU"
+                name: "{{ item.name }}"
+                data: "{{ item.data }}"
+                type: dword
+              loop:
+                - { name: "NoAutoUpdate", data: 0 }
+                - { name: "AUOptions", data: 4 }
+                - { name: "ScheduledInstallDay", data: 0 }
+                - { name: "ScheduledInstallTime", data: 3 }
+            
+            - name: Install critical security updates
+              win_updates:
+                category_names:
+                  - SecurityUpdates
+                  - CriticalUpdates
+                state: installed
+                reboot: no
+              async: 3600
+              poll: 0
+              register: update_status
+              ignore_errors: yes
+          tags: updates
+        
+        # ========================================
+        # PHASE 5: RDP Configuration
+        # ========================================
+        - name: Configure RDP for remote access
+          block:
+            - name: Enable RDP with Network Level Authentication
+              win_regedit:
+                path: "{{ item.path }}"
+                name: "{{ item.name }}"
+                data: "{{ item.data }}"
+                type: dword
+              loop:
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server", name: "fDenyTSConnections", data: 0 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "UserAuthentication", data: 1 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "SecurityLayer", data: 2 }
+            
+            - name: Configure RDP encryption level
+              win_regedit:
+                path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+                name: "MinEncryptionLevel"
+                data: 3
+                type: dword
+            
+            - name: Allow RDP through Windows Firewall
+              win_firewall_rule:
+                name: Remote Desktop - Managed
+                localport: 3389
+                action: allow
+                direction: in
+                protocol: tcp
+                state: present
+                enabled: yes
+          tags: rdp
+        
+        # ========================================
+        # PHASE 6: Service Management
+        # ========================================
+        - name: Manage Windows services
+          block:
+            - name: Disable unnecessary services
+              win_service:
+                name: "{{ item }}"
+                state: stopped
+                start_mode: disabled
+              loop:
+                - WerSvc
+                - DiagTrack
+                - dmwappushservice
+              ignore_errors: yes
+            
+            - name: Ensure critical services are running
+              win_service:
+                name: "{{ item }}"
+                state: started
+                start_mode: auto
+              loop:
+                - WinDefend
+                - wuauserv
+                - MpsSvc
+              ignore_errors: yes
+          tags: services
+        
+        # ========================================
+        # PHASE 7: Monitoring Setup
+        # ========================================
+        - name: Install Prometheus Windows Exporter
+          block:
+            - name: Ensure Chocolatey is installed
+              win_chocolatey:
+                name: chocolatey
+                state: present
+            
+            - name: Install Prometheus Windows Exporter via Chocolatey
+              win_chocolatey:
+                name: prometheus-windows-exporter.install
+                state: present
+              register: prometheus_install
+              environment:
+                HTTP_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
+                HTTPS_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
+            
+            - name: Configure and start Windows Exporter service
+              win_service:
+                name: windows_exporter
+                state: started
+                start_mode: auto
+              when: prometheus_install is succeeded
+              ignore_errors: yes
+            
+            - name: Allow Prometheus exporter through firewall
+              win_firewall_rule:
+                name: Prometheus Windows Exporter
+                localport: 9182
+                action: allow
+                direction: in
+                protocol: tcp
+                state: present
+                enabled: yes
+              ignore_errors: yes
+          tags: monitoring
+        
+        - name: Create Scripts directory if not exists
+          win_file:
+            path: 'C:\Scripts'
+            state: directory
+        
+        - name: Create custom VM metrics script
+          win_copy:
+            content: |
+              # VM Metrics
+              Write-Output "# HELP vm_info VM information"
+              Write-Output "# TYPE vm_info gauge"
+              Write-Output "vm_info{vm_id=`"{{ vm_id }}`",hostname=`"{{ hostname }}`",os_template=`"{{ os_template | default('windows-server') }}`"} 1"
+              Write-Output "# HELP vm_rdp_port RDP port number"
+              Write-Output "# TYPE vm_rdp_port gauge"
+              Write-Output "vm_rdp_port {{ rdp_port | default(3389) }}"
+            dest: 'C:\Scripts\vm_metrics.ps1'
+          tags: monitoring
+        
+        # ========================================
+        # PHASE 8: System Configuration
+        # ========================================
+        - name: Clean temporary files
+          win_shell: |
+            Remove-Item -Path "$env:TEMP\*" -Force -Recurse -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:WINDIR\Temp\*" -Force -Recurse -ErrorAction SilentlyContinue
+            Write-Output "Cleanup completed"
+          ignore_errors: yes
+          tags: optimization
+        
+        - name: Set hostname
+          win_hostname:
+            name: "{{ hostname }}"
+          register: hostname_result
+          when: hostname is defined
+          tags: system_config
+        
+        - name: Create managed server marker file
+          win_copy:
+            content: |
+              MANAGED=true
+              CONFIGURED={{ ansible_date_time.iso8601 }}
+              PLAYBOOK=windows_managed_v2
+              API_URL={{ provisioning_api_url }}
+              VM_ID={{ vm_id }}
+            dest: 'C:\ProgramData\ansible_managed.txt'
+        
+        # ========================================
+        # PHASE 9: Verification
+        # ========================================
+        - name: Verify Windows configuration
+          win_shell: |
+            Write-Output "=== Windows Server Configuration Verification ==="
+            Write-Output "OS: $((Get-WmiObject Win32_OperatingSystem).Caption)"
+            Write-Output "Administrator exists: $(if (Get-LocalUser -Name Administrator -ErrorAction SilentlyContinue) { 'YES' } else { 'NO' })"
+            Write-Output "RDP enabled: $(if ((Get-ItemProperty 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections).fDenyTSConnections -eq 0) { 'YES' } else { 'NO' })"
+            Write-Output "RDP port listening: $(if (Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue) { 'YES' } else { 'NO' })"
+            Write-Output "Windows Exporter: $(if (Get-Service windows_exporter -ErrorAction SilentlyContinue) { (Get-Service windows_exporter).Status } else { 'NOT INSTALLED' })"
+            Write-Output "Proxy configured: {{ 'YES' if proxy_config is defined else 'NO' }}"
+          register: verification_result
+        
+        - name: Display verification results
+          debug:
+            msg: "{{ verification_result.stdout_lines }}"
+        
+        - name: Final configuration summary
+          win_shell: |
+            Write-Output "=== Windows Server Managed Configuration Complete ==="
+            Write-Output "✅ Administrator account configured"
+            Write-Output "✅ Proxy configuration applied: {{ 'YES' if proxy_config is defined else 'NO' }}"
+            Write-Output "✅ RDP configured with NLA"
+            Write-Output "✅ Windows Update configured"
+            Write-Output "✅ Prometheus monitoring installed"
+            Write-Output "✅ Services optimized"
+            Write-Output "Configuration complete"
+          register: final_summary
+        
+        - name: Display final summary
+          debug:
+            msg: "{{ final_summary.stdout_lines }}"
+        
+        # ========================================
+        # PHASE 10: Reboot if needed
+        # ========================================
+        - name: Reboot if hostname changed
+          win_reboot:
+            reboot_timeout: 600
+            post_reboot_delay: 60
+          when: hostname_result is defined and hostname_result.reboot_required
+        
+        # ========================================
+        # PHASE 11: API Notification - Success
+        # ========================================
+        - name: Send success status to API
+          ansible.windows.win_uri:
+            url: "{{ provisioning_api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ provisioning_api_key }}"
+              Content-Type: "application/json"
+            body: |
+              {
+                "vm_id": "{{ vm_id }}",
+                "status": "configured",
+                "os_template": "{{ os_template | default('windows-server') }}",
+                "management_type": "{{ management_type }}",
+                "whitelist_ip": "{{ whitelist_ip }}",
+                "admin_configured": true,
+                "rdp_configured": true,
+                "rdp_port": 3389,
+                "monitoring_port": 9182,
+                "proxy_configured": {{ 'true' if proxy_config is defined else 'false' }},
+                "windows_version": "{{ ansible_distribution }} {{ ansible_distribution_version }}",
+                "configuration_completed_at": "{{ ansible_date_time.iso8601 }}"
+              }
+            status_code: [200, 201, 202]
+            validate_certs: no
+            timeout: 30
+            return_content: yes
+          when:
+            - provisioning_api_url is defined
+            - provisioning_api_key is defined
+            - provisioning_api_url != 'http://localhost:5000'
+            - provisioning_api_key != 'your_api_key'
+          ignore_errors: yes
+          tags: api_status
+      
+      rescue:
+        - name: Log error details
+          debug:
+            msg: "Task '{{ ansible_failed_task.name }}' failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        
+        - name: Send failure status to API
+          ansible.windows.win_uri:
+            url: "{{ provisioning_api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ provisioning_api_key }}"
+              Content-Type: "application/json"
+            body: |
+              {
+                "vm_id": "{{ vm_id }}",
+                "status": "failed",
+                "os_template": "{{ os_template | default('windows-server') }}",
+                "management_type": "{{ management_type }}",
+                "whitelist_ip": "{{ whitelist_ip }}",
+                "error": "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}",
+                "failed_at": "{{ ansible_date_time.iso8601 }}"
+              }
+            status_code: [200, 201, 202]
+            validate_certs: no
+            timeout: 30
+            return_content: yes
+          when:
+            - provisioning_api_url is defined
+            - provisioning_api_key is defined
+            - provisioning_api_url != 'http://localhost:5000'
+            - provisioning_api_key != 'your_api_key'
+            - ansible_failed_result is defined
+          ignore_errors: yes
+          tags: always

@@ -54,12 +54,33 @@ class CheckoutSession < ApplicationRecord
 
     process! if paid?
 
-    orders.where(status: 'awaiting_payment').find_each do |order|
-      actor = order.user || order.reseller
-      OrderProvisioningService.new(order, actor).process_without_deduction!
-    end
+    ActiveRecord::Base.transaction do
+      if orders.empty? && metadata['items'].present?
+        metadata['items'].each do |item|
+          product = Product.for_ecommerce.find_by(id: item['product_id'] || item[:product_id])
+          next unless product
+          
+          pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
+          
+          Order.create!(
+            orderable: orderable,
+            product: product,
+            product_pricing: pricing,
+            quantity: item['quantity'] || item[:quantity] || 1,
+            metadata: item['metadata'] || item[:metadata] || {},
+            status: 'awaiting_payment',
+            checkout_session: self
+          )
+        end
+      end
 
-    complete!
+      orders.reload.where(status: ['pending', 'awaiting_payment']).find_each do |order|
+        actor = order.user || order.reseller
+        OrderProvisioningService.new(order, actor).process_without_deduction!
+      end
+
+      complete!
+    end
     true
   rescue StandardError => e
     Rails.logger.error("[CheckoutSession] Provisioning failed for session #{id}: #{e.message}")

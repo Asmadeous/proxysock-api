@@ -23,8 +23,10 @@ import {
   CalendarIcon,
   TrashIcon,
   PencilIcon,
+  ArrowPathIcon as RotateIcon
 } from "@heroicons/react/24/outline";
-import api from "../../services/api";
+import api, { updateProxyCredentials, rotateProxyIp } from "../../services/api";
+import { toast } from "react-hot-toast";
 
 interface ProxyOrder {
   id: string;
@@ -192,7 +194,7 @@ export default function ProxyManagement() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    toast.success('Copied to clipboard!');
   };
 
   const handleProxyAction = async (action: string, _orderId: string, _data?: any) => {
@@ -482,7 +484,23 @@ export default function ProxyManagement() {
 
                 {selectedOrder.credentials.endpoints && selectedOrder.credentials.endpoints.length > 0 && (
                   <div>
-                    <h4 className="text-lg font-semibold mb-3">Proxy Endpoints</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-lg font-semibold">Proxy Endpoints</h4>
+                      {selectedOrder.product_type === 'mobile' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await rotateProxyIp(selectedOrder.id);
+                              toast.success('IP rotation initiated');
+                            } catch (e) { }
+                          }}
+                          className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <RotateIcon className="h-4 w-4" />
+                          Rotate IP
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {selectedOrder.credentials.endpoints.map((endpoint) => (
                         <div key={endpoint} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
@@ -500,26 +518,49 @@ export default function ProxyManagement() {
                 )}
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setFormData({ protocol: selectedOrder.protocol });
-                      // Handle protocol change
-                    }}
-                    className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Change Protocol
-                  </button>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="Username"
+                      value={formData.username || ''}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      className="flex-1 px-3 py-2 bg-background border rounded-lg text-sm"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={formData.password || ''}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="flex-1 px-3 py-2 bg-background border rounded-lg text-sm"
+                    />
+                  </div>
                   <button
                     onClick={() => {
                       setFormData({
                         username: selectedOrder.credentials.username,
                         password: selectedOrder.credentials.password
                       });
-                      // Handle credentials change
+                      // This just populates the fields, the user clicks "Save Changes" below
                     }}
                     className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 px-4 rounded-lg font-medium transition-colors"
                   >
-                    Change Credentials
+                    Reset Fields
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await updateProxyCredentials(selectedOrder.id, {
+                          username: formData.username,
+                          password: formData.password
+                        });
+                        toast.success('Credentials update requested');
+                        setShowModal(false);
+                        fetchProxyData();
+                      } catch (e) { }
+                    }}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-4 rounded-lg font-medium transition-colors"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </div>

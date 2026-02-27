@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'proxysock-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+        labels:
+          app: 'proxysock-api'
+          env: 'production'
+
+  # Node exporter on VMs (Ansible installs node_exporter on managed VMs)
+  # Add VM targets here or use file_sd_configs for dynamic discovery
+  # - job_name: 'vm-node-exporter'
+  #   file_sd_configs:
+  #     - files: ['/etc/prometheus/targets/*.json']
+  #       refresh_interval: 30s

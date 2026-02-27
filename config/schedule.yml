@@ -17,3 +17,11 @@ proxy_sync:
 esim_sync:
   cron: "*/30 * * * *" # Every 30 minutes
   class: "EsimSyncJob"
+
+proxmox_backup:
+  cron: "0 2 */3 * *"  # Every 3 days at 2 AM
+  class: "ProxmoxBackupJob"
+
+vm_health_check:
+  cron: "*/30 * * * *"  # Every 30 minutes
+  class: "VmHealthCheckJob"

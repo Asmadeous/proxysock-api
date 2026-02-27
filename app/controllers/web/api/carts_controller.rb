@@ -21,8 +21,19 @@ module Web
 
         item = @cart.cart_items.find_or_initialize_by(product: product, product_pricing: pricing)
         item.quantity = (item.quantity || 0) + quantity
-        item.unit_price = pricing.selling_price
-        item.total_price = item.quantity * item.unit_price
+        item.metadata = (item.metadata || {}).merge(params[:metadata] || {})
+
+        # Calculate secure prices
+        pricing_service = PricingService.new(
+          current_actor,
+          product,
+          pricing,
+          quantity: item.quantity,
+          metadata: item.metadata
+        )
+        
+        item.unit_price = pricing.selling_price # Base unit price
+        item.total_price = pricing_service.calculate_total # Final actor-specific price
 
         if item.save
           render json: { message: 'Item added', cart_item: item }

@@ -190,11 +190,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.datetime "abandoned_at"
     t.datetime "converted_at"
     t.datetime "created_at", null: false
+    t.uuid "orderable_id"
+    t.string "orderable_type"
     t.datetime "recovery_email_sent_at"
     t.string "session_id"
     t.string "status"
     t.datetime "updated_at", null: false
-    t.uuid "user_id"
+    t.index ["orderable_type", "orderable_id"], name: "index_carts_on_orderable"
   end
 
   create_table "checkout_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -202,12 +204,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "currency", default: "USD", null: false
     t.string "gateway_reference"
     t.json "metadata"
+    t.uuid "orderable_id"
+    t.string "orderable_type"
     t.string "payment_method", null: false
     t.string "status", default: "pending", null: false
     t.decimal "total_amount", precision: 10, scale: 2, null: false
     t.datetime "updated_at", null: false
-    t.uuid "user_id"
     t.index ["gateway_reference"], name: "index_checkout_sessions_on_gateway_reference", unique: true
+    t.index ["orderable_type", "orderable_id"], name: "index_checkout_sessions_on_orderable"
     t.index ["status"], name: "index_checkout_sessions_on_status"
   end
 
@@ -1119,8 +1123,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
   add_foreign_key "cart_items", "carts"
   add_foreign_key "cart_items", "product_pricings"
   add_foreign_key "cart_items", "products"
-  add_foreign_key "carts", "users"
-  add_foreign_key "checkout_sessions", "users"
   add_foreign_key "conversions", "carts"
   add_foreign_key "conversions", "ecommerce_orders"
   add_foreign_key "conversions", "products"

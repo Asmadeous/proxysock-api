@@ -38,12 +38,14 @@ class Order < ApplicationRecord
   end
 
   def proxy
-    # Helper to find linked proxy across multiple tables/associations
+    # Helper to find linked proxy across multiple tables/associations.
+    # Note: mobile, static_datacenter, static_isp, residential_rotating all have direct order_id columns.
+    # premium_isp and static_residential do NOT — they link via their respective proxy_order join tables.
     MobileProxy.find_by(order_id: id) ||
       StaticDatacenterProxy.find_by(order_id: id) ||
       StaticIspProxy.find_by(order_id: id) ||
-      PremiumIspProxy.find_by(order_id: id) ||
-      StaticResidentialProxy.find_by(order_id: id) ||
+      PremiumIspProxy.joins(:premium_isp_proxy_order).find_by(premium_isp_proxy_orders: { order_id: id }) ||
+      StaticResidentialProxy.joins(:static_residential_proxy_order).find_by(static_residential_proxy_orders: { order_id: id }) ||
       ResidentialRotatingProxy.find_by(order_id: id)
   end
 
@@ -62,6 +64,7 @@ class Order < ApplicationRecord
   end
 
   before_save :calculate_total_amount
+  before_create :generate_order_number
   after_create :notify_user_on_order
 
   private
@@ -79,19 +82,25 @@ class Order < ApplicationRecord
 
   include AASM
 
-  # Calculate total amount including reseller surcharge if applicable
+  # Calculate total amount using centralized PricingService
   def calculate_total_amount
-    return unless product_pricing
+    return unless product_pricing && orderable
 
-    base_price = product_pricing.selling_price
-    qty = quantity || 1
+    self.total_amount = PricingService.new(
+      orderable,
+      product,
+      product_pricing,
+      quantity: quantity || 1,
+      metadata: metadata
+    ).calculate_total
+  end
 
-    if reseller
-      # Apply reseller surcharge
-      total = base_price * reseller.price_multiplier * qty
-      self.total_amount = total.round(2)
-    else
-      self.total_amount = (base_price * qty).round(2)
+  def generate_order_number
+    return if order_number.present?
+
+    loop do
+      self.order_number = "ORD-#{SecureRandom.hex(4).upcase}"
+      break unless Order.exists?(order_number: order_number)
     end
   end
 

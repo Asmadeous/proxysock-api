@@ -57,4 +57,22 @@ export const replyTicket = (id: number, body: string) => api.post(`/web/api/tick
 export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
 
+// VM Management Services
+export const fetchVms = () => api.get("/web/api/vms");
+export const fetchVmStatus = (id: string | number) => api.get(`/web/api/vms/${id}/status`);
+export const startVm = (id: string | number) => api.post(`/web/api/vms/${id}/start`);
+export const stopVm = (id: string | number) => api.post(`/web/api/vms/${id}/stop`);
+export const rebootVm = (id: string | number) => api.post(`/web/api/vms/${id}/reboot`);
+export const deleteVm = (id: string | number) => api.delete(`/web/api/vms/${id}`);
+
+// Credential Management Services
+export const changeVmPassword = (id: string | number, password: string) =>
+  api.post(`/web/api/credential_changes/vm/${id}/password`, { password });
+
+export const updateProxyCredentials = (id: string | number, data: { username?: string, password?: string }) =>
+  api.post(`/web/api/credential_changes/proxy/${id}/credentials`, data);
+
+export const rotateProxyIp = (id: string | number) =>
+  api.post(`/web/api/credential_changes/proxy/${id}/rotate_ip`);
+
 export default api;

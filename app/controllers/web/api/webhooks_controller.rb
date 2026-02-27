@@ -29,7 +29,18 @@ module Web
       end
 
       def payvra
-        # Mock logic based on typical webhooks
+        payload = request.body.read
+        event = begin
+          JSON.parse(payload)
+        rescue JSON::ParserError
+          params.to_unsafe_h.stringify_keys
+        end
+
+        # Accept common 'paid' / 'completed' status values Payvra may send
+        status = event['status'] || event['payment_status']
+        if %w[paid completed success].include?(status.to_s.downcase)
+          handle_deposit(event, 'payvra')
+        end
         render json: { status: 'received' }
       end
 
@@ -48,15 +59,19 @@ module Web
         end
 
         # Fallback to Deposit
-        deposit = Deposit.find_by(transaction_id: reference)
+        # metadata['transaction_ref'] is where we store the gateway reference
+        deposit = Deposit.where("metadata ->> 'transaction_ref' = ?", reference).first
         return unless deposit&.pending?
 
-        amount = gateway == 'paystack' ? (data['amount'] / 100.0) : data['amount']
+        amount = gateway == 'paystack' ? (data['amount'].to_f / 100.0) : data['amount'].to_f
         deposit.update!(status: 'completed', completed_at: Time.current)
 
         return unless deposit.depositable&.wallet
 
         deposit.depositable.wallet.credit!(amount, "Deposit via #{gateway}", { gateway_ref: reference })
+
+        # Send deposit receipt invoice
+        InvoiceMailer.with(deposit: deposit, gateway: gateway, amount: amount).deposit_receipt_email.deliver_later
       end
 
       def handle_checkout_session(session, data, gateway)

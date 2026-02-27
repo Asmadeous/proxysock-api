@@ -69,7 +69,7 @@ interface RDPOrder {
   duration: number;
   activated_at: string;
   ip_address: string;
-  vm_external_port: number;
+  rdp_port: number;
   // Related plan data
   plan?: {
     name: string;
@@ -256,7 +256,7 @@ Concurrent Users: ${order.concurrent_users}
 Network Information
 ==================
 IP Address: ${order.ip_address || 'Not assigned'}
-RDP Port: ${order.vm_external_port || '3389'}
+RDP Port: ${order.rdp_port || '3389'}
 
 Billing
 =======
@@ -810,7 +810,7 @@ Payment Method: ${order.payment_method || 'N/A'}
                       </div>
                       <div>
                         <span className="text-muted-foreground text-sm">RDP Port</span>
-                        <p className="font-medium mt-1">{selectedOrder.vm_external_port || '3389'}</p>
+                        <p className="font-medium mt-1">{selectedOrder.rdp_port || '3389'}</p>
                       </div>
                     </div>
                   </CardContent>

@@ -78,19 +78,16 @@ export default function NotificationBell({ fetchNotifications, markAsRead }: Not
             <AnimatePresence>
                 {open && (
                     <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+                        <div
+                            className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm"
                             onClick={handleClose}
                         />
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-background border border-border rounded-xl shadow-2xl z-[101] overflow-hidden flex flex-col max-h-[80vh]"
+                            initial={{ opacity: 0, scale: 0.95, y: -20, x: "-50%" }}
+                            animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20, x: "-50%" }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                            className="fixed top-24 left-1/2 w-[90vw] max-w-sm bg-background border border-border rounded-xl shadow-2xl z-[101] overflow-hidden flex flex-col max-h-[70vh]"
                         >
                             <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30 flex-shrink-0">
                                 <div className="flex items-center gap-2">

@@ -76,7 +76,7 @@ module Web
             email: current_actor.email,
             amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
+            callback_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=deposit&amount=#{deposit.amount}",
             metadata: { deposit_id: deposit.id, user_id: current_actor.id }
           )
           result[:authorization_url]
