@@ -12,7 +12,9 @@ permissions:
 
 env:
   RAILS_ENV: test
-  DATABASE_URL: postgres://postgres:postgres@localhost:5432/proxysock_api_test
+  DB_HOST: localhost
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
 
 jobs:
   lint:
