@@ -5,9 +5,9 @@
   gather_facts: no
 
   pre_tasks:
-    - name: Set rdp_password default if undefined
-      set_fact:
-        rdp_password: "SecurePass123!"
+    - name: Ensure rdp_password is defined
+      fail:
+        msg: "rdp_password must be defined for security reasons."
       when: rdp_password is not defined
 
   vars:
@@ -19,7 +19,7 @@
 
     provisioning_api_url: "{{ api_url | default('http://localhost:5000') }}"
     provisioning_api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "temporary"
+    ansible_become_password: "{{ rdp_password }}"
 
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,::1,*.local') }}"
@@ -50,6 +50,7 @@
             groups: wheel
             shell: /bin/bash
             create_home: yes
+            no_log: true
           tags: users
 
         - name: Enable passwordless sudo for Administrator user
@@ -241,9 +242,9 @@
               port=3389
               tcp_nodelay=true
               tcp_keepalive=true
-              security_layer=rdp
-              certificate=
-              key_file=
+              security_layer=tls
+              certificate=/etc/xrdp/cert.pem
+              key_file=/etc/xrdp/key.pem
               ssl_protocols=TLSv1.2, TLSv1.3
               autorun=
               allow_channels=true

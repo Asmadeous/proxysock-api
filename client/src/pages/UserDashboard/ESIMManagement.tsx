@@ -18,6 +18,8 @@ import {
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
+import { toast } from "react-hot-toast";
 
 interface ESIMProfile {
   id: string;
@@ -65,32 +67,55 @@ const ESIMManagement = () => {
   const { accessToken } = useAuth();
 
   useEffect(() => {
-    if (accessToken) {
-      fetchESIMProfiles();
-    }
-  }, [accessToken]);
+    fetchESIMProfiles();
+  }, []);
 
   const fetchESIMProfiles = async () => {
-    if (!accessToken) {
-      console.error('No authentication token available');
-      setLoading(false);
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/esim-profiles`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setEsimProfiles(data.profiles || []);
-      } else {
-        console.error('Failed to fetch eSIM profiles:', response.status);
+      const response = await api.get('/web/api/orders?product_type=esim,usa_esim');
+      if (response.data && response.data.orders) {
+        const transformedProfiles = response.data.orders
+          .flatMap((order: any) => {
+            const credentials = order.credentials_list || [order.credentials];
+            return credentials.filter(Boolean).map((cred: any, index: number) => ({
+              id: `${order.id}-${cred.id || index}`,
+              esim_order_id: String(order.id),
+              order_no: order.order_number, // Keep order_no
+              plan_name: order.product_name,
+              package_name: order.product_name, // Keep package_name for compatibility
+              location_name: order.country || 'Global', // Keep location_name
+              location_code: order.proxy_type || 'US', // Keep location_code
+              data_limit_gb: order.esim_details?.data_amount_gb || 0,
+              duration_days: order.esim_details?.duration_days || 30,
+              iccid: cred.iccid || '',
+              qr_code_url: cred.qr_code || '',
+              activation_code: cred.activation_code || cred.qr_activation_code || '',
+              esim_status: (order.status === 'completed' || order.status === 'active') ? 'active' : order.status,
+              created_at: order.created_at,
+              expires_at: order.expires_at || new Date(new Date(order.created_at).getTime() + (order.esim_details?.duration_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+              expired_time: order.expires_at, // Keep expired_time for compatibility
+              total_volume: order.esim_details?.data_amount_gb ? order.esim_details.data_amount_gb * 1024 : 0, // in MB
+              order_usage: 0, // Placeholder
+              usage_percent: 0, // Placeholder
+              remaining_data: order.esim_details?.data_amount_gb ? order.esim_details.data_amount_gb * 1024 : 0, // Placeholder
+              usage: {
+                data_used_gb: 0,
+                data_total_gb: order.esim_details?.data_amount_gb || 0,
+                days_left: order.esim_details?.duration_days || 30
+              },
+              pin1: cred.pin1 || '',
+              puk1: cred.puk1 || '',
+              pin2: cred.pin2 || '',
+              puk2: cred.puk2 || '',
+              zip_code: cred.zip_code || '',
+              is_expired: order.status === 'expired',
+              order_total: order.amount || order.total_amount,
+              order_status: order.status,
+              days_remaining: order.expires_at ? Math.max(0, Math.ceil((new Date(order.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null,
+            }));
+          });
+        setEsimProfiles(transformedProfiles);
       }
     } catch (error) {
       console.error('Failed to fetch eSIM profiles:', error);
@@ -100,30 +125,21 @@ const ESIMManagement = () => {
   };
 
   const copyToClipboard = (text: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
   };
 
   const handleReorder = async (orderId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/web/api/orders/${orderId}/reorder`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        alert("Reorder successful! A new order has been created.");
-        fetchESIMProfiles(); // Refresh data
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || "Failed to reorder");
-      }
-    } catch (error) {
+      await api.post(`/web/api/orders/${orderId}/reorder`);
+      toast.success("Reorder successful! A new order has been created.");
+      fetchESIMProfiles(); // Refresh data
+    } catch (error: any) {
       console.error("Failed to reorder:", error);
-      alert("Failed to reorder");
+      const message = error.response?.data?.error || "Failed to reorder";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -145,6 +161,7 @@ const ESIMManagement = () => {
       case 'delivered':
         return 'text-primary bg-primary/10';
       case 'pending':
+      case 'processing':
       case 'allocated':
         return 'text-secondary-foreground bg-secondary';
       case 'inactive':

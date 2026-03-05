@@ -1,9 +1,12 @@
-- name: Configure Windows VPS Managed (Via RDP)
-  hosts: windows
-  gather_facts: no
+  pre_tasks:
+    - name: Ensure rdp_password is defined
+      fail:
+        msg: "rdp_password must be defined for security reasons."
+      when: rdp_password is not defined
+
   vars:
     rdp_username: "{{ rdp_username | default('rdpuser') }}"
-    rdp_password: "{{ rdp_password | default('SecurePass123!') }}"
+    rdp_password_var: "{{ rdp_password }}"
     api_url: "{{ api_url | default('http://localhost:4000') }}"
     api_key: "{{ api_key | default('your_api_key') }}"
   tasks:
@@ -29,8 +32,9 @@
         - name: Create RDP user
           win_user:
             name: "{{ rdp_username }}"
-            password: "{{ rdp_password }}"
+            password: "{{ rdp_password_var }}"
             state: present
+            no_log: true
             groups:
               - Remote Desktop Users
               - Users
@@ -71,6 +75,8 @@
               Content-Type: application/json
             body: "{{ {'status': 'configured', 'vm_id': vm_id, 'os_template': os_template, 'management_type': management_type} | to_json }}"
             status_code: 200
+            validate_certs: yes
+            no_log: true
           when: api_url is defined and api_key is defined
 
         - name: Final configuration step

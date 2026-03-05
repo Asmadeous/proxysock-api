@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { BellIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNotificationStore } from "@/store/notificationStore";
 
 interface Notification {
     id: number;
@@ -12,47 +13,30 @@ interface Notification {
 }
 
 interface NotificationBellProps {
-    fetchNotifications: () => Promise<any>;
-    markAsRead: () => Promise<any>;
+    notifications?: Notification[];
+    unreadCount?: number;
+    markAsRead?: () => Promise<any>;
 }
 
-export default function NotificationBell({ fetchNotifications, markAsRead }: NotificationBellProps) {
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
+export default function NotificationBell({ notifications: propNotifications, unreadCount: propCount, markAsRead: propMarkAsRead }: NotificationBellProps) {
+    const storeNotifications = useNotificationStore(state => state.notifications);
+    const storeUnreadCount = useNotificationStore(state => state.unreadCount);
+    const storeMarkAllAsRead = useNotificationStore(state => state.markAllAsRead);
+
+    const notifications = propNotifications ?? storeNotifications;
+    const unreadCount = propCount ?? storeUnreadCount;
+    const markAsRead = propMarkAsRead ?? storeMarkAllAsRead;
+
     const [open, setOpen] = useState(false);
     const [markingRead, setMarkingRead] = useState(false);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const res = await fetchNotifications();
-                setNotifications(res.data.notifications || []);
-                setUnreadCount(res.data.unread_count || 0);
-            } catch (e) {
-                // silent
-            }
-        };
-        load();
-        const interval = setInterval(load, 30000);
-        return () => clearInterval(interval);
-    }, [fetchNotifications]);
-
-    const handleOpen = () => {
-        setOpen(true);
-    };
-
-    const handleClose = () => {
-        setOpen(false);
-    };
+    const handleOpen = () => setOpen(true);
+    const handleClose = () => setOpen(false);
 
     const handleMarkAllRead = async () => {
         setMarkingRead(true);
         try {
             await markAsRead();
-            setUnreadCount(0);
-            setNotifications((prev) =>
-                prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
-            );
         } catch (e) {
             // silent
         } finally {

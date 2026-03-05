@@ -8,10 +8,11 @@ module Web
 
       # GET /web/api/vms
       def index
-        @vms = current_actor_vms.includes(:vm_order)
+        scope = current_actor_vms.includes(:vm_order)
+        scope = scope.where(vm_type: params[:vm_type]) if params[:vm_type].present?
 
         render json: {
-          vms: @vms.map { |vm| serialize_vm(vm) }
+          vms: scope.map { |vm| serialize_vm(vm) }
         }
       end
 

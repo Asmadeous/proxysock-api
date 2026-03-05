@@ -1,10 +1,11 @@
-import { useState, useEffect, type ComponentType, type SVGProps } from "react";
+import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "../../../components/NotificationBell";
 import { useThemeStore } from "@/store/themeStore";
 import { Home, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNotificationStore } from "@/store/notificationStore";
 
 const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
     if (!show) return <>{children}</>;
@@ -52,7 +53,31 @@ export default function AdminSidebar({
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+
+    const notifications = useNotificationStore(state => state.notifications);
+    const unreadCount = useNotificationStore(state => state.unreadCount);
+    const fetchStoreNotifications = useNotificationStore(state => state.fetchNotifications);
+    const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
+    const subscribeToRealtime = useNotificationStore(state => state.subscribeToRealtime);
+    const unsubscribeFromRealtime = useNotificationStore(state => state.unsubscribeFromRealtime);
+    const markAllAsRead = useNotificationStore(state => state.markAllAsRead);
+
     const { dark, toggleDark } = useThemeStore();
+
+    const loadNotifications = useCallback(async () => {
+        try {
+            await Promise.all([
+                fetchStoreNotifications(),
+                fetchUnreadCount()
+            ]);
+        } catch (e) { /* silent */ }
+    }, [fetchStoreNotifications, fetchUnreadCount]);
+
+    useEffect(() => {
+        loadNotifications();
+        subscribeToRealtime();
+        return () => unsubscribeFromRealtime();
+    }, [loadNotifications, subscribeToRealtime, unsubscribeFromRealtime]);
 
     // Persist collapsed state
     useEffect(() => {
@@ -106,7 +131,11 @@ export default function AdminSidebar({
                 </h1>
                 <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : ""}`}>
                     {fetchNotifications && markNotificationsAsRead && (
-                        <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+                        <NotificationBell
+                            notifications={notifications}
+                            unreadCount={unreadCount}
+                            markAsRead={markAllAsRead}
+                        />
                     )}
                     {isMobile && (
                         <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
@@ -248,7 +277,11 @@ export default function AdminSidebar({
                     <h1 className="text-lg font-bold text-foreground">{title}</h1>
                     <div className="flex items-center gap-2">
                         {fetchNotifications && markNotificationsAsRead && (
-                            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+                            <NotificationBell
+                                notifications={notifications}
+                                unreadCount={unreadCount}
+                                markAsRead={markAllAsRead}
+                            />
                         )}
                     </div>
                 </div>

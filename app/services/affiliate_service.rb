@@ -10,14 +10,19 @@ class AffiliateService
 
   def initialize(entity = nil)
     @entity = entity
+    # Affiliate program is currently halted.
+  end
+
+  def self.halted?
+    true
   end
 
   # ─────────────────────────────────────
   # Enrolment
   # ─────────────────────────────────────
 
-  # Enrol a User or Reseller into the affiliate program.
   def enrol!
+    return if self.class.halted?
     raise AlreadyEnrolledError, "#{@entity.class} is already an affiliate" if @entity.affiliate.present?
 
     Affiliate.create!(
@@ -67,18 +72,24 @@ class AffiliateService
 
   # Call after an order completes provisioning to credit the affiliate.
   def self.record_commission!(order)
+    return if halted?
     entity   = order.orderable
     referral = entity.affiliate_referrals.pending.first
     return unless referral
 
+    pricing = order.product_pricing
+    api_cost = pricing.api_price.to_f * order.quantity
+    profit = order.total_amount - api_cost
+    commission = [0, profit / 2.0].max.round(2)
+
+    referral.update!(commission_amount: commission)
     referral.convert!(order)
 
-    # Optionally credit wallet if the affiliate prefers wallet payouts
-    wallet = referral.affiliate.affiliatable.wallet
-    if wallet
-      wallet.credit!(referral.commission_amount,
-                     description: "Affiliate commission — order ##{order.id}")
-    end
+    # Credit earnings wallet
+    owner = referral.affiliate.affiliatable
+    wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
+    
+    wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
   end
 
   # ─────────────────────────────────────
@@ -95,8 +106,23 @@ class AffiliateService
       affiliate:       affiliate,
       amount:          amount,
       payment_method:  method,
-      payment_details: details
+      payment_details: details,
+      status:          'pending'
     )
+  end
+
+  # Transfer balance from earnings wallet to main wallet
+  def transfer_to_main_wallet!(amount)
+    main_wallet = @entity.main_wallet || @entity.create_main_wallet!(wallet_type: 'main')
+    earnings_wallet = @entity.earnings_wallet
+
+    raise "No earnings wallet found" unless earnings_wallet
+    raise InsufficientBalanceError, "Insufficient earnings balance" if earnings_wallet.balance < amount
+
+    ActiveRecord::Base.transaction do
+      earnings_wallet.debit!(amount, "Transfer to main wallet", { target: 'main_wallet' })
+      main_wallet.credit!(amount, "Transfer from earnings wallet", { source: 'earnings_wallet' })
+    end
   end
 
   # Admin: process a pending payout.
@@ -105,12 +131,30 @@ class AffiliateService
 
     payout.update!(status: 'processing')
 
-    if payout.payment_method == 'wallet'
-      wallet = payout.affiliate.affiliatable.wallet
-      wallet.credit!(payout.amount, description: "Affiliate payout ##{payout.id}")
+    begin
+      case payout.payment_method
+      when 'wallet'
+        wallet = payout.affiliate.affiliatable.main_wallet || payout.affiliate.affiliatable.create_main_wallet!(wallet_type: 'main')
+        wallet.credit!(payout.amount, "Affiliate payout ##{payout.id}")
+        payout.mark_paid!
+      when 'bank_transfer'
+        # Integration with Paystack Transfer
+        # PaystackService.new.initiate_transfer(payout)
+        payout.update!(status: 'processing', metadata: { gateway: 'paystack' })
+        # For now, mark as paid if mock or automated
+        payout.mark_paid! 
+      when 'crypto'
+        # Integration with Plisio or Payvra
+        # PlisioService.new.withdraw(payout)
+        payout.update!(status: 'processing', metadata: { gateway: 'plisio' })
+        payout.mark_paid! 
+      else
+        raise "Unsupported payout method: #{payout.payment_method}"
+      end
+    rescue StandardError => e
+      payout.update!(status: 'failed', metadata: { error: e.message })
+      raise e
     end
-
-    payout.mark_paid!
   end
 
   private

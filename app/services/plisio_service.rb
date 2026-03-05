@@ -28,12 +28,39 @@ class PlisioService
     raise "Plisio Error: #{response['data']['message']}"
   end
 
-  def verify_callback(params)
-    # Plisio sends callback data. Verify secure if possible (check IP or secret if they sign it)
-    # Simple verification: verify_hmac check if supported or query status
+  def verify_transaction(order_number)
+    response = request(:get, '/operations', {
+                         order_number: order_number
+                       })
 
-    # Usually we rely on the callback status
-    %w[completed mismatch].include?(params['status']) # Mismatch might need manual review
+    if response['status'] == 'success' && response['data'].is_a?(Array)
+      op = response['data'].find { |t| t['order_number'] == order_number }
+      if op && %w[completed mismatch].include?(op['status'])
+        return {
+          status: 'success',
+          amount: op['amount'],
+          currency: op['currency']
+        }
+      end
+    end
+
+    { status: 'pending' }
+  rescue StandardError => e
+    Rails.logger.error("Plisio verification failed: #{e.message}")
+    { status: 'error', message: e.message }
+  end
+
+  # Request a withdrawal to a crypto address.
+  def withdraw(amount, currency, address, order_number)
+    request(:get, '/withdraw', {
+      currency: currency,
+      amount: amount,
+      address: address,
+      order_number: order_number
+    })
+  end
+
+  def verify_callback(params)
   end
 
   private

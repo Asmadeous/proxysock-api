@@ -10,7 +10,13 @@ class PricingService
   end
 
   def calculate_total
-    base_price = @pricing.selling_price
+    base_price = if reseller?
+                   @pricing.reseller_selling_price || @pricing.selling_price
+                 elsif user?
+                   @pricing.user_selling_price || @pricing.selling_price
+                 else
+                   @pricing.selling_price
+                 end
     
     # Calculate effective quantity based on duration/period if present in metadata
     effective_quantity = @quantity * duration_multiplier

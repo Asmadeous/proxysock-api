@@ -9,6 +9,12 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  RAILS_ENV: test
+  DB_HOST: localhost
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
+
 jobs:
   changes:
     name: Detect Changes
@@ -16,6 +22,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -29,6 +36,8 @@ jobs:
               - 'Gemfile*'
             migrations:
               - 'db/migrate/**'
+            frontend:
+              - 'client/**'
 
   pr-tests:
     name: PR Tests
@@ -114,3 +123,53 @@ jobs:
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/proxysock_api_test
+
+  frontend-lint:
+    name: Frontend Lint & Typecheck
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+        working-directory: client
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: client
+
+      - name: Build check
+        run: npm run build
+        working-directory: client
+
+  frontend-tests:
+    name: Frontend Tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+        working-directory: client
+
+      - name: Run tests
+        run: npm test -- --run
+        working-directory: client

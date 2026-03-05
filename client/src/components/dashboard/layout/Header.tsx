@@ -9,7 +9,6 @@ import logoDark from "@/assets/images/PROXY PNG.webp";
 import logoLight from "@/assets/images/PROXY SOCKS DARK FONT.webp";
 import UserBalance from "@/components/UserBalance";
 import NotificationBell from "@/components/NotificationBell";
-import { fetchNotifications, markNotificationsAsRead } from "@/services/api";
 import { useThemeStore } from "@/store/themeStore";
 
 
@@ -80,7 +79,7 @@ export const Header = ({
             </Link>
 
             {/* Notifications */}
-            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+            <NotificationBell />
 
 
             {/* User Avatar - Restored */}

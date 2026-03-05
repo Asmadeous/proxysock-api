@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import api from "../../services/api";
+import { fetchResellerBalance } from "../../services/resellerApi";
 
 
 export interface CartItem {
@@ -108,9 +108,8 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
   const fetchUserBalance = async () => {
     setIsLoadingBalanceFetch(true);
     try {
-      // Both users and resellers use this endpoint now
-      const { data } = await api.get('/web/api/billing/balance');
-      setUserBalance(data.available_balance || 0);
+      const { data } = await fetchResellerBalance();
+      setUserBalance(data.available_balance || data.balance || 0);
     } catch (err) {
       console.error("Error fetching balance:", err);
     } finally {

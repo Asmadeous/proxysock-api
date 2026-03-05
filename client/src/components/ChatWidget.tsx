@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
 import { fetchUserSupportChat, sendUserSupportMessage } from "../services/api";
+import { getCableConsumer } from "../services/cable";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
@@ -41,7 +42,6 @@ export default function ChatWidget() {
     const [chatMetadata, setChatMetadata] = useState<ChatMetadata>({});
     const [sending, setSending] = useState(false);
     const messagesEnd = useRef<HTMLDivElement>(null);
-    const pollRef = useRef<ReturnType<typeof setInterval>>();
 
     const scrollBottom = () => messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
 
@@ -66,6 +66,7 @@ export default function ChatWidget() {
                 const { data } = await fetchUserSupportChat();
                 setMessages(data.messages || []);
                 if (data.chat) {
+                    setChat(prev => ({ ...prev, chatId: data.chat.id }));
                     setChatMetadata({
                         assigned_to_name: data.chat.assigned_to_name,
                         assigned_to_online: data.chat.assigned_to_online
@@ -89,13 +90,35 @@ export default function ChatWidget() {
     }, [isAuthenticated, chat.sessionToken]);
 
     useEffect(() => {
-        const canPoll = isAuthenticated || chat.sessionToken;
-        if (open && canPoll) {
+        let sub: any = null;
+        const canSubscribe = open && (isAuthenticated || chat.chatId);
+
+        if (canSubscribe) {
+            // Initial load
             fetchMessages();
-            pollRef.current = setInterval(fetchMessages, 5000);
+
+            const consumer = getCableConsumer();
+            sub = consumer.subscriptions.create(
+                {
+                    channel: "ChatChannel",
+                    chat_id: chat.chatId || 'current', // 'current' for user if id not yet known
+                    chat_type: isAuthenticated ? "SupportChat" : "GuestChat"
+                },
+                {
+                    received: (data: any) => {
+                        if (data.action === 'message_created') {
+                            setMessages(prev => {
+                                if (prev.find(m => m.id === data.message.id)) return prev;
+                                return [...prev, data.message];
+                            });
+                        }
+                    },
+                    connected() { console.log("[ChatWidget] Connected"); }
+                }
+            );
         }
-        return () => { if (pollRef.current) clearInterval(pollRef.current); };
-    }, [open, isAuthenticated, chat.sessionToken, fetchMessages]);
+        return () => { if (sub) sub.unsubscribe(); };
+    }, [open, isAuthenticated, chat.chatId, fetchMessages]);
 
     // Allow external components to open the chat
     useEffect(() => {

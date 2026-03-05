@@ -14,7 +14,13 @@ resellerApi.interceptors.request.use((config) => {
 });
 
 resellerApi.interceptors.response.use(
-    (r) => r,
+    (r) => {
+        const nextToken = r.headers['x-next-token'];
+        if (nextToken) {
+            localStorage.setItem("resellerToken", nextToken);
+        }
+        return r;
+    },
     (err) => {
         if (err.response?.status === 401) {
             localStorage.removeItem("resellerToken");
@@ -30,8 +36,13 @@ export const resellerLogin = (email: string, password: string) =>
     resellerApi.post("/auth/login", { email, password });
 
 // ── Orders ────────────────────────────────────────
-export const fetchResellerOrders = (params?: Record<string, string>) =>
-    resellerApi.get("/orders", { params });
+export const fetchResellerOrderStats = () =>
+    resellerApi.get("/orders/stats");
+
+export const fetchResellerOrders = (params: Record<string, string> = {}) =>
+    resellerApi.get("/reseller/orders", { params });
+export const fetchResellerVms = (params: Record<string, string> = {}) =>
+    resellerApi.get("/reseller/vms", { params });
 export const createResellerOrder = (data: Record<string, unknown>) =>
     resellerApi.post("/orders", data);
 export const fetchResellerOrder = (id: number) =>
@@ -54,6 +65,10 @@ export const fetchResellerBalance = () =>
     resellerApi.get("/billing/balance");
 export const fetchResellerTransactions = () =>
     resellerApi.get("/billing/transactions");
+export const transferResellerEarnings = (amount: number) =>
+    resellerApi.post("/billing/transfer_earnings", { amount });
+export const requestResellerPayout = (data: { amount: number, payment_method: string, payment_details: Record<string, unknown> }) =>
+    resellerApi.post("/billing/request_payout", data);
 export const createResellerDeposit = (data: { amount: number, gateway: string, currency?: string }) => {
     // We assume the user profile id maps to the reseller in normal setup, but the backend uses `current_reseller`.
     // The endpoint acts on `id` in resourceful ways, usually /resellers/:id/deposit.
@@ -76,5 +91,23 @@ export const fetchSupportChat = () =>
     resellerApi.get("/support_chats");
 export const sendSupportMessage = (message: string) =>
     resellerApi.post("/support_chats/messages", { message });
+
+// ── Order Actions ─────────────────────────────────
+export const cancelResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/cancel`);
+export const fetchOrderCredentials = (id: string) =>
+    resellerApi.get(`/orders/${id}/credentials`);
+
+// ── Webhook Endpoints ─────────────────────────────
+export const fetchResellerWebhooks = () =>
+    resellerApi.get("/webhook_endpoints");
+export const createResellerWebhook = (data: { url: string; description?: string; events?: string[] }) =>
+    resellerApi.post("/webhook_endpoints", { webhook_endpoint: data });
+export const updateResellerWebhook = (id: string, data: { url?: string; description?: string; events?: string[] }) =>
+    resellerApi.patch(`/webhook_endpoints/${id}`, { webhook_endpoint: data });
+export const deleteResellerWebhook = (id: string) =>
+    resellerApi.delete(`/webhook_endpoints/${id}`);
+export const testResellerWebhook = (id: string) =>
+    resellerApi.post(`/webhook_endpoints/${id}/test`);
 
 export default resellerApi;

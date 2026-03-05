@@ -143,12 +143,17 @@ export const usePaymentCheckoutHandlers = ({
         payment_method: 'wallet'
       };
 
-      await api.post("/web/api/orders/checkout_cart", payload);
+      const { data: checkoutData } = await api.post("/web/api/orders/checkout_cart", payload);
 
       const orderId = storeOrderDataForSuccess(cartItems, totalUsd, "balance");
       clearCart();
-      const { data: balanceData } = await api.get('/web/api/billing/balance');
-      setUserBalance(balanceData?.available_balance || (userBalance - totalUsd));
+
+      // Update balance from response if available, otherwise fallback to local calculation
+      if (checkoutData?.available_balance !== undefined) {
+        setUserBalance(Number(checkoutData.available_balance));
+      } else {
+        setUserBalance(prev => prev - totalUsd);
+      }
 
       if (onSuccess) {
         onSuccess(orderId);

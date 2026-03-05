@@ -17,10 +17,9 @@ import {
   GlobeAltIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  KeyIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
-import { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import { fetchVms, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
 import { toast } from "react-hot-toast";
 import { PencilIcon } from "@heroicons/react/24/outline";
 
@@ -164,7 +163,7 @@ const RDPInstanceCard = ({
   downloadingRDP,
   handleAction,
   refreshing,
-  onShowPasswordModal
+  onShowPasswordModal: _onShowPasswordModal,
 }: RDPInstanceCardProps & { handleAction: (id: string | number, action: any) => Promise<void>, refreshing: Record<string, boolean> }) => {
   const StatusIcon = getStatusIcon(instance.status);
 
@@ -512,8 +511,7 @@ const RDPManagement = () => {
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [selectedInstance, setSelectedInstance] = useState<RDPInstance | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState<RDPInstance | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  void showPasswordModal; // setter used as prop, value reserved for password modal UI
   const [downloadingRDP, setDownloadingRDP] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -557,11 +555,9 @@ const RDPManagement = () => {
   const loadRDPInstances = async () => {
     try {
       setLoading(true);
-      const response = await fetchVms();
-      // Filter for RDP instances only
+      const response = await fetchVms({ vm_type: 'rdp' });
       const allVms: RDPInstance[] = response.data.vms || [];
-      const rdpOnly = allVms.filter(vm => vm.vm_type === 'rdp');
-      setRdpInstances(rdpOnly);
+      setRdpInstances(allVms);
     } catch (error) {
       console.error('Failed to fetch RDP instances:', error);
     } finally {
@@ -590,22 +586,6 @@ const RDPManagement = () => {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!showPasswordModal || !newPassword) return;
-
-    try {
-      setIsUpdatingPassword(true);
-      await changeVmPassword(showPasswordModal.id, newPassword);
-      toast.success('Password change initiated via Ansible');
-      setShowPasswordModal(null);
-      setNewPassword('');
-      loadRDPInstances();
-    } catch (error) {
-      // Error is toasted by interceptor
-    } finally {
-      setIsUpdatingPassword(false);
-    }
-  };
 
   const downloadRDPFile = async (instanceId: string) => {
     try {

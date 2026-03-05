@@ -1,88 +1,100 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <title><%= @title || 'ProxySock' %></title>
-  </head>
-  <body
-    style="
-      margin: 0;
-      padding: 0;
-      background-color: #f4f6f8;
-      font-family:
-        -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto,
-        &quot;Helvetica Neue&quot;, Arial, sans-serif;
-    "
-  >
-    <table
-      role="presentation"
-      width="100%"
-      cellpadding="0"
-      cellspacing="0"
-      border="0"
-      style="background-color: #f4f6f8"
-    >
-      <tr>
-        <td align="center" style="padding: 40px 20px">
-          <table
-            role="presentation"
-            width="600"
-            cellpadding="0"
-            cellspacing="0"
-            border="0"
-            style="background-color: #ffffff; max-width: 600px; width: 100%"
-          >
-            <!-- Header with Logo -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #F4F7F9;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #F4F7F9;
+            padding-bottom: 40px;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-top: 40px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .header {
+            padding: 40px;
+            background-color: #000000;
+            text-align: center;
+        }
+        .content {
+            padding: 48px 40px;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+        .footer {
+            padding: 32px 40px;
+            background-color: #000000;
+            text-align: center;
+            color: #ffffff;
+            font-size: 13px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #EF4444;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 16px 36px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2), 0 2px 4px -1px rgba(239, 68, 68, 0.1);
+        }
+        h1, h2, h3 {
+            font-family: 'Outfit', sans-serif;
+            color: #000000;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <table class="container" role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <!-- Header -->
             <tr>
-              <td style="padding: 32px 40px">
-                <img
-                  src="https://proxysock.com/assets/PROXY%20SOCKS%20DARK%20FONT-BmPlaTFU.png"
-                  alt="ProxySock"
-                  width="100"
-                  style="
-                    display: block;
-                    border: 0;
-                    outline: none;
-                    text-decoration: none;
-                    height: auto;
-                    -ms-interpolation-mode: bicubic;
-                  "
-                />
-              </td>
+                <td class="header">
+                    <img src="https://proxysock.com/assets/PROXY%20SOCKS%20DARK%20FONT-BmPlaTFU.png" alt="ProxySock" width="160" style="display: block; margin: 0 auto;">
+                </td>
             </tr>
-            <!-- Content Body -->
+            <!-- Body -->
             <tr>
-              <td
-                style="
-                  padding: 40px;
-                  color: #374151;
-                  font-size: 15px;
-                  line-height: 1.7;
-                "
-              >
-                <%= yield %>
-              </td>
+                <td class="content">
+                    <%= yield %>
+                </td>
             </tr>
-
             <!-- Footer -->
             <tr>
-              <td
-                style="
-                  padding: 32px 40px;
-                  text-align: center;
-                  font-size: 13px;
-                  color: #6b7280;
-                "
-              >
-                <p style="margin: 0 0 8px 0">
-                  © <%= Time.current.year %> ProxySock. All rights reserved.
-                </p>
-              </td>
+                <td class="footer">
+                    <p style="margin: 0 0 12px 0; font-weight: 600; font-family: 'Outfit', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;">ProxySock</p>
+                    <p style="margin: 0; opacity: 0.6;">© <%= Time.current.year %> ProxySock. All rights reserved.</p>
+                    <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                        <p style="margin: 0; opacity: 0.4; font-size: 11px;">You received this email because you're a registered user of ProxySock.</p>
+                    </div>
+                </td>
             </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
+        </table>
+    </div>
+</body>
 </html>

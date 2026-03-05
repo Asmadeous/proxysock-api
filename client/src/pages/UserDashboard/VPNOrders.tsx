@@ -96,11 +96,10 @@ const VPNOrdersPage: FC = () => {
     const fetchVPNOrders = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/web/api/orders');
+            const response = await api.get('/web/api/orders?product_type=vpn');
 
             if (response.data && response.data.orders) {
                 const transformedOrders: ProxyOrder[] = response.data.orders
-                    .filter((order: any) => order.product_type === 'vpn')
                     .map((order: any) => ({
                         id: String(order.id),
                         order_number: order.order_number,
@@ -206,9 +205,25 @@ const VPNOrdersPage: FC = () => {
         }
     };
 
-    const downloadCredentials = (order: ProxyOrder) => {
-        const credentials = order.credentials || {};
-        const content = `
+    const downloadCredentials = async (order: ProxyOrder) => {
+        try {
+            const response = await api.get(`/web/api/orders/${order.id}/download_ovpn`, {
+                responseType: 'blob'
+            });
+            const blob = new Blob([response.data], { type: 'application/x-openvpn-profile' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `vpn-order-${order.order_number}.ovpn`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download OVPN:', error);
+            // Fallback to text download
+            const credentials = order.credentials || {};
+            const content = `
 VPN Order Details
 ==================
 Order ID: ${order.order_number}
@@ -226,15 +241,16 @@ Details
 Country: ${order.country || "Global"}
     `.trim();
 
-        const blob = new Blob([content], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `vpn-order-${order.order_number}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `vpn-order-${order.order_number}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
     };
 
     if (!accessToken || !user) {
@@ -612,9 +628,34 @@ Country: ${order.country || "Global"}
                                                     className="flex-1 gap-2"
                                                 >
                                                     <Download className="h-4 w-4" />
-                                                    Download
+                                                    OVPN
                                                 </Button>
                                             )}
+                                            <Button
+                                                variant="outline"
+                                                onClick={async () => {
+                                                    try {
+                                                        const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                                                            responseType: 'blob'
+                                                        });
+                                                        const blob = new Blob([response.data], { type: 'application/pdf' });
+                                                        const url = URL.createObjectURL(blob);
+                                                        const a = document.createElement("a");
+                                                        a.href = url;
+                                                        a.download = `invoice-${order.order_number}.pdf`;
+                                                        document.body.appendChild(a);
+                                                        a.click();
+                                                        a.remove();
+                                                        URL.revokeObjectURL(url);
+                                                    } catch (error) {
+                                                        console.error('Failed to download invoice:', error);
+                                                    }
+                                                }}
+                                                className="gap-2"
+                                                title="Download Invoice"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>

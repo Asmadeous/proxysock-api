@@ -67,7 +67,12 @@ module Api
           username: reseller.username,
           company_name: reseller.company_name,
           reseller_type: reseller.reseller_type,
-          balance: reseller.balance
+          balance: reseller.balance,
+          earnings_balance: reseller.earnings_balance,
+          dedicated_api_key: reseller.dedicated_api_key,
+          subscription_fee: reseller.subscription_fee,
+          subscription_expires_at: reseller.subscription_expires_at,
+          customer_email: reseller.customer_email
         }
       end
     end

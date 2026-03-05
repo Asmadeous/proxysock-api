@@ -91,10 +91,7 @@ const DashboardLandingPage = () => {
     try {
       setLoading(true);
 
-      const [ordersResult, balanceResult] = await Promise.allSettled([
-        api.get('/web/api/orders'),
-        api.get('/web/api/billing/balance'),
-      ]);
+      const statsResult = await api.get('/web/api/orders/stats');
 
       let newStats: DashboardStats = {
         totalOrders: 0,
@@ -111,41 +108,29 @@ const DashboardLandingPage = () => {
         vpnCount: 0,
       };
 
-      if (ordersResult.status === 'fulfilled' && ordersResult.value.data?.orders) {
-        const orders = ordersResult.value.data.orders;
-        newStats.totalOrders = orders.length;
-        newStats.pendingOrders = orders.filter((o: any) => o.status === 'pending').length;
-        newStats.activeServices = orders.filter((o: any) => o.status === 'active').length;
+      if (statsResult.status === 200 || statsResult.data) {
+        const d = statsResult.data;
+        newStats.totalOrders = d.total_orders;
+        newStats.activeServices = d.active_services;
+        newStats.pendingOrders = d.pending_orders;
+        newStats.totalSpent = d.total_spent;
+        newStats.monthlySpending = d.monthly_spending;
+        newStats.lastMonthSpending = d.last_month_spending;
 
-        const currentMonth = new Date().getMonth();
-        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        // Use consolidated balance from stats
+        if (d.available_balance !== undefined) {
+          // You might want a separate state for balance, but here it seems totalSpent was being misused or balance was needed
+          // Let's just ensure we have the data
+        }
 
-        newStats.totalSpent = orders.reduce((sum: number, order: any) =>
-          sum + (Number.parseFloat(order.total_amount) || 0), 0);
-
-        newStats.monthlySpending = orders
-          .filter((o: any) => new Date(o.created_at).getMonth() === currentMonth)
-          .reduce((sum: number, o: any) => sum + (Number.parseFloat(o.total_amount) || 0), 0);
-
-        newStats.lastMonthSpending = orders
-          .filter((o: any) => new Date(o.created_at).getMonth() === lastMonth)
-          .reduce((sum: number, o: any) => sum + (Number.parseFloat(o.total_amount) || 0), 0);
-
-        // Count by product type
-        orders.forEach((o: any) => {
-          switch (o.product_type) {
-            case 'proxy': newStats.proxyCount++; break;
-            case 'vpn': newStats.vpnCount++; break;
-            case 'vps': newStats.vpsCount++; break;
-            case 'esim': newStats.esimCount++; break;
-            case 'rdp': newStats.rdpCount++; break;
-          }
-        });
+        // Map counts by type
+        newStats.proxyCount = d.counts_by_type?.proxy || 0;
+        newStats.vpnCount = d.counts_by_type?.vpn || 0;
+        newStats.vpsCount = d.counts_by_type?.vps || 0;
+        newStats.rdpCount = d.counts_by_type?.rdp || 0;
+        newStats.esimCount = (d.counts_by_type?.esim || 0) + (d.counts_by_type?.usa_esim || 0);
       }
 
-      if (balanceResult.status === 'fulfilled') {
-        newStats.totalSpent = balanceResult.value.data.total_spent || newStats.totalSpent;
-      }
 
       setStats(newStats);
     } catch (error) {

@@ -43,6 +43,15 @@ module Web
           end
         end
 
+        if processed_params[:deposit_id].present?
+          deposit = Deposit.find_by(id: processed_params[:deposit_id])
+          if deposit
+            processed_params[:deposit_id] = deposit.id
+          else
+            return render json: { errors: { deposit_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+          end
+        end
+
         ticket = current_actor.tickets.build(processed_params.except(:body))
 
         if ticket.save
@@ -78,7 +87,7 @@ module Web
       private
 
       def ticket_params
-        params.require(:ticket).permit(:subject, :priority, :order_id, :body)
+        params.require(:ticket).permit(:subject, :priority, :order_id, :deposit_id, :body)
       end
 
       def serialize_ticket(ticket)

@@ -4,6 +4,11 @@ class Wallet < ApplicationRecord
   belongs_to :owner, polymorphic: true
   belongs_to :user, optional: true # Deprecated
 
+  TYPES = %w[main earnings].freeze
+
+  validates :wallet_type, inclusion: { in: TYPES }
+  validates :wallet_type, uniqueness: { scope: [:owner_id, :owner_type] }
+
   has_many :wallet_transactions, dependent: :destroy
 
   def balance
