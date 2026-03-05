@@ -73,7 +73,7 @@ jobs:
       - name: Set up database
         run: |
           bin/rails db:create
-          bin/rails db:schema:load
+          bin/rails db:schema:load db:migrate
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/proxysock_api_test
