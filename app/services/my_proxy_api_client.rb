@@ -4,9 +4,9 @@ require 'net/http'
 require 'json'
 
 class MyProxyApiClient
-  BASE_URL = ENV.fetch('MY_PROXY_API_URL')
-  API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME')
-  API_SECRET = ENV.fetch('MY_PROXY_API_SECRET')
+  BASE_URL = ENV.fetch('MY_PROXY_API_URL', 'https://api.myproxyapi.com')
+  API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME', '')
+  API_SECRET = ENV.fetch('MY_PROXY_API_SECRET', '')
 
   def initialize
     @uri = URI(BASE_URL)
