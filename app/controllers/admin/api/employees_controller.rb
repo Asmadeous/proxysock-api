@@ -77,7 +77,9 @@ module Admin
       end
 
       def employee_params
-        params.permit(:first_name, :last_name, :email, :role, :active, :work_email, :profile_picture_url)
+        permitted = params.permit(:first_name, :last_name, :email, :active, :work_email, :profile_picture_url)
+        permitted[:role] = params[:role] if params.key?(:role)
+        permitted
       end
 
       def employee_json(e, full: false)
