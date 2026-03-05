@@ -1,36 +1,32 @@
-<p>Dear <%= @user.try(:username) || @user.try(:email) %>,</p>
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #000000;">eSIM Ready</h1>
 
-<p>Your eSIM for order <strong>#<%= @order.order_number %></strong> is now ready.</p>
+<p style="margin-bottom: 24px;">Dear <%= @user.try(:username) || @user.try(:email) %>,</p>
 
-<div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <h3 style="margin-top: 0;">eSIM Details</h3>
-  <p><strong>Package:</strong> <%= @esim.esim_order.package_code %></p>
-  
-  <% if @type == 'inventory' %>
-    <p><strong>ICCID:</strong> <%= @esim.iccid %></p>
-    <p><strong>Activation Code:</strong> <%= @esim.activation_code %></p>
-    <% if @esim.qr_code_url.present? %>
-      <div style="text-align: center; margin: 20px 0;">
-        <p>Scan this QR Code to install your eSIM:</p>
+<p style="margin-bottom: 32px;">Your eSIM for order <strong>#<%= @order.order_number %></strong> is now ready for installation.</p>
+
+<div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 32px; margin-bottom: 32px;">
+    <h3 style="margin-bottom: 20px; font-size: 18px;">Installation Details</h3>
+    <p style="margin-bottom: 12px;"><strong>Package:</strong> <%= @esim.esim_order.package_code %></p>
+    <p style="margin-bottom: 24px;"><strong>ICCID:</strong> <%= @esim.iccid %></p>
+    
+    <div style="text-align: center; margin: 32px 0; background-color: #FFFFFF; padding: 24px; border-radius: 12px; display: inline-block; width: 100%; border: 1px solid #E5E7EB;">
+        <p style="margin-bottom: 16px; font-weight: 600;">Scan QR Code to Install</p>
         <img src="<%= @esim.qr_code_url %>" alt="QR Code" width="200" style="max-width: 100%; height: auto;">
-      </div>
-    <% end %>
-  <% else %>
-    <p><strong>ICCID:</strong> <%= @esim.iccid %></p>
-    <div style="text-align: center; margin: 20px 0;">
-      <p>Please scan the QR code below to install your eSIM:</p>
-      <img src="<%= @esim.qr_code_url %>" alt="QR Code" width="200" style="max-width: 100%; height: auto;">
+        <% if @type == 'inventory' && @esim.activation_code.present? %>
+            <p style="margin-top: 16px; font-size: 14px; color: #6B7280;">Activation Code: <code style="color: #000000;"><%= @esim.activation_code %></code></p>
+        <% end %>
     </div>
-  <% end %>
 </div>
 
-<p><strong>Installation Guide:</strong></p>
-<ol>
-  <li>Go to <strong>Settings</strong> > <strong>Cellular</strong> (or Mobile Data) on your device.</li>
-  <li>Tap <strong>Add Cellular Plan</strong> (or Add eSIM).</li>
-  <li>Scan the QR code provided above.</li>
-</ol>
+<div style="background-color: #F3F4F6; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">Quick Setup Guide</h4>
+    <ol style="margin: 0; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
+        <li>Open <strong>Settings</strong> > <strong>Cellular</strong> on your device.</li>
+        <li>Select <strong>Add eSIM</strong> or <strong>Add Cellular Plan</strong>.</li>
+        <li>Scan the QR code provided above.</li>
+    </ol>
+</div>
 
-<p>You can also find these details in your dashboard: <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/orders" style="color: #3b82f6; text-decoration: none;">View Orders</a></p>
-
-<p>Best Regards,<br>The ProxySock Team</p>
+<div style="text-align: center; margin: 40px 0;">
+    <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/orders" class="btn">View Orders</a>
+</div>

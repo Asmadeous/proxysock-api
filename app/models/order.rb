@@ -2,6 +2,15 @@
 
 class Order < ApplicationRecord
   belongs_to :orderable, polymorphic: true, optional: true # ResellOrder or EcommerceOrder (optional for direct orders)
+
+  # Active Storage attachment for VPN OVPN config files
+  has_one_attached :ovpn_config
+
+  # Active Storage attachment for PDF invoices
+  has_one_attached :invoice_pdf
+
+  # Active Storage attachment for RDP connection files
+  has_one_attached :rdp_config
   # belongs_to :user, optional: true # Direct user orders - Replaced by orderable logic if applicable?
   # Wait, let me check if user_id exists in Schema.
   # Schema has NO user_id on orders table. So this is also broken.

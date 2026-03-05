@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy Production
 
 on:
   push:
@@ -7,13 +7,28 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  API_IMAGE: ${{ github.repository }}
+  CLIENT_IMAGE: ${{ github.repository_owner }}/proxysock-client
 
 jobs:
+  # Wait for CI to pass before deploying
+  ci-check:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'Test'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    needs: [ci-check]
+    environment: production  # Requires manual approval
 
     permissions:
       contents: read
@@ -29,38 +44,120 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ─── Build API Image ───────────────────────────────
+      - name: API image metadata
+        id: api-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE }}
           tags: |
             type=sha
             type=raw,value=latest
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push Docker image
+      - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
 
-      # Uncomment when ready to deploy with Kamal
-      # - name: Set up Ruby for Kamal
-      #   uses: ruby/setup-ruby@v1
-      #   with:
-      #     ruby-version: '3.3'
-      #     bundler-cache: true
-      #
-      # - name: Deploy with Kamal
-      #   run: |
-      #     gem install kamal
-      #     kamal deploy
-      #   env:
-      #     KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      # ─── Build Client Image ────────────────────────────
+      - name: Client image metadata
+        id: client-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.CLIENT_IMAGE }}
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Client image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          push: true
+          tags: ${{ steps.client-meta.outputs.tags }}
+          labels: ${{ steps.client-meta.outputs.labels }}
+          build-args: |
+            VITE_PAYSTACK_PUBLIC_KEY=${{ secrets.VITE_PAYSTACK_PUBLIC_KEY }}
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,scope=client,mode=max
+
+      # ─── Deploy to VM ──────────────────────────────────
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/proxysock-api
+
+            # Login to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Save current images for rollback
+            API_PREV=$(docker inspect --format='{{.Image}}' proxysock-web 2>/dev/null || echo "")
+            CLIENT_PREV=$(docker inspect --format='{{.Image}}' proxysock-frontend 2>/dev/null || echo "")
+
+            # Pull new images
+            docker pull ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.CLIENT_IMAGE }}:latest
+
+            # Run migrations
+            IMAGE_TAG=latest docker compose --profile prod run --rm \
+              web bin/rails db:prepare
+
+            # Restart all production services
+            IMAGE_TAG=latest docker compose --profile prod up -d --no-deps \
+              web sidekiq frontend
+
+            # Health check (API)
+            echo "Waiting for API health check..."
+            HEALTHY=false
+            for i in $(seq 1 30); do
+              if curl -sf --max-time 5 http://localhost/up > /dev/null 2>&1; then
+                echo "✅ API healthy!"
+                HEALTHY=true
+                break
+              fi
+              echo "Attempt $i/30..."
+              sleep 2
+            done
+
+            # Health check (Frontend)
+            if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Frontend healthy!"
+            else
+              echo "⚠️ Frontend health check failed"
+              HEALTHY=false
+            fi
+
+            if [ "$HEALTHY" = false ]; then
+              echo "❌ Rolling back..."
+              if [ -n "$API_PREV" ]; then
+                docker tag "$API_PREV" ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:latest 2>/dev/null || true
+                docker tag "$CLIENT_PREV" ${{ env.REGISTRY }}/${{ env.CLIENT_IMAGE }}:latest 2>/dev/null || true
+                IMAGE_TAG=latest docker compose --profile prod up -d --no-deps web sidekiq frontend
+                echo "Rolled back."
+              fi
+              docker compose --profile prod logs web frontend --tail=50
+              exit 1
+            fi
+
+            docker image prune -f > /dev/null 2>&1 || true
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "🚀 Production deployment completed!"
+          echo "API: ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:latest"
+          echo "Client: ${{ env.REGISTRY }}/${{ env.CLIENT_IMAGE }}:latest"
+          echo "Commit: ${{ github.sha }}"

@@ -25,7 +25,8 @@ import {
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
 import NotificationBell from "@/components/NotificationBell";
-import { fetchNotifications, markNotificationsAsRead, fetchTickets, fetchUserSupportChat } from "@/services/api";
+import { fetchTickets, fetchUserSupportChat } from "@/services/api";
+import { useNotificationStore } from "@/store/notificationStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -199,14 +200,20 @@ export const Sidebar = ({
   // Dynamic badge counts
   const [unreadTickets, setUnreadTickets] = useState(0);
   const [unreadChats, setUnreadChats] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const notifications = useNotificationStore(state => state.notifications);
+  const unreadNotifications = useNotificationStore(state => state.unreadCount);
+  const fetchStoreNotifications = useNotificationStore(state => state.fetchNotifications);
+  const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
+  const subscribeToRealtime = useNotificationStore(state => state.subscribeToRealtime);
+  const unsubscribeFromRealtime = useNotificationStore(state => state.unsubscribeFromRealtime);
+  const markAllAsRead = useNotificationStore(state => state.markAllAsRead);
 
   const loadBadgeCounts = useCallback(async () => {
     try {
-      const [ticketRes, chatRes, notifRes] = await Promise.allSettled([
+      const [ticketRes, chatRes] = await Promise.allSettled([
         fetchTickets(),
         fetchUserSupportChat(),
-        fetchNotifications(),
       ]);
 
       if (ticketRes.status === "fulfilled") {
@@ -225,25 +232,26 @@ export const Sidebar = ({
         setUnreadChats(unread);
       }
 
-      if (notifRes.status === "fulfilled") {
-        setUnreadNotifications(notifRes.value.data.unread_count || 0);
-      }
+      // Initial fetch for notifications through store
+      await Promise.all([
+        fetchStoreNotifications(),
+        fetchUnreadCount()
+      ]);
     } catch {
       // silent
     }
-  }, []);
+  }, [fetchStoreNotifications, fetchUnreadCount]);
 
   useEffect(() => {
     loadBadgeCounts();
-    const interval = setInterval(loadBadgeCounts, 30000);
-    return () => clearInterval(interval);
-  }, [loadBadgeCounts]);
+    subscribeToRealtime();
+    return () => unsubscribeFromRealtime();
+  }, [loadBadgeCounts, subscribeToRealtime, unsubscribeFromRealtime]);
 
   // Clear badge when navigating to the page
   useEffect(() => {
     if (location.pathname.includes("/dashboard/tickets")) setUnreadTickets(0);
     if (location.pathname.includes("/dashboard/support")) setUnreadChats(0);
-    if (location.pathname.includes("/dashboard/notifications")) setUnreadNotifications(0);
   }, [location.pathname]);
 
   // Map href -> badge count
@@ -325,7 +333,11 @@ export const Sidebar = ({
         )}
         {!isCollapsed && (
           <div className="flex-shrink-0">
-            <NotificationBell fetchNotifications={fetchNotifications} markAsRead={markNotificationsAsRead} />
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadNotifications}
+              markAsRead={markAllAsRead}
+            />
           </div>
         )}
       </div>

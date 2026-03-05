@@ -44,7 +44,7 @@ class VmHealthCheckJob < ApplicationJob
 
   def ping_vm(vm)
     # Quick ICMP ping (2 second timeout, 2 pings)
-    result = system("ping -c 2 -W 2 #{vm.ip_address} > /dev/null 2>&1")
+    result = system("ping", "-c", "2", "-W", "2", vm.ip_address.to_s, out: File::NULL, err: File::NULL)
 
     # If ping fails, try TCP connect to SSH/RDP port as fallback
     unless result

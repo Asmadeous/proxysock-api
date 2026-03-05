@@ -25,10 +25,16 @@ Rails.application.routes.draw do
       end
 
       resources :orders, only: %i[index create show] do
+        get :stats, on: :collection
         member do
           get :credentials
           post :renew
+          post :cancel
         end
+      end
+
+      resources :webhook_endpoints, only: %i[index create update destroy] do
+        post :test, on: :member
       end
 
       resources :products, only: %i[index show]
@@ -43,6 +49,8 @@ Rails.application.routes.draw do
 
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
+      post 'billing/transfer_earnings', to: 'billing#transfer_earnings'
+      post 'billing/request_payout', to: 'billing#request_payout'
 
       # VMs
       resources :vms, only: %i[index show create destroy] do
@@ -95,6 +103,7 @@ Rails.application.routes.draw do
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
       get 'billing/history', to: 'billing#history'
+      post 'billing/verify_and_sync', to: 'billing#verify_and_sync'
 
       resources :products, only: %i[index show]
       resource :cart, only: [:show] do
@@ -108,12 +117,18 @@ Rails.application.routes.draw do
       end
 
       resources :orders, only: %i[index create show] do
+        get :stats, on: :collection
         collection do
           post :checkout_cart
+          get :stats
         end
         member do
           get :credentials
           post :renew
+          post :reorder
+          get :download_ovpn
+          get :download_invoice
+          get :download_rdp_config
         end
       end
       resource :wallet, only: [:show] do
@@ -173,6 +188,7 @@ Rails.application.routes.draw do
       # Affiliate Program
       resource :affiliate, only: %i[show create] do
         post :request_payout
+        post :transfer_earnings
       end
       resources :affiliate_referrals, only: [:index]
       resources :affiliate_payouts,   only: [:index]
@@ -230,6 +246,7 @@ Rails.application.routes.draw do
       resources :resellers do
         member do
           post :onboard
+          patch :configure
         end
       end
       resources :users, only: %i[index show update destroy] do

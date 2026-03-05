@@ -47,6 +47,7 @@ export const getMe = () => api.get("/api/v1/auth/me");
 // Other Services
 export const fetchBalance = () => api.get("/web/api/billing/balance");
 export const fetchTransactions = () => api.get("/web/api/billing/transactions");
+export const verifyAndSyncDeposit = (depositId: string) => api.post("/web/api/billing/verify_and_sync", { deposit_id: depositId });
 export const fetchNotifications = () => api.get("/web/api/notifications");
 export const markNotificationsAsRead = () => api.post("/web/api/notifications/mark_as_read");
 
@@ -58,7 +59,7 @@ export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
 
 // VM Management Services
-export const fetchVms = () => api.get("/web/api/vms");
+export const fetchVms = (params?: Record<string, string>) => api.get("/web/api/vms", { params });
 export const fetchVmStatus = (id: string | number) => api.get(`/web/api/vms/${id}/status`);
 export const startVm = (id: string | number) => api.post(`/web/api/vms/${id}/start`);
 export const stopVm = (id: string | number) => api.post(`/web/api/vms/${id}/stop`);

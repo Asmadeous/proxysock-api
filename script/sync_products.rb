@@ -119,8 +119,19 @@ class ProductSyncer
 
       # Pricing
       pricing = ProductPricing.find_or_initialize_by(product: product, currency: "USD")
-      actual_price = prod[:product_type] == "esim" ? (prod[:price] / 10000.0) : prod[:price].to_f
-      pricing.assign_attributes(selling_price: actual_price, active: true)
+      actual_api_price = prod[:product_type] == "esim" ? (prod[:price] / 10000.0) : prod[:price].to_f
+      
+      # Margins: Reseller (+15%), User (+30%)
+      reseller_price = (actual_api_price * 1.15).round(2)
+      user_price     = (actual_api_price * 1.30).round(2)
+
+      pricing.assign_attributes(
+        api_price: actual_api_price,
+        reseller_selling_price: reseller_price,
+        user_selling_price: user_price,
+        selling_price: user_price, # Default fallback
+        active: true
+      )
       pricing.save!
 
       populate_metadata(product, prod)

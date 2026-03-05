@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class WebhooksController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   def paystack
     payload = request.body.read
     signature = request.headers['x-paystack-signature']

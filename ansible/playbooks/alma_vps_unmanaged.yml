@@ -1,9 +1,12 @@
-- name: Configure Alma Linux VPS Basic
-  hosts: linux
-  become: yes
+  pre_tasks:
+    - name: Ensure root_password is defined
+      fail:
+        msg: "root_password must be defined for security reasons."
+      when: root_password is not defined
+
   vars:
-    new_user_password: "{{ root_password | default('SecurePass123!') }}"
-    ansible_become_password: "temporary"
+    new_user_password: "{{ root_password }}"
+    ansible_become_password: "{{ root_password }}"
   tasks:
     - block:
         - name: Wait for SSH
@@ -22,6 +25,7 @@
             shell: /bin/bash
             create_home: yes
             state: present
+            no_log: true
           when: hostname is defined
     
         - name: Set hostname
@@ -60,6 +64,8 @@
               status: "configured"
               os_template: "{{ os_template }}"
               management_type: "{{ management_type }}"
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
 
       rescue:

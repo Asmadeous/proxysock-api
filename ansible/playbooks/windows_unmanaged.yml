@@ -1,8 +1,11 @@
-- name: Configure Windows Server VPS UNMANAGED
-  hosts: windows
-  gather_facts: no
+  pre_tasks:
+    - name: Ensure rdp_password is defined
+      fail:
+        msg: "rdp_password must be defined for security reasons."
+      when: rdp_password is not defined
+
   vars:
-    admin_password: "{{ rdp_password | default('SecurePass123!') }}"
+    admin_password: "{{ rdp_password }}"
     api_url: "{{ api_url | default('') }}"
     api_key: "{{ api_key | default('') }}"
     
@@ -30,6 +33,7 @@
                 password: "{{ admin_password }}"
                 password_never_expires: yes
                 state: present
+                no_log: true
 
             - name: Ensure Administrator is in Administrators group
               win_group_membership:
@@ -85,6 +89,8 @@
               status: "configured"
               os_template: "{{ os_template | default('windows-server') }}"
               management_type: "unmanaged"
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
           when: api_url != "" and api_key != "" and vm_id is defined
 
@@ -102,6 +108,8 @@
               status: "failed"
               os_template: "{{ os_template | default('windows-server') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }}: {{ ansible_failed_result.msg | default('No error') }}"
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
           ignore_errors: yes
           when: vm_id is defined

@@ -38,10 +38,10 @@ class ProxmoxBackupJob < ApplicationJob
       '--prune-backups', "keep-last=#{keep_last}",
       '--mailto', mailto,
       '--notes-template', "auto-backup-{{guestname}}-{{vmid}}"
-    ].join(' ')
+    ]
 
-    logger.info "[ProxmoxBackupJob] Executing: #{cmd}"
-    stdout, stderr, status = Open3.capture3(cmd)
+    logger.info "[ProxmoxBackupJob] Executing: #{cmd.join(' ')}"
+    stdout, stderr, status = Open3.capture3(*cmd)
 
     if status.success?
       logger.info "[ProxmoxBackupJob] Backup completed successfully"
@@ -85,7 +85,7 @@ class ProxmoxBackupJob < ApplicationJob
 
   def fetch_vm_ids(node)
     # Use pvesh to list all QEMU VMs on the node
-    output = `pvesh get /nodes/#{node}/qemu --output-format json 2>/dev/null`
+    output, _stderr, _status = Open3.capture3('pvesh', 'get', "/nodes/#{node}/qemu", '--output-format', 'json')
     return [] if output.blank?
 
     vms = JSON.parse(output)
@@ -94,7 +94,7 @@ class ProxmoxBackupJob < ApplicationJob
     logger.error "[ProxmoxBackupJob] Failed to list VMs: #{e.message}"
 
     # Fallback: parse qm list
-    output = `qm list 2>/dev/null`
+    output, _stderr, _status = Open3.capture3('qm', 'list')
     return [] if output.blank?
 
     output.lines.drop(1).map { |line| line.strip.split(/\s+/).first }.compact

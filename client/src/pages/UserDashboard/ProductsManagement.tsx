@@ -90,36 +90,42 @@ const ProductManagementPage = () => {
     try {
       setLoading(true);
 
-      const { data } = await api.get('/web/api/orders');
-      const orders = data.orders || [];
+      const { data } = await api.get('/web/api/orders/stats');
+      const ts = data.type_stats || {};
 
-      setStats(() => {
-        const newStats = {
-          vps: { total: 0, running: 0, stopped: 0, creating: 0, error: 0 },
-          rdp: { total: 0, running: 0, stopped: 0, creating: 0, error: 0 },
-          esim: { total: 0, active: 0, expired: 0, pending: 0 },
-          proxy: { total: 0, active: 0, expired: 0, pending: 0 },
-          vpn: { total: 0, active: 0, expired: 0, pending: 0 },
-        };
-
-        orders.forEach((o: any) => {
-          let cat = o.product_type;
-          if (cat === 'vm') cat = 'vps';
-
-          const target = newStats[cat as keyof ProductStats];
-          if (target) {
-            target.total += 1;
-            if (o.status === 'active' || o.status === 'completed' || o.status === 'delivered') {
-              (target as any).active !== undefined ? (target as any).active++ : (target as any).running++;
-            } else if (o.status === 'pending') {
-              (target as any).pending !== undefined ? (target as any).pending++ : (target as any).creating++;
-            } else if (o.status === 'expired' || o.status === 'suspended') {
-              (target as any).expired !== undefined ? (target as any).expired++ : (target as any).stopped++;
-            }
-          }
-        });
-
-        return newStats;
+      setStats({
+        vps: {
+          total: ts.vps?.total || 0,
+          running: ts.vps?.active || 0,
+          stopped: ts.vps?.expired || 0,
+          creating: ts.vps?.pending || 0,
+          error: ts.vps?.failed || 0,
+        },
+        rdp: {
+          total: ts.rdp?.total || 0,
+          running: ts.rdp?.active || 0,
+          stopped: ts.rdp?.expired || 0,
+          creating: ts.rdp?.pending || 0,
+          error: ts.rdp?.failed || 0,
+        },
+        esim: {
+          total: (ts.esim?.total || 0) + (ts.usa_esim?.total || 0),
+          active: (ts.esim?.active || 0) + (ts.usa_esim?.active || 0),
+          expired: (ts.esim?.expired || 0) + (ts.usa_esim?.expired || 0),
+          pending: (ts.esim?.pending || 0) + (ts.usa_esim?.pending || 0),
+        },
+        proxy: {
+          total: ts.proxy?.total || 0,
+          active: ts.proxy?.active || 0,
+          expired: ts.proxy?.expired || 0,
+          pending: ts.proxy?.pending || 0,
+        },
+        vpn: {
+          total: ts.vpn?.total || 0,
+          active: ts.vpn?.active || 0,
+          expired: ts.vpn?.expired || 0,
+          pending: ts.vpn?.pending || 0,
+        },
       });
     } catch (error) {
       console.error('Failed to fetch product stats:', error);

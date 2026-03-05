@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import {
   SHOPIFY_TRANSACTION_FEE_FIXED,
   SHOPIFY_TRANSACTION_FEE_PERCENT,
@@ -11,7 +12,7 @@ export const useCalculateOrderItems = ({
   cartItems: CartItem[];
   exchangeRate: number | null;
 }) => {
-  const convertToNGN = (price: number, currencyCode = "USD"): number => {
+  const convertToNGN = useCallback((price: number, currencyCode = "USD"): number => {
     const upperCode = currencyCode.toUpperCase();
     if (upperCode === "NGN") {
       return price;
@@ -23,9 +24,9 @@ export const useCalculateOrderItems = ({
     } else {
       return price;
     }
-  };
+  }, [exchangeRate]);
 
-  const calculateVPSItemTotal = (item: CartItem): number => {
+  const calculateVPSItemTotal = useCallback((item: CartItem): number => {
     if (!item.vpsPlan) return 0;
     const basePrice = item.effective_base_price ?? item.vpsPlan.price;
     const managementMultiplier = item.managementType === "managed" ? 1.5 : 1;
@@ -36,9 +37,9 @@ export const useCalculateOrderItems = ({
     const total =
       basePrice * (item.duration || 1) * managementMultiplier * (1 - discount);
     return total;
-  };
+  }, []);
 
-  const calculateRDPItemTotal = (item: CartItem): number => {
+  const calculateRDPItemTotal = useCallback((item: CartItem): number => {
     if (!item.rdpPlan) return 0;
     const basePrice = item.effective_base_price ?? item.rdpPlan.price;
     const managementMultiplier = item.managementType === "managed" ? 1.4 : 1.0;
@@ -49,9 +50,9 @@ export const useCalculateOrderItems = ({
     const total =
       basePrice * (item.duration || 1) * managementMultiplier * (1 - discount);
     return total;
-  };
+  }, []);
 
-  const calculateProxyItemTotal = (item: CartItem): number => {
+  const calculateProxyItemTotal = useCallback((item: CartItem): number => {
     if (!item.plan) return 0;
     const plan = item.plan;
     const period = item.period || 1;
@@ -80,9 +81,9 @@ export const useCalculateOrderItems = ({
       const planPrice = Number(plan.price) || 0;
       return planPrice * period;
     }
-  };
+  }, []);
 
-  const calculateItemTotalSync = (item: CartItem): number => {
+  const calculateItemTotalSync = useCallback((item: CartItem): number => {
     if (item.totalPrice !== undefined) return item.totalPrice;
     if (item.productType === "esim" && item.esimPackage) {
       return item.esimPackage.price * (item.quantity || 1);
@@ -95,33 +96,33 @@ export const useCalculateOrderItems = ({
     } else if (item.productType === "rdp" && item.rdpPlan) {
       return calculateRDPItemTotal(item);
     } else if (item.productType === "usa-esim" && item.usaEsimPlan) {
-      return (item.usaEsimPlan.price / 100) * (item.quantity || 1);
+      return item.usaEsimPlan.price * (item.quantity || 1);
     } else if (item.productType === "vpn" && item.vpnPlan) {
       return Number(item.vpnPlan.price) || 0;
     }
     return 0;
-  };
+  }, [calculateProxyItemTotal, calculateRDPItemTotal, calculateVPSItemTotal]);
 
-  const calculateOrderTotalSync = (): number => {
+  const calculateOrderTotalSync = useCallback(() => {
     return cartItems.reduce(
       (sum, item) => sum + calculateItemTotalSync(item),
       0,
     );
-  };
+  }, [cartItems, calculateItemTotalSync]);
 
-  const calculateShopifyTransactionFee = (subtotal: number): number => {
+  const calculateShopifyTransactionFee = useCallback((subtotal: number): number => {
     return (
       subtotal * SHOPIFY_TRANSACTION_FEE_PERCENT + SHOPIFY_TRANSACTION_FEE_FIXED
     );
-  };
+  }, []);
 
-  const calculateOrderTotalWithShopifyFees = (): number => {
+  const calculateOrderTotalWithShopifyFees = useCallback(() => {
     const subtotal = calculateOrderTotalSync();
     const transactionFee = calculateShopifyTransactionFee(subtotal);
     return subtotal + transactionFee;
-  };
+  }, [calculateOrderTotalSync, calculateShopifyTransactionFee]);
 
-  return {
+  return useMemo(() => ({
     convertToNGN,
     calculateVPSItemTotal,
     calculateRDPItemTotal,
@@ -130,5 +131,14 @@ export const useCalculateOrderItems = ({
     calculateOrderTotalSync,
     calculateShopifyTransactionFee,
     calculateOrderTotalWithShopifyFees,
-  };
+  }), [
+    convertToNGN,
+    calculateVPSItemTotal,
+    calculateRDPItemTotal,
+    calculateProxyItemTotal,
+    calculateItemTotalSync,
+    calculateOrderTotalSync,
+    calculateShopifyTransactionFee,
+    calculateOrderTotalWithShopifyFees,
+  ]);
 };

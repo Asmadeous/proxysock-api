@@ -7,10 +7,123 @@ module Web
 
       # GET /web/api/orders
       def index
-        orders = current_actor.orders.includes(:product, :product_pricing).order(created_at: :desc).page(params[:page]).per(20)
+        scope = current_actor.orders.includes(:product, :product_pricing)
+        
+        if params[:product_type].present?
+          types = params[:product_type].split(',')
+          scope = scope.joins(:product).where(products: { product_type: types })
+        end
+
+        if params[:category_slug].present?
+          slugs = params[:category_slug].split(',')
+          scope = scope.joins(product: :product_category).where(product_categories: { slug: slugs })
+        end
+
+        orders = scope.order(created_at: :desc).page(params[:page]).per(params[:per_page] || 20)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
           meta: pagination_meta(orders)
+        }
+      end
+
+      # GET /web/api/orders/stats
+      def stats
+        orders = current_actor.orders
+        
+        # Apply time range if provided
+        if params[:range].present? && params[:range] != 'all'
+          days = params[:range].to_i
+          days = 30 if days == 0 # fallback
+          orders = orders.where('created_at >= ?', days.days.ago)
+        end
+
+        # Normalize status names for frontend
+        active_statuses = ['active', 'processing', 'completed', 'delivered', 'allocated']
+        pending_statuses = ['pending', 'provisioning', 'awaiting_payment']
+        expired_statuses = ['expired', 'suspended', 'cancelled']
+        failed_statuses = ['failed', 'error', 'stopped']
+        
+        # Single query for counts by status
+        counts_by_status = orders.group(:status).count
+        
+        active_count = 0
+        pending_count = 0
+        expired_count = 0
+        failed_count = 0
+        
+        total_orders = 0
+        counts_by_status.each do |status, count|
+          total_orders += count
+          if active_statuses.include?(status)
+            active_count += count
+          elsif pending_statuses.include?(status)
+            pending_count += count
+          elsif expired_statuses.include?(status)
+            expired_count += count
+          elsif failed_statuses.include?(status)
+            failed_count += count
+          end
+        end
+        
+        # Single query for type statistics (counts and revenue)
+        type_counts = orders.joins(:product).group('products.product_type', :status).count
+        type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
+        
+        type_stats = {}
+        ['proxy', 'vpn', 'vps', 'esim', 'rdp', 'usa_esim'].each do |type|
+          type_stats[type] = {
+            total: 0,
+            active: 0,
+            pending: 0,
+            expired: 0,
+            failed: 0,
+            revenue: type_revenues[type].to_f
+          }
+        end
+
+        type_counts.each do |(type, status), count|
+          next unless type_stats.key?(type)
+          
+          type_stats[type][:total] += count
+          if active_statuses.include?(status)
+            type_stats[type][:active] += count
+          elsif pending_statuses.include?(status)
+            type_stats[type][:pending] += count
+          elsif expired_statuses.include?(status)
+            type_stats[type][:expired] += count
+          elsif failed_statuses.include?(status)
+            type_stats[type][:failed] += count
+          end
+        end
+        
+        current_month = Time.current.beginning_of_month
+        last_month = 1.month.ago.beginning_of_month
+        
+        total_spent = orders.sum(:total_amount).to_f
+        monthly_spending = orders.where('created_at >= ?', current_month).sum(:total_amount).to_f
+        last_month_spending = orders.where(created_at: last_month...current_month).sum(:total_amount).to_f
+        
+        recent_orders = orders.includes(:product).order(created_at: :desc).limit(10).map do |o|
+          {
+            id: o.id,
+            status: o.status,
+            total_amount: o.total_amount,
+            created_at: o.created_at,
+            product_type: o.product&.product_type,
+            product_name: o.product&.name
+          }
+        end
+        
+        render json: {
+          total_orders: total_orders,
+          active_services: active_count,
+          pending_orders: pending_count,
+          total_spent: total_spent,
+          monthly_spending: monthly_spending,
+          last_month_spending: last_month_spending,
+          available_balance: current_actor.wallet&.balance.to_f,
+          type_stats: type_stats,
+          recent_orders: recent_orders
         }
       end
 
@@ -61,7 +174,7 @@ module Web
           begin
             # Service handles debit and provisioning
             OrderProvisioningService.new(order, current_actor).process!
-            render json: serialize_order(order.reload), status: :created
+            render json: serialize_order(order.reload).merge(available_balance: current_actor.wallet&.balance.to_f), status: :created
           rescue StandardError => e
             order.fail! if order.may_fail?
             render json: { error: e.message }, status: :unprocessable_entity
@@ -137,7 +250,8 @@ module Web
           
           render json: {
             message: 'Checkout successful',
-            orders: created_orders.map { |o| serialize_order(o.reload) }
+            orders: created_orders.map { |o| serialize_order(o.reload) },
+            available_balance: current_actor.wallet&.balance.to_f
           }, status: :created
         else
           # Gateway
@@ -305,6 +419,109 @@ module Web
         end
       end
 
+      # GET /web/api/orders/:id/download_ovpn
+      def download_ovpn
+        order = current_actor.orders.find(params[:id])
+
+        unless order.product.product_type == 'vpn' && order.product.provider_type == 'myproxyapi'
+          return render json: { error: 'OVPN download not available for this order' }, status: :bad_request
+        end
+
+        # Serve from Active Storage if already cached
+        if order.ovpn_config.attached?
+          send_data order.ovpn_config.download,
+                    filename: order.ovpn_config.filename.to_s,
+                    type: order.ovpn_config.content_type,
+                    disposition: 'attachment'
+          return
+        end
+
+        # Fallback: fetch from API and store for future requests
+        api_res = order.metadata['my_proxy_api_response']
+        provider_order_id = api_res&.dig('order', 'order_id') || api_res&.dig('order_id') || api_res&.dig('data', 'order_id')
+
+        unless provider_order_id.present?
+          return render json: { error: 'Provider order ID not found' }, status: :not_found
+        end
+
+        begin
+          client = MyProxyApiClient.new
+          ovpn_content = client.download_ovpn(provider_order_id)
+
+          order.ovpn_config.attach(
+            io: StringIO.new(ovpn_content),
+            filename: "vpn-#{provider_order_id}.ovpn",
+            content_type: 'application/x-openvpn-profile'
+          )
+
+          send_data ovpn_content,
+                    filename: "vpn-#{provider_order_id}.ovpn",
+                    type: 'application/x-openvpn-profile',
+                    disposition: 'attachment'
+        rescue StandardError => e
+          render json: { error: "Failed to download OVPN: #{e.message}" }, status: :service_unavailable
+        end
+      end
+
+      # GET /web/api/orders/:id/download_invoice
+      def download_invoice
+        order = current_actor.orders.find(params[:id])
+
+        # Serve from Active Storage if already generated
+        if order.invoice_pdf.attached?
+          send_data order.invoice_pdf.download,
+                    filename: order.invoice_pdf.filename.to_s,
+                    type: 'application/pdf',
+                    disposition: 'attachment'
+          return
+        end
+
+        # Generate on-demand and store
+        begin
+          InvoicePdfService.new(order).generate_and_attach!
+          send_data order.invoice_pdf.download,
+                    filename: order.invoice_pdf.filename.to_s,
+                    type: 'application/pdf',
+                    disposition: 'attachment'
+        rescue StandardError => e
+          render json: { error: "Failed to generate invoice: #{e.message}" }, status: :service_unavailable
+        end
+      end
+
+      # GET /web/api/orders/:id/download_rdp_config
+      def download_rdp_config
+        order = current_actor.orders.find(params[:id])
+
+        unless %w[vps rdp vm].include?(order.product.product_type)
+          return render json: { error: 'RDP config not available for this order type' }, status: :bad_request
+        end
+
+        # Serve from Active Storage if cached
+        if order.rdp_config.attached?
+          send_data order.rdp_config.download,
+                    filename: order.rdp_config.filename.to_s,
+                    type: 'application/rdp',
+                    disposition: 'attachment'
+          return
+        end
+
+        # Generate on-demand from VM data
+        vm = order.vm
+        unless vm&.ip_address.present?
+          return render json: { error: 'VM is not yet provisioned or has no IP address' }, status: :not_found
+        end
+
+        begin
+          RdpConfigService.new(vm).generate_and_attach!(order)
+          send_data order.rdp_config.download,
+                    filename: order.rdp_config.filename.to_s,
+                    type: 'application/rdp',
+                    disposition: 'attachment'
+        rescue StandardError => e
+          render json: { error: "Failed to generate RDP config: #{e.message}" }, status: :service_unavailable
+        end
+      end
+
       private
 
       def serialize_order(order)
@@ -316,7 +533,7 @@ module Web
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
-          proxy_type: order.product.product_type == 'proxy' ? order.product.metadata&.dig('category_slug') : nil,
+          proxy_type: order.product.product_category&.slug,
           country: order.product.metadata&.dig('location_name') || order.product.metadata&.dig('location_code'),
           bandwidth_gb: order.product.metadata&.dig('data_gb') || 0,
           ips_included: order.product.metadata&.dig('ips_included') || 0,
@@ -335,11 +552,19 @@ module Web
           if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
             api_res = order.metadata['my_proxy_api_response']
             base[:proxy_details] = api_res
+            # Extract from nested view-order structure: { order: {}, ips: [...], config: { auth_user_pass: {} } }
+            auth = api_res.dig('config', 'auth_user_pass') || {}
+            ips = api_res['ips'] || []
+            ips_info = api_res['ips_info'] || []
             base[:credentials] = {
-              username: api_res['username'],
-              password: api_res['password'],
-              endpoints: [api_res['ip']].compact
+              username: auth['username'] || api_res['username'],
+              password: auth['password'] || api_res['password'],
+              endpoints: ips.presence || [api_res['ip']].compact
             }
+            base[:ips_info] = ips_info
+            # Extract expiry from nested order details
+            base[:expires_at] ||= api_res.dig('order', 'end_time')
+            base[:provider_order_id] = api_res.dig('order', 'order_id') || api_res.dig('data', 'order_id')
           else
             base[:proxy_details] = resource&.as_json || {}
             base[:credentials] = {
@@ -352,11 +577,16 @@ module Web
           if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
             api_res = order.metadata['my_proxy_api_response']
             base[:vpn_details] = api_res
+            auth = api_res.dig('config', 'auth_user_pass') || {}
+            ips = api_res['ips'] || []
             base[:credentials] = {
-              username: api_res['username'],
-              password: api_res['password'],
-              server: api_res['server'] || api_res['ip'] || api_res['host']
+              username: auth['username'] || api_res['username'],
+              password: auth['password'] || api_res['password'],
+              server: ips.first&.split(':')&.first || api_res['server'] || api_res['ip'] || api_res['host'],
+              endpoints: ips
             }
+            base[:expires_at] ||= api_res.dig('order', 'end_time')
+            base[:provider_order_id] = api_res.dig('order', 'order_id') || api_res.dig('data', 'order_id')
           else
             base[:vpn_details] = resource&.as_json || {}
             base[:credentials] = {
@@ -375,26 +605,41 @@ module Web
           }
         when 'esim'
           base[:esim_details] = resource&.as_json || {}
-          base[:credentials] = {
-            iccid: resource&.try(:iccid),
-            qr_code: resource&.try(:qr_code_data)
-          }
+          base[:credentials_list] = resource&.esims&.map do |esim|
+            {
+              id: esim.id,
+              iccid: esim.iccid,
+              qr_code: esim.qr_code_data,
+              activation_code: esim.activation_code,
+              pin1: esim.pin1,
+              puk1: esim.puk1,
+              status: esim.status
+            }
+          end
+          # Keep legacy field for backwards compatibility if needed
+          base[:credentials] = base[:credentials_list]&.first
         when 'usa_esim'
-          # resource is usa_esim_order. We need out 1 credential it has assigned from usa_esim_credentials?
-          # Often orders have multiple lines. But typically the first is best serialized, or all of them.
-          credential = resource&.usa_esim_credentials&.first
-          base[:esim_details] = credential&.as_json || {}
-          base[:credentials] = {
-            iccid: credential&.iccid,
-            qr_code: credential&.qr_code,
-            qr_activation_code: credential&.qr_activation_code,
-            pin1: credential&.send("PIN1"),
-            pin2: credential&.send("PIN2"),
-            puk1: credential&.send("PUK1"),
-            puk2: credential&.send("PUK2"),
-            zip_code: credential&.zip_code
-          }
+          base[:credentials_list] = resource&.usa_esim_credentials&.map do |credential|
+            {
+              id: credential.id,
+              iccid: credential.iccid,
+              qr_code: credential.qr_code,
+              qr_activation_code: credential.qr_activation_code,
+              pin1: credential.send("PIN1"),
+              pin2: credential.send("PIN2"),
+              puk1: credential.send("PUK1"),
+              puk2: credential.send("PUK2"),
+              zip_code: credential.zip_code,
+              status: credential.status
+            }
+          end
+          base[:credentials] = base[:credentials_list]&.first
         end
+
+        # Download availability flags
+        base[:has_invoice] = order.invoice_pdf.attached? || true  # can always generate on-demand
+        base[:has_ovpn_config] = order.ovpn_config.attached? || (order.product.product_type == 'vpn' && order.product.provider_type == 'myproxyapi')
+        base[:has_rdp_config] = %w[vps rdp vm].include?(order.product.product_type)
 
         base
       end

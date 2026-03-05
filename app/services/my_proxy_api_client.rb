@@ -4,9 +4,9 @@ require 'net/http'
 require 'json'
 
 class MyProxyApiClient
-  BASE_URL = ENV.fetch('MY_PROXY_API_URL', 'https://reseller.myproxyapi.com/api/v1')
-  API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME', 'placeholder_username')
-  API_SECRET = ENV.fetch('MY_PROXY_API_SECRET', 'placeholder_secret')
+  BASE_URL = ENV.fetch('MY_PROXY_API_URL')
+  API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME')
+  API_SECRET = ENV.fetch('MY_PROXY_API_SECRET')
 
   def initialize
     @uri = URI(BASE_URL)
@@ -76,7 +76,8 @@ class MyProxyApiClient
     payload = {
       user_id: user_id.to_i,
       product: product_api_id.to_i,
-      period: period.to_s
+      period: period.to_s,
+      debug: "api"
     }
 
     payload[:protocol] = protocol.to_s if protocol.present?
@@ -88,6 +89,34 @@ class MyProxyApiClient
     
     # Provider returns order and credential details
     response_data
+  end
+
+  # Fetch full details for an order
+  # @param order_id [String] Provider's order ID (e.g. A1MYTKJQIRTIPZNF)
+  # @return [Hash] Detailed order information including IPs and credentials
+  def view_order(order_id)
+    endpoint = "#{BASE_URL}/orders/view/#{order_id}"
+    request(:get, endpoint)
+  end
+
+  # Download OVPN configuration for a VPN order
+  # @param order_id [String] Provider's order ID
+  # @return [String] Binary content of the OVPN file
+  def download_ovpn(order_id)
+    endpoint = "#{BASE_URL}/orders/vpn/download/#{order_id}?download=1"
+    
+    uri = URI(endpoint)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    token = authenticate
+    req = Net::HTTP::Get.new(uri)
+    req['Authorization'] = "Bearer #{token}"
+
+    response = http.request(req)
+    raise "MyProxyApi Download Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+    response.body
   end
 
   def update_credentials(order_id, username, password)

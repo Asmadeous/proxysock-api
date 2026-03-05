@@ -5,9 +5,9 @@ require 'json'
 require 'base64'
 
 class XProxyService
-  BASE_URL = ENV.fetch('XPROXY_HOST', 'http://192.168.1.100')
-  USERNAME = ENV.fetch('XPROXY_USERNAME', 'admin')
-  PASSWORD = ENV.fetch('XPROXY_PASSWORD', 'admin')
+  BASE_URL = ENV.fetch('XPROXY_HOST')
+  USERNAME = ENV.fetch('XPROXY_USERNAME')
+  PASSWORD = ENV.fetch('XPROXY_PASSWORD')
 
   def initialize(logger = Rails.logger)
     @logger = logger

@@ -1,12 +1,14 @@
-- name: Configure Alma Linux VPS with Management
-  hosts: linux
-  become: yes
-  gather_facts: no
+  pre_tasks:
+    - name: Ensure root_password is defined
+      fail:
+        msg: "root_password must be defined for security reasons."
+      when: root_password is not defined
+
   vars:
-    new_root_password: "{{ root_password | default('SecurePass123!') }}"
+    new_root_password: "{{ root_password }}"
     api_url: "{{ api_url | default('http://localhost:5000') }}"
     api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "temporary"
+    ansible_become_password: "{{ root_password }}"
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
     proxy_username: "{{ proxy_config.proxy_username | default('') }}"
@@ -145,6 +147,7 @@
         shell: /bin/bash
         create_home: yes
         state: present
+        no_log: true
       when: hostname is defined
 
     - name: Set hostname
@@ -402,7 +405,9 @@
           monitoring_enabled: true
           unattended_upgrades_enabled: true
         status_code: [200, 201]
+        validate_certs: yes
         timeout: 30
+        no_log: true
       when: 
         - api_url is defined
         - api_key is defined 

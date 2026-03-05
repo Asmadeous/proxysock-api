@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_03_230718) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -589,6 +589,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
 
   create_table "product_pricings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active"
+    t.decimal "api_price", precision: 15, scale: 4
     t.decimal "cost_price"
     t.datetime "created_at", null: false
     t.string "currency"
@@ -596,8 +597,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.integer "duration_value"
     t.decimal "margin_percentage"
     t.uuid "product_id"
+    t.decimal "reseller_selling_price", precision: 15, scale: 4
     t.decimal "selling_price"
     t.datetime "updated_at", null: false
+    t.decimal "user_selling_price", precision: 15, scale: 4
   end
 
   create_table "products", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -614,7 +617,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "provider_type", default: "myproxyapi"
     t.string "slug"
     t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_products_on_active"
+    t.index ["name"], name: "index_products_on_name"
     t.index ["product_type"], name: "index_products_on_product_type"
+    t.index ["provider"], name: "index_products_on_provider"
     t.index ["provider_type"], name: "index_products_on_provider_type"
     t.index ["slug"], name: "index_products_on_slug"
   end
@@ -670,6 +676,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "company_name"
     t.datetime "created_at", null: false
     t.string "current_token_jti"
+    t.string "customer_email"
+    t.string "dedicated_api_key"
     t.decimal "discount_percentage"
     t.string "email"
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
@@ -678,6 +686,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "referred_by_code"
     t.string "reseller_type", default: "api_only"
     t.string "status"
+    t.datetime "subscription_expires_at"
+    t.decimal "subscription_fee"
     t.datetime "token_issued_at"
     t.integer "token_request_count", default: 0
     t.datetime "updated_at", null: false
@@ -701,493 +711,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "residential_rotating_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.string "hostname"
-    t.string "main_password"
-    t.string "main_username"
-    t.jsonb "metadata"
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.integer "port"
-    t.uuid "residential_rotating_proxy_order_id"
-    t.string "status"
-    t.decimal "traffic_gb_total"
-    t.decimal "traffic_gb_used"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "residential_rotating_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "myproxyapi_order_id"
-    t.string "myproxyapi_username"
-    t.uuid "order_id"
-    t.string "status"
-    t.datetime "traffic_expires_at"
-    t.decimal "traffic_gb_total"
-    t.decimal "traffic_gb_used"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "static_datacenter_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.string "ip_address"
-    t.jsonb "metadata"
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "password"
-    t.integer "port"
-    t.string "protocol"
-    t.uuid "static_datacenter_proxy_order_id"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.string "username"
-    t.jsonb "whitelisted_ips"
-  end
-
-  create_table "static_datacenter_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "protocol"
-    t.integer "quantity"
-    t.string "status"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "static_isp_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.string "ip_address"
-    t.string "isp_type"
-    t.jsonb "metadata"
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "password"
-    t.integer "port"
-    t.string "protocol"
-    t.uuid "static_isp_proxy_order_id"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.string "username"
-    t.jsonb "whitelisted_ips"
-  end
-
-  create_table "static_isp_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "isp_type"
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "protocol"
-    t.integer "quantity"
-    t.string "status"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "static_residential_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "ip_address"
-    t.jsonb "metadata"
-    t.string "myproxyapi_order_id"
-    t.string "password"
-    t.integer "port"
-    t.string "protocol"
-    t.uuid "static_residential_proxy_order_id"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.string "username"
-    t.jsonb "whitelisted_ips"
-  end
-
-  create_table "static_residential_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "protocol"
-    t.integer "quantity"
-    t.string "status"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "stores", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.boolean "active"
-    t.datetime "created_at", null: false
-    t.string "domain"
-    t.string "name"
-    t.jsonb "settings"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "support_chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.text "body"
-    t.datetime "created_at", null: false
-    t.datetime "read_at"
-    t.uuid "sender_id"
-    t.string "sender_type", null: false
-    t.uuid "support_chat_id"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "support_chats", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "assigned_to_id"
-    t.uuid "chatable_id"
-    t.string "chatable_type", null: false
-    t.datetime "created_at", null: false
-    t.string "session_token", null: false
-    t.string "status", default: "open"
-    t.string "subject"
-    t.datetime "updated_at", null: false
-    t.index ["session_token"], name: "index_support_chats_on_session_token"
-  end
-
-  create_table "ticket_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.jsonb "attachments", default: []
-    t.text "body", null: false
-    t.datetime "created_at", null: false
-    t.boolean "internal_note", default: false
-    t.uuid "sender_id"
-    t.string "sender_type", null: false
-    t.uuid "ticket_id"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "tickets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "assigned_to_id"
-    t.datetime "created_at", null: false
-    t.uuid "order_id"
-    t.string "priority", default: "normal"
-    t.string "status", default: "open", null: false
-    t.string "subject", null: false
-    t.datetime "updated_at", null: false
-    t.uuid "user_id"
-    t.string "user_type", null: false
-    t.index ["status"], name: "index_tickets_on_status"
-  end
-
-  create_table "transactions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.decimal "amount"
-    t.datetime "created_at", null: false
-    t.string "currency"
-    t.string "description"
-    t.string "gateway_reference"
-    t.string "gateway_transaction_id"
-    t.jsonb "metadata"
-    t.string "payment_gateway"
-    t.uuid "reference_id"
-    t.string "reference_type", null: false
-    t.string "status"
-    t.uuid "transactable_id"
-    t.string "transactable_type", null: false
-    t.string "transaction_type"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "usa_esim_credentials", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.bigint "PIN1", default: 1111, null: false
-    t.bigint "PIN2", default: 2222, null: false
-    t.bigint "PUK1", null: false
-    t.bigint "PUK2", null: false
-    t.timestamptz "assigned_at"
-    t.timestamptz "created_at", default: -> { "now()" }
-    t.text "iccid", null: false
-    t.uuid "order_id"
-    t.text "provider", default: "lyca", null: false
-    t.text "qr_activation_code"
-    t.text "qr_code"
-    t.text "status", default: "available"
-    t.timestamptz "updated_at", default: -> { "now()" }
-    t.uuid "user_id"
-    t.text "zip_code"
-    t.index ["provider"], name: "usa_esim_credentials_provider_idx"
-    t.index ["status"], name: "usa_esim_credentials_status_idx"
-    t.check_constraint "provider = ANY (ARRAY['colt'::text, 'lyca'::text])", name: "usa_esim_credentials_provider_check"
-    t.check_constraint "status = ANY (ARRAY['available'::text, 'assigned'::text])", name: "usa_esim_credentials_status_check"
-    t.unique_constraint ["iccid"], name: "usa_esim_credentials_iccid_key"
-  end
-
-  create_table "usa_esim_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.uuid "order_id"
-    t.string "provider"
-    t.integer "quantity"
-    t.string "status"
-    t.decimal "total_amount"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "user_impersonation_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.uuid "employee_id"
-    t.datetime "ended_at"
-    t.string "ip_address"
-    t.string "reason"
-    t.datetime "started_at"
-    t.datetime "updated_at", null: false
-    t.uuid "user_id"
-  end
-
-  create_table "user_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "browser"
-    t.string "city"
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "device_type"
-    t.datetime "ended_at"
-    t.string "ip_address"
-    t.datetime "last_activity_at"
-    t.string "os"
-    t.string "referrer"
-    t.datetime "started_at"
-    t.datetime "updated_at", null: false
-    t.string "user_agent"
-    t.uuid "user_id"
-    t.string "utm_campaign"
-    t.string "utm_content"
-    t.string "utm_medium"
-    t.string "utm_source"
-    t.string "utm_term"
-  end
-
-  create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "city"
-    t.string "country"
-    t.datetime "created_at", null: false
-    t.string "email"
-    t.string "email_confirmation_token"
-    t.datetime "email_verified_at"
-    t.string "first_name"
-    t.string "ip_address"
-    t.datetime "last_login_at"
-    t.string "last_name"
-    t.datetime "last_seen_at"
-    t.jsonb "metadata"
-    t.string "password_digest"
-    t.datetime "password_reset_sent_at"
-    t.string "password_reset_token"
-    t.string "phone"
-    t.string "profile_picture_url"
-    t.string "provider"
-    t.string "referred_by_code"
-    t.string "status"
-    t.string "uid"
-    t.datetime "updated_at", null: false
-    t.string "username"
-    t.index ["email"], name: "index_users_on_email"
-    t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
-    t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
-    t.index ["username"], name: "index_users_on_username", unique: true
-  end
-
-  create_table "vm_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.integer "cpu_cores"
-    t.datetime "created_at", null: false
-    t.integer "disk_gb"
-    t.uuid "order_id"
-    t.string "os_type"
-    t.integer "ram_gb"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.string "vm_type"
-  end
-
-  create_table "vms", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.integer "ansible_playbook_run_id"
-    t.jsonb "api_response", default: {}
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.string "ip_address"
-    t.jsonb "metadata"
-    t.string "proxmox_node"
-    t.string "proxmox_vm_id"
-    t.string "rdp_password_encrypted"
-    t.integer "rdp_port"
-    t.string "rdp_username"
-    t.string "root_password"
-    t.string "ssh_password"
-    t.string "ssh_password_encrypted"
-    t.integer "ssh_port"
-    t.string "ssh_username"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.uuid "vm_order_id"
-    t.string "vm_type"
-  end
-
-  create_table "vpn_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.uuid "order_id"
-    t.string "password", null: false
-    t.string "protocol", default: "wireguard"
-    t.string "server", null: false
-    t.string "status", default: "pending"
-    t.datetime "updated_at", null: false
-    t.string "username", null: false
-    t.index ["username"], name: "index_vpn_accounts_on_username", unique: true
-  end
-
-  create_table "vpn_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.string "myproxyapi_order_id"
-    t.uuid "order_id"
-    t.string "status"
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "vpns", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "country_code"
-    t.datetime "created_at", null: false
-    t.jsonb "metadata"
-    t.string "myproxyapi_order_id"
-    t.text "ovpn_config_content"
-    t.string "ovpn_config_url"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.uuid "vpn_order_id"
-    t.string "vpn_password"
-    t.string "vpn_username"
-  end
-
-  create_table "wallet_transactions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.decimal "amount"
-    t.decimal "balance_after"
-    t.decimal "balance_before"
-    t.datetime "created_at", null: false
-    t.string "description"
-    t.string "entry_hash"
-    t.datetime "locked_at"
-    t.jsonb "metadata"
-    t.string "parent_hash"
-    t.uuid "transaction_id"
-    t.string "transaction_type"
-    t.datetime "updated_at", null: false
-    t.uuid "wallet_id"
-    t.index ["entry_hash"], name: "index_wallet_transactions_on_entry_hash", unique: true
-    t.index ["parent_hash"], name: "index_wallet_transactions_on_parent_hash"
-  end
-
-  create_table "wallets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.uuid "owner_id"
-    t.string "owner_type"
-    t.string "status", default: "active"
-    t.datetime "updated_at", null: false
-    t.uuid "user_id"
-  end
-
-  create_table "webhook_endpoints", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.boolean "active", default: true
-    t.datetime "created_at", null: false
-    t.jsonb "events", default: []
-    t.uuid "reseller_id"
-    t.string "secret", null: false
-    t.datetime "updated_at", null: false
-    t.string "url", null: false
-  end
-
-  create_table "webhook_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.integer "attempts"
-    t.datetime "created_at", null: false
-    t.string "event_type"
-    t.datetime "last_attempt_at"
-    t.jsonb "payload"
-    t.uuid "reseller_id"
-    t.text "response_body"
-    t.integer "response_code"
-    t.string "signature"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.string "webhook_url"
-  end
-
-  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "admin_action_logs", "employees"
-  add_foreign_key "affiliate_payouts", "affiliates"
-  add_foreign_key "affiliate_referrals", "affiliates"
-  add_foreign_key "affiliate_referrals", "orders"
-  add_foreign_key "ansible_runs", "vms"
-  add_foreign_key "api_tokens", "resellers"
-  add_foreign_key "billing_histories", "resellers", column: "billable_id"
-  add_foreign_key "cart_items", "carts"
-  add_foreign_key "cart_items", "product_pricings"
-  add_foreign_key "cart_items", "products"
-  add_foreign_key "conversions", "carts"
-  add_foreign_key "conversions", "ecommerce_orders"
-  add_foreign_key "conversions", "products"
-  add_foreign_key "conversions", "user_sessions"
-  add_foreign_key "conversions", "users"
-  add_foreign_key "deposits", "payment_methods"
-  add_foreign_key "deposits", "transactions"
-  add_foreign_key "deposits", "users"
-  add_foreign_key "ecommerce_orders", "orders"
-  add_foreign_key "ecommerce_orders", "users"
-  add_foreign_key "employees", "departments"
-  add_foreign_key "esim_inventories", "products"
-  add_foreign_key "esim_orders", "orders"
-  add_foreign_key "esims", "esim_orders"
-  add_foreign_key "guest_chat_messages", "guest_chats"
-  add_foreign_key "guest_chats", "employees", column: "assigned_to_id"
-  add_foreign_key "mobile_proxies", "mobile_proxy_orders"
-  add_foreign_key "mobile_proxies", "orders"
-  add_foreign_key "mobile_proxy_orders", "orders"
-  add_foreign_key "order_items", "ecommerce_orders"
-  add_foreign_key "order_items", "product_pricings"
-  add_foreign_key "order_items", "products"
-  add_foreign_key "orders", "checkout_sessions"
-  add_foreign_key "orders", "product_pricings"
-  add_foreign_key "orders", "products"
-  add_foreign_key "payment_gateway_transactions", "transactions"
-  add_foreign_key "premium_isp_proxies", "premium_isp_proxy_orders"
-  add_foreign_key "premium_isp_proxy_orders", "orders"
-  add_foreign_key "product_analytics", "products"
-  add_foreign_key "product_pricings", "products"
-  add_foreign_key "products", "product_categories"
-  add_foreign_key "proxmox_operations", "vms"
-  add_foreign_key "reseller_orders", "orders"
-  add_foreign_key "reseller_orders", "resellers"
-  add_foreign_key "residential_proxy_accounts", "residential_rotating_proxies"
-  add_foreign_key "residential_rotating_proxies", "orders"
-  add_foreign_key "residential_rotating_proxies", "residential_rotating_proxy_orders"
-  add_foreign_key "residential_rotating_proxy_orders", "orders"
-  add_foreign_key "static_datacenter_proxies", "orders"
-  add_foreign_key "static_datacenter_proxies", "static_datacenter_proxy_orders"
-  add_foreign_key "static_datacenter_proxy_orders", "orders"
-  add_foreign_key "static_isp_proxies", "orders"
-  add_foreign_key "static_isp_proxies", "static_isp_proxy_orders"
-  add_foreign_key "static_isp_proxy_orders", "orders"
-  add_foreign_key "static_residential_proxies", "static_residential_proxy_orders"
-  add_foreign_key "static_residential_proxy_orders", "orders"
-  add_foreign_key "support_chat_messages", "support_chats"
-  add_foreign_key "support_chats", "employees", column: "assigned_to_id"
-  add_foreign_key "ticket_messages", "tickets"
-  add_foreign_key "tickets", "employees", column: "assigned_to_id"
-  add_foreign_key "tickets", "orders"
-  add_foreign_key "usa_esim_credentials", "usa_esim_orders", column: "order_id", name: "usa_esim_credentials_order_id_fkey"
-  add_foreign_key "usa_esim_credentials", "users", name: "usa_esim_credentials_user_id_fkey"
-  add_foreign_key "usa_esim_orders", "orders"
-  add_foreign_key "user_impersonation_logs", "employees"
-  add_foreign_key "user_impersonation_logs", "users"
-  add_foreign_key "user_sessions", "users"
-  add_foreign_key "vm_orders", "orders"
-  add_foreign_key "vms", "vm_orders"
-  add_foreign_key "vpn_accounts", "orders"
-  add_foreign_key "vpn_orders", "orders"
-  add_foreign_key "vpns", "vpn_orders"
-  add_foreign_key "wallet_transactions", "transactions"
-  add_foreign_key "wallet_transactions", "wallets"
-  add_foreign_key "wallets", "users"
-  add_foreign_key "webhook_endpoints", "resellers"
-  add_foreign_key "webhook_events", "resellers"
 end

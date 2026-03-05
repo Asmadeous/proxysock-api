@@ -1,17 +1,18 @@
----
-- name: Configure Ubuntu Desktop RDP Unmanaged
-  hosts: linux
-  become: yes
-  gather_facts: no
+  pre_tasks:
+    - name: Ensure rdp_password is defined
+      fail:
+        msg: "rdp_password must be defined for security reasons."
+      when: rdp_password is not defined
+
   vars:
     # Administrator credentials
     admin_username: "administrator"
-    admin_password: "{{ rdp_password | default('SecurePass123!') }}"
+    admin_password: "{{ rdp_password }}"
     
     # API configuration
     api_url: "{{ api_url | default('http://localhost:4000') }}"
     api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "temporary"
+    ansible_become_password: "{{ rdp_password }}"
     ansible_python_interpreter: /usr/bin/python3
     
   tasks:
@@ -47,6 +48,7 @@
             shell: /bin/bash
             create_home: yes
             state: present
+            no_log: true
 
         - name: Configure xrdp service
           lineinfile:
@@ -140,7 +142,9 @@
               rdp_configured: true
               configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
             status_code: [200, 201]
+            validate_certs: yes
             timeout: 30
+            no_log: true
           when:
             - api_url is defined
             - api_key is defined
@@ -163,6 +167,8 @@
               management_type: "{{ management_type | default('unmanaged') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
               failed_at: "{{ ansible_date_time.iso8601 }}"
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
           ignore_errors: yes
 

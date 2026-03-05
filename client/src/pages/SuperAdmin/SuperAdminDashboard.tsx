@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HomeIcon,
@@ -17,23 +17,24 @@ import {
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
 import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
+import { Loader2 } from "lucide-react";
 
-// Tab pages
-import OverviewTab from "./tabs/OverviewTab";
-import UsersTab from "./tabs/UsersTab";
-import EmployeesTab from "./tabs/EmployeesTab";
-import ResellersTab from "./tabs/ResellersTab";
-import AffiliatesTab from "./tabs/AffiliatesTab";
-import OrdersTab from "./tabs/OrdersTab";
-import ProductsTab from "./tabs/ProductsTab";
-import TransactionsTab from "./tabs/TransactionsTab";
-import BlogTab from "./tabs/BlogTab";
-import TicketsTab from "./tabs/TicketsTab";
-import SystemLogsTab from "./tabs/SystemLogsTab";
-import AnalyticsTab from "./tabs/AnalyticsTab";
-import GuestChatsTab from "./tabs/GuestChatsTab";
-import SupportChatsTab from "./tabs/SupportChatsTab";
-import MonitoringTab from "./tabs/MonitoringTab";
+// Tab pages (Lazy loaded)
+const OverviewTab = lazy(() => import("./tabs/OverviewTab"));
+const UsersTab = lazy(() => import("./tabs/UsersTab"));
+const EmployeesTab = lazy(() => import("./tabs/EmployeesTab"));
+const ResellersTab = lazy(() => import("./tabs/ResellersTab"));
+const AffiliatesTab = lazy(() => import("./tabs/AffiliatesTab"));
+const OrdersTab = lazy(() => import("./tabs/OrdersTab"));
+const ProductsTab = lazy(() => import("./tabs/ProductsTab"));
+const TransactionsTab = lazy(() => import("./tabs/TransactionsTab"));
+const BlogTab = lazy(() => import("./tabs/BlogTab"));
+const TicketsTab = lazy(() => import("./tabs/TicketsTab"));
+const SystemLogsTab = lazy(() => import("./tabs/SystemLogsTab"));
+const AnalyticsTab = lazy(() => import("./tabs/AnalyticsTab"));
+const GuestChatsTab = lazy(() => import("./tabs/GuestChatsTab"));
+const SupportChatsTab = lazy(() => import("./tabs/SupportChatsTab"));
+const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -53,7 +54,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
 
-const TAB_COMPONENTS: Record<string, React.FC> = {
+const TAB_COMPONENTS: Record<string, any> = {
   overview: OverviewTab,
   analytics: AnalyticsTab,
   users: UsersTab,
@@ -70,6 +71,12 @@ const TAB_COMPONENTS: Record<string, React.FC> = {
   monitoring: MonitoringTab,
   logs: SystemLogsTab,
 };
+
+const TabLoader = () => (
+  <div className="flex h-[60vh] w-full items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+  </div>
+);
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -123,7 +130,9 @@ export default function SuperAdminDashboard() {
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
         <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
-          <ActiveComponent />
+          <Suspense fallback={<TabLoader />}>
+            <ActiveComponent />
+          </Suspense>
         </div>
       </main>
     </div>

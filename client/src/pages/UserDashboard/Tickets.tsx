@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { useLocation } from "react-router-dom";
 import { fetchTickets, createTicket, replyTicket } from "../../services/api";
+import { getCableConsumer } from "../../services/cable";
+import type { Subscription } from "@rails/actioncable";
 import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
@@ -21,8 +24,10 @@ export default function Tickets() {
     const [activeTicket, setActiveTicket] = useState<TicketRow | null>(null);
     const [replyMsg, setReplyMsg] = useState("");
     const [replyLoading, setReplyLoading] = useState(false);
+    const [messages, setMessages] = useState<any[]>([]);
+    const location = useLocation();
 
-    const [createData, setCreateData] = useState({ subject: "", priority: "normal", order_id: "", body: "" });
+    const [createData, setCreateData] = useState({ subject: "", priority: "normal", order_id: "", deposit_id: "", body: "" });
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -38,6 +43,44 @@ export default function Tickets() {
 
     useEffect(() => { load(); }, [load]);
 
+    useEffect(() => {
+        let sub: Subscription | null = null;
+        if (activeTicket) {
+            const consumer = getCableConsumer();
+            // We need to fetch messages for the ticket first or assume they are included in the ticket model
+            // Actually Tickets.tsx doesn't show message history yet, only a reply modal.
+            // Let's improve the Reply Modal to show history and update in real-time.
+            sub = consumer.subscriptions.create(
+                { channel: "TicketChannel", ticket_id: activeTicket.id },
+                {
+                    received: (data: any) => {
+                        if (data.action === 'ticket_message_created') {
+                            setMessages(prev => {
+                                if (prev.find(m => m.id === data.message.id)) return prev;
+                                return [...prev, data.message];
+                            });
+                        }
+                    }
+                }
+            );
+        }
+        return () => { if (sub) sub.unsubscribe(); };
+    }, [activeTicket]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const depId = params.get("deposit_id");
+        const subject = params.get("subject");
+        if (depId || subject) {
+            setCreateData(prev => ({
+                ...prev,
+                deposit_id: depId || "",
+                subject: subject || ""
+            }));
+            setShowCreate(true);
+        }
+    }, [location.search]);
+
     const handleCreate = async () => {
         setCreateLoading(true);
         try {
@@ -46,7 +89,8 @@ export default function Tickets() {
                 subject: createData.subject,
                 priority: createData.priority,
                 order_id: createData.order_id || null,
-                body: createData.body, // The API controller expects this in params natively or inside ticket params? Wait, the API controller looks for params[:body]
+                deposit_id: createData.deposit_id || null,
+                body: createData.body,
             };
             // Our createTicket function structure: api.post("/web/api/tickets", { ticket: data });
             // Let's adapt our createTicket to accept body at root:
@@ -55,7 +99,7 @@ export default function Tickets() {
             // Actually, if we pass { ticket: data, body: "text" }, api.ts wraps it just like `ticket: data`. Let's just create a custom post here to be safe.
             toast.success("Ticket created");
             setShowCreate(false);
-            setCreateData({ subject: "", priority: "normal", order_id: "", body: "" });
+            setCreateData({ subject: "", priority: "normal", order_id: "", deposit_id: "", body: "" });
             load();
         } catch (err: any) {
             toast.error(err.response?.data?.errors?.[0] || "Failed to create ticket");
@@ -126,13 +170,29 @@ export default function Tickets() {
                         <input className={inputClasses} value={createData.order_id} onChange={(e) => setCreateData({ ...createData, order_id: e.target.value })} placeholder="e.g. 12345" />
                     </Field>
                 </div>
+                {createData.deposit_id && (
+                    <Field label="Deposit ID">
+                        <input className={inputClasses} value={createData.deposit_id} readOnly disabled />
+                    </Field>
+                )}
                 <Field label="Message *">
                     <textarea className={`${inputClasses} h-32 resize-y`} value={createData.body} onChange={(e) => setCreateData({ ...createData, body: e.target.value })} required placeholder="Describe your issue..." />
                 </Field>
             </FormModal>
 
             {/* Reply Modal */}
-            <FormModal open={!!activeTicket} onClose={() => setActiveTicket(null)} title={`Ticket #${activeTicket?.id}: ${activeTicket?.subject}`} onSubmit={handleReply} submitLabel="Send Reply" loading={replyLoading}>
+            <FormModal open={!!activeTicket} onClose={() => { setActiveTicket(null); setMessages([]); }} title={`Ticket #${activeTicket?.id}: ${activeTicket?.subject}`} onSubmit={handleReply} submitLabel="Send Reply" loading={replyLoading}>
+                <div className="max-h-60 overflow-y-auto space-y-3 mb-4 custom-scrollbar">
+                    {messages.map((m: any) => (
+                        <div key={m.id} className={`p-2 rounded-lg text-xs ${m.sender_type === 'Employee' ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-muted border border-border'}`}>
+                            <div className="flex justify-between mb-1">
+                                <span className="font-bold text-primary">{m.sender_name}</span>
+                                <span className="text-gray-500">{new Date(m.created_at).toLocaleTimeString()}</span>
+                            </div>
+                            <p className="whitespace-pre-wrap">{m.body}</p>
+                        </div>
+                    ))}
+                </div>
                 <Field label="Your Reply">
                     <textarea className={`${inputClasses} h-32 resize-y`} value={replyMsg} onChange={(e) => setReplyMsg(e.target.value)} required placeholder="Type your message here..." />
                 </Field>

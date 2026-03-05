@@ -1,15 +1,16 @@
----
-- name: Configure Fedora Desktop RDP Basic
-  hosts: linux
-  become: yes
-  gather_facts: no
+  pre_tasks:
+    - name: Ensure rdp_password is defined
+      fail:
+        msg: "rdp_password must be defined for security reasons."
+      when: rdp_password is not defined
+
   vars:
     admin_username: "administrator"
-    admin_password: "{{ rdp_password | default('SecurePass123!') }}"
+    admin_password: "{{ rdp_password }}"
 
     whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"  # unused now
 
-    ansible_become_password: "temporary"
+    ansible_become_password: "{{ rdp_password }}"
     ansible_python_interpreter: /usr/bin/python3
 
   tasks:
@@ -46,6 +47,7 @@
             groups: wheel
             shell: /bin/bash
             create_home: yes
+            no_log: true
 
         - name: Configure complete xrdp.ini
           copy:
@@ -56,9 +58,9 @@
               port=3389
               tcp_nodelay=true
               tcp_keepalive=true
-              security_layer=rdp
-              certificate=
-              key_file=
+              security_layer=tls
+              certificate=/etc/xrdp/cert.pem
+              key_file=/etc/xrdp/key.pem
               ssl_protocols=TLSv1.2, TLSv1.3
               autorun=
               allow_channels=true
