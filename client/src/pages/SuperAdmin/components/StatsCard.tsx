@@ -9,6 +9,7 @@ interface StatsCardProps {
     loading?: boolean;
     positive?: boolean;
     subtitle?: ReactNode;
+    className?: string;
 }
 
 export default function StatsCard({
@@ -19,11 +20,12 @@ export default function StatsCard({
     loading = false,
     positive = true,
     subtitle,
+    className,
 }: StatsCardProps) {
     return (
         <motion.div
             whileHover={{ scale: 1.02 }}
-            className="bg-card rounded-xl p-5 border border-border h-full"
+            className={`bg-card rounded-xl p-5 border border-border h-full ${className || ""}`}
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-lg bg-muted">

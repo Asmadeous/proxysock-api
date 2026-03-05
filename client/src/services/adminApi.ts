@@ -67,17 +67,19 @@ export const deleteAdminProduct = (id: string | number) => adminApi.delete(`/pro
 // ── Resellers ─────────────────────────────────────
 export const fetchResellers = (params?: Record<string, string>) =>
     adminApi.get("/resellers", { params });
-export const fetchReseller = (id: number) =>
+export const fetchReseller = (id: string | number) =>
+    adminApi.get(`/resellers/${id}`);
+export const fetchResellerDetail = (id: string | number) =>
     adminApi.get(`/resellers/${id}`);
 export const createReseller = (data: Record<string, unknown>) =>
     adminApi.post("/resellers", data);
-export const updateReseller = (id: number, data: Record<string, unknown>) =>
+export const updateReseller = (id: string | number, data: Record<string, unknown>) =>
     adminApi.patch(`/resellers/${id}`, data);
-export const deleteReseller = (id: number) =>
+export const deleteReseller = (id: string | number) =>
     adminApi.delete(`/resellers/${id}`);
-export const onboardReseller = (id: number) =>
+export const onboardReseller = (id: string | number) =>
     adminApi.post(`/resellers/${id}/onboard`);
-export const configureReseller = (id: number, data: Record<string, unknown>) =>
+export const configureReseller = (id: string | number, data: Record<string, unknown>) =>
     adminApi.patch(`/resellers/${id}/configure`, data);
 
 // ── Orders ────────────────────────────────────────

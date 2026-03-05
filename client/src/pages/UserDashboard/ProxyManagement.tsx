@@ -81,27 +81,33 @@ export default function ProxyManagement() {
   const fetchProxyData = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/web/api/orders');
+      let url = '/web/api/orders?product_type=proxy';
+
+      if (activeTab === 'residential') {
+        url += '&category_slug=static-residential,residential-rotating,residential';
+      } else if (activeTab === 'mobile') {
+        url += '&category_slug=mobile';
+      }
+
+      const response = await api.get(url);
       if (response.data && response.data.orders) {
-        const transformedOrders = response.data.orders
-          .filter((o: any) => o.product_type === 'proxy')
-          .map((order: any) => ({
-            id: String(order.id),
-            order_id: order.order_number,
-            product_name: order.product_name,
-            product_type: order.proxy_type || 'datacenter',
-            status: order.status === 'completed' ? 'active' : order.status,
-            period: 1, // To do, extract period appropriately
-            protocol: order.proxy_details?.protocol || 'http',
-            locations: order.country ? [order.country] : [],
-            credentials: order.credentials || {},
-            whitelist_ips: order.proxy_details?.whitelist_ips || [],
-            expires_at: order.expires_at || order.created_at,
-            created_at: order.created_at,
-            traffic_used: order.proxy_details?.traffic_used,
-            traffic_limit: order.bandwidth_gb,
-            subscription_active: order.status === 'completed'
-          }));
+        const transformedOrders = response.data.orders.map((order: any) => ({
+          id: String(order.id),
+          order_id: order.order_number,
+          product_name: order.product_name,
+          product_type: order.proxy_type || 'datacenter',
+          status: (order.status === 'completed' || order.status === 'active') ? 'active' : order.status,
+          period: 1, // To do, extract period appropriately
+          protocol: order.proxy_details?.protocol || 'http',
+          locations: order.country ? [order.country] : [],
+          credentials: order.credentials || {},
+          whitelist_ips: order.proxy_details?.whitelist_ips || [],
+          expires_at: order.expires_at || order.created_at,
+          created_at: order.created_at,
+          traffic_used: order.proxy_details?.traffic_used,
+          traffic_limit: order.bandwidth_gb,
+          subscription_active: order.status === 'completed'
+        }));
 
         setProxyOrders(transformedOrders);
       }
@@ -212,7 +218,7 @@ export default function ProxyManagement() {
   const handleReorder = async (orderId: string) => {
     try {
       setLoading(true);
-      const { data } = await api.post(`/web/api/orders/${orderId}/reorder`);
+      const { data: _data } = await api.post(`/web/api/orders/${orderId}/reorder`);
       alert('Reorder successful! A new order has been created.');
       fetchProxyData(); // Refresh list to see new order
     } catch (error: any) {

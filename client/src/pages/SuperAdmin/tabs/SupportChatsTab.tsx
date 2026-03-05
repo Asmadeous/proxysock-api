@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, ArrowPathIcon, XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { getCableConsumer } from "../../../services/cable";
+import type { Subscription } from "@rails/actioncable";
 import StatusBadge from "../components/StatusBadge";
 import OnlineBadge from "../../../components/OnlineBadge";
 import { fetchSupportChats, fetchSupportChat, replySupportChat, assignSupportChat, closeSupportChat, fetchEmployees } from "../../../services/adminApi";
@@ -34,7 +36,6 @@ export default function SupportChatsTab() {
     const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([]);
     const [showAssign, setShowAssign] = useState(false);
     const messagesEnd = useRef<HTMLDivElement>(null);
-    const pollRef = useRef<ReturnType<typeof setInterval>>();
 
     const loadChats = useCallback(async () => {
         try {
@@ -55,15 +56,25 @@ export default function SupportChatsTab() {
     };
 
     useEffect(() => {
+        let sub: Subscription | null = null;
         if (selectedChat) {
-            pollRef.current = setInterval(async () => {
-                try {
-                    const res = await fetchSupportChat(selectedChat.id);
-                    setMessages(res.data.messages || []);
-                } catch { /* ignore */ }
-            }, 5000);
+            const consumer = getCableConsumer();
+            sub = consumer.subscriptions.create(
+                { channel: "ChatChannel", chat_id: selectedChat.id },
+                {
+                    received: (data: any) => {
+                        if (data.action === 'message_created') {
+                            setMessages(prev => {
+                                if (prev.find(m => m.id === data.message.id)) return prev;
+                                return [...prev, data.message];
+                            });
+                        }
+                    },
+                    connected() { console.log("[Admin ChatChannel] Connected"); }
+                }
+            );
         }
-        return () => { if (pollRef.current) clearInterval(pollRef.current); };
+        return () => { if (sub) sub.unsubscribe(); };
     }, [selectedChat]);
 
     useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);

@@ -1,12 +1,19 @@
-<h1>Welcome to ProxySock, <%= @user.first_name %>!</h1>
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #000000;">Email Verification</h1>
 
-<p>Thank you for signing up. Please verify your email address to activate your account.</p>
+<p style="margin-bottom: 24px;">Hi <%= @user.first_name %>,</p>
 
-<p>
-  <%= link_to 'Verify Email', @url %>
+<p- **[DepositSyncService](file:///home/asmadeous/work/proxysock-api/app/services/deposit_sync_service.rb)**: Created a new service to unify transaction verification across all gateways.
+- **[deposits.rake](file:///home/asmadeous/work/proxysock-api/lib/tasks/deposits.rake)**: Added a rake task `rake deposits:sync_pending` to batch-verify and process missed payments.
+
+### Balance Display & Caching
+- **Cache Invalidation**: Fixed a bug where the balance cache wasn't invalidating because the `Wallet` record wasn't being "touched" during transactions.
+- **[wallet_transaction.rb](file:///home/asmadeous/work/proxysock-api/app/models/wallet_transaction.rb)**: Added `touch: true` to ensure the wallet's `updated_at` reflects the latest transaction.
+- **Frontend Verification**: Confirmed that the balance is correctly displayed in the dashboard sidebar.
+
+![Dashboard Balance Display](file:///home/asmadeous/.gemini/antigravity/brain/00e18c5a-24a-4dea-8929-fd435f84804c/dashboard_balance_check_1772537493081.png)
+s="btn">Verify Email Address</a>
+</div>
+
+<p style="font-size: 14px; color: #6B7280; margin-top: 40px; border-top: 1px solid #E5E7EB; padding-top: 24px;">
+    If you didn't create an account with us, you can safely ignore this email.
 </p>
-
-<p>Or copy and paste this link into your browser:</p>
-<p><%= @url %></p>
-
-<p>This link will expire in 24 hours.</p>

@@ -33,5 +33,6 @@ class Product < ApplicationRecord
 
   belongs_to :product_category
   has_many :product_pricings, dependent: :destroy
+  accepts_nested_attributes_for :product_pricings, allow_destroy: true
   has_many :orders, dependent: :destroy
 end

@@ -85,3 +85,7 @@ gem "httparty", "~> 0.24.2"
 gem "prometheus-client", "~> 4.2"
 
 gem "rack-attack", "~> 6.8"
+
+# PDF invoice generation
+gem "prawn", "~> 2.5"
+gem "prawn-table", "~> 0.2"

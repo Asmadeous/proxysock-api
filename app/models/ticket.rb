@@ -4,6 +4,7 @@ class Ticket < ApplicationRecord
   belongs_to :user, polymorphic: true
   belongs_to :assigned_to, class_name: 'Employee', optional: true
   belongs_to :order, optional: true
+  belongs_to :deposit, optional: true
 
   has_many :ticket_messages, dependent: :destroy
   has_one :last_message, -> { order(created_at: :desc) }, class_name: 'TicketMessage'

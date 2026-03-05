@@ -9,11 +9,17 @@ module Api
       def index
         # Resellers can see all their orders
         # Using ResellerOrder as the primary query base to get all products they've purchased for resale
-        orders = current_reseller.orders
+        scope = current_reseller.orders
                                  .includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
-                                 .order(created_at: :desc)
-                                 .page(params[:page])
-                                 .per(20)
+        
+        if params[:product_type].present?
+          types = params[:product_type].split(',')
+          scope = scope.joins(:product).where(products: { product_type: types })
+        end
+
+        orders = scope.order(created_at: :desc)
+                      .page(params[:page])
+                      .per(20)
         render json: {
           orders: orders.map { |o| serialize_order(o) },
           meta: pagination_meta(orders)
@@ -24,6 +30,91 @@ module Api
       def show
         order = current_reseller.orders.find(params[:id])
         render json: serialize_order(order)
+      end
+
+      # GET /api/v1/orders/stats
+      def stats
+        orders = current_reseller.orders
+
+        active_statuses = ['active', 'processing', 'completed', 'delivered', 'allocated']
+        pending_statuses = ['pending', 'provisioning', 'awaiting_payment']
+        expired_statuses = ['expired', 'suspended', 'cancelled']
+        failed_statuses = ['failed', 'error', 'stopped']
+
+        # Single query for counts by status
+        counts_by_status = orders.group(:status).count
+        
+        active_count = 0
+        pending_count = 0
+        expired_count = 0
+        failed_count = 0
+        total_orders = 0
+        
+        counts_by_status.each do |status, count|
+          total_orders += count
+          if active_statuses.include?(status)
+            active_count += count
+          elsif pending_statuses.include?(status)
+            pending_count += count
+          elsif expired_statuses.include?(status)
+            expired_count += count
+          elsif failed_statuses.include?(status)
+            failed_count += count
+          end
+        end
+
+        # Single query for type statistics (counts and revenue)
+        type_counts = orders.joins(:product).group('products.product_type', :status).count
+        type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
+
+        type_stats = {}
+        ['proxy', 'vpn', 'vps', 'esim', 'rdp', 'usa_esim'].each do |type|
+          type_stats[type] = {
+            total: 0,
+            active: 0,
+            pending: 0,
+            expired: 0,
+            failed: 0,
+            revenue: type_revenues[type].to_f
+          }
+        end
+
+        type_counts.each do |(type, status), count|
+          next unless type_stats.key?(type)
+          
+          type_stats[type][:total] += count
+          if active_statuses.include?(status)
+            type_stats[type][:active] += count
+          elsif pending_statuses.include?(status)
+            type_stats[type][:pending] += count
+          elsif expired_statuses.include?(status)
+            type_stats[type][:expired] += count
+          elsif failed_statuses.include?(status)
+            type_stats[type][:failed] += count
+          end
+        end
+
+        recent_orders = orders.includes(:product).order(created_at: :desc).limit(10).map do |o|
+          {
+            id: o.id,
+            status: o.status,
+            total_amount: o.total_amount,
+            created_at: o.created_at,
+            product_type: o.product&.product_type,
+            product_name: o.product&.name
+          }
+        end
+
+        render json: {
+          total_orders: total_orders,
+          active_services: active_count,
+          pending_orders: pending_count,
+          total_spent: orders.sum(:total_amount).to_f,
+          balance: (current_reseller.wallet&.balance || 0).to_f,
+          earnings_balance: (current_reseller.earnings_wallet&.balance || 0).to_f,
+          type_stats: type_stats,
+          recent_orders: recent_orders
+        }
       end
 
       # POST /api/v1/orders
@@ -144,6 +235,49 @@ module Api
         rescue StandardError => e
           render json: { error: e.message }, status: :unprocessable_entity
         end
+      end
+
+      # POST /api/v1/orders/:id/cancel
+      # Resellers can cancel orders within 1 hour of creation
+      def cancel
+        order = current_reseller.orders.find(params[:id])
+
+        # Check if order can be cancelled
+        unless %w[pending active processing completed delivered allocated].include?(order.status)
+          return render json: { error: "Order with status '#{order.status}' cannot be cancelled" }, status: :unprocessable_entity
+        end
+
+        # Enforce 1-hour cancellation window
+        if order.created_at < 1.hour.ago
+          return render json: { error: 'Cancellation window has expired. Orders can only be cancelled within 1 hour of purchase.' }, status: :forbidden
+        end
+
+        Order.transaction do
+          # Refund to reseller balance
+          refund_amount = order.total_amount.to_f
+          if refund_amount > 0 && current_reseller.main_wallet
+            current_reseller.main_wallet.update!(
+              balance: current_reseller.main_wallet.balance + refund_amount
+            )
+          end
+
+          order.update!(status: 'cancelled')
+
+          # For external API products (proxies), alert admin via email
+          is_external_api_product = order.product&.provider_type.to_s.downcase.include?('api') ||
+                                     order.product&.product_type == 'proxy'
+          if is_external_api_product
+            ResellerMailer.order_cancelled_admin_notification(order, current_reseller).deliver_later
+          end
+        end
+
+        render json: {
+          message: 'Order cancelled and refunded successfully',
+          order: serialize_order(order.reload),
+          refunded_amount: order.total_amount.to_f
+        }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       private

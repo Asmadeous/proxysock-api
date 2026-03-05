@@ -40,7 +40,7 @@ interface VPNOrder {
     proxy_plan_id: number;
     plan_name: string;
     amount: number;
-    status: "active" | "expired" | "pending" | "cancelled" | "completed";
+    status: "active" | "expired" | "pending" | "cancelled" | "completed" | "processing";
     created_at: string;
     expires_at?: string;
     country?: string;
@@ -71,7 +71,7 @@ export default function VPNManagement() {
     const fetchVPNData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/web/api/orders');
+            const response = await api.get('/web/api/orders?product_type=vpn');
 
             if (response.data && response.data.orders) {
                 const transformedOrders = response.data.orders
@@ -82,7 +82,7 @@ export default function VPNManagement() {
                         proxy_plan_id: order.product_id,
                         plan_name: order.product_name || "VPN Plan",
                         amount: Number(order.amount) || 0,
-                        status: order.status === "completed" ? "active" : order.status,
+                        status: (order.status === "completed" || order.status === "active") ? "active" : order.status,
                         created_at: order.created_at,
                         expires_at: order.expires_at,
                         country: order.country,
@@ -93,7 +93,7 @@ export default function VPNManagement() {
 
                 // Filter based on active tab
                 const filtered = activeTab === "active"
-                    ? transformedOrders.filter((o: VPNOrder) => o.status === "active" || o.status === "pending")
+                    ? transformedOrders.filter((o: VPNOrder) => o.status === "active" || o.status === "pending" || o.status === "processing")
                     : transformedOrders;
 
                 setVpnOrders(filtered);
@@ -108,7 +108,7 @@ export default function VPNManagement() {
     const handleReorder = async (orderId: string) => {
         try {
             setLoading(true);
-            const { data } = await api.post(`/web/api/orders/${orderId}/reorder`);
+            const { data: _data } = await api.post(`/web/api/orders/${orderId}/reorder`);
             alert("Reorder successful! A new order has been created.");
             fetchVPNData(); // Refresh data
         } catch (error: any) {
@@ -126,7 +126,8 @@ export default function VPNManagement() {
             case "completed":
                 return <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-0"><CheckCircle className="h-3 w-3" /> Active</Badge>;
             case "pending":
-                return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> Pending</Badge>;
+            case "processing":
+                return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
             case "expired":
                 return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" /> Expired</Badge>;
             default:
@@ -421,17 +422,24 @@ export default function VPNManagement() {
 
                             <div className="flex justify-end gap-2">
                                 <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Close</Button>
-                                <Button variant="default" onClick={() => {
-                                    // Generate download logic
-                                    const content = JSON.stringify(selectedOrder, null, 2);
-                                    const blob = new Blob([content], { type: "text/plain" });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `vpn-${selectedOrder.order_number}.txt`;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    a.remove();
+                                <Button variant="default" onClick={async () => {
+                                    try {
+                                        const response = await api.get(`/web/api/orders/${selectedOrder.id}/download_ovpn`, {
+                                            responseType: 'blob'
+                                        });
+                                        const blob = new Blob([response.data], { type: 'application/x-openvpn-profile' });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `vpn-${selectedOrder.order_number}.ovpn`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                        URL.revokeObjectURL(url);
+                                    } catch (error) {
+                                        console.error('Failed to download OVPN:', error);
+                                        alert('Failed to download OVPN config. The file may not be available yet.');
+                                    }
                                 }} className="gap-2">
                                     <Download className="h-4 w-4" /> Download
                                 </Button>

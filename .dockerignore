@@ -1,0 +1,21 @@
+# .dockerignore
+.git
+.github
+.gitignore
+.dockerignore
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+node_modules
+client/node_modules
+log/*
+tmp/*
+!tmp/pids/
+test/*
+spec/*
+config/master.key
+.env
+README.md
+readme_docs
+monitoring
+ansible/inventory/vm_*

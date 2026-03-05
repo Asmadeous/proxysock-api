@@ -16,21 +16,21 @@ class VmProvisioningService
     'ubuntu-20-04' => {
       id: 9000, # PLACEHOLDER — set to your actual Proxmox template VMID
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-22-04' => {
       id: 9001, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-24-04' => {
       id: 9002, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
@@ -39,14 +39,14 @@ class VmProvisioningService
     'debian-11' => {
       id: 9010, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'debian'
     },
     'debian-12' => {
       id: 9011, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'debian'
     },
@@ -55,14 +55,14 @@ class VmProvisioningService
     'alma-8' => {
       id: 9020, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
     'alma-9' => {
       id: 9021, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
@@ -71,14 +71,14 @@ class VmProvisioningService
     'rocky-8' => {
       id: 9030, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'rocky'
     },
     'rocky-9' => {
       id: 9031, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'rocky'
     },
@@ -87,7 +87,7 @@ class VmProvisioningService
     'fedora-rdp' => {
       id: 9040, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: 'temporary' },
+      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'fedora'
     },
@@ -96,14 +96,14 @@ class VmProvisioningService
     'windows-server-2022' => {
       id: 9100, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'Administrator', pass: 'TempPass123!' },
+      credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     },
     'windows-server-2019' => {
       id: 9101, # PLACEHOLDER
       bridge: 'vmbr0',
-      credentials: { user: 'Administrator', pass: 'TempPass123!' },
+      credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     }

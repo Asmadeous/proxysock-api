@@ -98,11 +98,10 @@ const ProxyOrdersPage: FC = () => {
   const fetchProxyOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/web/api/orders');
+      const response = await api.get('/web/api/orders?product_type=proxy');
 
       if (response.data && response.data.orders) {
         const transformedOrders: ProxyOrder[] = response.data.orders
-          .filter((order: any) => order.product_type === 'proxy')
           .map((order: any) => ({
             id: String(order.id),
             order_number: order.order_number,
@@ -644,9 +643,34 @@ IPs Included: ${order.ips_included || 0}
                           className="flex-1 gap-2"
                         >
                           <Download className="h-4 w-4" />
-                          Download
+                          Credentials
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                              responseType: 'blob'
+                            });
+                            const blob = new Blob([response.data], { type: 'application/pdf' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `invoice-${order.order_number}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Failed to download invoice:', error);
+                          }
+                        }}
+                        className="gap-2"
+                        title="Download Invoice"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

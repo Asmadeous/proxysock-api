@@ -16,7 +16,7 @@ import {
   Cpu,
   HardDrive,
   Users,
-
+  FileText,
   AlertTriangle,
   Sparkles,
   Globe,
@@ -25,6 +25,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -671,12 +672,57 @@ Payment Method: ${order.payment_method || 'N/A'}
                         <Terminal className="h-4 w-4" />
                         Details
                       </Button>
+                      {order.ip_address && order.status === 'active' && (
+                        <Button
+                          onClick={async () => {
+                            try {
+                              const response = await api.get(`/web/api/orders/${order.id}/download_rdp_config`, {
+                                responseType: 'blob'
+                              });
+                              const blob = new Blob([response.data], { type: 'application/rdp' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${order.hostname || 'RDP'}-${order.order_number}.rdp`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(url);
+                            } catch (error) {
+                              console.error('Failed to download RDP config:', error);
+                              downloadOrderDetails(order);
+                            }
+                          }}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          .rdp
+                        </Button>
+                      )}
                       <Button
-                        onClick={() => downloadOrderDetails(order)}
-                        className="flex-1 gap-2"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                              responseType: 'blob'
+                            });
+                            const blob = new Blob([response.data], { type: 'application/pdf' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `invoice-${order.order_number}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Failed to download invoice:', error);
+                          }
+                        }}
+                        className="gap-2"
+                        title="Download Invoice"
                       >
-                        <Download className="h-4 w-4" />
-                        Download
+                        <FileText className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>

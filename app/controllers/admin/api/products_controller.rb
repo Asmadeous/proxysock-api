@@ -6,7 +6,14 @@ module Admin
       before_action :set_product, only: %i[show update destroy]
 
       def index
-        products = Product.all.order(created_at: :desc)
+        products = Product.all
+        
+        products = products.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
+        products = products.where(product_type: params[:product_type]) if params[:product_type].present?
+        products = products.where(provider: params[:provider]) if params[:provider].present?
+        products = products.where(active: params[:active]) if params[:active].present?
+        
+        products = products.order(created_at: :desc)
         render json: { products: products }
       end
 
@@ -49,7 +56,12 @@ module Admin
       def product_params
         params.require(:product).permit(
           :name, :description, :product_type, :provider, :stock_status,
-          :is_active, metadata: {}
+          :active, metadata: {},
+          product_pricings_attributes: [
+            :id, :selling_price, :api_price, :reseller_selling_price, 
+            :user_selling_price, :currency, :duration_type, 
+            :duration_value, :active, :_destroy
+          ]
         )
       end
     end

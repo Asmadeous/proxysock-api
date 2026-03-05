@@ -20,6 +20,11 @@ module Web
         Notification.where(recipient: current_actor, read_at: nil).update_all(read_at: Time.current)
         render json: { success: true }
       end
+
+      def unread_count
+        count = Notification.where(recipient: current_actor, read_at: nil).count
+        render json: { unread_count: count }
+      end
     end
   end
 end

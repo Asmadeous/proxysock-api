@@ -8,10 +8,18 @@ class User < ApplicationRecord
   has_many :orders, as: :orderable, dependent: :destroy
   has_many :deposits, as: :depositable
   has_many :tickets, as: :user
-  has_one :wallet, as: :owner, dependent: :destroy
+  has_many :wallets, as: :owner, dependent: :destroy
+  has_one :main_wallet, -> { where(wallet_type: 'main') }, as: :owner, class_name: 'Wallet'
+  has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
+
+  def wallet
+    main_wallet
+  end
   has_many :notifications, as: :recipient, dependent: :destroy
   has_one :affiliate, as: :affiliatable, dependent: :destroy
   has_many :affiliate_referrals, as: :referred, dependent: :destroy
+  
+  belongs_to :reseller, optional: true
 
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :username, presence: true, uniqueness: { case_sensitive: false },

@@ -10,6 +10,16 @@ class EsimInventory < ApplicationRecord
   validates :provider, presence: true
   validates :esim_type, inclusion: { in: ESIM_TYPES }
 
+  validate :prevent_status_reversal, on: :update
+
+  private
+
+  def prevent_status_reversal
+    if status_was == 'sold' && status != 'sold'
+      errors.add(:status, "cannot be changed once the eSIM is sold")
+    end
+  end
+
   # Status scopes
   scope :available, -> { where(status: 'available') }
   scope :reserved,  -> { where(status: 'reserved') }
