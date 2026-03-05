@@ -181,7 +181,7 @@ class OrderProvisioningService
       end
 
       # Execute MyProxyApi Purchase
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
         response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
@@ -223,7 +223,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID') # From API docs example user_id
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1') # From API docs example user_id
 
       # Place the order via Reseller API for ALL myproxyapi products
       client = MyProxyApiClient.new
@@ -383,7 +383,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
 
       client = MyProxyApiClient.new
       response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
