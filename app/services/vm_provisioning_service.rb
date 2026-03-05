@@ -341,8 +341,14 @@ class VmProvisioningService
       @logger.info("Running playbook #{playbook} for VM #{vm.id}")
       
       # Use same logic as check_vm_status or provision
-      cmd = "export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i #{inventory_path} #{File.join(PLAYBOOKS_DIR, playbook)} --extra-vars '#{extra_vars}'"
-      stdout, stderr, status = Open3.capture3(cmd)
+      cmd = [
+        { "ANSIBLE_HOST_KEY_CHECKING" => "False" },
+        "ansible-playbook",
+        "-i", inventory_path,
+        File.join(PLAYBOOK_DIR, playbook),
+        "--extra-vars", extra_vars
+      ]
+      stdout, stderr, status = Open3.capture3(*cmd)
 
       if status.success?
         @logger.info("Password change successful for VM #{vm.id}")
@@ -382,9 +388,6 @@ class VmProvisioningService
     range.each do |id|
       return id unless existing_vms.include?(id)
     end
-    raise 'No available VM IDs in range'
-  end
-
     raise 'No available VM IDs in range'
   end
 

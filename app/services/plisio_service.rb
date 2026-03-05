@@ -61,6 +61,7 @@ class PlisioService
   end
 
   def verify_callback(params)
+  end
 
   private
 
