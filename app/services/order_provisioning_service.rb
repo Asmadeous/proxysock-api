@@ -37,9 +37,16 @@ class OrderProvisioningService
     
     # 4. Provision based on product type
     provision_product!
+
+    # 5. Generate and store invoice PDF via Active Storage
+    begin
+      InvoicePdfService.new(@order).generate_and_attach!
+    rescue => e
+      Rails.logger.warn("Failed to generate invoice PDF for order #{@order.id}: #{e.message}")
+    end
     
-    # 5. Record affiliate commission if applicable
-    AffiliateService.record_commission!(@order)
+    # 6. Record reseller profit share (replaced affiliate commission)
+    ResellerEarningsService.record_profit_share!(@order)
     
     NotificationService.notify(
       recipient: @actor,
@@ -174,7 +181,7 @@ class OrderProvisioningService
       end
 
       # Execute MyProxyApi Purchase
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
       begin
         client = MyProxyApiClient.new
         response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
@@ -216,11 +223,25 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362') # From API docs example user_id
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID') # From API docs example user_id
 
       # Place the order via Reseller API for ALL myproxyapi products
       client = MyProxyApiClient.new
       response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
+
+      # Provider returns basic order info, but we need full details (IPs, etc.)
+      # data: { order_id: "..." }
+      provider_order_id = response.dig('data', 'order_id') || response['order_id']
+      
+      if provider_order_id.present?
+        begin
+          full_details = client.view_order(provider_order_id)
+          # Store the detailed response (first item in data array)
+          response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+        rescue => e
+          Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
+        end
+      end
 
       # "put it in a metadata tag" -> store API payload/response in order metadata
       @order.metadata['my_proxy_api_response'] = response
@@ -339,7 +360,6 @@ class OrderProvisioningService
 
       # Claim credentials
       creds.each do |cred|
-        puts "ACTOR_EVAL: is_user=#{@actor.is_a?(User)}, actor_id=#{@actor&.id}, actor_class=#{@actor.class}"
         cred.update!(
           status: 'assigned',
           order_id: usa_esim_order.id,
@@ -351,10 +371,7 @@ class OrderProvisioningService
       # Send credentials email
       UsaEsimMailer.with(owner: @actor, credentials: creds, order: @order).credentials_email.deliver_later
 
-      @order.update!(
-        status: 'active',
-        total_amount: @order.product.product_pricings.first&.selling_price.to_f * quantity
-      )
+      @order.update!(status: 'active')
     end
   end
 
@@ -366,14 +383,41 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '10362')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
 
       client = MyProxyApiClient.new
       response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
 
+      provider_order_id = response.dig('data', 'order_id') || response['order_id']
+      
+      if provider_order_id.present?
+        begin
+          full_details = client.view_order(provider_order_id)
+          response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+        rescue => e
+          Rails.logger.warn("Failed to fetch full order details for MyProxy VPN order #{provider_order_id}: #{e.message}")
+        end
+      end
+
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!
+
+      # Download and store the OVPN config file via Active Storage
+      provider_order_id = response.dig('order', 'order_id') || response.dig('data', 'order_id') || provider_order_id
+      if provider_order_id.present?
+        begin
+          ovpn_content = client.download_ovpn(provider_order_id)
+          @order.ovpn_config.attach(
+            io: StringIO.new(ovpn_content),
+            filename: "vpn-#{provider_order_id}.ovpn",
+            content_type: 'application/x-openvpn-profile'
+          )
+          Rails.logger.info("Stored OVPN config for order #{@order.id} (provider: #{provider_order_id})")
+        rescue => e
+          Rails.logger.warn("Failed to download/store OVPN config for order #{@order.id}: #{e.message}")
+        end
+      end
 
       # Send credentials email
       owner = @actor || @order.orderable

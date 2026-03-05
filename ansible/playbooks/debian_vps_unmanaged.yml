@@ -4,10 +4,17 @@
   become: yes
   gather_facts: no
 
+  pre_tasks:
+    - name: Ensure root_password is defined
+      fail:
+        msg: "root_password must be defined for security reasons."
+      when: root_password is not defined
+
   vars:
-    new_root_password: "{{ root_password | default('SecurePass123!') }}"
+    new_root_password: "{{ root_password }}"
     new_user: "{{ hostname | default('vps-user') }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
+    ansible_become_password: "{{ root_password }}"
 
   tasks:
     - block:
@@ -32,6 +39,7 @@
             password: "{{ new_root_password | password_hash('sha512') }}"
             shell: /bin/bash
             state: present
+            no_log: true
 
         - name: Update packages
           apt:
@@ -41,6 +49,7 @@
           user:
             name: root
             password: "{{ new_root_password | password_hash('sha512') }}"
+            no_log: true
 
         - name: Set hostname
           hostname:
@@ -82,7 +91,9 @@
               admin_configured: true
               configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
             status_code: [200, 201, 202]
+            validate_certs: yes
             timeout: 30
+            no_log: true
           when:
             - api_url is defined
             - api_key is defined
@@ -107,7 +118,9 @@
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
               failed_at: "{{ ansible_date_time.iso8601 }}"
             status_code: [200, 201, 202]
+            validate_certs: yes
             timeout: 30
+            no_log: true
           when:
             - api_url is defined
             - api_key is defined

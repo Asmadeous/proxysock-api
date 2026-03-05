@@ -95,11 +95,9 @@ const VPSManagement = () => {
   const loadVPSInstances = async () => {
     try {
       setLoading(true);
-      const response = await fetchVms();
-      // Filter for VPS instances only
+      const response = await fetchVms({ vm_type: 'vps' });
       const allVms: VPSInstance[] = response.data.vms || [];
-      const vpsOnly = allVms.filter(vm => vm.vm_type === 'vps');
-      setVpsInstances(vpsOnly);
+      setVpsInstances(allVms);
     } catch (error) {
       console.error('Failed to fetch VPS instances:', error);
     } finally {

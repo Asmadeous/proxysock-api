@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   ArrowDownUp,
   ArrowDown,
@@ -63,6 +64,13 @@ interface Transaction {
   esim_order_id?: string;
   vps_order_id?: string;
   rdp_order_id?: string;
+  gateway?: string;
+}
+
+interface VerificationState {
+  id: string | null;
+  loading: boolean;
+  result: string | null;
 }
 
 interface TransactionStats {
@@ -90,6 +98,11 @@ const TransactionsPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  const [verifying, setVerifying] = useState<VerificationState>({ id: null, loading: false, result: null });
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedDeposit, setSelectedDeposit] = useState<Transaction | null>(null);
+
   const { user, accessToken } = useAuth();
 
   useEffect(() => {
@@ -132,6 +145,25 @@ const TransactionsPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerify = async (deposit: Transaction) => {
+    setVerifying({ id: deposit.id, loading: true, result: null });
+    try {
+      const { data } = await api.post("/web/api/billing/verify_and_sync", { deposit_id: deposit.id });
+      setVerifying({ id: deposit.id, loading: false, result: data.message });
+      if (data.status === 'completed') {
+        fetchTransactions(); // Refresh balance and list
+      }
+    } catch (error: any) {
+      setVerifying({ id: deposit.id, loading: false, result: error.response?.data?.error || "Verification failed." });
+    }
+  };
+
+  const openReportModal = (deposit: Transaction) => {
+    setSelectedDeposit(deposit);
+    setShowReportModal(true);
+    setVerifying({ id: null, loading: false, result: null });
   };
 
   const calculateStats = (transactions: Transaction[]) => {
@@ -716,6 +748,18 @@ const TransactionsPage = () => {
                         <span className="capitalize hidden sm:inline">{transaction.payment_status}</span>
                       </Badge>
 
+                      {transaction.transaction_type === "deposit" && transaction.payment_status !== "completed" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 border-warning/50 text-warning hover:bg-warning/10"
+                          onClick={() => openReportModal(transaction)}
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Report Issue
+                        </Button>
+                      )}
+
                       <div className="flex items-center gap-1">
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                           <Eye className="h-4 w-4" />
@@ -737,6 +781,71 @@ const TransactionsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Report Issue Modal */}
+      {showReportModal && selectedDeposit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-card border shadow-xl rounded-xl overflow-hidden"
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Report Deposit Issue</h3>
+                <Button variant="ghost" size="icon" onClick={() => setShowReportModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg border">
+                  <p className="text-sm font-medium mb-1">Deposit Details</p>
+                  <p className="text-xs text-muted-foreground">ID: {selectedDeposit.id}</p>
+                  <p className="text-xs text-muted-foreground">Amount: {formatAmount(selectedDeposit.amount)}</p>
+                  <p className="text-xs text-muted-foreground">Status: {selectedDeposit.payment_status}</p>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Before opening a ticket, please verify if the payment was processed by our gateway.
+                </p>
+
+                {verifying.result ? (
+                  <div className={`p-3 rounded-lg text-sm border ${verifying.result.includes('successfully') ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600' : 'bg-warning/10 border-warning/50 text-warning'}`}>
+                    {verifying.result}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={() => handleVerify(selectedDeposit)}
+                    disabled={verifying.loading}
+                    className="w-full"
+                  >
+                    {verifying.loading ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Verify Payment Status
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                  >
+                    <Link to={`/dashboard/tickets?deposit_id=${selectedDeposit.id}&subject=Issue with Deposit ${selectedDeposit.id}`}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Support Ticket
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,33 +1,33 @@
-<p>Dear <%= @owner.try(:username) || @owner.try(:email) %>,</p>
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #000000;">Deposit Confirmed</h1>
 
-<p>Your deposit has been successfully confirmed. Your wallet balance has been updated.</p>
+<p style="margin-bottom: 24px;">Dear <%= @owner.try(:username) || @owner.try(:email) %>,</p>
 
-<div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <h3 style="margin-top: 0;">Deposit Receipt</h3>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px;">
-    <tr>
-      <td style="padding: 5px 0; color: #6b7280;">Transaction Reference:</td>
-      <td style="padding: 5px 0; font-weight: bold; text-align: right;"><%= @deposit.metadata&.dig('transaction_ref') || @deposit.id %></td>
-    </tr>
-    <tr>
-      <td style="padding: 5px 0; color: #6b7280;">Payment Gateway:</td>
-      <td style="padding: 5px 0; font-weight: bold; text-align: right; text-transform: capitalize;"><%= @gateway %></td>
-    </tr>
-    <tr>
-      <td style="padding: 5px 0; color: #6b7280;">Date:</td>
-      <td style="padding: 5px 0; font-weight: bold; text-align: right;"><%= @deposit.completed_at&.strftime('%B %d, %Y %H:%M UTC') || Time.current.strftime('%B %d, %Y %H:%M UTC') %></td>
-    </tr>
-    <tr style="border-top: 1px solid #e5e7eb;">
-      <td style="padding: 10px 0; font-size: 16px; font-weight: bold;">Amount Credited:</td>
-      <td style="padding: 10px 0; font-size: 16px; font-weight: bold; text-align: right; color: #10b981;">
-        $<%= format('%.2f', @amount) %> USD
-      </td>
-    </tr>
-  </table>
+<p style="margin-bottom: 32px;">Your deposit has been successfully confirmed. Your wallet balance has been updated and is ready for use.</p>
+
+<div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 32px; margin-bottom: 32px;">
+    <h3 style="margin-bottom: 20px; font-size: 18px;">Deposit Receipt</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; color: #4B5563;">
+        <tr>
+            <td style="padding: 8px 0;">Reference</td>
+            <td style="padding: 8px 0; text-align: right; color: #000000; font-weight: 600;"><%= @deposit.metadata&.dig('transaction_ref') || @deposit.id %></td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">Gateway</td>
+            <td style="padding: 8px 0; text-align: right; color: #000000; font-weight: 600; text-transform: capitalize;"><%= @gateway %></td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">Date</td>
+            <td style="padding: 8px 0; text-align: right; color: #000000; font-weight: 600;"><%= @deposit.completed_at&.strftime('%B %d, %Y') %></td>
+        </tr>
+        <tr>
+            <td style="padding: 20px 0 0 0; border-top: 1px solid #E5E7EB; font-size: 18px; color: #000000; font-weight: 700;">Amount Credited</td>
+            <td style="padding: 20px 0 0 0; border-top: 1px solid #E5E7EB; text-align: right; font-size: 18px; color: #EF4444; font-weight: 700;">
+                <%= number_to_currency(@amount) %>
+            </td>
+        </tr>
+    </table>
 </div>
 
-<p>Your wallet balance has been updated and is ready to use for your next purchase.</p>
-
-<p>View your balance: <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/billing" style="color: #3b82f6; text-decoration: none;">Go to Billing</a></p>
-
-<p>Best Regards,<br>The ProxySock Team</p>
+<div style="text-align: center; margin: 40px 0;">
+    <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/billing" class="btn">View Wallet Balance</a>
+</div>

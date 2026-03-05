@@ -87,49 +87,36 @@ const UnifiedOrdersDashboard: FC = () => {
     try {
       setLoading(true);
 
-      const { data } = await api.get('/web/api/orders');
-      const orders = data.orders || [];
+      const rangeParam = timeRange === 'all' ? 'all' : timeRange.replace('d', '');
+      const statsResult = await api.get(`/web/api/orders/stats?range=${rangeParam}`);
+      const d = statsResult.data;
+      const typeStats = d.type_stats || {};
 
       const newStats: OrderStats = {
-        proxy: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
-        esim: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
-        rdp: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
-        vps: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
-        vpn: { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        proxy: typeStats.proxy || { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        esim: {
+          total: (typeStats.esim?.total || 0) + (typeStats.usa_esim?.total || 0),
+          active: (typeStats.esim?.active || 0) + (typeStats.usa_esim?.active || 0),
+          pending: (typeStats.esim?.pending || 0) + (typeStats.usa_esim?.pending || 0),
+          failed: (typeStats.esim?.failed || 0) + (typeStats.usa_esim?.failed || 0),
+          revenue: (typeStats.esim?.revenue || 0) + (typeStats.usa_esim?.revenue || 0),
+        },
+        rdp: typeStats.rdp || { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        vps: typeStats.vps || { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
+        vpn: typeStats.vpn || { total: 0, active: 0, pending: 0, failed: 0, revenue: 0 },
       };
 
-      const allRecentOrders: RecentOrder[] = [];
+      const orders = d.recent_orders || [];
+      const allRecentOrders: RecentOrder[] = orders.map((order: any) => ({
+        id: order.id,
+        type: order.product_type === 'vps' ? 'vps' : (order.product_type || 'proxy'),
+        name: `${order.product_name || (order.product_type || 'proxy').toUpperCase()} Order #${String(order.id).slice(0, 8)}`,
+        status: order.status,
+        amount: Number.parseFloat(order.total_amount) || 0,
+        date: order.created_at,
+      }));
 
-      // Group by product_type
-      orders.forEach((order: any) => {
-        const type = order.product_type === 'vps' ? 'vps' : (order.product_type || 'proxy');
-        const key = type as keyof OrderStats;
-        if (newStats[key]) {
-          newStats[key].total++;
-          if (order.status === 'active' || order.status === 'completed' || order.status === 'delivered') {
-            newStats[key].active++;
-          }
-          if (order.status === 'pending') {
-            newStats[key].pending++;
-          }
-          if (order.status === 'failed' || order.status === 'cancelled') {
-            newStats[key].failed++;
-          }
-          newStats[key].revenue += Number.parseFloat(order.total_amount) || 0;
-        }
-
-        allRecentOrders.push({
-          id: order.id,
-          type: type as RecentOrder['type'],
-          name: `${order.product_name || type.toUpperCase()} Order #${String(order.id).slice(0, 8)}`,
-          status: order.status,
-          amount: Number.parseFloat(order.total_amount) || 0,
-          date: order.created_at,
-        });
-      });
-
-      allRecentOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setRecentOrders(allRecentOrders.slice(0, 10));
+      setRecentOrders(allRecentOrders);
       setStats(newStats);
     } catch (error) {
       console.error('Failed to fetch order stats:', error);

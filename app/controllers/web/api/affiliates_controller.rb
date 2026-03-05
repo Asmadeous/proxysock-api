@@ -34,6 +34,16 @@ module Web
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
+      # POST /web/api/affiliate/transfer_earnings
+      def transfer_earnings
+        AffiliateService.new(current_entity).transfer_to_main_wallet!(params[:amount].to_d)
+        render json: { message: 'Transfer successful' }
+      rescue AffiliateService::InsufficientBalanceError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue StandardError => e
+        render json: { error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def affiliate_json(affiliate)

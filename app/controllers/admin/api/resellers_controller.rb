@@ -10,6 +10,11 @@ module Admin
         resellers = Reseller.order(created_at: :desc)
         resellers = resellers.where("email ILIKE :q OR username ILIKE :q OR company_name ILIKE :q", q: "%#{params[:q]}%") if params[:q].present?
         resellers = resellers.where(reseller_type: params[:type]) if params[:type].present?
+        if params[:status] == 'active'
+          resellers = resellers.where('subscription_expires_at > ?', Time.current)
+        elsif params[:status] == 'expired'
+          resellers = resellers.where('subscription_expires_at <= ? OR subscription_expires_at IS NULL', Time.current)
+        end
 
         page = (params[:page] || 1).to_i
         per  = (params[:per] || 25).to_i
@@ -19,7 +24,15 @@ module Admin
         render json: {
           resellers: resellers.map { |r| reseller_json(r) },
           total: total,
-          page: page
+          page: page,
+          stats: {
+            total: Reseller.count,
+            api_only: Reseller.where(reseller_type: 'api_only').count,
+            enterprise: Reseller.where(reseller_type: 'infrastructure').count,
+            total_balance: WalletTransaction.joins(:wallet)
+                            .where(wallets: { owner_type: 'Reseller', wallet_type: 'main' })
+                            .sum(:amount).to_f
+          }
         }
       end
 
@@ -32,7 +45,8 @@ module Admin
       def create
         require_admin!
         reseller = Reseller.create!(reseller_create_params)
-        reseller.create_wallet!
+        reseller.create_main_wallet!(wallet_type: 'main')
+        reseller.create_earnings_wallet!(wallet_type: 'earnings') if reseller.infrastructure?
         record_audit_log('reseller.created', reseller)
         render json: reseller_json(reseller), status: :created
       end
@@ -55,8 +69,11 @@ module Admin
       # POST /admin/api/resellers/:id/onboard
       def onboard
         require_admin!
-        @reseller.create_wallet! unless @reseller.wallet
-        credentials = @reseller.generate_initial_credentials
+        @reseller.create_main_wallet!(wallet_type: 'main') unless @reseller.main_wallet
+        @reseller.create_earnings_wallet!(wallet_type: 'earnings') if @reseller.infrastructure? && !@reseller.earnings_wallet
+        @reseller.generate_dedicated_api_key if @reseller.infrastructure? && @reseller.dedicated_api_key.blank?
+        @reseller.save! if @reseller.changed?
+        credentials = @reseller.api_credentials
         record_audit_log('reseller.onboarded', @reseller)
         render json: {
           message: 'Reseller onboarded',
@@ -68,10 +85,14 @@ module Admin
       # PATCH /admin/api/resellers/:id/configure
       def configure
         require_role!('admin', 'manager')
-        @reseller.update!(
-          reseller_type:                    params[:reseller_type] || @reseller.reseller_type,
-          infrastructure_surcharge_percentage: params[:surcharge]&.to_d || @reseller.infrastructure_surcharge_percentage
-        )
+        updates = {}
+        updates[:reseller_type] = params[:reseller_type] if params[:reseller_type].present?
+        updates[:infrastructure_surcharge_percentage] = params[:surcharge].to_d if params[:surcharge].present?
+        updates[:subscription_fee] = params[:subscription_fee].to_d if params[:subscription_fee].present?
+        updates[:subscription_expires_at] = params[:subscription_expires_at] if params[:subscription_expires_at].present?
+        updates[:dedicated_api_key] = params[:dedicated_api_key] if params.key?(:dedicated_api_key)
+        updates[:customer_email] = params[:customer_email] if params.key?(:customer_email)
+        @reseller.update!(updates) if updates.any?
         record_audit_log('reseller.configured', @reseller)
         render json: reseller_json(@reseller)
       end
@@ -83,29 +104,38 @@ module Admin
       end
 
       def reseller_params
-        params.permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage)
+        params.permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
+                      :subscription_fee, :dedicated_api_key, :customer_email)
       end
 
       def reseller_create_params
-        params.permit(:email, :username, :company_name, :password, :reseller_type)
+        params.permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
       end
 
       def reseller_json(r, full: false)
         data = {
-          id:             r.id,
-          email:          r.email,
-          username:       r.username,
-          company_name:   r.company_name,
-          reseller_type:  r.reseller_type,
-          balance:        r.balance || 0,
-          surcharge:      r.infrastructure_surcharge_percentage,
-          total_orders:   r.orders.count,
-          has_affiliate:  r.affiliate.present?,
-          created_at:     r.created_at
+          id:                      r.id,
+          email:                   r.email,
+          username:                r.username,
+          company_name:            r.company_name,
+          reseller_type:           r.reseller_type,
+          balance:                 r.balance || 0,
+          earnings_balance:        r.earnings_balance || 0,
+          surcharge:               r.infrastructure_surcharge_percentage,
+          subscription_fee:        r.subscription_fee,
+          subscription_expires_at: r.subscription_expires_at,
+          dedicated_api_key:       r.dedicated_api_key,
+          customer_email:          r.customer_email,
+          total_orders:            r.orders.count,
+          has_affiliate:           r.affiliate.present?,
+          created_at:              r.created_at
         }
         if full
-          data[:orders] = r.orders.order(created_at: :desc).limit(10).map do |o|
+          data[:orders] = r.orders.order(created_at: :desc).limit(20).map do |o|
             { id: o.id, product: o.product&.name, status: o.status, total: o.total_amount, created_at: o.created_at }
+          end
+          data[:webhooks] = r.webhook_endpoints.map do |w|
+            { id: w.id, url: w.url, events: w.events, created_at: w.created_at }
           end
           data[:api_tokens] = r.api_tokens.map { |t| { id: t.id, name: t.name, created_at: t.created_at } }
         end

@@ -1,4 +1,201 @@
 services:
+  # ─── Production Services ─────────────────────────────────────
+  web:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-api:${IMAGE_TAG:-latest}
+    container_name: proxysock-web
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=production
+      - DB_HOST=db-production
+      - DB_USERNAME=proxysock_api
+      - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - REDIS_URL=redis://redis-production:6379/0
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+    ports:
+      - "80:80"
+    depends_on:
+      db-production:
+        condition: service_healthy
+      redis-production:
+        condition: service_healthy
+    profiles: [ "prod" ]
+    restart: unless-stopped
+
+  frontend:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-client:${IMAGE_TAG:-latest}
+    container_name: proxysock-frontend
+    ports:
+      - "8080:80"
+    profiles: [ "prod" ]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  sidekiq:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-api:${IMAGE_TAG:-latest}
+    container_name: proxysock-sidekiq
+    command: bundle exec sidekiq
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=production
+      - DB_HOST=db-production
+      - DB_USERNAME=proxysock_api
+      - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - REDIS_URL=redis://redis-production:6379/0
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+    depends_on:
+      db-production:
+        condition: service_healthy
+      redis-production:
+        condition: service_healthy
+    profiles: [ "prod" ]
+    restart: unless-stopped
+
+  db-production:
+    image: postgres:16-alpine
+    container_name: db-production
+    environment:
+      - POSTGRES_USER=proxysock_api
+      - POSTGRES_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - POSTGRES_DB=proxysock_api_production
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    profiles: [ "prod" ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proxysock_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis-production:
+    image: redis:7-alpine
+    container_name: redis-production
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_production_data:/data
+    profiles: [ "prod" ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─── Staging Services ────────────────────────────────────────
+  web-staging:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-api:${IMAGE_TAG:-staging}
+    container_name: proxysock-web-staging
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=test
+      - DB_HOST=db-staging
+      - DB_USERNAME=proxysock_api
+      - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - REDIS_URL=redis://redis-staging:6379/0
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+    ports:
+      - "80:80"
+    depends_on:
+      db-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    profiles: [ "staging" ]
+    restart: unless-stopped
+
+  frontend-staging:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-client:${IMAGE_TAG:-staging}
+    container_name: proxysock-frontend-staging
+    ports:
+      - "8080:80"
+    profiles: [ "staging" ]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  sidekiq-staging:
+    image: ${DOCKER_REGISTRY:-ghcr.io/asmadeous}/proxysock-api:${IMAGE_TAG:-staging}
+    container_name: proxysock-sidekiq-staging
+    command: bundle exec sidekiq
+    env_file:
+      - .env
+    environment:
+      - RAILS_ENV=test
+      - DB_HOST=db-staging
+      - DB_USERNAME=proxysock_api
+      - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - REDIS_URL=redis://redis-staging:6379/0
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+    depends_on:
+      db-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    profiles: [ "staging" ]
+    restart: unless-stopped
+
+  db-staging:
+    image: postgres:16-alpine
+    container_name: db-staging
+    environment:
+      - POSTGRES_USER=proxysock_api
+      - POSTGRES_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
+      - POSTGRES_DB=proxysock_api_staging
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    profiles: [ "staging" ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proxysock_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis-staging:
+    image: redis:7-alpine
+    container_name: redis-staging
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_staging_data:/data
+    profiles: [ "staging" ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─── Development Services ────────────────────────────────────
   web-dev:
     build:
       context: .
@@ -22,6 +219,21 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  frontend-dev:
+    image: node:20-alpine
+    container_name: proxysock-frontend-dev
+    working_dir: /app
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./client/.env
+    command: sh -c "npm install && npm run dev"
+    profiles: [ "dev" ]
+
+  # ─── Shared Services ────────────────────────────────────────
   mailpit:
     image: axllent/mailpit
     container_name: mailpit
@@ -54,7 +266,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=proxysock2026
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
-      - "3001:3000"
+      - "3002:3000"
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -62,5 +274,10 @@ services:
 
 volumes:
   rails_bundle_2026:
+  client_node_modules:
+  postgres_production_data:
+  redis_production_data:
+  postgres_staging_data:
+  redis_staging_data:
   prometheus_data:
   grafana_data:

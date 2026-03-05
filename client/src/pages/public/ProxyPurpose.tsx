@@ -14,7 +14,7 @@ import Navbar from "../../components/landing/layout/Navbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTwitter, faTelegram } from "@fortawesome/free-brands-svg-icons";
 import { Link } from "react-router-dom";
-import logo from "../assets/images/favicon.svg";
+import logo from "../../assets/images/favicon.svg";
 
 export default function ProxyPurpose() {
   const purposes = [

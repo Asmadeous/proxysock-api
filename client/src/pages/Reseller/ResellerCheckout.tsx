@@ -20,7 +20,7 @@ import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalc
 import { CartItem } from "./ResellerCart";
 import { useRedditTracking } from "@/utils/redditPixel";
 
-import api from "@/services/api";
+import { fetchResellerBalance } from "../../services/resellerApi";
 
 
 export interface ResellerCheckoutProps {
@@ -66,9 +66,9 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         // 3. Fetch Balance & Exchange Rate
         const fetchData = async () => {
             try {
-                const { data } = await api.get("/web/api/billing/balance");
-                if (data && data.available_balance !== undefined) {
-                    setUserBalance(data.available_balance);
+                const { data } = await fetchResellerBalance();
+                if (data && (data.available_balance !== undefined || data.balance !== undefined)) {
+                    setUserBalance(data.available_balance || data.balance || 0);
                 }
                 setExchangeRate(1500); // 1 USD = 1500 NGN default
             } catch (err) {

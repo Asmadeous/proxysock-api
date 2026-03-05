@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { fetchUserSupportChat, sendUserSupportMessage } from "../../services/api";
+import { getCableConsumer } from "../../services/cable";
 import { toast } from "react-hot-toast";
+import type { Subscription } from "@rails/actioncable";
 
 export default function SupportChat() {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(true);
     const [chatMeta, setChatMeta] = useState<any>({});
-    const pollRef = useRef<any>();
     const endRef = useRef<HTMLDivElement>(null);
 
     const loadChat = useCallback(async () => {
@@ -16,14 +17,41 @@ export default function SupportChat() {
             const { data } = await fetchUserSupportChat();
             setMessages(data.messages || []);
             setChatMeta(data.chat || {});
-        } catch { }
-        setLoading(false);
+            return data.chat;
+        } catch {
+            return null;
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        loadChat();
-        pollRef.current = setInterval(loadChat, 5000);
-        return () => clearInterval(pollRef.current);
+        let sub: Subscription | null = null;
+
+        loadChat().then((chat) => {
+            if (chat?.id) {
+                const consumer = getCableConsumer();
+                sub = consumer.subscriptions.create(
+                    { channel: "ChatChannel", chat_id: chat.id },
+                    {
+                        received: (data: any) => {
+                            if (data.action === 'message_created') {
+                                setMessages(prev => {
+                                    if (prev.find(m => m.id === data.message.id)) return prev;
+                                    return [...prev, data.message];
+                                });
+                            }
+                        },
+                        connected() { console.log("[ChatChannel] Connected"); },
+                        disconnected() { console.log("[ChatChannel] Disconnected"); }
+                    }
+                );
+            }
+        });
+
+        return () => {
+            if (sub) sub.unsubscribe();
+        };
     }, [loadChat]);
 
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -34,7 +62,7 @@ export default function SupportChat() {
         setInput("");
         try {
             await sendUserSupportMessage(msg);
-            loadChat();
+            // No need to loadChat() here as WebSocket will broadcast it
         } catch { toast.error("Failed to send message"); }
     };
 
@@ -87,8 +115,8 @@ export default function SupportChat() {
                         messages.map((m: any) => (
                             <div key={m.id} className={`flex ${m.sender_type === "User" ? "justify-end" : "justify-start"}`}>
                                 <div className={`group relative max-w-[80%] p-4 rounded-2xl text-sm transition-all shadow-sm ${m.sender_type === "User"
-                                        ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
-                                        : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
+                                    ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
+                                    : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
                                     }`}>
                                     {m.sender_type === "Employee" && (
                                         <div className="flex items-center gap-2 mb-1.5">
