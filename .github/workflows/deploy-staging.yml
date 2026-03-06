@@ -77,6 +77,15 @@ jobs:
                   cache-to: type=gha,scope=client,mode=max
 
             # ─── Deploy to VM ──────────────────────────────────
+            - name: Copy docker-compose config
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                  host: ${{ secrets.STAGING_HOST }}
+                  username: ${{ secrets.STAGING_USER }}
+                  key: ${{ secrets.STAGING_SSH_KEY }}
+                  source: "docker-compose.yml"
+                  target: "/opt/proxysock-api"
+
             - name: Deploy to Staging Server
               uses: appleboy/ssh-action@v1.0.3
               with:
