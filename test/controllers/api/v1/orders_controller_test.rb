@@ -18,7 +18,6 @@ module Api
 
         @vm_product = products(:one)
         @pricing = product_pricings(:pricing_one)
-        puts "SETUP: vm_product_id=#{@vm_product.id}, pricing_id=#{@pricing.id}, pricing_product_id=#{@pricing.product_id}"
       end
 
       test 'should list orders' do
