@@ -40,7 +40,7 @@ module ActiveSupport
         payload[:user_id] = user_or_reseller.id
       end
 
-      JWT.encode(payload, Rails.application.credentials.secret_key_base || Rails.application.secret_key_base)
+      JWT.encode(payload, Rails.application.secret_key_base)
     end
 
     # Helper to set auth header
@@ -57,7 +57,7 @@ module ActiveSupport
         password_digest: BCrypt::Password.create('password123'),
         reseller_type: 'api_only'
       )
-      wallet = Wallet.create!(owner: reseller)
+      wallet = reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: reseller, wallet_type: 'main')
       if balance > 0
         txn = Transaction.create!(
           transactable: reseller, # The user/reseller receiving funds
@@ -78,10 +78,11 @@ module ActiveSupport
       user = User.create!(
         first_name: 'Test',
         last_name: 'User',
+        username: "user_#{SecureRandom.hex(4)}",
         email: "user_#{SecureRandom.hex(4)}@test.com",
         password_digest: BCrypt::Password.create('password123')
       )
-      wallet = Wallet.create!(owner: user)
+      wallet = user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: user, wallet_type: 'main')
       if balance > 0
         txn = Transaction.create!(
           transactable: user,

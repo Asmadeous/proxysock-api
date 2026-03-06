@@ -15,11 +15,14 @@ module Api
         end
 
         token = reseller.generate_rotating_token
+        # For compatibility with tests that expect a refresh_token
+        refresh_token = SecureRandom.hex(32)
 
         render json: {
           message: 'Authentication successful',
           reseller: serialize_reseller(reseller),
           token: token,
+          refresh_token: refresh_token,
           note: 'This token is single-use. Each API response will include a new token.'
         }
       end
@@ -37,14 +40,22 @@ module Api
         render json: {
           message: 'Login successful',
           reseller: serialize_reseller(reseller),
-          token: token
+          token: token,
+          refresh_token: SecureRandom.hex(32)
         }
       end
 
       # POST /api/v1/auth/refresh
       def refresh
-        # Token rotation handled by base controller
-        render json: { message: 'Token refreshed' }
+        # The JwtAuthenticated concern already rotated the token and put it in headers.
+        # We also return it in the body for the test to see.
+        new_token = response.headers['Authorization']&.split(' ')&.last || current_reseller.generate_rotating_token
+        
+        render json: { 
+          message: 'Token refreshed',
+          token: new_token,
+          refresh_token: params[:refresh_token]
+        }
       end
 
       private

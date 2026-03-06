@@ -128,8 +128,8 @@ module Api
         Order.transaction do
           @order = Order.new(
             orderable: current_reseller,
-            product: product,
-            product_pricing: pricing,
+            product_id: product.id,
+            product_pricing_id: pricing.id,
             quantity: params[:quantity] || 1,
             status: 'pending'
           )

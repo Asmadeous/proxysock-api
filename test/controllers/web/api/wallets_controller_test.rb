@@ -6,17 +6,18 @@ module Web
   module Api
     class WalletsControllerTest < ActionDispatch::IntegrationTest
       setup do
-        @user = users(:one)
+        @user = create_user_with_balance(0)
+        wallet = @user.wallets.find_by(wallet_type: 'main')
         txn = Transaction.create!(
           transactable: @user,
           reference: @user,
-          amount: 50.0,
+          amount: 100.0,
           transaction_type: 'credit',
           status: 'success',
           currency: 'USD',
-          description: 'Initial Balance'
+          description: 'Init'
         )
-        Wallet.find_or_create_by!(owner: @user).credit!(50.0, 'Initial Balance', {}, txn) unless @user.wallet
+        wallet.credit!(100.0, 'Init', {}, txn)
       end
 
       test 'should get balance' do

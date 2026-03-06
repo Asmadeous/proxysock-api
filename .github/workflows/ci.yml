@@ -92,7 +92,7 @@ jobs:
       - name: Set up database
         run: |
           bin/rails db:create
-          bin/rails db:schema:load
+          bin/rails db:schema:load db:migrate
         env:
           RAILS_ENV: test
           DB_USERNAME: postgres

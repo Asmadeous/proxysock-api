@@ -74,6 +74,17 @@ class Reseller < ApplicationRecord
     JWT.encode(payload, Rails.application.secret_key_base)
   end
 
+  # Validates the single-use JTI and consumes it so it cannot be reused.
+  # Returns true if valid, false if already consumed or mismatched.
+  def validate_and_consume_token!(jti)
+    return false if current_token_jti.blank?
+    return false unless ActiveSupport::SecurityUtils.secure_compare(current_token_jti, jti)
+
+    # Consume the token immediately so replay attacks are impossible
+    update_columns(current_token_jti: nil)
+    true
+  end
+
   # API credentials based on tier
   def api_credentials
     if infrastructure?
