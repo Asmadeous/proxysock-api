@@ -128,7 +128,7 @@ class EsimProvisioningService
       end
 
       @order.update!(
-        status:       'completed',
+        status:       'active',
         total_amount: @order.product.product_pricings.first.selling_price * quantity
       )
 

@@ -16,6 +16,7 @@ class Product < ApplicationRecord
   scope :for_resellers,  -> { where(available_to: %w[reseller both]) }
   scope :for_ecommerce,  -> { where(available_to: %w[ecommerce both]) }
 
+  scope :vms,     -> { where(product_type: 'vm') }
   scope :vps,     -> { where(product_type: 'vps') }
   scope :rdps,    -> { where(product_type: 'rdp') }
   scope :proxies, -> { where(product_type: 'proxy') }

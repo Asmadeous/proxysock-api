@@ -6,7 +6,7 @@ class OrderTest < ActiveSupport::TestCase
   setup do
     @user = users(:one)
     @product = products(:one)
-    @pricing = product_pricings(:one)
+    @pricing = product_pricings(:pricing_one)
   end
 
   test 'belongs to product' do

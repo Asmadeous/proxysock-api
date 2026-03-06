@@ -21,6 +21,7 @@ module Web
         order_count = current_actor.orders.count
 
         render json: {
+          balance: wallet&.balance || 0.0,
           available_balance: wallet&.balance || 0.0,
           currency: 'USD',
           total_deposited: total_deposited,

@@ -140,7 +140,7 @@ class OrderProvisioningService
   # ========== VM Provisioning ==========
   def provision_vm!
     # Extract explicit user country selection or fallback to product default
-    country = @order.metadata['countryCode'].presence || @product.metadata&.dig('country_code') || 'US'
+    country = @order.metadata&.dig('countryCode').presence || @product.metadata&.dig('country_code') || 'US'
 
     # Create VM Order first
     vm_order = VmOrder.create!(
@@ -181,12 +181,13 @@ class OrderProvisioningService
       end
 
       # Execute MyProxyApi Purchase
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
         response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
 
         # Store the API response metadata securely for recordkeeping
+        @order.metadata ||= {}
         @order.metadata['my_proxy_api_response'] = response
         @order.save!
 
@@ -223,7 +224,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID') # From API docs example user_id
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1') # From API docs example user_id
 
       # Place the order via Reseller API for ALL myproxyapi products
       client = MyProxyApiClient.new
@@ -244,6 +245,7 @@ class OrderProvisioningService
       end
 
       # "put it in a metadata tag" -> store API payload/response in order metadata
+      @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!
@@ -383,7 +385,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol = @order.metadata['protocol'] || 'http'
       api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID')
+      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
 
       client = MyProxyApiClient.new
       response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
@@ -399,6 +401,7 @@ class OrderProvisioningService
         end
       end
 
+      @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!

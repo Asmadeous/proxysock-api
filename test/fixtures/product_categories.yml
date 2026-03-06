@@ -1,11 +1,19 @@
 one:
   name: VMs
+  slug: vms
   description: Virtual Machines
 
 two:
   name: Proxies
+  slug: proxies
   description: Proxy Services
 
 three:
   name: eSIMs
+  slug: esims
   description: eSIM Products
+
+four:
+  name: Datacenter
+  slug: datacenter
+  description: Datacenter Proxies

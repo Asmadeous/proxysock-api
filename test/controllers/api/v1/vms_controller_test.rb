@@ -7,7 +7,7 @@ module Api
     class VmsControllerTest < ActionDispatch::IntegrationTest
       setup do
         @reseller = resellers(:one)
-        wallet = Wallet.find_or_create_by!(owner: @reseller)
+        wallet = @reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: @reseller, wallet_type: 'main')
         txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 100.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(100.0, 'Init', {}, txn)
       end
@@ -30,7 +30,7 @@ module Api
         order = Order.create!(
           orderable: @reseller,
           product: products(:one),
-          product_pricing: product_pricings(:one),
+          product_pricing: product_pricings(:pricing_one),
           status: 'active'
         )
 

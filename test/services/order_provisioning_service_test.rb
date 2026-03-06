@@ -6,21 +6,22 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
   
   setup do
-    @user = users(:one)
-    @user_wallet = Wallet.create!(owner: @user)
-    txn = Transaction.create!(transactable: @user, reference: @user, amount: 100.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
-    @user_wallet.credit!(100.0, 'Init', {}, txn)
+    @user = create_user_with_balance(100.0)
+    @user_wallet = @user.wallet
 
-    @reseller = resellers(:one)
-    @reseller_wallet = Wallet.create!(owner: @reseller)
-    txn_r = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 500.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
-    @reseller_wallet.credit!(500.0, 'Init', {}, txn_r)
+    @reseller = create_reseller_with_balance(500.0)
+    @reseller_wallet = @reseller.wallet
+
+    # Mock MyProxyApiClient
+    @proxy_client_mock = mock('MyProxyApiClient')
+    MyProxyApiClient.stubs(:new).returns(@proxy_client_mock)
+    @proxy_client_mock.stubs(:place_order).returns({ 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u', 'password' => 'p' })
 
     @vm_product = products(:one)
-    @vm_pricing = product_pricings(:one)
+    @vm_pricing = product_pricings(:pricing_one)
 
     @proxy_product = products(:two)
-    @proxy_pricing = product_pricings(:two)
+    @proxy_pricing = product_pricings(:pricing_two)
   end
 
   test 'should provision VM for user with sufficient balance' do
@@ -44,30 +45,20 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
   end
 
   test 'should fail if insufficient balance' do
-    # User has 100.0. Reduce to 1.0 (Debit 99.0)
-    txn = Transaction.create!(transactable: @user, reference: @user, amount: 99.0, transaction_type: 'debit', status: 'success', currency: 'USD')
-    @user.wallet.debit!(99.0, 'Reduce balance', {}, txn)
-    
+    low_balance_user = create_user_with_balance(5.0) # 5.0 < 25.0 (VM price)
     order = Order.create!(
-      orderable: @user,
+      orderable: low_balance_user,
       product: @vm_product,
       product_pricing: @vm_pricing,
       status: 'pending'
     )
-
-    order.reload
-    # Reload user to ensure wallet association is fresh
-    @user.reload
     
-    service = OrderProvisioningService.new(order, @user)
+    service = OrderProvisioningService.new(order, low_balance_user)
 
-    begin
+    error = assert_raises(OrderProvisioningService::ProvisioningError) do
       service.process!
-      flunk("Should have raised StandardError/ProvisioningError")
-    rescue StandardError => e
-      assert true
-      assert_match /Insufficient balance/, e.message
     end
+    assert_match /Insufficient balance/, error.message
     order.reload
     assert order.failed?
   end
