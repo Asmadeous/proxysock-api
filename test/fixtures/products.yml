@@ -5,6 +5,7 @@ one:
   provider_type: proxmox
   available_to: both
   product_category: one
+  active: true
   metadata: { "cpu_cores": 2, "ram_gb": 4, "storage_gb": 50 }
 
 two:
@@ -14,6 +15,7 @@ two:
   provider_type: xproxy
   available_to: ecommerce
   product_category: two
+  active: true
   metadata: {}
 
 three:
@@ -23,4 +25,17 @@ three:
   provider_type: esim_access
   available_to: ecommerce
   product_category: three
+  active: true
   metadata: { "data_gb": 1, "duration_days": 30 }
+
+four:
+  name: 1 x Datacenter Proxy
+  description: Mapping product
+  product_type: proxy
+  provider_type: static_datacenter
+  available_to: both
+  product_category: four
+  active: true
+  provider_product_id: datacenter_1
+  metadata: {}
+

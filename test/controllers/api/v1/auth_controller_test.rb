@@ -18,7 +18,7 @@ module Api
         txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 500.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(500.0, 'Init', {}, txn)
 
-        @pricing = product_pricings(:one)
+        @pricing = product_pricings(:pricing_one)
       end
 
       test 'should get token with valid credentials' do

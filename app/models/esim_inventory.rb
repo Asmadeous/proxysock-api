@@ -9,16 +9,10 @@ class EsimInventory < ApplicationRecord
   validates :iccid, presence: true, uniqueness: true
   validates :provider, presence: true
   validates :esim_type, inclusion: { in: ESIM_TYPES }
+  validates :status, inclusion: { in: %w[available reserved sold] }
 
   validate :prevent_status_reversal, on: :update
 
-  private
-
-  def prevent_status_reversal
-    if status_was == 'sold' && status != 'sold'
-      errors.add(:status, "cannot be changed once the eSIM is sold")
-    end
-  end
 
   # Status scopes
   scope :available, -> { where(status: 'available') }
@@ -55,5 +49,13 @@ class EsimInventory < ApplicationRecord
 
   def voice_data_sms?
     esim_type == 'voice_data_sms'
+  end
+
+  private
+
+  def prevent_status_reversal
+    if status_was == 'sold' && status != 'sold'
+      errors.add(:status, "cannot be changed once the eSIM is sold")
+    end
   end
 end

@@ -38,7 +38,8 @@ class NotificationServiceTest < ActiveSupport::TestCase
       )
     end
     
-    n = Notification.last
+    n = Notification.find_by(category: 'system_alert', recipient: employee)
+    assert_not_nil n
     assert_equal 'system_alert', n.category
     assert_equal employee, n.recipient
   end

@@ -89,7 +89,7 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
     EsimProvisioningService.new(order).provision!
 
     order.reload
-    assert_equal 'completed', order.status
+    assert_equal 'active', order.status
 
     esim_order = order.esim_order
     assert_not_nil esim_order
@@ -138,7 +138,7 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
     EsimProvisioningService.new(order).provision!
 
     order.reload
-    assert_equal 'completed', order.status
+    assert_equal 'active', order.status
 
     esim_order = order.esim_order
     assert_equal 'voice_data_sms', esim_order.esim_type

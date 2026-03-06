@@ -7,7 +7,7 @@ class VmProvisioningJobTest < ActiveJob::TestCase
     @order = Order.create!(
       orderable: resellers(:one),
       product: products(:one),
-      product_pricing: product_pricings(:one),
+      product_pricing: product_pricings(:pricing_one),
       status: 'processing'
     )
     @test_vm = Vm.create!(

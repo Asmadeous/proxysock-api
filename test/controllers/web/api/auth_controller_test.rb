@@ -39,6 +39,7 @@ module Web
             user: {
               first_name: 'New',
               last_name: 'User',
+              username: 'new_user_reg',
               email: 'newuser@example.com',
               password: 'password123',
               password_confirmation: 'password123'

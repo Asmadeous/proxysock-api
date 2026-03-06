@@ -31,14 +31,20 @@ class Order < ApplicationRecord
   has_one :vm_order, dependent: :destroy
   has_one :vm, through: :vm_order
   has_one :mobile_proxy_order, dependent: :destroy
-  has_one :mobile_proxy, through: :mobile_proxy_order # Assuming MobileProxyOrder has_one MobileProxy
+  has_one :mobile_proxy, through: :mobile_proxy_order
+  has_one :static_datacenter_proxy_order, dependent: :destroy
+  has_one :static_isp_proxy_order, dependent: :destroy
+  has_one :static_residential_proxy_order, dependent: :destroy
+  has_one :residential_rotating_proxy_order, dependent: :destroy
+  has_one :premium_isp_proxy_order, dependent: :destroy
   has_one :esim_order, dependent: :destroy
   has_one :usa_esim_order, dependent: :destroy
-  has_one :vpn_account, dependent: :destroy
+  has_one :vpn_order, dependent: :destroy
+  has_one :vpn_account, through: :vpn_order, source: :vpn
 
   def provisioned_resource
     case product.product_type
-    when 'vps', 'rdp' then vm
+    when 'vps', 'rdp', 'vm' then vm
     when 'proxy' then proxy # delegates to correct proxy association
     when 'esim' then esim_order
     when 'usa_esim' then usa_esim_order

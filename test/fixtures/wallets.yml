@@ -1,5 +1,7 @@
 user_wallet:
   owner: one (User)
+  wallet_type: main
 
 reseller_wallet:
   owner: one (Reseller)
+  wallet_type: main
