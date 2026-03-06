@@ -111,8 +111,9 @@ class CartCheckoutService
       # Generate payment reference
       checkout_session.generate_reference!
 
-      # Clear cart
-      @cart.cart_items.destroy_all
+      # We do NOT clear the cart here. Wait for the webhook to confirm payment 
+      # or let the user resume/abandon the cart.
+      # @cart.cart_items.destroy_all
     end
 
     # Generate payment URL

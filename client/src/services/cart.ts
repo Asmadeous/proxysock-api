@@ -1,27 +1,28 @@
 import railsApi from "../lib/railsApi";
 
+// All IDs are UUIDs (string) — the backend schema uses id: :uuid.
 export interface CartItem {
-    id: number;
-    product_id: number;
-    product_pricing_id: number;
+    id: string;
+    product_id: string;
+    product_pricing_id: string;
     quantity: number;
     unit_price: number;
     total_price: number;
     product: {
-        id: number;
+        id: string;
         name: string;
         product_type: string;
     };
     product_pricing: {
-        id: number;
+        id: string;
         duration_days: number;
         selling_price: number;
     };
 }
 
 export interface Cart {
-    id: number;
-    user_id: number;
+    id: string;
+    user_id: string;
     status: string;
     items: CartItem[];
 }
@@ -31,8 +32,8 @@ export interface CheckoutResult {
     message: string;
     payment_url?: string;
     reference?: string;
-    checkout_session_id?: number;
-    orders?: { id: number; status: string }[];
+    checkout_session_id?: string;
+    orders?: { id: string; status: string }[];
     error?: string;
 }
 
@@ -52,8 +53,8 @@ export const getCart = async (): Promise<Cart | null> => {
 
 // Add item to cart
 export const addToCart = async (
-    productId: number,
-    pricingId: number,
+    productId: string,
+    pricingId: string,
     quantity: number = 1
 ): Promise<{ success: boolean; cartItem?: CartItem; error?: string }> => {
     try {
@@ -75,7 +76,7 @@ export const addToCart = async (
 
 // Remove item from cart
 export const removeFromCart = async (
-    itemId: number
+    itemId: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
         await railsApi.delete("/cart/remove_item", {

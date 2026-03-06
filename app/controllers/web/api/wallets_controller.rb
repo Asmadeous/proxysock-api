@@ -43,13 +43,16 @@ module Web
                                                                                          payvra].include?(gateway)
 
         # Create pending deposit
+        # Store the exchange rate at deposit creation time so the webhook
+        # handler can use the same rate for verification (prevents FX drift).
+        exchange_rate = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
         transaction_ref = "DEP_#{SecureRandom.hex(8)}"
         deposit = Deposit.create!(
           depositable: current_actor,
           amount: amount,
           gateway: gateway,
           status: 'pending',
-          metadata: { transaction_ref: transaction_ref }
+          metadata: { transaction_ref: transaction_ref, exchange_rate: exchange_rate }
         )
 
         # Generate payment link based on gateway
@@ -70,7 +73,8 @@ module Web
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
+          # Use configurable exchange rate — do NOT hardcode 1500 NGN/USD.
+          exchange_rate = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
           amount_ngn = amount * exchange_rate
           service = PaystackService.new
           result = service.initialize_transaction(
@@ -101,6 +105,9 @@ module Web
             reference: deposit.metadata['transaction_ref'],
             callback_url: callback_url
           )
+          # Store Payvra's invoice_id so DepositSyncService can verify via their API later.
+          deposit.metadata['payvra_invoice_id'] = result[:invoice_id]
+          deposit.save!
           result[:payment_url]
         end
       end

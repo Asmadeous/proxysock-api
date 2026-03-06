@@ -65,7 +65,15 @@ class EsimProvisioningService
       provider_order_no: result['orderNo']
     )
 
+    # The eSIM Access API processes orders asynchronously — the order stays
+    # in 'processing' until their webhook (or a polling job) confirms
+    # provisioning is complete and QR codes are available.
+    # EsimAccessWebhookJob / polling is responsible for transitioning to 'active'.
     @order.update!(status: 'processing', provider_order_id: result['orderNo'])
+
+    # Schedule a polling job to check provisioning status and activate when ready.
+    # This is a safety net in case the webhook is missed.
+    EsimAccessPollingJob.perform_in(5.minutes, @order.id) if defined?(EsimAccessPollingJob)
   end
 
   # --------------------------------------------------------------------------
@@ -127,10 +135,9 @@ class EsimProvisioningService
         )
       end
 
-      @order.update!(
-        status: 'active',
-        total_amount: @order.product.product_pricings.first.selling_price * quantity
-      )
+      # Preserve the total_amount already calculated by PricingService/OrderProvisioningService.
+      # Overwriting it here would bypass reseller discounts and infrastructure surcharges.
+      @order.update!(status: 'active')
 
       # Notify the customer / reseller
       esim_order.esims.each do |esim|

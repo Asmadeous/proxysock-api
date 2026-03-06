@@ -102,23 +102,39 @@ class WebhooksController < ApplicationController
     deposit = Deposit.where("metadata->>'transaction_ref' = ?", reference).first
     return unless deposit && deposit.status == 'pending'
 
-    paid_amount = gateway == 'paystack' ? (data['amount'].to_f / 100.0) : data['amount'].to_f
+    # Normalise the paid amount to USD.
+    # Paystack amounts are in kobo (NGN × 100).  We stored deposit.amount in USD,
+    # so we must convert: kobo → NGN → USD.
+    paid_amount_usd =
+      if gateway == 'paystack'
+        paid_ngn       = data['amount'].to_f / 100.0           # kobo → NGN
+        exchange_rate  = deposit.metadata['exchange_rate'].to_f # stored at deposit creation time
+        exchange_rate  = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f if exchange_rate.zero?
+        paid_ngn / exchange_rate                                # NGN → USD
+      else
+        data['amount'].to_f  # Plisio, Payvra — amounts already in USD
+      end
 
-    if paid_amount < deposit.amount
-      Rails.logger.warn("Deposit #{reference} failed amount validation. Expected #{deposit.amount}, got #{paid_amount}")
+    # Allow a small tolerance (±1%) for floating-point / FX rounding
+    if paid_amount_usd < (deposit.amount * 0.99)
+      Rails.logger.warn(
+        "Deposit #{reference} failed amount validation. " \
+        "Expected ~#{deposit.amount} USD, got #{paid_amount_usd} USD (gateway raw: #{data['amount']})"
+      )
       return
     end
 
     ActiveRecord::Base.transaction do
       deposit.update!(status: 'completed', completed_at: Time.current)
 
-      deposit.depositable&.wallet&.credit!(paid_amount, "Deposit via #{gateway}", {
+      deposit.depositable&.wallet&.credit!(paid_amount_usd, "Deposit via #{gateway}", {
                                              gateway: gateway,
                                              gateway_ref: reference,
-                                             paid_amount: paid_amount
+                                             paid_amount_usd: paid_amount_usd
                                            })
     end
   end
+
 
   def handle_order_payment(reference, _data, _gateway, metadata)
     order_id = metadata['order_id'] || reference.split('_')[1]

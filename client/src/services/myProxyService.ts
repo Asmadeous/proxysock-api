@@ -26,7 +26,7 @@ export interface VPNPlan {
   features: string[];
   locations: string[];
   is_active: boolean;
-  isp?: ISP[]; // ADD THIS - ISP data with locations
+  isp?: ISP[];
 }
 
 export interface VPNCategory {
@@ -36,7 +36,6 @@ export interface VPNCategory {
   information?: string[];
   vpn_plans?: VPNPlan[];
 }
-
 
 
 // // ============================================================================
@@ -58,32 +57,7 @@ export interface VPNCategory {
 
 
 // ============================================================================
-// VPN INTERFACES - UPDATED
-// ============================================================================
-
-export interface VPNPlan {
-  id: string;
-  plan_id: number;
-  name: string;
-  price: string | number;
-  currency: string;
-  bandwidth_gb: number;
-  features: string[];
-  locations: string[];
-  is_active: boolean;
-  isp?: ISP[]; // ADD THIS - ISP data with locations
-}
-
-export interface VPNCategory {
-  id: string;
-  name: string;
-  slug: string;
-  information?: string[];
-  vpn_plans?: VPNPlan[];
-}
-
-// ============================================================================
-// VPN SERVICE FUNCTIONS - UPDATED
+// VPN SERVICE FUNCTIONS
 // ============================================================================
 
 export const fetchVPNCategory = async (): Promise<VPNCategory | null> => {

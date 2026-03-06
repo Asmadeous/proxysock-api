@@ -1,43 +1,32 @@
 import api from "./api";
 
-export const proxyService = {
-  getProxies: async () => {
-    const response = await api.get("/proxies");
-    return response.data;
-  },
+// proxyService.ts — only exposes routes that actually exist in routes.rb.
+// /proxies and /proxies/stats do not exist; removed to prevent dead API calls.
 
-  getProxyStats: async () => {
-    const response = await api.get("/proxies/stats");
+export const proxyService = {
+  // Proxy products are fetched via the products API, filtered by product_type.
+  getProxies: async (productType?: string) => {
+    const params = productType ? { product_type: productType } : {};
+    const response = await api.get("/web/api/products", { params });
     return response.data;
   },
 
   purchaseProxy: async (planId: string) => {
-    const response = await api.post("/proxies/purchase", { planId });
-    return response.data;
-  },
-
-  getProxyHealth: async () => {
-    const response = await api.get("/proxies/health");
+    const response = await api.post("/web/api/orders", { product_id: planId });
     return response.data;
   },
 };
 
-// For development/testing
+// For development/testing — mock only, never reaches the API.
 export const getMockProxies = () => {
   return [
     {
       id: "1",
       ip: "192.168.1.1",
       port: 8080,
-      type: "http",
-      location: "US",
-      isActive: true,
-      speed: 85,
-      bandwidth: {
-        used: 5 * 1024 * 1024 * 1024, // 5 GB
-        limit: 50 * 1024 * 1024 * 1024, // 50 GB
-      },
+      type: "mobile_proxy",
+      status: "active",
+      country: "US",
     },
-    // Add more mock proxies as needed
   ];
 };
