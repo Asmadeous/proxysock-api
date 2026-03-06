@@ -140,7 +140,7 @@ class OrderProvisioningService
   # ========== VM Provisioning ==========
   def provision_vm!
     # Extract explicit user country selection or fallback to product default
-    country = @order.metadata['countryCode'].presence || @product.metadata&.dig('country_code') || 'US'
+    country = @order.metadata&.dig('countryCode').presence || @product.metadata&.dig('country_code') || 'US'
 
     # Create VM Order first
     vm_order = VmOrder.create!(
@@ -187,6 +187,7 @@ class OrderProvisioningService
         response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
 
         # Store the API response metadata securely for recordkeeping
+        @order.metadata ||= {}
         @order.metadata['my_proxy_api_response'] = response
         @order.save!
 
@@ -244,6 +245,7 @@ class OrderProvisioningService
       end
 
       # "put it in a metadata tag" -> store API payload/response in order metadata
+      @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!
@@ -399,6 +401,7 @@ class OrderProvisioningService
         end
       end
 
+      @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
       @order.save!
       @order.activate!

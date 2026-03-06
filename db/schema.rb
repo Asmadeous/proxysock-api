@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_03_230718) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -589,6 +589,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
 
   create_table "product_pricings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active"
+    t.decimal "api_price", precision: 15, scale: 4
     t.decimal "cost_price"
     t.datetime "created_at", null: false
     t.string "currency"
@@ -596,8 +597,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.integer "duration_value"
     t.decimal "margin_percentage"
     t.uuid "product_id"
+    t.decimal "reseller_selling_price", precision: 15, scale: 4
     t.decimal "selling_price"
     t.datetime "updated_at", null: false
+    t.decimal "user_selling_price", precision: 15, scale: 4
   end
 
   create_table "products", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -614,7 +617,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "provider_type", default: "myproxyapi"
     t.string "slug"
     t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_products_on_active"
+    t.index ["name"], name: "index_products_on_name"
     t.index ["product_type"], name: "index_products_on_product_type"
+    t.index ["provider"], name: "index_products_on_provider"
     t.index ["provider_type"], name: "index_products_on_provider_type"
     t.index ["slug"], name: "index_products_on_slug"
   end
@@ -670,6 +676,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "company_name"
     t.datetime "created_at", null: false
     t.string "current_token_jti"
+    t.string "customer_email"
+    t.string "dedicated_api_key"
     t.decimal "discount_percentage"
     t.string "email"
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
@@ -678,6 +686,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "referred_by_code"
     t.string "reseller_type", default: "api_only"
     t.string "status"
+    t.datetime "subscription_expires_at"
+    t.decimal "subscription_fee"
     t.datetime "token_issued_at"
     t.integer "token_request_count", default: 0
     t.datetime "updated_at", null: false
@@ -862,6 +872,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
   create_table "tickets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "assigned_to_id"
     t.datetime "created_at", null: false
+    t.uuid "deposit_id", null: false
     t.uuid "order_id"
     t.string "priority", default: "normal"
     t.string "status", default: "open", null: false
@@ -869,6 +880,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.datetime "updated_at", null: false
     t.uuid "user_id"
     t.string "user_type", null: false
+    t.index ["deposit_id"], name: "index_tickets_on_deposit_id"
     t.index ["status"], name: "index_tickets_on_status"
   end
 
@@ -976,6 +988,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "profile_picture_url"
     t.string "provider"
     t.string "referred_by_code"
+    t.uuid "reseller_id"
     t.string "status"
     t.string "uid"
     t.datetime "updated_at", null: false
@@ -983,6 +996,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.index ["email"], name: "index_users_on_email"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
+    t.index ["reseller_id"], name: "index_users_on_reseller_id"
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
@@ -1084,6 +1098,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
     t.string "status", default: "active"
     t.datetime "updated_at", null: false
     t.uuid "user_id"
+    t.string "wallet_type", default: "main", null: false
+    t.index ["owner_id", "owner_type", "wallet_type"], name: "index_wallets_on_owner_and_type"
   end
 
   create_table "webhook_endpoints", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1172,6 +1188,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_184206) do
   add_foreign_key "support_chat_messages", "support_chats"
   add_foreign_key "support_chats", "employees", column: "assigned_to_id"
   add_foreign_key "ticket_messages", "tickets"
+  add_foreign_key "tickets", "deposits"
   add_foreign_key "tickets", "employees", column: "assigned_to_id"
   add_foreign_key "tickets", "orders"
   add_foreign_key "usa_esim_credentials", "usa_esim_orders", column: "order_id", name: "usa_esim_credentials_order_id_fkey"
