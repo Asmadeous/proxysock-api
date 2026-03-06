@@ -3,7 +3,7 @@
 one:
   cart: one
   product: one
-  product_pricing: one
+  product_pricing: pricing_one
   quantity: 1
   unit_price: 9.99
   total_price: 9.99
@@ -12,7 +12,7 @@ one:
 two:
   cart: two
   product: two
-  product_pricing: two
+  product_pricing: pricing_two
   quantity: 1
   unit_price: 9.99
   total_price: 9.99
