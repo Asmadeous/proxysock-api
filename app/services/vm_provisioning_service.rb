@@ -14,21 +14,21 @@ class VmProvisioningService
   TEMPLATES = {
     # ── Ubuntu ────────────────────────────────────────────────────
     'ubuntu-20-04' => {
-      id: 9000, # PLACEHOLDER — set to your actual Proxmox template VMID
+      id: ENV.fetch('TEMPLATE_UBUNTU_20_04', 9000).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-22-04' => {
-      id: 9001, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_UBUNTU_22_04', 9001).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-24-04' => {
-      id: 9002, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_UBUNTU_24_04', 9002).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
@@ -37,14 +37,14 @@ class VmProvisioningService
 
     # ── Debian ────────────────────────────────────────────────────
     'debian-11' => {
-      id: 9010, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_DEBIAN_11', 9010).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'debian'
     },
     'debian-12' => {
-      id: 9011, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_DEBIAN_12', 9011).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
@@ -53,14 +53,14 @@ class VmProvisioningService
 
     # ── Alma Linux ────────────────────────────────────────────────
     'alma-8' => {
-      id: 9020, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_ALMA_8', 9020).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
     'alma-9' => {
-      id: 9021, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_ALMA_9', 9021).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
@@ -69,14 +69,14 @@ class VmProvisioningService
 
     # ── Rocky Linux ───────────────────────────────────────────────
     'rocky-8' => {
-      id: 9030, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_ROCKY_8', 9030).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
       os_family: 'rocky'
     },
     'rocky-9' => {
-      id: 9031, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_ROCKY_9', 9031).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
@@ -85,7 +85,7 @@ class VmProvisioningService
 
     # ── Fedora (RDP desktop) ──────────────────────────────────────
     'fedora-rdp' => {
-      id: 9040, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_FEDORA_RDP', 9040).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
       connection: { type: 'ssh' },
@@ -94,14 +94,14 @@ class VmProvisioningService
 
     # ── Windows ───────────────────────────────────────────────────
     'windows-server-2022' => {
-      id: 9100, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_WINDOWS_2022', 9100).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     },
     'windows-server-2019' => {
-      id: 9101, # PLACEHOLDER
+      id: ENV.fetch('TEMPLATE_WINDOWS_2019', 9101).to_i,
       bridge: 'vmbr0',
       credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
@@ -315,8 +315,16 @@ class VmProvisioningService
   def change_password(vm, new_password)
     @logger.info("Changing password for VM #{vm.id}")
 
-    # Generate temporary inventory for this VM
-    inventory_content = "[vms]\n#{vm.ip_address} ansible_user=root ansible_ssh_private_key_file=/root/.ssh/id_rsa"
+    # Generate temporary inventory for this VM using root_password
+    escaped_pass = Shellwords.escape(vm.root_password || '')
+    user = (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'Administrator' : 'root'
+    
+    inventory_content = if user == 'Administrator'
+                          "[windows]\n#{vm.ip_address} ansible_user=#{user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore"
+                        else
+                          "[linux]\n#{vm.ip_address} ansible_user=#{user} ansible_ssh_pass=#{escaped_pass} ansible_connection=ssh ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
+                        end
+
     inventory_path = "/tmp/pwd_change_#{vm.id}.ini"
     File.write(inventory_path, inventory_content)
 

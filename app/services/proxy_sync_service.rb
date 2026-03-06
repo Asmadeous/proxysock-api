@@ -108,16 +108,21 @@ class ProxySyncService
     # Add country_code for models that have it
     attrs[:country_code] = data['country'] if data['country']
 
-    # Add mobile_proxy_order_id for MobileProxy model (required by schema)
+    # For MobileProxy, find the actual parent order by the provider order ID.
+    # If no matching order exists, skip creation to avoid linking proxies to
+    # unrelated orders (previously linked everything to MobileProxyOrder.first).
     if model_class == MobileProxy
-      mp_order = MobileProxyOrder.first
-      return nil unless mp_order # Can't create without FK
-
+      mp_order = MobileProxyOrder.find_by(myproxyapi_order_id: data['id'].to_s)
+      if mp_order.nil?
+        @logger.warn("[ProxySyncService] No MobileProxyOrder found for provider ID #{data['id']} — skipping")
+        return nil
+      end
       attrs[:mobile_proxy_order_id] = mp_order.id
     end
 
     attrs
   end
+
 
   def needs_update?(record, new_attributes)
     # Check key fields for changes

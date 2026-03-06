@@ -1,69 +1,113 @@
 # frozen_string_literal: true
 
+require 'net/http'
+require 'openssl'
+require 'json'
+
+# Client for the eSIM Access (Redtea Mobile) Open API.
+# Docs: https://doc.esimaccess.com/
+# Authentication: every request sends RT-AccessCode header AND an HMAC-SHA256
+# signature of the JSON body keyed with the RT-SecretKey.
 class EsimAccessService
   BASE_URL = 'https://api.esimaccess.com/api/v1/open'
 
   def initialize
-    @api_key = ENV['ESIM_ACCESS_API_KEY']
+    @access_code = ENV.fetch('ESIM_ACCESS_API_KEY', '')
+    @secret_key  = ENV.fetch('ESIM_ACCESS_SECRET_KEY', '')
   end
 
-  def order_esim(package_code, count = 1)
-    response = request(:post, '/esim/order', {
-                         packageCode: package_code,
-                         count: count,
-                         price: 0 # Optional as per docs if using predefined price
-                       })
+  # Place an order for eSIM profiles.
+  # Endpoint: POST /order/profiles
+  # Required body fields: transactionId, packageInfoList[{ packageCode, count, price }]
+  def order_esim(package_code, count = 1, price = 0)
+    transaction_id = SecureRandom.hex(16) # Unique reference per call
+    body = {
+      transactionId: transaction_id,
+      packageInfoList: [
+        { packageCode: package_code, count: count, price: price }
+      ]
+    }
+    response = request(:post, '/order/profiles', body)
 
-    # Docs say response contains orderNo or list of profiles depending on version
-    # "Single Profile ordering changed to batch Profile ordering [via Order Profiles request]"
-    # Assuming successful response structure: { obj: { orderNo: "..." } }
+    return response['obj'].merge('transactionId' => transaction_id) if response['success'] == true
 
-    return response['obj'] if response['obj']
-
-    raise "eSIM Access Order Failed: #{response['errorMessage']}"
+    raise "eSIM Access Order Failed: #{response['errorMessage']} (code: #{response['errorCode']})"
   end
 
+  # Query eSIM details by ICCID.
+  # Endpoint: POST /esim/query
   def fetch_esim_details(iccid)
-    # Using 'query' endpoint as per docs
     response = request(:post, '/esim/query', { iccid: iccid })
     response['obj']
   end
 
+  # Check data usage for up to 10 eSIMs by their transaction numbers.
+  # Endpoint: POST /esim/usage/query
   def fetch_usage_batch(transaction_nos)
-    # Docs: "Check the data usage of up to 10 eSIMs via their esimTranNo"
-    # Endpoint: /esim/usage/query
-    # Body: { esimTranNoList: [ "...", "..." ] }
-
-    response = request(:post, '/esim/usage/query', { esimTranNoList: transaction_nos })
-
-    return response['obj'] if response['obj']
-
-    # returns list of { esimTranNo, dataUsage, totalData, lastUpdateTime }
+    response = request(:post, '/esim/usage/query', { esimTranNoList: Array(transaction_nos) })
+    return response['obj'] if response['success'] == true
 
     []
   end
 
+  # List available packages / products.
+  # Endpoint: GET /packages  (NOT /esim/packages)
+  def list_packages
+    response = request(:get, '/packages', {})
+    return response['obj'] if response['success'] == true
+
+    []
+  end
+
+  # Top-up / renew an active eSIM.
+  # Endpoint: POST /esim/topup
+  def top_up(iccid:, package_code:, count: 1)
+    transaction_id = SecureRandom.hex(16)
+    body = {
+      transactionId: transaction_id,
+      iccid: iccid,
+      packageCode: package_code,
+      count: count
+    }
+    response = request(:post, '/esim/topup', body)
+
+    return response['obj'] if response['success'] == true
+
+    raise "eSIM Access Top-up Failed: #{response['errorMessage']}"
+  end
+
   private
 
-  def request(_method, endpoint, body = {})
-    uri = URI("#{BASE_URL}#{endpoint}")
+  # Build and sign an HTTP request with HMAC-SHA256.
+  # The signature is computed over the raw JSON body using the secret key and
+  # sent as the RT-Signature header.
+  def request(method, endpoint, body = {})
+    uri  = URI("#{BASE_URL}#{endpoint}")
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
+    http.use_ssl     = true
+    http.read_timeout = 30
 
-    request = Net::HTTP::Post.new(uri)
-    request['RT-AccessCode'] = @api_key # Check docs for exact header name. Usually RT-AccessCode or similar.
-    # Docs say: "AUTHORIZATION API Key"
-    # Assuming header is RT-AccessCode based on common providers, or just in body?
-    # Docs snippet showed "This request is using API Key from collection eSIM Access API"
-    # Let's assume standard Header 'RT-AccessCode' or 'Authorization'.
-    # Validating from snippet: "AUTHORIZATION API Key" usually implies a header.
-    # The snippet doesn't explicitly name the header key but standard is often RT-AccessCode for this provider type (Redtea/eSIMAccess).
-    request['RT-AccessCode'] = @api_key
+    body_json = body.to_json
+    signature  = OpenSSL::HMAC.hexdigest('SHA256', @secret_key, body_json)
 
-    request['Content-Type'] = 'application/json'
-    request.body = body.to_json
+    req = case method
+          when :get  then Net::HTTP::Get.new(uri)
+          when :post then Net::HTTP::Post.new(uri)
+          else raise ArgumentError, "Unsupported HTTP method: #{method}"
+          end
 
-    response = http.request(request)
+    req['RT-AccessCode'] = @access_code
+    req['RT-Signature']  = signature
+    req['Content-Type']  = 'application/json'
+    req['Accept']        = 'application/json'
+    req.body = body_json
+
+    response = http.request(req)
+
+    unless response.is_a?(Net::HTTPSuccess)
+      raise "eSIM Access HTTP Error #{response.code}: #{response.body}"
+    end
+
     JSON.parse(response.body)
   end
 end

@@ -243,9 +243,17 @@ module Web
           ActiveRecord::Base.transaction do
             # Create all orders
             orders_to_create.each(&:save!)
+            transaction = Transaction.create!(
+              transactable: current_actor,
+              reference: current_actor, # Virtual cart, self-reference
+              amount: total_amount,
+              transaction_type: 'debit',
+              status: 'success',
+              currency: 'USD',
+              description: "Virtual Cart Checkout (#{orders_to_create.count} items)"
+            )
 
-            wallet.debit!(total_amount, 'Cart Checkout')
-
+            wallet.debit!(total_amount, 'Cart Checkout', {}, transaction)
             # Provision each
             orders_to_create.each do |order|
               OrderProvisioningService.new(order, current_actor).process_without_deduction!

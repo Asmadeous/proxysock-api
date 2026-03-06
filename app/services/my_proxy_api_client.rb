@@ -3,20 +3,101 @@
 require 'net/http'
 require 'json'
 
+# Client for the MyProxyApi reseller API.
+# Handles authentication (JWT Bearer token), order placement, credential
+# updates, IP rotation, and VPN OVPN download.
 class MyProxyApiClient
-  BASE_URL = ENV.fetch('MY_PROXY_API_URL', 'https://api.myproxyapi.com')
+  BASE_URL     = ENV.fetch('MY_PROXY_API_URL', 'https://api.myproxyapi.com')
   API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME', '')
-  API_SECRET = ENV.fetch('MY_PROXY_API_SECRET', '')
+  API_SECRET   = ENV.fetch('MY_PROXY_API_SECRET', '')
 
-  def initialize
-    @uri = URI(BASE_URL)
-    @token = nil
+  # --------------------------------------------------------------------------
+  # Fetch all active proxies from the provider.
+  # NOTE: The real endpoint is not documented publicly for this client.
+  # When the provider docs are available, uncomment the real API call below.
+  # Returns an empty array until the real endpoint is configured to avoid
+  # poisoning the database with fake data.
+  # --------------------------------------------------------------------------
+  def fetch_proxies
+    # TODO: Replace with real API call once endpoint is confirmed:
+    # response = request(:get, "#{BASE_URL}/proxies")
+    # response['data'] || []
+    Rails.logger.warn('[MyProxyApiClient] fetch_proxies is not connected to a real API. Returning empty array.')
+    []
   end
 
-  def authenticate
-    endpoint = "#{BASE_URL}/getToken"
-    uri = URI(endpoint)
+  # Place an order on the provider.
+  # @param user_id           [Integer] Internal reseller user ID
+  # @param product_api_id    [String]  Provider's product identifier
+  # @param period            [Integer] Duration or traffic amount
+  # @param protocol          [String]  e.g. 'http', 'socks5'
+  # @param locations         [String]  Location identifier
+  # @param whitelist_ip      [String]  Client IP for whitelisting (Mobile proxies)
+  # @return [Hash] API response
+  def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil, whitelist_ip: nil)
+    payload = {
+      user_id:  user_id.to_i,
+      product:  product_api_id.to_i,
+      period:   period.to_s,
+      debug:    'api'
+    }
+    payload[:protocol]     = protocol.to_s     if protocol.present?
+    payload[:locations]    = locations.to_s    if locations.present?
+    payload[:whitelist_ip] = whitelist_ip.to_s if whitelist_ip.present?
+
+    request(:post, "#{BASE_URL}/products/place-order", payload)
+  end
+
+  # Fetch full details for an existing order (IP, credentials, etc.).
+  # Endpoint: GET /orders/view/{order_id}
+  # @return [Hash]
+  def view_order(order_id)
+    request(:get, "#{BASE_URL}/orders/view/#{order_id}")
+  end
+
+  # Download the OVPN configuration file for a VPN order.
+  # Endpoint confirmed from API docs: GET /orders/vpn/download/{order_id}
+  # @return [String] Binary OVPN content
+  def download_ovpn(order_id)
+    uri  = URI("#{BASE_URL}/orders/vpn/download/#{order_id}?download=1")
     http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    req = Net::HTTP::Get.new(uri)
+    req['Authorization'] = "Bearer #{fetch_token}"
+
+    response = http.request(req)
+    raise "MyProxyApi Download Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+    response.body
+  end
+
+  # Update proxy credentials.
+  # Endpoint: PATCH /orders/change-credentials
+  # @param order_id  [String] Provider order ID
+  # @param username  [String]
+  # @param password  [String]
+  def update_credentials(order_id, username, password)
+    body = { order_id: order_id, username: username, password: password }
+    request(:patch, "#{BASE_URL}/orders/change-credentials", body)
+  end
+
+  # Rotate the IP address for an order.
+  # Endpoint: PATCH /orders/replacement
+  # @param order_id [String] Provider order ID
+  def rotate_ip(order_id)
+    request(:patch, "#{BASE_URL}/orders/replacement", { order_id: order_id })
+  end
+
+  private
+
+  # Authenticate and return a JWT token (cached for the lifetime of this object).
+  def fetch_token
+    return @token if @token
+
+    endpoint = "#{BASE_URL}/getToken"
+    uri      = URI(endpoint)
+    http     = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
 
     req = Net::HTTP::Post.new(uri)
@@ -26,130 +107,35 @@ class MyProxyApiClient
     response = http.request(req)
     raise "MyProxyApi Auth Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
-    data = JSON.parse(response.body)
-    @token = data['data']['token'] || data['token'] # Handle potential API payload structures
+    data   = JSON.parse(response.body)
+    @token = data.dig('data', 'token') || data['token']
+    raise 'MyProxyApi: No token in auth response' if @token.blank?
+
+    @token
   end
 
-  # Fetch all active proxies from the provider
-  # Returns an array of proxy hashes
-  def fetch_proxies
-    # endpoint = "#{BASE_URL}/proxies"
-    # response = request(:get, endpoint)
-    # response['data'] || []
-
-    # MOCK DATA FOR DEVELOPMENT until real API details are integrated
-    [
-      {
-        'id' => 'mp_12345',
-        'type' => 'mobile_proxy',
-        'ip' => '1.2.3.4',
-        'port' => 8080,
-        'username' => 'user1',
-        'password' => 'pass1',
-        'status' => 'active',
-        'country' => 'US'
-      },
-      {
-        'id' => 'dc_67890',
-        'type' => 'static_datacenter',
-        'ip' => '5.6.7.8',
-        'port' => 8000,
-        'username' => 'user2',
-        'password' => 'pass2',
-        'status' => 'active',
-        'country' => 'DE'
-      }
-    ]
-  end
-
-  # Places an order on the provider using the reseller's deposit
-  # For residential rotating, period = traffic amount in GB
-  # @param user_id [Integer] Internal user ID for tracking
-  # @param product_api_id [String] The API identifier for the product being ordered
-  # @param period [Integer, String] Duration or amount based on proxy type
-  # @param locations [String, nil] Location identifier for static/mobile proxies
-  # @param whitelist_ip [String, nil] Client IP for proxy whitelisting (required for Mobile)
-  # @return [Hash] Response payload from API containing order details
-  def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil, whitelist_ip: nil)
-    endpoint = "#{BASE_URL}/products/place-order"
-
-    payload = {
-      user_id: user_id.to_i,
-      product: product_api_id.to_i,
-      period: period.to_s,
-      debug: 'api'
-    }
-
-    payload[:protocol] = protocol.to_s if protocol.present?
-    payload[:locations] = locations.to_s if locations.present?
-    payload[:whitelist_ip] = whitelist_ip.to_s if whitelist_ip.present?
-
-    # Request will raise an error if not 2xx success
-    request(:post, endpoint, payload)
-
-    # Provider returns order and credential details
-  end
-
-  # Fetch full details for an order
-  # @param order_id [String] Provider's order ID (e.g. A1MYTKJQIRTIPZNF)
-  # @return [Hash] Detailed order information including IPs and credentials
-  def view_order(order_id)
-    endpoint = "#{BASE_URL}/orders/view/#{order_id}"
-    request(:get, endpoint)
-  end
-
-  # Download OVPN configuration for a VPN order
-  # @param order_id [String] Provider's order ID
-  # @return [String] Binary content of the OVPN file
-  def download_ovpn(order_id)
-    endpoint = "#{BASE_URL}/orders/vpn/download/#{order_id}?download=1"
-
-    uri = URI(endpoint)
+  # Execute an HTTP request with Bearer auth.
+  # Supports :get, :post, and :patch.
+  def request(method, url, body = nil)
+    uri  = URI(url)
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
+    http.use_ssl      = true
+    http.read_timeout = 30
 
-    token = authenticate
-    req = Net::HTTP::Get.new(uri)
-    req['Authorization'] = "Bearer #{token}"
+    req = case method
+          when :get   then Net::HTTP::Get.new(uri)
+          when :post  then Net::HTTP::Post.new(uri)
+          when :patch then Net::HTTP::Patch.new(uri)
+          else raise ArgumentError, "Unsupported HTTP method: #{method}"
+          end
+
+    req['Authorization'] = "Bearer #{fetch_token}"
+    req['Content-Type']  = 'application/json'
+    req['Accept']        = 'application/json'
+    req.body = body.to_json if body
 
     response = http.request(req)
-    raise "MyProxyApi Download Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
-
-    response.body
-  end
-
-  def update_credentials(order_id, username, password)
-    body = {
-      username: username,
-      password: password
-    }
-    request(:post, "/api/v1/orders/#{order_id}/update_credentials", body)
-  end
-
-  def rotate_ip(order_id)
-    request(:post, "/api/v1/orders/#{order_id}/rotate_ip")
-  end
-
-  private
-
-  def request(method, url, body = nil)
-    uri = URI(url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = case method
-              when :get then Net::HTTP::Get.new(uri)
-              when :post then Net::HTTP::Post.new(uri)
-              end
-
-    token = authenticate
-    request['Authorization'] = "Bearer #{token}"
-    request['Content-Type'] = 'application/json'
-    request.body = body.to_json if body
-
-    response = http.request(request)
-
-    raise "MyProxyApi Error: #{response.code} - #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "MyProxyApi Error #{response.code}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   end

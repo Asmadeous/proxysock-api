@@ -184,8 +184,17 @@ class OrderProvisioningService
       user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
-        response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1,
-                                      protocol: 'http', locations: vm_order.country_code)
+        order_response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1,
+                                            protocol: 'http', locations: vm_order.country_code)
+
+        # place_order returns { data: { order_id: "..." } } — we need to call view_order
+        # to get the actual proxy credentials (IP, port, username, password).
+        provider_order_id = order_response.dig('data', 'order_id') || order_response['order_id']
+        raise ProvisioningError, 'MyProxyApi did not return an order_id' if provider_order_id.blank?
+
+        full_details = client.view_order(provider_order_id)
+        response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+        raise ProvisioningError, 'MyProxyApi view_order returned no proxy data' if response.blank?
 
         # Store the API response metadata securely for recordkeeping
         @order.metadata ||= {}
@@ -193,8 +202,8 @@ class OrderProvisioningService
         @order.save!
 
         # Attach to the Ansible Job params
-        job_params['proxy_ip'] = response['ip']
-        job_params['proxy_port'] = response['port'] || response['http_port'] || response['socks5_port']
+        job_params['proxy_ip']       = response['ip']
+        job_params['proxy_port']     = response['port'] || response['http_port'] || response['socks5_port']
         job_params['proxy_username'] = response['username']
         job_params['proxy_password'] = response['password']
         job_params['proxy_protocol'] = 'http'
@@ -440,19 +449,21 @@ class OrderProvisioningService
 
     # Store VPN credentials
     # Create the VpnOrder first (similar to VmOrder)
+    # VpnOrder schema: country_code, myproxyapi_order_id, order_id, status (no quantity column)
     vpn_order = VpnOrder.create!(
       order: @order,
       country_code: @product.metadata&.dig('country_code') || 'US',
-      quantity: 1,
       status: 'active'
     )
 
+    # Vpn schema uses vpn_username / vpn_password (not username / password)
+    # There is no server_ip column — store the server in metadata if needed
     vpn_account = Vpn.create!(
       vpn_order: vpn_order,
-      username: username,
-      password: password,
-      server_ip: @product.metadata&.dig('server') || '192.168.1.1',
-      status: 'active'
+      vpn_username: username,
+      vpn_password: password,
+      status: 'active',
+      metadata: { server: @product.metadata&.dig('server') }
     )
 
     owner = @actor || @order.orderable

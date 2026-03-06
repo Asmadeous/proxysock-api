@@ -64,17 +64,25 @@ class PlisioService
 
   private
 
-  def request(_method, endpoint, params = {})
+  def request(method, endpoint, params = {})
     params[:api_key] = @secret_key
     uri = URI("#{BASE_URL}#{endpoint}")
-    uri.query = URI.encode_www_form(params)
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
 
-    request = Net::HTTP::Get.new(uri) # Plisio uses GET for everything mostly? Check docs. Typically GET for invoice creation.
+    if method == :get
+      uri.query = URI.encode_www_form(params)
+      request_obj = Net::HTTP::Get.new(uri)
+    elsif method == :post
+      request_obj = Net::HTTP::Post.new(uri)
+      request_obj['Content-Type'] = 'application/x-www-form-urlencoded'
+      request_obj.set_form_data(params)
+    else
+      raise ArgumentError, "Unsupported method: #{method}"
+    end
 
-    response = http.request(request)
+    response = http.request(request_obj)
     JSON.parse(response.body)
   end
 end
