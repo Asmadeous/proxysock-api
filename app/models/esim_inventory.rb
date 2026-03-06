@@ -13,7 +13,6 @@ class EsimInventory < ApplicationRecord
 
   validate :prevent_status_reversal, on: :update
 
-
   # Status scopes
   scope :available, -> { where(status: 'available') }
   scope :reserved,  -> { where(status: 'reserved') }
@@ -54,8 +53,8 @@ class EsimInventory < ApplicationRecord
   private
 
   def prevent_status_reversal
-    if status_was == 'sold' && status != 'sold'
-      errors.add(:status, "cannot be changed once the eSIM is sold")
-    end
+    return unless status_was == 'sold' && status != 'sold'
+
+    errors.add(:status, 'cannot be changed once the eSIM is sold')
   end
 end

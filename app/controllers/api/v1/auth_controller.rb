@@ -50,8 +50,8 @@ module Api
         # The JwtAuthenticated concern already rotated the token and put it in headers.
         # We also return it in the body for the test to see.
         new_token = response.headers['Authorization']&.split(' ')&.last || current_reseller.generate_rotating_token
-        
-        render json: { 
+
+        render json: {
           message: 'Token refreshed',
           token: new_token,
           refresh_token: params[:refresh_token]

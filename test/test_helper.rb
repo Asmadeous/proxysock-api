@@ -12,7 +12,7 @@ module ActiveSupport
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
-    
+
     setup do
       # Global stub for PaystackService to prevent network calls
       PaystackService.any_instance.stubs(:initialize_transaction).returns({ authorization_url: 'http://mock-paystack.com' })
@@ -27,7 +27,7 @@ module ActiveSupport
       payload = {
         exp: 24.hours.from_now.to_i
       }
-      
+
       if user_or_reseller.is_a?(Reseller)
         payload[:reseller_id] = user_or_reseller.id
         # Ensure resonator has a valid JTI or generate one
@@ -58,7 +58,7 @@ module ActiveSupport
         reseller_type: 'api_only'
       )
       wallet = reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: reseller, wallet_type: 'main')
-      if balance > 0
+      if balance.positive?
         txn = Transaction.create!(
           transactable: reseller, # The user/reseller receiving funds
           reference: reseller,    # Self-reference for initial balance grant
@@ -83,7 +83,7 @@ module ActiveSupport
         password_digest: BCrypt::Password.create('password123')
       )
       wallet = user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: user, wallet_type: 'main')
-      if balance > 0
+      if balance.positive?
         txn = Transaction.create!(
           transactable: user,
           reference: user,

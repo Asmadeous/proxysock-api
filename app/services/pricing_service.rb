@@ -17,17 +17,17 @@ class PricingService
                  else
                    @pricing.selling_price
                  end
-    
+
     # Calculate effective quantity based on duration/period if present in metadata
     effective_quantity = @quantity * duration_multiplier
-    
+
     total = base_price * effective_quantity
-    
+
     # Apply actor-specific adjustments
     total = apply_reseller_multiplier(total) if reseller?
     total = apply_user_discounts(total) if user?
     total = apply_affiliate_discount(total)
-    
+
     total.round(2)
   end
 
@@ -41,8 +41,6 @@ class PricingService
     discount_pct = referral.affiliate.discount_rate / 100.0
     amount * (1.0 - discount_pct)
   end
-
-  private
 
   def duration_multiplier
     # For some products, duration is passed as 'period' (months) or 'duration_days'
@@ -68,7 +66,7 @@ class PricingService
     # Check for direct discount in user metadata
     discount = @actor.metadata && @actor.metadata['discount_percentage']
     return amount if discount.blank?
-    
+
     amount * (1.0 - (discount.to_f / 100.0))
   end
 

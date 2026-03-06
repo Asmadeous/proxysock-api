@@ -8,15 +8,15 @@ module Web
 
       # GET /web/api/products
       def index
-        stats = Product.unscoped.select("COUNT(*) as count, MAX(updated_at) as last_updated").take
+        stats = Product.unscoped.select('COUNT(*) as count, MAX(updated_at) as last_updated').take
         cache_version = "#{stats.count}-#{stats.last_updated.to_i}"
-        
+
         cache_key = "products/web/index_v6/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           scope = Product.where(active: true).includes(:product_pricings, :product_category)
           scope = scope.where(product_category_id: params[:category_id]) if params[:category_id].present?
-          
+
           if params[:category_slug].present?
             slugs = params[:category_slug].split(',')
             scope = scope.joins(:product_category).where(product_categories: { slug: slugs })
@@ -83,9 +83,7 @@ module Web
         }
 
         # Merge metadata (which contains cpu, ram, storage specs for VMs, or data/days for eSIMs)
-        if product.metadata.is_a?(Hash)
-          base_data.merge!(product.metadata.symbolize_keys)
-        end
+        base_data.merge!(product.metadata.symbolize_keys) if product.metadata.is_a?(Hash)
 
         # Proxy-specific metadata defaults if missing
         if product.product_type == 'proxy'

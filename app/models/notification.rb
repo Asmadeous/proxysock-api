@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class Notification < ApplicationRecord
   belongs_to :recipient, polymorphic: true
-  
+
   validates :title, presence: true
   validates :message, presence: true
   validates :category, presence: true, inclusion: { in: %w[info warning error success system_alert] }

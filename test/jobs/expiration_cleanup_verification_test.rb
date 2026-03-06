@@ -5,8 +5,10 @@ require 'test_helper'
 class ExpirationCleanupJobTest < ActiveJob::TestCase
   setup do
     # Create proper order hierarchy
-    user = User.create!(email: 'test_expire@example.com', password: 'password', username: 'test_expire', first_name: 'Test', last_name: 'Expire')
-    @order = Order.create!(orderable: user, product: products(:one), product_pricing: product_pricings(:pricing_one), status: 'active')
+    user = User.create!(email: 'test_expire@example.com', password: 'password', username: 'test_expire',
+                        first_name: 'Test', last_name: 'Expire')
+    @order = Order.create!(orderable: user, product: products(:one), product_pricing: product_pricings(:pricing_one),
+                           status: 'active')
     @vm_order = VmOrder.create!(order: @order, cpu_cores: 2, ram_gb: 4, disk_gb: 50, os_type: 'ubuntu')
 
     # Create VM in pending state first
@@ -35,11 +37,11 @@ class ExpirationCleanupJobTest < ActiveJob::TestCase
     # Verify setup - VM should be active and terminable
     assert_equal 'active', @vm.status
     assert @vm.may_terminate?, 'VM should be terminable from active state'
-    
+
     # First verify terminate! works directly
     @vm.terminate!
     assert_equal 'terminated', @vm.status, 'Direct terminate! should work'
-    
+
     # Now test with job - create a fresh expired VM
     expired_vm = Vm.create!(
       vm_order: @vm_order,
@@ -49,11 +51,12 @@ class ExpirationCleanupJobTest < ActiveJob::TestCase
     )
     expired_vm.update_column(:status, 'active')
     expired_vm.reload
-    
+
     # Verify the job's query finds this VM
     found_vms = Vm.where(status: 'active').where('expires_at < ?', Time.current)
-    assert found_vms.include?(expired_vm), "Job query should find expired_vm. Found: #{found_vms.pluck(:id)}, expired_vm.id: #{expired_vm.id}"
-    
+    assert found_vms.include?(expired_vm),
+           "Job query should find expired_vm. Found: #{found_vms.pluck(:id)}, expired_vm.id: #{expired_vm.id}"
+
     # Stub the VmProvisioningService cleanup_vm to avoid external calls
     VmProvisioningService.class_eval do
       alias_method :original_cleanup_vm, :cleanup_vm

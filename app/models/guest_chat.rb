@@ -21,11 +21,11 @@ class GuestChat < ApplicationRecord
   private
 
   def notify_staff
-    Employee.where(role: ['admin', 'support']).each do |employee|
+    Employee.where(role: %w[admin support]).each do |employee|
       NotificationService.notify(
         recipient: employee,
         category: 'info',
-        title: "New Guest Chat Inquiry",
+        title: 'New Guest Chat Inquiry',
         message: "#{guest_name} has started a new chat inquiry: #{subject}",
         metadata: { guest_chat_id: id, session_token: session_token }
       )

@@ -8,7 +8,10 @@ module Admin
       # GET /admin/api/users
       def index
         users = User.order(created_at: :desc)
-        users = users.where("email ILIKE :q OR first_name ILIKE :q OR last_name ILIKE :q", q: "%#{params[:q]}%") if params[:q].present?
+        if params[:q].present?
+          users = users.where('email ILIKE :q OR first_name ILIKE :q OR last_name ILIKE :q',
+                              q: "%#{params[:q]}%")
+        end
 
         # Pagination
         page = (params[:page] || 1).to_i

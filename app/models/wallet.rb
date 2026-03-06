@@ -7,7 +7,7 @@ class Wallet < ApplicationRecord
   TYPES = %w[main earnings].freeze
 
   validates :wallet_type, inclusion: { in: TYPES }
-  validates :wallet_type, uniqueness: { scope: [:owner_id, :owner_type] }
+  validates :wallet_type, uniqueness: { scope: %i[owner_id owner_type] }
 
   has_many :wallet_transactions, dependent: :destroy
 
@@ -18,7 +18,7 @@ class Wallet < ApplicationRecord
   end
 
   def currency
-    "USD"
+    'USD'
   end
 
   def credit!(amount, description, metadata = {}, reference = nil)

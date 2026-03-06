@@ -40,9 +40,9 @@ gem 'rack-cors'
 # Project specific gems
 gem 'aasm'
 gem 'jwt'
+gem 'kaminari'
 gem 'redis'
 gem 'sidekiq'
-gem 'kaminari'
 
 # OAuth/SSO
 gem 'omniauth'
@@ -69,23 +69,23 @@ gem 'sidekiq-cron', '~> 2.3'
 
 gem 'mocha', '~> 3.0', group: :test
 
-gem "rswag-api", "~> 2.17"
-gem "rswag-ui", "~> 2.17"
+gem 'rswag-api', '~> 2.17'
+gem 'rswag-ui', '~> 2.17'
 
-gem "rswag-specs", "~> 2.17", groups: [:development, :test]
-gem "rspec-rails", "~> 8.0", groups: [:development, :test]
+gem 'rspec-rails', '~> 8.0', groups: %i[development test]
+gem 'rswag-specs', '~> 2.17', groups: %i[development test]
 
-gem "sentry-ruby", "~> 6.3"
-gem "sentry-rails", "~> 6.3"
-gem "stackprof"
+gem 'sentry-rails', '~> 6.3'
+gem 'sentry-ruby', '~> 6.3'
+gem 'stackprof'
 
-gem 'dotenv-rails', groups: [:development, :test]
-gem "httparty", "~> 0.24.2"
+gem 'dotenv-rails', groups: %i[development test]
+gem 'httparty', '~> 0.24.2'
 
-gem "prometheus-client", "~> 4.2"
+gem 'prometheus-client', '~> 4.2'
 
-gem "rack-attack", "~> 6.8"
+gem 'rack-attack', '~> 6.8'
 
 # PDF invoice generation
-gem "prawn", "~> 2.5"
-gem "prawn-table", "~> 0.2"
+gem 'prawn', '~> 2.5'
+gem 'prawn-table', '~> 0.2'

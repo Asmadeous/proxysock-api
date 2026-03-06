@@ -10,8 +10,8 @@ module Api
         # Resellers can see all their orders
         # Using ResellerOrder as the primary query base to get all products they've purchased for resale
         scope = current_reseller.orders
-                                 .includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
-        
+                                .includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
+
         if params[:product_type].present?
           types = params[:product_type].split(',')
           scope = scope.joins(:product).where(products: { product_type: types })
@@ -36,20 +36,20 @@ module Api
       def stats
         orders = current_reseller.orders
 
-        active_statuses = ['active', 'processing', 'completed', 'delivered', 'allocated']
-        pending_statuses = ['pending', 'provisioning', 'awaiting_payment']
-        expired_statuses = ['expired', 'suspended', 'cancelled']
-        failed_statuses = ['failed', 'error', 'stopped']
+        active_statuses = %w[active processing completed delivered allocated]
+        pending_statuses = %w[pending provisioning awaiting_payment]
+        expired_statuses = %w[expired suspended cancelled]
+        failed_statuses = %w[failed error stopped]
 
         # Single query for counts by status
         counts_by_status = orders.group(:status).count
-        
+
         active_count = 0
         pending_count = 0
         expired_count = 0
         failed_count = 0
         total_orders = 0
-        
+
         counts_by_status.each do |status, count|
           total_orders += count
           if active_statuses.include?(status)
@@ -68,7 +68,7 @@ module Api
         type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
 
         type_stats = {}
-        ['proxy', 'vpn', 'vps', 'esim', 'rdp', 'usa_esim'].each do |type|
+        %w[proxy vpn vps esim rdp usa_esim].each do |type|
           type_stats[type] = {
             total: 0,
             active: 0,
@@ -81,7 +81,7 @@ module Api
 
         type_counts.each do |(type, status), count|
           next unless type_stats.key?(type)
-          
+
           type_stats[type][:total] += count
           if active_statuses.include?(status)
             type_stats[type][:active] += count
@@ -166,7 +166,8 @@ module Api
         resource = order.provisioned_resource
 
         unless resource
-          return render json: { error: 'Resource not found or not yet provisioned', status: order.status }, status: :accepted
+          return render json: { error: 'Resource not found or not yet provisioned', status: order.status },
+                        status: :accepted
         end
 
         case order.product.product_type
@@ -174,6 +175,7 @@ module Api
           unless resource.status == 'active'
             return render json: { error: 'VM not yet provisioned', status: resource.status }, status: :accepted
           end
+
           render json: {
             type: 'vm',
             order_id: order.id,
@@ -244,18 +246,20 @@ module Api
 
         # Check if order can be cancelled
         unless %w[pending active processing completed delivered allocated].include?(order.status)
-          return render json: { error: "Order with status '#{order.status}' cannot be cancelled" }, status: :unprocessable_entity
+          return render json: { error: "Order with status '#{order.status}' cannot be cancelled" },
+                        status: :unprocessable_entity
         end
 
         # Enforce 1-hour cancellation window
         if order.created_at < 1.hour.ago
-          return render json: { error: 'Cancellation window has expired. Orders can only be cancelled within 1 hour of purchase.' }, status: :forbidden
+          return render json: { error: 'Cancellation window has expired. Orders can only be cancelled within 1 hour of purchase.' },
+                        status: :forbidden
         end
 
         Order.transaction do
           # Refund to reseller balance
           refund_amount = order.total_amount.to_f
-          if refund_amount > 0 && current_reseller.main_wallet
+          if refund_amount.positive? && current_reseller.main_wallet
             current_reseller.main_wallet.update!(
               balance: current_reseller.main_wallet.balance + refund_amount
             )
@@ -265,7 +269,7 @@ module Api
 
           # For external API products (proxies), alert admin via email
           is_external_api_product = order.product&.provider_type.to_s.downcase.include?('api') ||
-                                     order.product&.product_type == 'proxy'
+                                    order.product&.product_type == 'proxy'
           if is_external_api_product
             ResellerMailer.order_cancelled_admin_notification(order, current_reseller).deliver_later
           end

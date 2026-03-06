@@ -36,13 +36,13 @@ module Admin
           total_orders: Order.count,
           orders_today: Order.where('created_at >= ?', Time.current.beginning_of_day).count,
           revenue_today: Order.where('created_at >= ?', Time.current.beginning_of_day)
-                              .where(status: 'active').sum(:total_amount).to_f,
+                         .where(status: 'active').sum(:total_amount).to_f,
           revenue_this_month: Order.where('created_at >= ?', Time.current.beginning_of_month)
-                                   .where(status: 'active').sum(:total_amount).to_f,
+                              .where(status: 'active').sum(:total_amount).to_f,
           active_checkout_sessions: CheckoutSession.where(status: 'pending').count,
           pending_orders: Order.where(status: 'pending').count,
           failed_orders_today: Order.where(status: 'failed')
-                                    .where('created_at >= ?', Time.current.beginning_of_day).count
+                               .where('created_at >= ?', Time.current.beginning_of_day).count
         }
       end
 
@@ -84,9 +84,12 @@ module Admin
           terminated: Vm.where(status: 'terminated').count,
           pending: Vm.where(status: 'pending').count,
           recent_backups: ProxmoxOperation.where(operation_type: 'backup')
-                                          .order(created_at: :desc)
+                          .order(created_at: :desc)
                                           .limit(5)
-                                          .map { |op| { status: op.status, vm_id: op.proxmox_vm_id, at: op.created_at.iso8601 } }
+                                          .map do |op|
+                                            { status: op.status, vm_id: op.proxmox_vm_id,
+                                              at: op.created_at.iso8601 }
+          end
         }
       end
 
@@ -97,9 +100,9 @@ module Admin
         services << check_service('Redis') { Redis.new.ping == 'PONG' }
 
         # Sidekiq
-        services << check_service('Sidekiq') {
-          defined?(Sidekiq::Stats) && Sidekiq::Stats.new.processes_size > 0
-        }
+        services << check_service('Sidekiq') do
+          defined?(Sidekiq::Stats) && Sidekiq::Stats.new.processes_size.positive?
+        end
 
         # Database
         services << check_service('Database') { ActiveRecord::Base.connection.active? }
@@ -111,7 +114,11 @@ module Admin
       end
 
       def check_service(name)
-        status = yield rescue false
+        status = begin
+          yield
+        rescue StandardError
+          false
+        end
         { name: name, status: status ? 'healthy' : 'down', checked_at: Time.current.iso8601 }
       end
 
@@ -134,7 +141,7 @@ module Admin
 
       def database_size
         result = ActiveRecord::Base.connection.execute(
-          "SELECT pg_database_size(current_database()) / 1024 / 1024 AS size_mb"
+          'SELECT pg_database_size(current_database()) / 1024 / 1024 AS size_mb'
         )
         result.first['size_mb'].to_f.round(1)
       rescue StandardError

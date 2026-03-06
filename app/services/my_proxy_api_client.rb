@@ -72,23 +72,22 @@ class MyProxyApiClient
   # @return [Hash] Response payload from API containing order details
   def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil, whitelist_ip: nil)
     endpoint = "#{BASE_URL}/products/place-order"
-    
+
     payload = {
       user_id: user_id.to_i,
       product: product_api_id.to_i,
       period: period.to_s,
-      debug: "api"
+      debug: 'api'
     }
 
     payload[:protocol] = protocol.to_s if protocol.present?
     payload[:locations] = locations.to_s if locations.present?
     payload[:whitelist_ip] = whitelist_ip.to_s if whitelist_ip.present?
-    
+
     # Request will raise an error if not 2xx success
-    response_data = request(:post, endpoint, payload)
-    
+    request(:post, endpoint, payload)
+
     # Provider returns order and credential details
-    response_data
   end
 
   # Fetch full details for an order
@@ -104,7 +103,7 @@ class MyProxyApiClient
   # @return [String] Binary content of the OVPN file
   def download_ovpn(order_id)
     endpoint = "#{BASE_URL}/orders/vpn/download/#{order_id}?download=1"
-    
+
     uri = URI(endpoint)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true

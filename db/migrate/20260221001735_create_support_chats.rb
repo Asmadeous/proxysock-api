@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateSupportChats < ActiveRecord::Migration[8.1]
   def change
     create_table :support_chats do |t|

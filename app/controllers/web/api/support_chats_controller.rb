@@ -7,7 +7,9 @@ module Web
         chat = SupportChat.find_or_create_by!(chatable: current_actor)
         render json: {
           chat: serialize_chat(chat),
-          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
+          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map do |m|
+            serialize_message(m)
+          end
         }
       end
 
@@ -15,7 +17,9 @@ module Web
         chat = SupportChat.find_by!(chatable: current_actor, session_token: params[:id])
         render json: {
           chat: serialize_chat(chat),
-          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
+          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map do |m|
+            serialize_message(m)
+          end
         }
       end
 

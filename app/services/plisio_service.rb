@@ -53,15 +53,14 @@ class PlisioService
   # Request a withdrawal to a crypto address.
   def withdraw(amount, currency, address, order_number)
     request(:get, '/withdraw', {
-      currency: currency,
-      amount: amount,
-      address: address,
-      order_number: order_number
-    })
+              currency: currency,
+              amount: amount,
+              address: address,
+              order_number: order_number
+            })
   end
 
-  def verify_callback(params)
-  end
+  def verify_callback(params); end
 
   private
 

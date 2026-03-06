@@ -6,7 +6,7 @@ class VmHealthCheckJob < ApplicationJob
   # Checks all active VMs are reachable via ping/SSH
   # Scheduled via sidekiq-cron every 30 minutes
   def perform
-    logger.info "[VmHealthCheck] Starting health check for active VMs"
+    logger.info '[VmHealthCheck] Starting health check for active VMs'
 
     active_vms = Vm.where(status: 'active').where.not(ip_address: [nil, ''])
     checked = 0
@@ -31,9 +31,7 @@ class VmHealthCheckJob < ApplicationJob
         vm.metadata['consecutive_failures'] = consecutive_failures
         vm.save!
 
-        if consecutive_failures >= 2
-          notify_admins_about_unhealthy_vm(vm, consecutive_failures)
-        end
+        notify_admins_about_unhealthy_vm(vm, consecutive_failures) if consecutive_failures >= 2
       end
     end
 
@@ -44,7 +42,7 @@ class VmHealthCheckJob < ApplicationJob
 
   def ping_vm(vm)
     # Quick ICMP ping (2 second timeout, 2 pings)
-    result = system("ping", "-c", "2", "-W", "2", vm.ip_address.to_s, out: File::NULL, err: File::NULL)
+    result = system('ping', '-c', '2', '-W', '2', vm.ip_address.to_s, out: File::NULL, err: File::NULL)
 
     # If ping fails, try TCP connect to SSH/RDP port as fallback
     unless result

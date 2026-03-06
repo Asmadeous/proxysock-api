@@ -53,7 +53,7 @@ class ExpirationCleanupJob < ApplicationJob
     Rails.logger.info "Terminating expired #{resource.class.name} ##{resource.id}"
     if resource.respond_to?(:terminate!) && resource.may_terminate?
       resource.terminate!
-      resource.save!  # Ensure state change is persisted
+      resource.save! # Ensure state change is persisted
     end
     # Update associated order if needed
     resource.order&.update(status: 'expired')
@@ -65,7 +65,7 @@ class ExpirationCleanupJob < ApplicationJob
     Rails.logger.info "Expiring #{resource.class.name} ##{resource.id}"
     begin
       # Check if resource has custom expire logic, otherwise just update status
-      if (resource.respond_to?(:expire!))
+      if resource.respond_to?(:expire!)
         resource.expire!
       else
         resource.update!(status: 'expired')

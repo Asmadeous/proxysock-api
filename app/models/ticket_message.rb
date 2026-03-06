@@ -39,26 +39,24 @@ class TicketMessage < ApplicationRecord
           metadata: { ticket_id: ticket.id }
         )
       end
-    else
+    elsif ticket.assigned_to
       # Notify assigned employee or all staff if unassigned
-      if ticket.assigned_to
+      NotificationService.notify(
+        recipient: ticket.assigned_to,
+        category: 'info',
+        title: "New Reply: Ticket ##{ticket.id}",
+        message: "Customer replied to ticket: #{ticket.subject}",
+        metadata: { ticket_id: ticket.id }
+      )
+    else
+      # If unassigned, notify staff
+      Employee.where(role: %w[admin support]).each do |staff|
         NotificationService.notify(
-          recipient: ticket.assigned_to,
+          recipient: staff,
           category: 'info',
-          title: "New Reply: Ticket ##{ticket.id}",
-          message: "Customer replied to ticket: #{ticket.subject}",
-          metadata: { ticket_id: ticket.id }
+          title: "New Ticket: ##{ticket.id}",
+          message: "A new ticket requires attention: #{ticket.subject}"
         )
-      else
-        # If unassigned, notify staff
-        Employee.where(role: ['admin', 'support']).each do |staff|
-          NotificationService.notify(
-            recipient: staff,
-            category: 'info',
-            title: "New Ticket: ##{ticket.id}",
-            message: "A new ticket requires attention: #{ticket.subject}",
-          )
-        end
       end
     end
   end

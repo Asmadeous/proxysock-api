@@ -14,7 +14,8 @@ module Admin
                     Ticket.all
                   end
 
-        tickets = tickets.includes(:user, :last_message, :ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
+        tickets = tickets.includes(:user, :last_message,
+                                   :ticket_messages).order(updated_at: :desc).page(params[:page]).per(20)
 
         # Filtering
         tickets = tickets.where(status: params[:status]) if params[:status].present?
@@ -112,7 +113,7 @@ module Admin
           priority: ticket.priority,
           user_email: ticket.user&.email,
           user_type: ticket.user_type,
-          user_online: ticket.user&.respond_to?(:last_seen_at) && ticket.user&.last_seen_at && ticket.user&.last_seen_at > 5.minutes.ago,
+          user_online: ticket.user.respond_to?(:last_seen_at) && (ticket.user.last_seen_at&.> 5.minutes.ago),
           assigned_to: ticket.assigned_to&.full_name,
           messages_count: ticket.ticket_messages.size,
           created_at: ticket.created_at,

@@ -39,7 +39,8 @@ module Web
           if order
             processed_params[:order_id] = order.id
           else
-            return render json: { errors: { order_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+            return render json: { errors: { order_id: ['is invalid or does not exist'] } },
+                          status: :unprocessable_entity
           end
         end
 
@@ -48,7 +49,8 @@ module Web
           if deposit
             processed_params[:deposit_id] = deposit.id
           else
-            return render json: { errors: { deposit_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+            return render json: { errors: { deposit_id: ['is invalid or does not exist'] } },
+                          status: :unprocessable_entity
           end
         end
 
@@ -107,11 +109,10 @@ module Web
         {
           id: message.id,
           body: message.body,
-          sender_type: ['User', 'Reseller'].include?(message.sender_type) ? 'You' : 'Support',
+          sender_type: %w[User Reseller].include?(message.sender_type) ? 'You' : 'Support',
           created_at: message.created_at
         }
       end
-
     end
   end
 end

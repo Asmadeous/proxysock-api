@@ -26,9 +26,9 @@ class AffiliateService
     raise AlreadyEnrolledError, "#{@entity.class} is already an affiliate" if @entity.affiliate.present?
 
     Affiliate.create!(
-      affiliatable:    @entity,
+      affiliatable: @entity,
       commission_rate: default_commission_rate,
-      discount_rate:   default_discount_rate
+      discount_rate: default_discount_rate
     )
   end
 
@@ -73,6 +73,7 @@ class AffiliateService
   # Call after an order completes provisioning to credit the affiliate.
   def self.record_commission!(order)
     return if halted?
+
     entity   = order.orderable
     referral = entity.affiliate_referrals.pending.first
     return unless referral
@@ -88,7 +89,7 @@ class AffiliateService
     # Credit earnings wallet
     owner = referral.affiliate.affiliatable
     wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
-    
+
     wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
   end
 
@@ -99,15 +100,15 @@ class AffiliateService
   # Request a payout for the current entity's affiliate account.
   def request_payout!(amount:, method: 'wallet', details: {})
     affiliate = @entity.affiliate
-    raise "Not enrolled in affiliate program" unless affiliate
-    raise InsufficientBalanceError, "Insufficient pending balance" if affiliate.pending_balance < amount
+    raise 'Not enrolled in affiliate program' unless affiliate
+    raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
 
     AffiliatePayout.create!(
-      affiliate:       affiliate,
-      amount:          amount,
-      payment_method:  method,
+      affiliate: affiliate,
+      amount: amount,
+      payment_method: method,
       payment_details: details,
-      status:          'pending'
+      status: 'pending'
     )
   end
 
@@ -116,18 +117,18 @@ class AffiliateService
     main_wallet = @entity.main_wallet || @entity.create_main_wallet!(wallet_type: 'main')
     earnings_wallet = @entity.earnings_wallet
 
-    raise "No earnings wallet found" unless earnings_wallet
-    raise InsufficientBalanceError, "Insufficient earnings balance" if earnings_wallet.balance < amount
+    raise 'No earnings wallet found' unless earnings_wallet
+    raise InsufficientBalanceError, 'Insufficient earnings balance' if earnings_wallet.balance < amount
 
     ActiveRecord::Base.transaction do
-      earnings_wallet.debit!(amount, "Transfer to main wallet", { target: 'main_wallet' })
-      main_wallet.credit!(amount, "Transfer from earnings wallet", { source: 'earnings_wallet' })
+      earnings_wallet.debit!(amount, 'Transfer to main wallet', { target: 'main_wallet' })
+      main_wallet.credit!(amount, 'Transfer from earnings wallet', { source: 'earnings_wallet' })
     end
   end
 
   # Admin: process a pending payout.
   def self.process_payout!(payout)
-    raise "Payout already processed" unless payout.status == 'pending'
+    raise 'Payout already processed' unless payout.status == 'pending'
 
     payout.update!(status: 'processing')
 
@@ -142,12 +143,12 @@ class AffiliateService
         # PaystackService.new.initiate_transfer(payout)
         payout.update!(status: 'processing', metadata: { gateway: 'paystack' })
         # For now, mark as paid if mock or automated
-        payout.mark_paid! 
+        payout.mark_paid!
       when 'crypto'
         # Integration with Plisio or Payvra
         # PlisioService.new.withdraw(payout)
         payout.update!(status: 'processing', metadata: { gateway: 'plisio' })
-        payout.mark_paid! 
+        payout.mark_paid!
       else
         raise "Unsupported payout method: #{payout.payment_method}"
       end

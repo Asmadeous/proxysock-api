@@ -37,7 +37,6 @@ module Api
         render json: products_json
       end
 
-
       # GET /api/v1/products/:id
       def show
         cache_key = "products/reseller/show/#{params[:id]}"

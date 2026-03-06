@@ -8,7 +8,10 @@ module Admin
       # GET /admin/api/resellers
       def index
         resellers = Reseller.order(created_at: :desc)
-        resellers = resellers.where("email ILIKE :q OR username ILIKE :q OR company_name ILIKE :q", q: "%#{params[:q]}%") if params[:q].present?
+        if params[:q].present?
+          resellers = resellers.where('email ILIKE :q OR username ILIKE :q OR company_name ILIKE :q',
+                                      q: "%#{params[:q]}%")
+        end
         resellers = resellers.where(reseller_type: params[:type]) if params[:type].present?
         if params[:status] == 'active'
           resellers = resellers.where('subscription_expires_at > ?', Time.current)
@@ -30,8 +33,8 @@ module Admin
             api_only: Reseller.where(reseller_type: 'api_only').count,
             enterprise: Reseller.where(reseller_type: 'infrastructure').count,
             total_balance: WalletTransaction.joins(:wallet)
-                            .where(wallets: { owner_type: 'Reseller', wallet_type: 'main' })
-                            .sum(:amount).to_f
+                           .where(wallets: { owner_type: 'Reseller', wallet_type: 'main' })
+                           .sum(:amount).to_f
           }
         }
       end
@@ -70,7 +73,9 @@ module Admin
       def onboard
         require_admin!
         @reseller.create_main_wallet!(wallet_type: 'main') unless @reseller.main_wallet
-        @reseller.create_earnings_wallet!(wallet_type: 'earnings') if @reseller.infrastructure? && !@reseller.earnings_wallet
+        if @reseller.infrastructure? && !@reseller.earnings_wallet
+          @reseller.create_earnings_wallet!(wallet_type: 'earnings')
+        end
         @reseller.generate_dedicated_api_key if @reseller.infrastructure? && @reseller.dedicated_api_key.blank?
         @reseller.save! if @reseller.changed?
         credentials = @reseller.api_credentials
@@ -89,7 +94,10 @@ module Admin
         updates[:reseller_type] = params[:reseller_type] if params[:reseller_type].present?
         updates[:infrastructure_surcharge_percentage] = params[:surcharge].to_d if params[:surcharge].present?
         updates[:subscription_fee] = params[:subscription_fee].to_d if params[:subscription_fee].present?
-        updates[:subscription_expires_at] = params[:subscription_expires_at] if params[:subscription_expires_at].present?
+        if params[:subscription_expires_at].present?
+          updates[:subscription_expires_at] =
+            params[:subscription_expires_at]
+        end
         updates[:dedicated_api_key] = params[:dedicated_api_key] if params.key?(:dedicated_api_key)
         updates[:customer_email] = params[:customer_email] if params.key?(:customer_email)
         @reseller.update!(updates) if updates.any?
@@ -114,21 +122,21 @@ module Admin
 
       def reseller_json(r, full: false)
         data = {
-          id:                      r.id,
-          email:                   r.email,
-          username:                r.username,
-          company_name:            r.company_name,
-          reseller_type:           r.reseller_type,
-          balance:                 r.balance || 0,
-          earnings_balance:        r.earnings_balance || 0,
-          surcharge:               r.infrastructure_surcharge_percentage,
-          subscription_fee:        r.subscription_fee,
+          id: r.id,
+          email: r.email,
+          username: r.username,
+          company_name: r.company_name,
+          reseller_type: r.reseller_type,
+          balance: r.balance || 0,
+          earnings_balance: r.earnings_balance || 0,
+          surcharge: r.infrastructure_surcharge_percentage,
+          subscription_fee: r.subscription_fee,
           subscription_expires_at: r.subscription_expires_at,
-          dedicated_api_key:       r.dedicated_api_key,
-          customer_email:          r.customer_email,
-          total_orders:            r.orders.count,
-          has_affiliate:           r.affiliate.present?,
-          created_at:              r.created_at
+          dedicated_api_key: r.dedicated_api_key,
+          customer_email: r.customer_email,
+          total_orders: r.orders.count,
+          has_affiliate: r.affiliate.present?,
+          created_at: r.created_at
         }
         if full
           data[:orders] = r.orders.order(created_at: :desc).limit(20).map do |o|

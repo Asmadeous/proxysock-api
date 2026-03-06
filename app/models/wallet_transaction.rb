@@ -10,10 +10,10 @@ class WalletTransaction < ApplicationRecord
   private
 
   def clear_wallet_cache
-    if wallet&.owner_type == 'User'
-      Rails.cache.delete("user_#{wallet.owner_id}_wallet_balance")
-      # Also delete the v1 cache key if we use it without timestamp elsewhere
-      Rails.cache.delete("user_#{wallet.owner_id}_wallet_balance_v1")
-    end
+    return unless wallet&.owner_type == 'User'
+
+    Rails.cache.delete("user_#{wallet.owner_id}_wallet_balance")
+    # Also delete the v1 cache key if we use it without timestamp elsewhere
+    Rails.cache.delete("user_#{wallet.owner_id}_wallet_balance_v1")
   end
 end

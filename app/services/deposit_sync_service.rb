@@ -40,11 +40,11 @@ class DepositSyncService
       @deposit.update!(status: 'completed', completed_at: Time.current)
 
       @deposit.depositable&.wallet&.credit!(paid_amount, "Deposit sync via #{@gateway}", {
-        gateway: @gateway,
-        synced_at: Time.current,
-        paid_amount: paid_amount
-      })
-      
+                                              gateway: @gateway,
+                                              synced_at: Time.current,
+                                              paid_amount: paid_amount
+                                            })
+
       Rails.logger.info("Successfully synced deposit #{@deposit.id} (#{@deposit.metadata['transaction_ref']})")
     end
   end

@@ -74,16 +74,14 @@ module Api
           result[:url]
         when 'payvra'
           service = PayvraService.new
-          result = service.create_charge(
+          service.create_charge(
             amount,
             currency
           )
-          # Note: Payvra requires tracking its own return reference if applicable
-          result
+          # NOTE: Payvra requires tracking its own return reference if applicable
+
         end
       end
-
-      private
 
       def reseller_params
         params.require(:reseller).permit(:company_name, :email, :profile_picture_url)

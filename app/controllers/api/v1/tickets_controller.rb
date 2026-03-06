@@ -35,7 +35,8 @@ module Api
           if order
             processed_params[:order_id] = order.id
           else
-            return render json: { errors: { order_id: ["is invalid or does not exist"] } }, status: :unprocessable_entity
+            return render json: { errors: { order_id: ['is invalid or does not exist'] } },
+                          status: :unprocessable_entity
           end
         end
 

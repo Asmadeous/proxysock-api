@@ -11,12 +11,14 @@ class Transaction < ApplicationRecord
   private
 
   def notify_user
+    return unless transactable
+
     Notification.create(
       recipient: transactable,
       category: 'success',
-      title: "Transaction Processed",
+      title: 'Transaction Processed',
       message: "Your transaction of #{amount} #{currency} has been recorded."
-    ) if transactable
+    )
   end
 
   def validate_immutability

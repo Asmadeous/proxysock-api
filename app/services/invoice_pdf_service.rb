@@ -114,6 +114,6 @@ class InvoicePdfService
   private
 
   def format_currency(amount)
-    "$#{'%.2f' % (amount || 0)} USD"
+    "$#{format('%.2f', amount || 0)} USD"
   end
 end

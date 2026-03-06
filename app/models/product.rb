@@ -26,11 +26,12 @@ class Product < ApplicationRecord
   # Subset of eSIM products that include voice + data + SMS
   scope :voice_esims, -> { esims.where("metadata->>'esim_type' = 'voice_data_sms'") }
   # Subset of eSIM products that are data-only
-  scope :data_esims,  -> { esims.where("metadata->>'esim_type' = 'data_only'").or(esims.where("metadata->>'esim_type' IS NULL")) }
+  scope :data_esims,  lambda {
+    esims.where("metadata->>'esim_type' = 'data_only'").or(esims.where("metadata->>'esim_type' IS NULL"))
+  }
 
   validates :available_to, inclusion: { in: %w[reseller ecommerce both] }
   validates :product_type, inclusion: { in: %w[vm vps rdp proxy esim usa_esim vpn] }
-
 
   belongs_to :product_category
   has_many :product_pricings, dependent: :destroy

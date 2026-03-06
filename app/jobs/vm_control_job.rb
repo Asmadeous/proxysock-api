@@ -6,23 +6,21 @@ class VmControlJob < ApplicationJob
   def perform(vm_id, action)
     vm = Vm.find(vm_id)
     service = VmProvisioningService.new(nil, Rails.logger)
-    
+
     proxmox_id = vm.proxmox_vm_id
     unless proxmox_id.present?
       Rails.logger.error("[VmControlJob] VM #{vm_id} has no proxmox_vm_id")
       return
     end
-
-    result = nil
     case action.to_s
     when 'start'
-      result = service.start_vm(proxmox_id)
+      service.start_vm(proxmox_id)
     when 'stop'
-      result = service.stop_vm(proxmox_id)
+      service.stop_vm(proxmox_id)
     when 'shutdown'
-      result = service.shutdown_vm(proxmox_id)
+      service.shutdown_vm(proxmox_id)
     when 'reboot'
-      result = service.reboot_vm(proxmox_id)
+      service.reboot_vm(proxmox_id)
     else
       raise "Unsupported VM action: #{action}"
     end

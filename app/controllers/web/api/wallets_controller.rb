@@ -9,7 +9,7 @@ module Web
       def show
         wallet = current_actor.wallet
         # Calculate stats
-        total_deposited = wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
+        wallet&.wallet_transactions&.where(transaction_type: 'credit')&.sum(:amount) || 0
         # Deposits are credits. But refunds are also credits.
         # description might help. Or just use total credits - adjustments?
         # For now, total credits is good enough proxy for "Total Deposited" if we ignore refunds/bonuses for a moment.

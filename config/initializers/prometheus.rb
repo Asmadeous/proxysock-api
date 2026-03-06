@@ -11,13 +11,13 @@ PROMETHEUS_REGISTRY = Prometheus::Client.registry
 HTTP_REQUESTS_TOTAL = PROMETHEUS_REGISTRY.counter(
   :http_requests_total,
   docstring: 'Total HTTP requests',
-  labels: [:method, :path, :status]
+  labels: %i[method path status]
 )
 
 HTTP_REQUEST_DURATION = PROMETHEUS_REGISTRY.histogram(
   :http_request_duration_seconds,
   docstring: 'HTTP request duration in seconds',
-  labels: [:method, :path],
+  labels: %i[method path],
   buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
 )
 
@@ -25,13 +25,13 @@ HTTP_REQUEST_DURATION = PROMETHEUS_REGISTRY.histogram(
 ORDERS_TOTAL = PROMETHEUS_REGISTRY.counter(
   :orders_total,
   docstring: 'Total orders created',
-  labels: [:status, :product_type]
+  labels: %i[status product_type]
 )
 
 PROVISIONING_TOTAL = PROMETHEUS_REGISTRY.counter(
   :provisioning_total,
   docstring: 'Total provisioning attempts',
-  labels: [:status, :type]
+  labels: %i[status type]
 )
 
 ACTIVE_VMS = PROMETHEUS_REGISTRY.gauge(

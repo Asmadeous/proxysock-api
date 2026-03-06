@@ -16,13 +16,13 @@ class AffiliateReferral < ApplicationRecord
     return if converted?
 
     commission = order.total_amount * (affiliate.commission_rate / 100.0)
-    discount   = order.total_amount * (affiliate.discount_rate  / 100.0)
+    discount   = order.total_amount * (affiliate.discount_rate / 100.0)
 
     update!(
-      order:                    order,
-      status:                   'converted',
-      converted_at:             Time.current,
-      commission_amount:        commission,
+      order: order,
+      status: 'converted',
+      converted_at: Time.current,
+      commission_amount: commission,
       referee_discount_applied: discount
     )
 

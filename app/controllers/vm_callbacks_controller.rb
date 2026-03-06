@@ -42,9 +42,9 @@ class VmCallbacksController < ApplicationController
     expected = ENV.fetch('VM_CALLBACK_API_KEY', 'internal-provisioning-key')
     token = request.headers['Authorization']&.sub(/^Bearer\s+/, '')
 
-    unless token == expected
-      render json: { error: 'Unauthorized' }, status: :unauthorized
-    end
+    return if token == expected
+
+    render json: { error: 'Unauthorized' }, status: :unauthorized
   end
 
   def handle_configured(vm)
@@ -80,14 +80,14 @@ class VmCallbacksController < ApplicationController
 
     # Notify owner
     owner = vm.vm_order&.order&.orderable
-    if owner
-      NotificationService.notify(
-        recipient: owner,
-        category: 'error',
-        title: 'VM Configuration Failed',
-        message: "VM ##{vm.id} Ansible configuration failed: #{error_msg}",
-        metadata: { vm_id: vm.id, error: error_msg }
-      )
-    end
+    return unless owner
+
+    NotificationService.notify(
+      recipient: owner,
+      category: 'error',
+      title: 'VM Configuration Failed',
+      message: "VM ##{vm.id} Ansible configuration failed: #{error_msg}",
+      metadata: { vm_id: vm.id, error: error_msg }
+    )
   end
 end

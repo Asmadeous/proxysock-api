@@ -21,9 +21,9 @@ module Admin
       end
 
       def require_role!(*roles)
-        unless roles.map(&:to_s).include?(@current_employee.role)
-          render json: { error: 'Forbidden', message: "Requires role: #{roles.join(' or ')}" }, status: :forbidden
-        end
+        return if roles.map(&:to_s).include?(@current_employee.role)
+
+        render json: { error: 'Forbidden', message: "Requires role: #{roles.join(' or ')}" }, status: :forbidden
       end
 
       def require_admin!

@@ -112,23 +112,23 @@ class VmProvisioningService
   # Playbook lookup table: [os_family][vm_type][management_type] → filename
   # vm_type is either 'vps' or 'rdp'
   PLAYBOOKS = {
-    'ubuntu'  => {
+    'ubuntu' => {
       'vps' => { 'managed' => 'ubuntu_vps_managed.yml',   'unmanaged' => 'ubuntu_vps_unmanaged.yml' },
       'rdp' => { 'managed' => 'ubuntu_rdp_managed.yml',   'unmanaged' => 'ubuntu_rdp_unmanaged.yml' }
     },
-    'debian'  => {
+    'debian' => {
       'vps' => { 'managed' => 'debian_vps_managed.yml',   'unmanaged' => 'debian_vps_unmanaged.yml' },
       'rdp' => { 'managed' => 'debian_vps_managed.yml',   'unmanaged' => 'debian_vps_unmanaged.yml' } # No dedicated Debian RDP playbook; fallback to VPS
     },
-    'alma'    => {
+    'alma' => {
       'vps' => { 'managed' => 'alma_vps_managed.yml',     'unmanaged' => 'alma_vps_unmanaged.yml' },
       'rdp' => { 'managed' => 'alma_vps_managed.yml',     'unmanaged' => 'alma_vps_unmanaged.yml' }
     },
-    'rocky'   => {
+    'rocky' => {
       'vps' => { 'managed' => 'rocky_vps_managed.yml',    'unmanaged' => 'rocky_vps_unmanaged.yml' },
       'rdp' => { 'managed' => 'rocky_vps_managed.yml',    'unmanaged' => 'rocky_vps_unmanaged.yml' }
     },
-    'fedora'  => {
+    'fedora' => {
       'vps' => { 'managed' => 'fedora_rdp_managed.yml',   'unmanaged' => 'fedora_rdp_unmanaged.yml' },
       'rdp' => { 'managed' => 'fedora_rdp_managed.yml',   'unmanaged' => 'fedora_rdp_unmanaged.yml' }
     },
@@ -267,7 +267,6 @@ class VmProvisioningService
   def cleanup_vm(vm_id, _actual_ip = nil, _hostname = nil, _mac_address = nil)
     return unless vm_id
 
-
     @logger.info("Starting cleanup for VM #{vm_id}")
 
     # 1. Stop VM
@@ -315,7 +314,7 @@ class VmProvisioningService
 
   def change_password(vm, new_password)
     @logger.info("Changing password for VM #{vm.id}")
-    
+
     # Generate temporary inventory for this VM
     inventory_content = "[vms]\n#{vm.ip_address} ansible_user=root ansible_ssh_private_key_file=/root/.ssh/id_rsa"
     inventory_path = "/tmp/pwd_change_#{vm.id}.ini"
@@ -328,27 +327,27 @@ class VmProvisioningService
         user: (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'Administrator' : 'root'
       }.to_json
 
-      # We need to decide which playbook to use. 
+      # We need to decide which playbook to use.
       # For Windows, we might need a separate windows_change_password.yml or handle it in one.
       # Assuming change_password.yml handles Linux. Let's create a specialized one or detect.
-      
+
       playbook = if (vm.vm_order&.os_type || '').downcase.include?('windows')
-                  'windows_change_password.yml'
-                else
+                   'windows_change_password.yml'
+                 else
                    'change_password.yml'
-                end
+                 end
 
       @logger.info("Running playbook #{playbook} for VM #{vm.id}")
-      
+
       # Use same logic as check_vm_status or provision
       cmd = [
-        { "ANSIBLE_HOST_KEY_CHECKING" => "False" },
-        "ansible-playbook",
-        "-i", inventory_path,
+        { 'ANSIBLE_HOST_KEY_CHECKING' => 'False' },
+        'ansible-playbook',
+        '-i', inventory_path,
         File.join(PLAYBOOK_DIR, playbook),
-        "--extra-vars", extra_vars
+        '--extra-vars', extra_vars
       ]
-      stdout, stderr, status = Open3.capture3(*cmd)
+      _, stderr, status = Open3.capture3(*cmd)
 
       if status.success?
         @logger.info("Password change successful for VM #{vm.id}")
@@ -502,7 +501,8 @@ class VmProvisioningService
   end
 
   # Build extra_vars hash for the Ansible playbook, including proxy_config if proxy params exist
-  def build_extra_vars(vm_id:, hostname:, management_type:, os_template:, root_password:, rdp_password:, whitelist_ip:, proxy_params: {})
+  def build_extra_vars(vm_id:, hostname:, management_type:, os_template:, root_password:, rdp_password:, whitelist_ip:,
+                       proxy_params: {})
     vars = {
       vm_id: vm_id,
       hostname: hostname,

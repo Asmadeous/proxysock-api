@@ -8,13 +8,15 @@ module Api
       setup do
         @reseller = resellers(:one)
         wallet = @reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: @reseller, wallet_type: 'main')
-        txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 500.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
+        txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 500.0,
+                                  transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(500.0, 'Init', {}, txn)
 
         # Mock MyProxyApiClient to avoid network requests and ENV errors
         @proxy_client_mock = mock('MyProxyApiClient')
         MyProxyApiClient.stubs(:new).returns(@proxy_client_mock)
-        @proxy_client_mock.stubs(:place_order).returns({ 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u', 'password' => 'p' })
+        @proxy_client_mock.stubs(:place_order).returns({ 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u',
+                                                         'password' => 'p' })
 
         @vm_product = products(:one)
         @pricing = product_pricings(:pricing_one)

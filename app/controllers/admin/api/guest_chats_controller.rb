@@ -46,16 +46,18 @@ module Admin
         )
 
         # Auto-assign if not already assigned
-        if chat.status == 'open'
-          chat.update!(status: 'assigned', assigned_to: current_employee)
-        end
+        chat.update!(status: 'assigned', assigned_to: current_employee) if chat.status == 'open'
 
-        AuditLog.create(
-          action: 'guest_chat_reply',
-          actor: current_employee,
-          target: chat,
-          metadata: { message_id: message.id }
-        ) rescue nil
+        begin
+          AuditLog.create(
+            action: 'guest_chat_reply',
+            actor: current_employee,
+            target: chat,
+            metadata: { message_id: message.id }
+          )
+        rescue StandardError
+          nil
+        end
 
         render json: { message: serialize_message(message) }
       end
@@ -105,7 +107,7 @@ module Admin
           sender_type: msg.sender_type,
           sender_id: msg.sender_id,
           sender_name: sender&.full_name,
-          sender_online: sender && sender.respond_to?(:last_seen_at) && sender.last_seen_at && sender.last_seen_at > 5.minutes.ago,
+          sender_online: sender.respond_to?(:last_seen_at) && sender.last_seen_at && sender.last_seen_at > 5.minutes.ago,
           created_at: msg.created_at
         }
       end

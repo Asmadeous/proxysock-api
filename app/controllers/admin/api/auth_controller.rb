@@ -38,9 +38,7 @@ module Admin
           return render json: { error: 'Invalid email or password' }, status: :unauthorized
         end
 
-        unless employee.active?
-          return render json: { error: 'Account is deactivated' }, status: :forbidden
-        end
+        return render json: { error: 'Account is deactivated' }, status: :forbidden unless employee.active?
 
         employee.update_columns(last_login_at: Time.current)
         token = employee.generate_jwt

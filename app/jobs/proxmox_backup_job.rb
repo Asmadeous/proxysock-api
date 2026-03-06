@@ -37,14 +37,14 @@ class ProxmoxBackupJob < ApplicationJob
       '--mode', mode,
       '--prune-backups', "keep-last=#{keep_last}",
       '--mailto', mailto,
-      '--notes-template', "auto-backup-{{guestname}}-{{vmid}}"
+      '--notes-template', 'auto-backup-{{guestname}}-{{vmid}}'
     ]
 
     logger.info "[ProxmoxBackupJob] Executing: #{cmd.join(' ')}"
     stdout, stderr, status = Open3.capture3(*cmd)
 
     if status.success?
-      logger.info "[ProxmoxBackupJob] Backup completed successfully"
+      logger.info '[ProxmoxBackupJob] Backup completed successfully'
       logger.info "[ProxmoxBackupJob] Output: #{stdout.last(2000)}" if stdout.present?
 
       record_backup_result(vm_ids, 'success')
@@ -60,7 +60,7 @@ class ProxmoxBackupJob < ApplicationJob
         )
       end
     else
-      logger.error "[ProxmoxBackupJob] Backup FAILED"
+      logger.error '[ProxmoxBackupJob] Backup FAILED'
       logger.error "[ProxmoxBackupJob] stderr: #{stderr}"
 
       record_backup_result(vm_ids, 'failed', stderr)

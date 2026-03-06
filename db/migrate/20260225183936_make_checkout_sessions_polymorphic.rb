@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class MakeCheckoutSessionsPolymorphic < ActiveRecord::Migration[8.1]
   def change
     add_reference :checkout_sessions, :orderable, polymorphic: true, type: :uuid, index: true

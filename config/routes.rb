@@ -75,7 +75,7 @@ Rails.application.routes.draw do
   # E-commerce Web API
   namespace :web do
     namespace :api do
-      get "exchange_rates/show"
+      get 'exchange_rates/show'
       # Auth
       post 'auth/register', to: 'auth#register'
       post 'auth/login', to: 'auth#login'
@@ -162,7 +162,7 @@ Rails.application.routes.draw do
           post 'reddit-capi', to: 'analytics#reddit_capi'
         end
       end
-      
+
       resources :tools, only: [] do
         collection do
           get :ip_lookup
@@ -172,7 +172,7 @@ Rails.application.routes.draw do
       # Tools
       get 'tools/ip_checker', to: 'tools#ip_checker'
 
-      resources :notifications, only: [:index, :show] do
+      resources :notifications, only: %i[index show] do
         member do
           put :read
         end

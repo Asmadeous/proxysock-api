@@ -2,7 +2,6 @@
 
 require 'test_helper'
 
-
 class ProxySyncJobTest < ActiveJob::TestCase
   test 'performs sync' do
     ProxySyncService.any_instance.expects(:sync_all)

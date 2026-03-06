@@ -45,11 +45,11 @@ class PaystackService
   # Initiate a transfer (payout) to a customer/reseller bank account.
   def initiate_transfer(amount, recipient_code, reference)
     request(:post, '/transfer', {
-      source: 'balance',
-      amount: (amount * 100).to_i, # kobo
-      recipient: recipient_code,
-      reference: reference
-    })
+              source: 'balance',
+              amount: (amount * 100).to_i, # kobo
+              recipient: recipient_code,
+              reference: reference
+            })
   end
 
   private

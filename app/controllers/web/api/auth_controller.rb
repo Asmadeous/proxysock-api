@@ -4,7 +4,9 @@ module Web
   module Api
     class AuthController < BaseController
       # POST /web/api/auth/register
-      skip_before_action :authenticate_request, only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter google_callback twitter_callback failure]
+      skip_before_action :authenticate_request,
+                         only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter
+                                  google_callback twitter_callback failure]
 
       def register
         user = User.new(register_params)
@@ -33,8 +35,13 @@ module Web
 
         if user&.authenticate(login_params[:password])
           user.update(last_login_at: Time.current, ip_address: request.remote_ip)
-          
-          duration = login_params[:remember_me].in?([true, "true", "1"]) ? 30.days.from_now.to_i : 24.hours.from_now.to_i
+
+          duration = if login_params[:remember_me].in?([true, 'true',
+                                                        '1'])
+                       30.days.from_now.to_i
+                     else
+                       24.hours.from_now.to_i
+                     end
 
           token = user.generate_jwt(duration)
 
@@ -116,10 +123,10 @@ module Web
         permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url)
 
         # Check username uniqueness if changed
-        if permitted[:username].present? && permitted[:username] != current_user.username
-          if User.where('LOWER(username) = ? AND id != ?', permitted[:username].downcase, current_user.id).exists?
-            return render json: { error: 'Username is already taken' }, status: :unprocessable_entity
-          end
+        if permitted[:username].present? && permitted[:username] != current_user.username && User.where(
+          'LOWER(username) = ? AND id != ?', permitted[:username].downcase, current_user.id
+        ).exists?
+          return render json: { error: 'Username is already taken' }, status: :unprocessable_entity
         end
 
         if current_user.update(permitted)
@@ -152,7 +159,9 @@ module Web
 
       # DELETE /web/api/auth/logout
       def logout
-        current_user.user_sessions.where(active: true).update_all(active: false) if current_user.respond_to?(:user_sessions)
+        if current_user.respond_to?(:user_sessions)
+          current_user.user_sessions.where(active: true).update_all(active: false)
+        end
         render json: { message: 'Logged out successfully' }
       end
 
@@ -244,13 +253,13 @@ module Web
       private
 
       def register_params
-        params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone, :country, :city, :username, :profile_picture_url)
+        params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
+                                     :country, :city, :username, :profile_picture_url)
       end
 
       def login_params
         params.require(:user).permit(:email, :password, :remember_me)
       end
-
 
       def serialize_user(user)
         wallet = user.wallet

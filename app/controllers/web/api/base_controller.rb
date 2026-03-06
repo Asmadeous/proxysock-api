@@ -7,7 +7,7 @@ module Web
 
       # Allow public access for some things, but verify user if token present
       # Specific controllers will enforce :authenticate_user!
-      
+
       def current_actor
         @current_user || @current_reseller
       end

@@ -16,7 +16,7 @@ class ResellerEarningsService
     pricing = order.product_pricing
     api_cost = (pricing&.api_price.to_f || 0) * order.quantity
     profit = order.total_amount - api_cost
-    
+
     # "those utilizing our system should get half profit"
     # Reseller gets half the markup profit.
     commission = [0, profit / 2.0].max.round(2)
@@ -25,10 +25,10 @@ class ResellerEarningsService
 
     # Credit earnings wallet
     wallet = reseller.earnings_wallet || reseller.create_earnings_wallet!(wallet_type: 'earnings')
-    
+
     wallet.credit!(
-      commission, 
-      "Profit share — order ##{order.id} (from #{actor.is_a?(User) ? 'user ' + actor.email : 'self'})", 
+      commission,
+      "Profit share — order ##{order.id} (from #{actor.is_a?(User) ? "user #{actor.email}" : 'self'})",
       { order_id: order.id, source_actor_id: actor.id, source_actor_type: actor.class.name }
     )
   end
