@@ -19,13 +19,13 @@ module Web
         render json: {
           referrals: referrals.map do |r|
             {
-              id:             r.id,
-              referred_type:  r.referred_type,
-              status:         r.status,
-              discount:       r.referee_discount_applied,
-              commission:     r.commission_amount,
-              converted_at:   r.converted_at,
-              created_at:     r.created_at
+              id: r.id,
+              referred_type: r.referred_type,
+              status: r.status,
+              discount: r.referee_discount_applied,
+              commission: r.commission_amount,
+              converted_at: r.converted_at,
+              created_at: r.created_at
             }
           end,
           total: referrals.total_count

@@ -31,7 +31,7 @@ module Web
           quantity: item.quantity,
           metadata: item.metadata
         )
-        
+
         item.unit_price = pricing.selling_price # Base unit price
         item.total_price = pricing_service.calculate_total # Final actor-specific price
 

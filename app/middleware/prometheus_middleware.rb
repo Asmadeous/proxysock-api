@@ -20,7 +20,8 @@ class PrometheusMiddleware
 
     [status, headers, body]
   rescue StandardError => e
-    HTTP_REQUESTS_TOTAL.increment(labels: { method: env['REQUEST_METHOD'], path: normalize_path(env['PATH_INFO']), status: '500' })
+    HTTP_REQUESTS_TOTAL.increment(labels: { method: env['REQUEST_METHOD'], path: normalize_path(env['PATH_INFO']),
+                                            status: '500' })
     raise e
   end
 

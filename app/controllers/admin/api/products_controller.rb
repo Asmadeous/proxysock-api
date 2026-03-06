@@ -7,12 +7,12 @@ module Admin
 
       def index
         products = Product.all
-        
+
         products = products.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
         products = products.where(product_type: params[:product_type]) if params[:product_type].present?
         products = products.where(provider: params[:provider]) if params[:provider].present?
         products = products.where(active: params[:active]) if params[:active].present?
-        
+
         products = products.order(created_at: :desc)
         render json: { products: products }
       end
@@ -23,9 +23,14 @@ module Admin
 
       def create
         product = Product.new(product_params)
-        
+
         if product.save
-          AuditLog.create(action: 'create_product', user_id: current_employee.id, user_type: 'Employee', auditable: product) rescue nil
+          begin
+            AuditLog.create(action: 'create_product', user_id: current_employee.id, user_type: 'Employee',
+                            auditable: product)
+          rescue StandardError
+            nil
+          end
           render json: { product: product }, status: :created
         else
           render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
@@ -34,7 +39,12 @@ module Admin
 
       def update
         if @product.update(product_params)
-          AuditLog.create(action: 'update_product', user_id: current_employee.id, user_type: 'Employee', auditable: @product) rescue nil
+          begin
+            AuditLog.create(action: 'update_product', user_id: current_employee.id, user_type: 'Employee',
+                            auditable: @product)
+          rescue StandardError
+            nil
+          end
           render json: { product: @product }
         else
           render json: { errors: @product.errors.full_messages }, status: :unprocessable_entity
@@ -43,7 +53,12 @@ module Admin
 
       def destroy
         @product.destroy
-        AuditLog.create(action: 'delete_product', user_id: current_employee.id, user_type: 'Employee', metadata: { product_name: @product.name }) rescue nil
+        begin
+          AuditLog.create(action: 'delete_product', user_id: current_employee.id, user_type: 'Employee',
+                          metadata: { product_name: @product.name })
+        rescue StandardError
+          nil
+        end
         head :no_content
       end
 
@@ -57,11 +72,11 @@ module Admin
         params.require(:product).permit(
           :name, :description, :product_type, :provider, :stock_status,
           :active, metadata: {},
-          product_pricings_attributes: [
-            :id, :selling_price, :api_price, :reseller_selling_price, 
-            :user_selling_price, :currency, :duration_type, 
-            :duration_value, :active, :_destroy
-          ]
+                   product_pricings_attributes: %i[
+                     id selling_price api_price reseller_selling_price
+                     user_selling_price currency duration_type
+                     duration_value active _destroy
+                   ]
         )
       end
     end

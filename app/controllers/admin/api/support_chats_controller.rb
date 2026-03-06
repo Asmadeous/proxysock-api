@@ -15,7 +15,9 @@ module Admin
         chat = SupportChat.find(params[:id])
         render json: {
           chat: serialize_chat(chat),
-          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map { |m| serialize_message(m) }
+          messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map do |m|
+            serialize_message(m)
+          end
         }
       end
 
@@ -53,7 +55,11 @@ module Admin
         {
           id: chat.id,
           chatable_type: chat.chatable_type,
-          chatable_name: chat.chatable.respond_to?(:full_name) ? chat.chatable.full_name : chat.chatable.respond_to?(:email) ? chat.chatable.email : chat.chatable_type,
+          chatable_name: if chat.chatable.respond_to?(:full_name)
+                           chat.chatable.full_name
+                         else
+                           chat.chatable.respond_to?(:email) ? chat.chatable.email : chat.chatable_type
+                         end,
           status: chat.status,
           assigned_to: chat.assigned_to&.full_name,
           updated_at: chat.updated_at

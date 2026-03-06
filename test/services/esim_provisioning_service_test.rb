@@ -11,65 +11,65 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
     @category = product_categories(:one)
 
     @lyca_voice_product = Product.create!(
-      name:             'Lyca Voice eSIM UK',
-      product_type:     'esim',
-      provider:         'lyca',
-      available_to:     'both',
+      name: 'Lyca Voice eSIM UK',
+      product_type: 'esim',
+      provider: 'lyca',
+      available_to: 'both',
       product_category: @category,
       metadata: {
-        'esim_type'        => 'voice_data_sms',
-        'data_gb'          => 10,
-        'calling_minutes'  => 500,
-        'sms_quota'        => 200,
-        'duration_days'    => 30,
-        'country_code'     => 'GB',
+        'esim_type' => 'voice_data_sms',
+        'data_gb' => 10,
+        'calling_minutes' => 500,
+        'sms_quota' => 200,
+        'duration_days' => 30,
+        'country_code' => 'GB',
         'network_operator' => 'Lyca Mobile'
       }
     )
 
     @lebara_voice_product = Product.create!(
-      name:             'Lebara Voice eSIM UK',
-      product_type:     'esim',
-      provider:         'lebara',
-      available_to:     'reseller',
+      name: 'Lebara Voice eSIM UK',
+      product_type: 'esim',
+      provider: 'lebara',
+      available_to: 'reseller',
       product_category: @category,
       metadata: {
-        'esim_type'        => 'voice_data_sms',
-        'data_gb'          => 20,
-        'calling_minutes'  => 1000,
-        'sms_quota'        => 500,
-        'duration_days'    => 30,
-        'country_code'     => 'GB',
+        'esim_type' => 'voice_data_sms',
+        'data_gb' => 20,
+        'calling_minutes' => 1000,
+        'sms_quota' => 500,
+        'duration_days' => 30,
+        'country_code' => 'GB',
         'network_operator' => 'Lebara'
       }
     )
 
-    @lyca_pricing  = @lyca_voice_product.product_pricings.create!(selling_price: 15.00, currency: 'USD')
+    @lyca_pricing = @lyca_voice_product.product_pricings.create!(selling_price: 15.00, currency: 'USD')
     @lebara_pricing = @lebara_voice_product.product_pricings.create!(selling_price: 12.00, currency: 'USD')
 
     # Seed a single Lyca voice inventory item
     @lyca_inv = EsimInventory.create!(
-      provider:        'lyca',
-      esim_type:       'voice_data_sms',
-      iccid:           'LYCA_VOICE_001',
+      provider: 'lyca',
+      esim_type: 'voice_data_sms',
+      iccid: 'LYCA_VOICE_001',
       activation_code: 'LPA:1$lyca_test',
-      qr_code_url:     'https://cdn.example.com/qr/lyca001.png',
-      pin1:            '1234',
-      puk1:            '12345678',
-      status:          'available'
+      qr_code_url: 'https://cdn.example.com/qr/lyca001.png',
+      pin1: '1234',
+      puk1: '12345678',
+      status: 'available'
     )
 
     # Seed 5 Lebara voice inventory items
     @lebara_invs = 5.times.map do |i|
       EsimInventory.create!(
-        provider:        'lebara',
-        esim_type:       'voice_data_sms',
-        iccid:           "LEBARA_VOICE_00#{i}",
+        provider: 'lebara',
+        esim_type: 'voice_data_sms',
+        iccid: "LEBARA_VOICE_00#{i}",
         activation_code: "LPA:1$lebara_test_#{i}",
-        qr_code_url:     "https://cdn.example.com/qr/lebara00#{i}.png",
-        pin1:            '0000',
-        puk1:            '00000000',
-        status:          'available'
+        qr_code_url: "https://cdn.example.com/qr/lebara00#{i}.png",
+        pin1: '0000',
+        puk1: '00000000',
+        status: 'available'
       )
     end
   end
@@ -79,11 +79,11 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
   # ──────────────────────────────────────────────────────────────
   test 'lyca voice eSIM: provisions 1 Esim record with qr_code_url set' do
     order = Order.create!(
-      orderable:       @user,
-      product:         @lyca_voice_product,
+      orderable: @user,
+      product: @lyca_voice_product,
       product_pricing: @lyca_pricing,
-      quantity:        1,
-      status:          'pending'
+      quantity: 1,
+      status: 'pending'
     )
 
     EsimProvisioningService.new(order).provision!
@@ -114,11 +114,11 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
   # ──────────────────────────────────────────────────────────────
   test 'lebara voice eSIM: raises MoqViolationError for quantity < 5' do
     order = Order.create!(
-      orderable:       @reseller,
-      product:         @lebara_voice_product,
+      orderable: @reseller,
+      product: @lebara_voice_product,
       product_pricing: @lebara_pricing,
-      quantity:        1,
-      status:          'pending'
+      quantity: 1,
+      status: 'pending'
     )
 
     assert_raises(EsimProvisioningService::MoqViolationError) do
@@ -128,11 +128,11 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
 
   test 'lebara voice eSIM: provisions 5 Esim records for qty=5' do
     order = Order.create!(
-      orderable:       @reseller,
-      product:         @lebara_voice_product,
+      orderable: @reseller,
+      product: @lebara_voice_product,
       product_pricing: @lebara_pricing,
-      quantity:        5,
-      status:          'pending'
+      quantity: 5,
+      status: 'pending'
     )
 
     EsimProvisioningService.new(order).provision!
@@ -163,11 +163,11 @@ class EsimProvisioningServiceTest < ActiveSupport::TestCase
     @lyca_inv.mark_as_sold!
 
     order = Order.create!(
-      orderable:       @user,
-      product:         @lyca_voice_product,
+      orderable: @user,
+      product: @lyca_voice_product,
       product_pricing: @lyca_pricing,
-      quantity:        1,
-      status:          'pending'
+      quantity: 1,
+      status: 'pending'
     )
 
     assert_raises(EsimProvisioningService::OutOfStockError) do

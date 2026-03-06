@@ -4,7 +4,7 @@ require 'test_helper'
 
 class OrderProvisioningServiceTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  
+
   setup do
     @user = create_user_with_balance(100.0)
     @user_wallet = @user.wallet
@@ -15,7 +15,8 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
     # Mock MyProxyApiClient
     @proxy_client_mock = mock('MyProxyApiClient')
     MyProxyApiClient.stubs(:new).returns(@proxy_client_mock)
-    @proxy_client_mock.stubs(:place_order).returns({ 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u', 'password' => 'p' })
+    @proxy_client_mock.stubs(:place_order).returns({ 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u',
+                                                     'password' => 'p' })
 
     @vm_product = products(:one)
     @vm_pricing = product_pricings(:pricing_one)
@@ -52,13 +53,13 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
       product_pricing: @vm_pricing,
       status: 'pending'
     )
-    
+
     service = OrderProvisioningService.new(order, low_balance_user)
 
     error = assert_raises(OrderProvisioningService::ProvisioningError) do
       service.process!
     end
-    assert_match /Insufficient balance/, error.message
+    assert_match(/Insufficient balance/, error.message)
     order.reload
     assert order.failed?
   end
@@ -76,24 +77,24 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
 
     # We need to stub provision_proxy! or the internal helpers if they make external calls
     # But for this test, we just want to ensure it runs without error if mocked
-    
+
     # Mock XProxyService if provider is xproxy, or inventory logic
     # Since product provider_type is 'xproxy' (based on create_proxy_product helper def),
     # it calls provision_proxy! -> XProxyService.new.provision
-    
+
     XProxyService.any_instance.expects(:provision).with(order).returns(true)
 
-    assert_difference 'MobileProxyOrder.count', 0 do # Proxy product doesn't create MobileProxyOrder unless logic changes? 
+    assert_difference 'MobileProxyOrder.count', 0 do # Proxy product doesn't create MobileProxyOrder unless logic changes?
       # Actually create_proxy_product makes 'proxy' type, 'xproxy' provider.
       # provision_proxy! calls XProxyService.
       # It does NOT create MobileProxyOrder record?
       # Let's check logic:
       # when 'xproxy' -> XProxyService.new.provision(@order)
       # So count shouldn't change unless XProxyService creates it.
-      
+
       OrderProvisioningService.new(order, @reseller).process!
     end
-    
+
     order.reload
     assert order.active? # Proxies activate immediately
   end

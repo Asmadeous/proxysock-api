@@ -49,6 +49,7 @@ class Reseller < ApplicationRecord
   # Price multiplier based on tier (infrastructure has a surcharge for overhead)
   def price_multiplier
     return 1.0 if api_only?
+
     1.0 + (infrastructure_surcharge_percentage.to_f / 100.0)
   end
 
@@ -108,10 +109,10 @@ class Reseller < ApplicationRecord
 
   def as_json(options = {})
     super(options).merge({
-      balance: balance,
-      earnings_balance: earnings_balance,
-      price_multiplier: price_multiplier
-    })
+                           balance: balance,
+                           earnings_balance: earnings_balance,
+                           price_multiplier: price_multiplier
+                         })
   end
 
   def generate_dedicated_api_key

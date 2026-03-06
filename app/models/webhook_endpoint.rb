@@ -17,4 +17,3 @@ class WebhookEndpoint < ApplicationRecord
     self.secret ||= SecureRandom.hex(24)
   end
 end
-

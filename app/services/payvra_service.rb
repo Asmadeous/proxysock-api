@@ -47,10 +47,10 @@ class PayvraService
   # Create a withdrawal request.
   def create_withdrawal(amount, currency, address)
     request(:post, '/merchants/withdrawal/create', {
-      amount: amount,
-      currency: currency,
-      address: address
-    })
+              amount: amount,
+              currency: currency,
+              address: address
+            })
   end
 
   private
@@ -71,7 +71,7 @@ class PayvraService
     req.body = body.to_json if method == :post && body.present?
 
     response = http.request(req)
-    
+
     # Debug logging
     Rails.logger.info("Payvra API Request: #{method.to_s.upcase} #{uri}")
     Rails.logger.info("Payvra API Response Code: #{response.code}")

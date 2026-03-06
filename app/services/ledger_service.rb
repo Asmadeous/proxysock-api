@@ -38,7 +38,6 @@ class LedgerService
         transaction_id: reference&.id
       )
 
-
       # Compute Hash
       # Hash = SHA256(prev_hash + amount + type + timestamp + nonce)
       # Using a stable string representation
@@ -70,12 +69,14 @@ class LedgerService
 
       # 2. Verify balance chain - detect amount tampering
       if tx.balance_before != expected_balance
-        raise LedgerTamperError, "Balance mismatch at TX #{tx.id}: Expected #{expected_balance}, got #{tx.balance_before}"
+        raise LedgerTamperError,
+              "Balance mismatch at TX #{tx.id}: Expected #{expected_balance}, got #{tx.balance_before}"
       end
 
       calculated_balance_after = tx.balance_before + tx.amount
       if tx.balance_after != calculated_balance_after
-        raise LedgerTamperError, "Amount tampered at TX #{tx.id}: balance_after #{tx.balance_after} != calculated #{calculated_balance_after}"
+        raise LedgerTamperError,
+              "Amount tampered at TX #{tx.id}: balance_after #{tx.balance_after} != calculated #{calculated_balance_after}"
       end
 
       expected_balance = tx.balance_after

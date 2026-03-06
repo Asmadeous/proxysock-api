@@ -8,7 +8,7 @@ module Web
       # GET /web/api/orders
       def index
         scope = current_actor.orders.includes(:product, :product_pricing)
-        
+
         if params[:product_type].present?
           types = params[:product_type].split(',')
           scope = scope.joins(:product).where(products: { product_type: types })
@@ -29,28 +29,28 @@ module Web
       # GET /web/api/orders/stats
       def stats
         orders = current_actor.orders
-        
+
         # Apply time range if provided
         if params[:range].present? && params[:range] != 'all'
           days = params[:range].to_i
-          days = 30 if days == 0 # fallback
+          days = 30 if days.zero? # fallback
           orders = orders.where('created_at >= ?', days.days.ago)
         end
 
         # Normalize status names for frontend
-        active_statuses = ['active', 'processing', 'completed', 'delivered', 'allocated']
-        pending_statuses = ['pending', 'provisioning', 'awaiting_payment']
-        expired_statuses = ['expired', 'suspended', 'cancelled']
-        failed_statuses = ['failed', 'error', 'stopped']
-        
+        active_statuses = %w[active processing completed delivered allocated]
+        pending_statuses = %w[pending provisioning awaiting_payment]
+        expired_statuses = %w[expired suspended cancelled]
+        failed_statuses = %w[failed error stopped]
+
         # Single query for counts by status
         counts_by_status = orders.group(:status).count
-        
+
         active_count = 0
         pending_count = 0
         expired_count = 0
         failed_count = 0
-        
+
         total_orders = 0
         counts_by_status.each do |status, count|
           total_orders += count
@@ -64,13 +64,13 @@ module Web
             failed_count += count
           end
         end
-        
+
         # Single query for type statistics (counts and revenue)
         type_counts = orders.joins(:product).group('products.product_type', :status).count
         type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
-        
+
         type_stats = {}
-        ['proxy', 'vpn', 'vps', 'esim', 'rdp', 'usa_esim'].each do |type|
+        %w[proxy vpn vps esim rdp usa_esim].each do |type|
           type_stats[type] = {
             total: 0,
             active: 0,
@@ -83,7 +83,7 @@ module Web
 
         type_counts.each do |(type, status), count|
           next unless type_stats.key?(type)
-          
+
           type_stats[type][:total] += count
           if active_statuses.include?(status)
             type_stats[type][:active] += count
@@ -95,14 +95,14 @@ module Web
             type_stats[type][:failed] += count
           end
         end
-        
+
         current_month = Time.current.beginning_of_month
         last_month = 1.month.ago.beginning_of_month
-        
+
         total_spent = orders.sum(:total_amount).to_f
         monthly_spending = orders.where('created_at >= ?', current_month).sum(:total_amount).to_f
         last_month_spending = orders.where(created_at: last_month...current_month).sum(:total_amount).to_f
-        
+
         recent_orders = orders.includes(:product).order(created_at: :desc).limit(10).map do |o|
           {
             id: o.id,
@@ -113,7 +113,7 @@ module Web
             product_name: o.product&.name
           }
         end
-        
+
         render json: {
           total_orders: total_orders,
           active_services: active_count,
@@ -174,7 +174,8 @@ module Web
           begin
             # Service handles debit and provisioning
             OrderProvisioningService.new(order, current_actor).process!
-            render json: serialize_order(order.reload).merge(available_balance: current_actor.wallet&.balance.to_f), status: :created
+            render json: serialize_order(order.reload).merge(available_balance: current_actor.wallet&.balance.to_f),
+                   status: :created
           rescue StandardError => e
             order.fail! if order.may_fail?
             render json: { error: e.message }, status: :unprocessable_entity
@@ -198,7 +199,7 @@ module Web
         items = params[:items] || []
         payment_method = params[:payment_method] || 'wallet'
         gateway = params[:gateway] || 'paystack'
-        
+
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
 
         # Calculate total
@@ -208,10 +209,10 @@ module Web
         items.each do |item|
           product = Product.for_ecommerce.find_by(id: item[:product_id] || item['product_id'])
           next unless product
-          
+
           # Use active pricing or default to unit price logic if dynamic
           pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
-          
+
           order = Order.new(
             orderable: current_actor,
             product: product,
@@ -220,25 +221,29 @@ module Web
             metadata: item[:metadata] || item['metadata'] || {},
             status: 'pending'
           )
-          
+
           order.calculate_total_amount # Securely recalculate based on backend logic
           total_amount += order.total_amount.to_f
           orders_to_create << order
         end
 
-        return render json: { error: 'Invalid items or products not found' }, status: :unprocessable_entity if orders_to_create.empty?
+        if orders_to_create.empty?
+          return render json: { error: 'Invalid items or products not found' },
+                        status: :unprocessable_entity
+        end
 
         if payment_method == 'wallet'
           wallet = current_actor.wallet
           if wallet.nil? || wallet.balance < total_amount
-            return render json: { error: "Insufficient balance. Required: #{total_amount}, Available: #{wallet&.balance || 0}" }, status: :payment_required
+            return render json: { error: "Insufficient balance. Required: #{total_amount}, Available: #{wallet&.balance || 0}" },
+                          status: :payment_required
           end
 
           created_orders = []
           ActiveRecord::Base.transaction do
             # Create all orders
             orders_to_create.each(&:save!)
-            
+
             wallet.debit!(total_amount, 'Cart Checkout')
 
             # Provision each
@@ -247,7 +252,7 @@ module Web
               created_orders << order
             end
           end
-          
+
           render json: {
             message: 'Checkout successful',
             orders: created_orders.map { |o| serialize_order(o.reload) },
@@ -257,7 +262,7 @@ module Web
           # Gateway
           checkout_session = nil
           created_orders = []
-          
+
           ActiveRecord::Base.transaction do
             checkout_session = CheckoutSession.create!(
               orderable: current_actor,
@@ -266,12 +271,12 @@ module Web
               status: 'pending',
               metadata: { item_count: orders_to_create.count, items: items }
             )
-            
+
             checkout_session.generate_reference!
           end
 
           payment_url = generate_session_payment_link(gateway, checkout_session, total_amount)
-          
+
           unless payment_url
             raise StandardError, "Failed to generate payment link from #{gateway}. Check gateway credentials or logs."
           end
@@ -384,7 +389,7 @@ module Web
         order = current_actor.orders.find(params[:id])
 
         unless order.reorderable?(current_actor)
-          return render json: { error: 'Reordering this expired external product is not allowed for resellers.' }, 
+          return render json: { error: 'Reordering this expired external product is not allowed for resellers.' },
                         status: :forbidden
         end
 
@@ -405,9 +410,9 @@ module Web
               OrderProvisioningService.new(new_order, current_actor).process!
               render json: serialize_order(new_order.reload), status: :created
             else
-              render json: { 
-                order: serialize_order(new_order), 
-                error: 'Insufficient balance for automatic processing. Please top up.' 
+              render json: {
+                order: serialize_order(new_order),
+                error: 'Insufficient balance for automatic processing. Please top up.'
               }, status: :accepted
             end
           rescue StandardError => e
@@ -438,7 +443,8 @@ module Web
 
         # Fallback: fetch from API and store for future requests
         api_res = order.metadata['my_proxy_api_response']
-        provider_order_id = api_res&.dig('order', 'order_id') || api_res&.dig('order_id') || api_res&.dig('data', 'order_id')
+        provider_order_id = api_res&.dig('order',
+                                         'order_id') || api_res&.dig('order_id') || api_res&.dig('data', 'order_id')
 
         unless provider_order_id.present?
           return render json: { error: 'Provider order ID not found' }, status: :not_found
@@ -526,7 +532,7 @@ module Web
 
       def serialize_order(order)
         resource = order.provisioned_resource
-        
+
         base = {
           id: order.id,
           order_number: order.try(:order_number) || [order.id, order.created_at.to_i].join('-'),
@@ -625,10 +631,10 @@ module Web
               iccid: credential.iccid,
               qr_code: credential.qr_code,
               qr_activation_code: credential.qr_activation_code,
-              pin1: credential.send("PIN1"),
-              pin2: credential.send("PIN2"),
-              puk1: credential.send("PUK1"),
-              puk2: credential.send("PUK2"),
+              pin1: credential.send('PIN1'),
+              pin2: credential.send('PIN2'),
+              puk1: credential.send('PUK1'),
+              puk2: credential.send('PUK2'),
               zip_code: credential.zip_code,
               status: credential.status
             }
@@ -637,8 +643,9 @@ module Web
         end
 
         # Download availability flags
-        base[:has_invoice] = order.invoice_pdf.attached? || true  # can always generate on-demand
-        base[:has_ovpn_config] = order.ovpn_config.attached? || (order.product.product_type == 'vpn' && order.product.provider_type == 'myproxyapi')
+        base[:has_invoice] = order.invoice_pdf.attached? || true # can always generate on-demand
+        base[:has_ovpn_config] =
+          order.ovpn_config.attached? || (order.product.product_type == 'vpn' && order.product.provider_type == 'myproxyapi')
         base[:has_rdp_config] = %w[vps rdp vm].include?(order.product.product_type)
 
         base

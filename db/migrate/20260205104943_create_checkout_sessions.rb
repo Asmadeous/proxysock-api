@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateCheckoutSessions < ActiveRecord::Migration[8.1]
   def change
     create_table :checkout_sessions do |t|

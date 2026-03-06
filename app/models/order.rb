@@ -14,7 +14,7 @@ class Order < ApplicationRecord
   # belongs_to :user, optional: true # Direct user orders - Replaced by orderable logic if applicable?
   # Wait, let me check if user_id exists in Schema.
   # Schema has NO user_id on orders table. So this is also broken.
-  
+
   def user
     orderable if orderable_type == 'User'
   end
@@ -22,7 +22,7 @@ class Order < ApplicationRecord
   belongs_to :product_pricing
   belongs_to :checkout_session, optional: true
   # belongs_to :reseller, optional: true # Reseller orders - Replaced by orderable
-  
+
   def reseller
     orderable if orderable_type == 'Reseller'
   end
@@ -66,13 +66,11 @@ class Order < ApplicationRecord
 
   def reorderable?(actor)
     # Check if the product is a proxy or VPN
-    is_proxy_or_vpn = ['proxy', 'vpn'].include?(product.product_type)
-    
-    if actor.is_a?(Reseller)
-      if is_proxy_or_vpn && product.provider != 'myproxyapi'
-        # Resellers cannot reorder expired external proxies/vpn
-        return false if status == 'expired' || (expires_at.present? && expires_at < Time.current)
-      end
+    is_proxy_or_vpn = %w[proxy vpn].include?(product.product_type)
+
+    if actor.is_a?(Reseller) && is_proxy_or_vpn && product.provider != 'myproxyapi' && (status == 'expired' || (expires_at.present? && expires_at < Time.current))
+      # Resellers cannot reorder expired external proxies/vpn
+      return false
     end
 
     true
@@ -85,12 +83,14 @@ class Order < ApplicationRecord
   private
 
   def notify_user_on_order
+    return unless orderable
+
     Notification.create(
       recipient: orderable,
       category: 'success',
       title: "Order ##{order_number} Placed",
       message: "Your order for #{product&.name || 'a product'} has been placed successfully."
-    ) if orderable
+    )
   end
 
   public

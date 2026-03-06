@@ -19,13 +19,9 @@ class MetricsController < ApplicationController
   private
 
   def refresh_gauges!
-    if defined?(::ACTIVE_VMS)
-      ::ACTIVE_VMS.set(Vm.where(status: 'active').count)
-    end
+    ::ACTIVE_VMS.set(Vm.where(status: 'active').count) if defined?(::ACTIVE_VMS)
 
-    if defined?(::ACTIVE_USERS)
-      ::ACTIVE_USERS.set(User.count)
-    end
+    ::ACTIVE_USERS.set(User.count) if defined?(::ACTIVE_USERS)
 
     if defined?(::SIDEKIQ_JOBS) && defined?(Sidekiq::Stats)
       stats = Sidekiq::Stats.new

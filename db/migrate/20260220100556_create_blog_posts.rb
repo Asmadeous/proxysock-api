@@ -13,13 +13,13 @@ class CreateBlogPosts < ActiveRecord::Migration[8.1]
       t.boolean :featured,     null: false, default: false
       t.boolean :published,    null: false, default: false
       t.string  :image_url
-      t.jsonb   :tags,         null: false, default: []
+      t.jsonb   :tags, null: false, default: []
       t.datetime :published_at
-      t.integer :views_count,  null: false, default: 0
+      t.integer :views_count, null: false, default: 0
       t.timestamps
     end
 
-    add_index :blog_posts, :slug,      unique: true
+    add_index :blog_posts, :slug, unique: true
     add_index :blog_posts, :category
     add_index :blog_posts, :published
     add_index :blog_posts, :featured

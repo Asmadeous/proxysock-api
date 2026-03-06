@@ -9,11 +9,12 @@ module Web
         @user = users(:one)
         wallet = @user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: @user, wallet_type: 'main')
         # Ensure balance
-        txn = Transaction.create!(transactable: @user, reference: @user, amount: 100.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
+        txn = Transaction.create!(transactable: @user, reference: @user, amount: 100.0, transaction_type: 'credit',
+                                  status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(100.0, 'Init', {}, txn)
 
         @proxy_product = products(:two)
-        
+
         # Mock XProxyService
         XProxyService.any_instance.stubs(:provision).returns(true)
       end
@@ -34,9 +35,12 @@ module Web
 
       test 'should fail if wallet balance insufficient' do
         # Create fresh user with low balance
-        low_balance_user = User.create!(first_name: 'Low', last_name: 'Balance', username: 'low_balance', email: 'low@test.com', password: 'password123')
-        wallet = low_balance_user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: low_balance_user, wallet_type: 'main')
-        txn = Transaction.create!(transactable: low_balance_user, reference: low_balance_user, amount: 5.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
+        low_balance_user = User.create!(first_name: 'Low', last_name: 'Balance', username: 'low_balance',
+                                        email: 'low@test.com', password: 'password123')
+        wallet = low_balance_user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: low_balance_user,
+                                                                                         wallet_type: 'main')
+        txn = Transaction.create!(transactable: low_balance_user, reference: low_balance_user, amount: 5.0,
+                                  transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(5.0, 'Init', {}, txn) # 5.0 < 10.0 (Proxy price)
 
         post '/web/api/orders',

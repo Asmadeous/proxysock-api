@@ -14,7 +14,7 @@ module Admin
 
         render json: {
           payouts: payouts.map { |p| payout_json(p) },
-          total:   payouts.total_count
+          total: payouts.total_count
         }
       end
 
@@ -27,7 +27,7 @@ module Admin
       def process_payout
         AffiliateService.process_payout!(@payout)
         render json: { message: 'Payout processed', status: @payout.reload.status }
-      rescue => e
+      rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
@@ -40,15 +40,15 @@ module Admin
       def payout_json(p)
         entity = p.affiliate.affiliatable
         {
-          id:              p.id,
-          amount:          p.amount,
-          status:          p.status,
-          payment_method:  p.payment_method,
-          created_at:      p.created_at,
-          paid_at:         p.paid_at,
-          notes:           p.notes,
-          affiliate_code:  p.affiliate.referral_code,
-          affiliate_name:  entity.respond_to?(:company_name) ? entity.company_name : "#{entity.first_name} #{entity.last_name}",
+          id: p.id,
+          amount: p.amount,
+          status: p.status,
+          payment_method: p.payment_method,
+          created_at: p.created_at,
+          paid_at: p.paid_at,
+          notes: p.notes,
+          affiliate_code: p.affiliate.referral_code,
+          affiliate_name: entity.respond_to?(:company_name) ? entity.company_name : "#{entity.first_name} #{entity.last_name}",
           affiliate_email: entity.email
         }
       end

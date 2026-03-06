@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class MakeCartsPolymorphic < ActiveRecord::Migration[8.1]
   def change
     add_reference :carts, :orderable, polymorphic: true, type: :uuid, index: true

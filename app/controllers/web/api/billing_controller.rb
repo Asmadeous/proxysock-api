@@ -27,7 +27,7 @@ module Web
       def transactions
         wallet = current_actor.wallet
         txns = wallet&.wallet_transactions&.order(created_at: :desc) || []
-        
+
         # Include deposits that haven't been completed (completed ones are already in wallet_transactions)
         deps = current_actor.deposits.where.not(status: 'completed').order(created_at: :desc)
 
@@ -35,7 +35,7 @@ module Web
         paginated_items = Kaminari.paginate_array(all_items).page(params[:page]).per(50)
 
         render json: {
-          transactions: paginated_items.map { |item|
+          transactions: paginated_items.map do |item|
             if item.is_a?(WalletTransaction)
               {
                 id: item.id,
@@ -55,7 +55,7 @@ module Web
                 created_at: item.created_at
               }
             end
-          },
+          end,
           meta: {
             current_page: paginated_items.current_page,
             total_pages: paginated_items.total_pages,
@@ -63,6 +63,7 @@ module Web
           }
         }
       end
+
       # POST /web/api/billing/verify_and_sync
       def verify_and_sync
         deposit = current_actor.deposits.find_by(id: params[:deposit_id])
@@ -74,7 +75,7 @@ module Web
         render json: {
           success: true,
           status: deposit.status,
-          message: sync_result ? "Deposit successfully synced and balance updated." : "Deposit status checked. No changes made."
+          message: sync_result ? 'Deposit successfully synced and balance updated.' : 'Deposit status checked. No changes made.'
         }
       rescue StandardError => e
         render json: { error: "Sync failed: #{e.message}" }, status: :internal_server_error

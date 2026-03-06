@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'test_helper'
 
 class NotificationServiceTest < ActiveSupport::TestCase
@@ -28,7 +30,7 @@ class NotificationServiceTest < ActiveSupport::TestCase
 
   test 'should notify employees on system alert' do
     employee = employees(:one)
-    
+
     assert_difference 'Notification.count', 1 do
       NotificationService.notify(
         recipient: employee,
@@ -37,7 +39,7 @@ class NotificationServiceTest < ActiveSupport::TestCase
         message: 'Something broke'
       )
     end
-    
+
     n = Notification.find_by(category: 'system_alert', recipient: employee)
     assert_not_nil n
     assert_equal 'system_alert', n.category

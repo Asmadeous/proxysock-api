@@ -21,21 +21,21 @@ class BillingRenewalWorker < ApplicationJob
     model_class.where(status: 'active')
                .where(expires_at: Time.current..24.hours.from_now)
                .find_each do |resource|
-      send_renewal_reminder(resource) unless already_notified_today?(resource)
+                 send_renewal_reminder(resource) unless already_notified_today?(resource)
     end
 
     # Resources expiring in the next 3 days — send early warning
     model_class.where(status: 'active')
                .where(expires_at: 24.hours.from_now..3.days.from_now)
                .find_each do |resource|
-      send_early_warning(resource) unless already_notified_today?(resource)
+                 send_early_warning(resource) unless already_notified_today?(resource)
     end
 
     # Auto-renew resources with wallet balance if metadata flag is set
     model_class.where(status: 'active')
                .where(expires_at: Time.current..24.hours.from_now)
                .find_each do |resource|
-      attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
+                 attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
     end
   end
 
@@ -96,11 +96,11 @@ class BillingRenewalWorker < ApplicationJob
     if owner.wallet.balance >= renewal_amount
       ActiveRecord::Base.transaction do
         owner.wallet.debit!(renewal_amount, "Auto-renewal: #{resource.class.name} #{resource.id.to_s[0..7]}", {
-          order_id: order.id,
-          resource_type: resource.class.name,
-          resource_id: resource.id,
-          auto_renewal: true
-        })
+                              order_id: order.id,
+                              resource_type: resource.class.name,
+                              resource_id: resource.id,
+                              auto_renewal: true
+                            })
 
         # Extend the resource expiry
         resource.update!(expires_at: resource.expires_at + pricing.duration_value.days)

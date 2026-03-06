@@ -118,7 +118,7 @@ module Web
           status: 'processing'
         )
 
-        vm_order = VmOrder.create!(
+        VmOrder.create!(
           order: order,
           os_type: vm_params[:os_template],
           vm_type: vm_params[:vm_type],
@@ -136,7 +136,7 @@ module Web
         order = vm_order&.order
         product = order&.product
         pricing = order&.product_pricing
-        
+
         os_template = (vm_order&.os_type || '').downcase
         is_windows = os_template.include?('windows')
         is_rdp = vm.vm_type == 'rdp' || os_template.include?('rdp') || is_windows

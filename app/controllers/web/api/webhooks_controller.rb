@@ -38,9 +38,7 @@ module Web
 
         # Accept common 'paid' / 'completed' status values Payvra may send
         status = event['status'] || event['payment_status']
-        if %w[paid completed success].include?(status.to_s.downcase)
-          handle_deposit(event, 'payvra')
-        end
+        handle_deposit(event, 'payvra') if %w[paid completed success].include?(status.to_s.downcase)
         render json: { status: 'received' }
       end
 
@@ -52,7 +50,7 @@ module Web
 
         # Check if this reference belongs to a CheckoutSession first
         checkout_session = CheckoutSession.find_by(gateway_reference: reference)
-        
+
         if checkout_session
           handle_checkout_session(checkout_session, data, gateway)
           return
@@ -78,13 +76,13 @@ module Web
         return unless session.status == 'pending'
 
         amount = gateway == 'paystack' ? (data['amount'] / 100.0) : data['amount'].to_f
-        
+
         ActiveRecord::Base.transaction do
           session.update!(status: 'completed')
-          
+
           actor = session.orderable
           wallet = actor.wallet
-          
+
           # Virtual deposit processing to keep ledger accurate:
           # Credit for the inbound gateway amount
           transaction_in = Transaction.create!(
@@ -96,7 +94,7 @@ module Web
             description: "Checkout Session Funding via #{gateway}"
           )
           wallet.credit!(amount, "Checkout via #{gateway}", { session_id: session.id }, transaction_in)
-          
+
           # Debit for the total orders
           transaction_out = Transaction.create!(
             transactable: actor,
@@ -115,7 +113,11 @@ module Web
         end
       rescue StandardError => e
         Rails.logger.error("Checkout Session Webhook Failed: #{e.message}")
-        session.update!(status: 'failed') rescue nil
+        begin
+          session.update!(status: 'failed')
+        rescue StandardError
+          nil
+        end
       end
     end
   end

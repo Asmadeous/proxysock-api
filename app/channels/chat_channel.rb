@@ -4,7 +4,7 @@ class ChatChannel < ApplicationCable::Channel
   def subscribed
     # Clients must pass chat_id and chat_type ("SupportChat" or "GuestChat")
     @chat = find_chat(params[:chat_type], params[:chat_id])
-    
+
     if @chat && authorized_to_view?(@chat)
       stream_for @chat
     else
@@ -21,6 +21,7 @@ class ChatChannel < ApplicationCable::Channel
 
   def find_chat(type, id)
     return nil unless %w[SupportChat GuestChat].include?(type)
+
     type.constantize.find_by(id: id)
   end
 

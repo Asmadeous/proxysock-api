@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateUsaEsimCredentials < ActiveRecord::Migration[8.1]
   def up
     execute <<-SQL
@@ -41,6 +43,6 @@ class CreateUsaEsimCredentials < ActiveRecord::Migration[8.1]
   end
 
   def down
-    execute "DROP TABLE public.usa_esim_credentials;"
+    execute 'DROP TABLE public.usa_esim_credentials;'
   end
 end

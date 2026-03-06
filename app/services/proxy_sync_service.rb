@@ -27,7 +27,7 @@ class ProxySyncService
     sync_resource(StaticIspProxy, external_proxies.select { |p| p['type'] == 'static_isp' })
 
     @logger.info('[ProxySyncService] Sync completed.')
-    
+
     check_inventory_levels
   end
 
@@ -36,17 +36,17 @@ class ProxySyncService
       count = proxy_class.where(status: 'available').count
       threshold = 5 # Alert if below 5
 
-      if count < threshold
-        # Notify active employees
-        Employee.where(active: true).find_each do |employee|
-          NotificationService.notify(
-            recipient: employee,
-            category: 'warning',
-            title: 'Low Inventory Alert',
-            message: "#{proxy_class.name.titleize} inventory is low (#{count} remaining).",
-            metadata: { proxy_type: proxy_class.name, count: count }
-          )
-        end
+      next unless count < threshold
+
+      # Notify active employees
+      Employee.where(active: true).find_each do |employee|
+        NotificationService.notify(
+          recipient: employee,
+          category: 'warning',
+          title: 'Low Inventory Alert',
+          message: "#{proxy_class.name.titleize} inventory is low (#{count} remaining).",
+          metadata: { proxy_type: proxy_class.name, count: count }
+        )
       end
     end
   end
@@ -66,7 +66,7 @@ class ProxySyncService
       local_record = existing_records[external_id]
 
       attributes = map_attributes(data, model_class)
-      next unless attributes  # Skip if we can't create valid attributes (missing FK)
+      next unless attributes # Skip if we can't create valid attributes (missing FK)
 
       if local_record
         # Update if changed
@@ -104,17 +104,18 @@ class ProxySyncService
       myproxyapi_order_id: data['id'].to_s,
       updated_at: Time.current
     }
-    
+
     # Add country_code for models that have it
     attrs[:country_code] = data['country'] if data['country']
-    
+
     # Add mobile_proxy_order_id for MobileProxy model (required by schema)
     if model_class == MobileProxy
       mp_order = MobileProxyOrder.first
-      return nil unless mp_order  # Can't create without FK
+      return nil unless mp_order # Can't create without FK
+
       attrs[:mobile_proxy_order_id] = mp_order.id
     end
-    
+
     attrs
   end
 

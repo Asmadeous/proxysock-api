@@ -10,9 +10,9 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     # Development origins
-    dev_origins = [/http:\/\/localhost:\d+/, /http:\/\/127\.0\.0\.1:\d+/,
-                   "http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173",
-                   "https://literally-immortal-sunbird.ngrok-free.app", /https:\/\/.+\.trycloudflare\.com/]
+    dev_origins = [%r{http://localhost:\d+}, %r{http://127\.0\.0\.1:\d+},
+                   'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:5173',
+                   'https://literally-immortal-sunbird.ngrok-free.app', %r{https://.+\.trycloudflare\.com}]
 
     # Production origin from ENV
     if ENV['APP_URL'].present?
@@ -23,10 +23,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
 
     origins(*dev_origins)
 
-    resource "*",
-      headers: :any,
-      methods: [:get, :post, :put, :patch, :delete, :options, :head],
-      credentials: true,
-      expose: ['Authorization']
+    resource '*',
+             headers: :any,
+             methods: %i[get post put patch delete options head],
+             credentials: true,
+             expose: ['Authorization']
   end
 end

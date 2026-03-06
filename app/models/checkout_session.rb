@@ -59,9 +59,9 @@ class CheckoutSession < ApplicationRecord
         metadata['items'].each do |item|
           product = Product.for_ecommerce.find_by(id: item['product_id'] || item[:product_id])
           next unless product
-          
+
           pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
-          
+
           Order.create!(
             orderable: orderable,
             product: product,
@@ -74,7 +74,7 @@ class CheckoutSession < ApplicationRecord
         end
       end
 
-      orders.reload.where(status: ['pending', 'awaiting_payment']).find_each do |order|
+      orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
         actor = order.user || order.reseller
         OrderProvisioningService.new(order, actor).process_without_deduction!
       end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class NotificationService
-  def self.notify(recipient:, category: 'info', title:, message:, metadata: {})
+  def self.notify(recipient:, title:, message:, category: 'info', metadata: {})
     # Create the notification record
     notification = Notification.create!(
       recipient: recipient,
@@ -13,7 +13,7 @@ class NotificationService
 
     # Broadcast to the recipient's channel
     broadcast(notification)
-    
+
     notification
   rescue StandardError => e
     Rails.logger.error("[NotificationService] Failed to notify: #{e.message}")
@@ -32,7 +32,7 @@ class NotificationService
                   else
                     return
                   end
-    
+
     # Broadcast using ActionCable
     ActionCable.server.broadcast(
       stream_name,

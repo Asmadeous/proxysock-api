@@ -9,7 +9,10 @@ module Admin
       # GET /admin/api/employees
       def index
         employees = Employee.includes(:department).order(created_at: :desc)
-        employees = employees.where("email ILIKE :q OR first_name ILIKE :q OR last_name ILIKE :q", q: "%#{params[:q]}%") if params[:q].present?
+        if params[:q].present?
+          employees = employees.where('email ILIKE :q OR first_name ILIKE :q OR last_name ILIKE :q',
+                                      q: "%#{params[:q]}%")
+        end
         employees = employees.where(role: params[:role]) if params[:role].present?
         employees = employees.where(active: params[:active] == 'true') if params[:active].present?
 
@@ -28,13 +31,13 @@ module Admin
       def create
         dept = Department.find_or_create_by!(name: params[:department] || 'General')
         employee = Employee.create!(
-          email:       params[:email],
-          first_name:  params[:first_name],
-          last_name:   params[:last_name],
-          password:    params[:password] || SecureRandom.hex(8),
-          role:        params[:role] || 'support',
-          department:  dept,
-          active:      true
+          email: params[:email],
+          first_name: params[:first_name],
+          last_name: params[:last_name],
+          password: params[:password] || SecureRandom.hex(8),
+          role: params[:role] || 'support',
+          department: dept,
+          active: true
         )
         record_audit_log('employee.created', employee)
         render json: employee_json(employee), status: :created
@@ -43,9 +46,7 @@ module Admin
       # PATCH /admin/api/employees/:id
       def update
         attrs = employee_params.to_h
-        if params[:department].present?
-          attrs[:department] = Department.find_or_create_by!(name: params[:department])
-        end
+        attrs[:department] = Department.find_or_create_by!(name: params[:department]) if params[:department].present?
         @employee.update!(attrs)
         record_audit_log('employee.updated', @employee)
         render json: employee_json(@employee)
@@ -84,15 +85,15 @@ module Admin
 
       def employee_json(e, full: false)
         data = {
-          id:         e.id,
-          email:      e.email,
+          id: e.id,
+          email: e.email,
           work_email: e.work_email,
           first_name: e.first_name,
-          last_name:  e.last_name,
-          full_name:  e.full_name,
-          role:       e.role,
+          last_name: e.last_name,
+          full_name: e.full_name,
+          role: e.role,
           department: e.department&.name,
-          active:     e.active?,
+          active: e.active?,
           last_login: e.last_login_at,
           created_at: e.created_at,
           profile_picture_url: e.profile_picture_url

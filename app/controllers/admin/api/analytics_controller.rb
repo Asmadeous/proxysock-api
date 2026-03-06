@@ -29,22 +29,26 @@ module Admin
         range = date_range
 
         product_sales = Order.joins(:product)
-          .where(created_at: range)
-          .where.not(status: %w[cancelled failed])
-          .group('products.name')
-          .select('products.name, COUNT(*) as order_count, SUM(orders.total_amount) as total_revenue')
-          .order('total_revenue DESC')
-          .limit(20)
+                             .where(created_at: range)
+                             .where.not(status: %w[cancelled failed])
+                             .group('products.name')
+                             .select('products.name, COUNT(*) as order_count, SUM(orders.total_amount) as total_revenue')
+                             .order('total_revenue DESC')
+                             .limit(20)
 
         type_breakdown = Order.joins(:product)
-          .where(created_at: range)
-          .where.not(status: %w[cancelled failed])
-          .group('products.product_type')
-          .select('products.product_type, COUNT(*) as order_count, SUM(orders.total_amount) as total_revenue')
+                              .where(created_at: range)
+                              .where.not(status: %w[cancelled failed])
+                              .group('products.product_type')
+                              .select('products.product_type, COUNT(*) as order_count, SUM(orders.total_amount) as total_revenue')
 
         render json: {
-          top_products: product_sales.map { |p| { name: p.name, orders: p.order_count, revenue: p.total_revenue.to_f } },
-          type_breakdown: type_breakdown.map { |t| { type: t.product_type, orders: t.order_count, revenue: t.total_revenue.to_f } }
+          top_products: product_sales.map do |p|
+            { name: p.name, orders: p.order_count, revenue: p.total_revenue.to_f }
+          end,
+          type_breakdown: type_breakdown.map do |t|
+            { type: t.product_type, orders: t.order_count, revenue: t.total_revenue.to_f }
+          end
         }
       end
 
@@ -56,13 +60,13 @@ module Admin
         group_expr = case granularity
                      when 'weekly' then "DATE_TRUNC('week', created_at)"
                      when 'monthly' then "DATE_TRUNC('month', created_at)"
-                     else "DATE(created_at)"
+                     else 'DATE(created_at)'
                      end
 
         revenue_data = Transaction.where(created_at: range, payment_status: 'succeeded')
-          .group(Arel.sql(group_expr))
-          .select(Arel.sql("#{group_expr} as period, SUM(amount) as total, COUNT(*) as tx_count"))
-          .order(Arel.sql("period ASC"))
+                                  .group(Arel.sql(group_expr))
+                                  .select(Arel.sql("#{group_expr} as period, SUM(amount) as total, COUNT(*) as tx_count"))
+                                  .order(Arel.sql('period ASC'))
 
         render json: {
           data: revenue_data.map { |r| { period: r.period, total: r.total.to_f, count: r.tx_count } },
@@ -80,12 +84,12 @@ module Admin
 
         total_signups = User.where(created_at: range).count
         users_with_orders = User.where(created_at: range)
-          .where(id: Order.select(:orderable_id).where(orderable_type: 'User'))
-          .count
+                                .where(id: Order.select(:orderable_id).where(orderable_type: 'User'))
+                                .count
         repeat_customers = Order.where(orderable_type: 'User', created_at: range)
-          .group(:orderable_id)
-          .having('COUNT(*) > 1')
-          .count.length
+                                .group(:orderable_id)
+                                .having('COUNT(*) > 1')
+                                .count.length
 
         render json: {
           funnel: [
@@ -93,8 +97,8 @@ module Admin
             { stage: 'First Order', count: users_with_orders },
             { stage: 'Repeat Customer', count: repeat_customers }
           ],
-          conversion_rate: total_signups > 0 ? (users_with_orders.to_f / total_signups * 100).round(1) : 0,
-          repeat_rate: users_with_orders > 0 ? (repeat_customers.to_f / users_with_orders * 100).round(1) : 0
+          conversion_rate: total_signups.positive? ? (users_with_orders.to_f / total_signups * 100).round(1) : 0,
+          repeat_rate: users_with_orders.positive? ? (repeat_customers.to_f / users_with_orders * 100).round(1) : 0
         }
       end
 
@@ -103,9 +107,9 @@ module Admin
         # Aggregate user countries from metadata or IP-based geolocation
         # Falls back to order country data if user geolocation not available
         country_data = User.where.not(country: [nil, ''])
-          .group(:country)
-          .count
-          .sort_by { |_, v| -v }
+                           .group(:country)
+                           .count
+                           .sort_by { |_, v| -v }
 
         render json: {
           countries: country_data.map { |country, count| { country: country, users: count } },
@@ -119,9 +123,9 @@ module Admin
 
         render json: {
           new_users_by_source: User.where(created_at: range)
-            .group(:provider)
-            .count
-            .transform_keys { |k| k || 'direct' },
+                               .group(:provider)
+                               .count
+                               .transform_keys { |k| k || 'direct' },
           daily_signups: users_by_day(range)
         }
       end
@@ -136,23 +140,23 @@ module Admin
 
       def revenue_by_day(range)
         Transaction.where(created_at: range, payment_status: 'succeeded')
-          .group(Arel.sql("DATE(created_at)"))
-          .sum(:amount)
-          .map { |date, total| { date: date, value: total.to_f } }
+                   .group(Arel.sql('DATE(created_at)'))
+                   .sum(:amount)
+                   .map { |date, total| { date: date, value: total.to_f } }
       end
 
       def orders_by_day(range)
         Order.where(created_at: range)
-          .group(Arel.sql("DATE(created_at)"))
-          .count
-          .map { |date, count| { date: date, value: count } }
+             .group(Arel.sql('DATE(created_at)'))
+             .count
+             .map { |date, count| { date: date, value: count } }
       end
 
       def users_by_day(range)
         User.where(created_at: range)
-          .group(Arel.sql("DATE(created_at)"))
-          .count
-          .map { |date, count| { date: date, value: count } }
+            .group(Arel.sql('DATE(created_at)'))
+            .count
+            .map { |date, count| { date: date, value: count } }
       end
     end
   end

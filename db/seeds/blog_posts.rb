@@ -1,20 +1,21 @@
 # frozen_string_literal: true
+
 # db/seeds/blog_posts.rb
 # Seeds all 17 blog posts previously hardcoded in client/src/pages/blogPost.ts
 
 BLOG_POSTS = [
   {
-    slug:         'best-proxies-web-scraping-2025',
-    title:        "Best Proxies for Web Scraping in 2025",
-    excerpt:      "Discover which proxy types work best for web scraping and how to choose the right one for your needs.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '12 min',
-    featured:     true,
-    published:    true,
+    slug: 'best-proxies-web-scraping-2025',
+    title: 'Best Proxies for Web Scraping in 2025',
+    excerpt: 'Discover which proxy types work best for web scraping and how to choose the right one for your needs.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '12 min',
+    featured: true,
+    published: true,
     published_at: '2025-01-15',
-    tags:         ['web scraping', 'datacenter proxies', 'residential proxies', 'proxy types'],
-    image_url:    nil,
+    tags: ['web scraping', 'datacenter proxies', 'residential proxies', 'proxy types'],
+    image_url: nil,
     content: <<~HTML
       <h2>Why Proxy Choice Matters for Web Scraping</h2>
       <p>Web scraping at scale requires the right proxy infrastructure. The wrong choice leads to IP bans, CAPTCHAs, and wasted time. This guide helps you pick the best proxy for your specific scraping use case.</p>
@@ -31,17 +32,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'rdp-security-best-practices-2025',
-    title:        "RDP Security Best Practices to Protect Your Remote Desktop",
-    excerpt:      "Essential security measures every RDP user should implement to prevent unauthorized access and data breaches.",
-    category:     'RDP',
-    author:       'Security Team',
-    read_time:    '15 min',
-    featured:     true,
-    published:    true,
+    slug: 'rdp-security-best-practices-2025',
+    title: 'RDP Security Best Practices to Protect Your Remote Desktop',
+    excerpt: 'Essential security measures every RDP user should implement to prevent unauthorized access and data breaches.',
+    category: 'RDP',
+    author: 'Security Team',
+    read_time: '15 min',
+    featured: true,
+    published: true,
     published_at: '2025-01-20',
-    tags:         ['RDP', 'security', 'remote desktop', 'cybersecurity', 'windows'],
-    image_url:    nil,
+    tags: ['RDP', 'security', 'remote desktop', 'cybersecurity', 'windows'],
+    image_url: nil,
     content: <<~HTML
       <h2>Why RDP Security Matters</h2>
       <p>RDP (Remote Desktop Protocol) is one of the most attacked surfaces on the internet. BlueKeep and DejaBlue exploits alone affected millions of Windows machines. Without hardening, your RDP endpoint is a doorway for ransomware operators.</p>
@@ -60,17 +61,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'esim-vs-physical-sim-travel',
-    title:        "eSIM vs Physical SIM: Which is Better for International Travel?",
-    excerpt:      "A comprehensive comparison of eSIM and traditional SIM cards for frequent travelers.",
-    category:     'eSIM',
-    author:       'Travel Tech Team',
-    read_time:    '10 min',
-    featured:     false,
-    published:    true,
+    slug: 'esim-vs-physical-sim-travel',
+    title: 'eSIM vs Physical SIM: Which is Better for International Travel?',
+    excerpt: 'A comprehensive comparison of eSIM and traditional SIM cards for frequent travelers.',
+    category: 'eSIM',
+    author: 'Travel Tech Team',
+    read_time: '10 min',
+    featured: false,
+    published: true,
     published_at: '2025-01-25',
-    tags:         ['eSIM', 'travel', 'international roaming', 'SIM card'],
-    image_url:    nil,
+    tags: ['eSIM', 'travel', 'international roaming', 'SIM card'],
+    image_url: nil,
     content: <<~HTML
       <h2>The SIM Card Landscape in 2025</h2>
       <p>International travelers used to juggle physical SIM cards from multiple countries. eSIM technology changes that calculus dramatically.</p>
@@ -85,17 +86,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'vps-vs-vds-differences',
-    title:        "VPS vs VDS: Key Differences and Which to Choose",
-    excerpt:      "Understanding the technical differences between VPS and VDS hosting and when each solution makes sense.",
-    category:     'VPS',
-    author:       'Infrastructure Team',
-    read_time:    '8 min',
-    featured:     false,
-    published:    true,
+    slug: 'vps-vs-vds-differences',
+    title: 'VPS vs VDS: Key Differences and Which to Choose',
+    excerpt: 'Understanding the technical differences between VPS and VDS hosting and when each solution makes sense.',
+    category: 'VPS',
+    author: 'Infrastructure Team',
+    read_time: '8 min',
+    featured: false,
+    published: true,
     published_at: '2025-02-01',
-    tags:         ['VPS', 'VDS', 'hosting', 'dedicated server', 'virtualization'],
-    image_url:    nil,
+    tags: ['VPS', 'VDS', 'hosting', 'dedicated server', 'virtualization'],
+    image_url: nil,
     content: <<~HTML
       <h2>Virtual Private Server (VPS)</h2>
       <p>A VPS shares physical hardware with other tenants but uses hypervisor software (KVM, VMware) to isolate resources. CPU, RAM, and disk are shared from a pool—you get a guaranteed allocation but neighbours can impact performance under load.</p>
@@ -108,17 +109,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'vpn-protocols-comparison-2025',
-    title:        "VPN Protocols Compared: WireGuard vs OpenVPN vs IKEv2",
-    excerpt:      "A deep dive into the most popular VPN protocols to help you choose the right one for speed, security, and compatibility.",
-    category:     'VPN',
-    author:       'Security Team',
-    read_time:    '11 min',
-    featured:     false,
-    published:    true,
+    slug: 'vpn-protocols-comparison-2025',
+    title: 'VPN Protocols Compared: WireGuard vs OpenVPN vs IKEv2',
+    excerpt: 'A deep dive into the most popular VPN protocols to help you choose the right one for speed, security, and compatibility.',
+    category: 'VPN',
+    author: 'Security Team',
+    read_time: '11 min',
+    featured: false,
+    published: true,
     published_at: '2025-02-05',
-    tags:         ['VPN', 'WireGuard', 'OpenVPN', 'IKEv2', 'protocols'],
-    image_url:    nil,
+    tags: %w[VPN WireGuard OpenVPN IKEv2 protocols],
+    image_url: nil,
     content: <<~HTML
       <h2>Why Protocol Choice Matters</h2>
       <p>The VPN protocol is the encryption and tunnelling mechanism that determines speed, battery life, firewall compatibility, and security posture.</p>
@@ -133,17 +134,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'residential-proxy-use-cases',
-    title:        "Top 10 Residential Proxy Use Cases in 2025",
-    excerpt:      "Explore the most valuable use cases for residential proxies in business, research, and automation.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '13 min',
-    featured:     false,
-    published:    true,
+    slug: 'residential-proxy-use-cases',
+    title: 'Top 10 Residential Proxy Use Cases in 2025',
+    excerpt: 'Explore the most valuable use cases for residential proxies in business, research, and automation.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '13 min',
+    featured: false,
+    published: true,
     published_at: '2025-02-10',
-    tags:         ['residential proxies', 'use cases', 'automation', 'business'],
-    image_url:    nil,
+    tags: ['residential proxies', 'use cases', 'automation', 'business'],
+    image_url: nil,
     content: <<~HTML
       <h2>1. Price Intelligence</h2>
       <p>Monitor competitor pricing across thousands of SKUs without triggering bot detection.</p>
@@ -168,17 +169,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'setting-up-rdp-windows-server',
-    title:        "How to Set Up RDP on Windows Server 2022: Step-by-Step Guide",
-    excerpt:      "A complete walkthrough for configuring Remote Desktop Protocol on Windows Server 2022 with security best practices.",
-    category:     'RDP',
-    author:       'Tech Team',
-    read_time:    '18 min',
-    featured:     false,
-    published:    true,
+    slug: 'setting-up-rdp-windows-server',
+    title: 'How to Set Up RDP on Windows Server 2022: Step-by-Step Guide',
+    excerpt: 'A complete walkthrough for configuring Remote Desktop Protocol on Windows Server 2022 with security best practices.',
+    category: 'RDP',
+    author: 'Tech Team',
+    read_time: '18 min',
+    featured: false,
+    published: true,
     published_at: '2025-02-15',
-    tags:         ['RDP', 'Windows Server', 'tutorial', 'setup', 'remote desktop'],
-    image_url:    nil,
+    tags: ['RDP', 'Windows Server', 'tutorial', 'setup', 'remote desktop'],
+    image_url: nil,
     content: <<~HTML
       <h2>Prerequisites</h2>
       <ul><li>Windows Server 2022 installed</li><li>Administrator account</li><li>Static IP or DDNS configured</li></ul>
@@ -195,17 +196,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'esim-global-coverage-guide',
-    title:        "Global eSIM Coverage Guide: Which Countries Support eSIM in 2025",
-    excerpt:      "A comprehensive breakdown of eSIM availability and major carriers offering eSIM plans worldwide.",
-    category:     'eSIM',
-    author:       'Travel Tech Team',
-    read_time:    '9 min',
-    featured:     false,
-    published:    true,
+    slug: 'esim-global-coverage-guide',
+    title: 'Global eSIM Coverage Guide: Which Countries Support eSIM in 2025',
+    excerpt: 'A comprehensive breakdown of eSIM availability and major carriers offering eSIM plans worldwide.',
+    category: 'eSIM',
+    author: 'Travel Tech Team',
+    read_time: '9 min',
+    featured: false,
+    published: true,
     published_at: '2025-02-20',
-    tags:         ['eSIM', 'global coverage', 'international', 'carriers'],
-    image_url:    nil,
+    tags: ['eSIM', 'global coverage', 'international', 'carriers'],
+    image_url: nil,
     content: <<~HTML
       <h2>eSIM Adoption in 2025</h2>
       <p>Over 200 countries now have carrier support for eSIM. Major adoption has been driven by Apple's move to eSIM-only iPhones in the US (iPhone 14 onwards).</p>
@@ -222,17 +223,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'proxy-for-social-media-management',
-    title:        "Using Proxies for Social Media Management: Complete Guide",
-    excerpt:      "Learn how to safely manage multiple social media accounts using proxies without getting banned.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '14 min',
-    featured:     false,
-    published:    true,
+    slug: 'proxy-for-social-media-management',
+    title: 'Using Proxies for Social Media Management: Complete Guide',
+    excerpt: 'Learn how to safely manage multiple social media accounts using proxies without getting banned.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '14 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-01',
-    tags:         ['proxies', 'social media', 'account management', 'automation'],
-    image_url:    nil,
+    tags: ['proxies', 'social media', 'account management', 'automation'],
+    image_url: nil,
     content: <<~HTML
       <h2>Why Social Media Platforms Flag Multiple Accounts</h2>
       <p>Platforms like Instagram, Twitter/X, TikTok, and Facebook use IP fingerprinting to detect and ban users running multiple accounts from the same connection.</p>
@@ -249,17 +250,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'vps-wordpress-optimisation',
-    title:        "Optimising WordPress on a VPS: Speed and Performance Guide",
-    excerpt:      "Actionable tips to dramatically improve WordPress performance on a VPS hosting environment.",
-    category:     'VPS',
-    author:       'Infrastructure Team',
-    read_time:    '16 min',
-    featured:     false,
-    published:    true,
+    slug: 'vps-wordpress-optimisation',
+    title: 'Optimising WordPress on a VPS: Speed and Performance Guide',
+    excerpt: 'Actionable tips to dramatically improve WordPress performance on a VPS hosting environment.',
+    category: 'VPS',
+    author: 'Infrastructure Team',
+    read_time: '16 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-05',
-    tags:         ['VPS', 'WordPress', 'performance', 'optimisation', 'hosting'],
-    image_url:    nil,
+    tags: %w[VPS WordPress performance optimisation hosting],
+    image_url: nil,
     content: <<~HTML
       <h2>Web Server Choice: Nginx vs Apache</h2>
       <p>Nginx handles concurrent connections more efficiently than Apache. For WordPress, use Nginx as the reverse proxy with PHP-FPM for optimal performance.</p>
@@ -276,17 +277,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'understanding-proxy-protocols',
-    title:        "Understanding Proxy Protocols: HTTP, HTTPS, SOCKS4, and SOCKS5",
-    excerpt:      "A technical breakdown of the different proxy protocols and when to use each one.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '10 min',
-    featured:     false,
-    published:    true,
+    slug: 'understanding-proxy-protocols',
+    title: 'Understanding Proxy Protocols: HTTP, HTTPS, SOCKS4, and SOCKS5',
+    excerpt: 'A technical breakdown of the different proxy protocols and when to use each one.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '10 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-10',
-    tags:         ['proxy protocols', 'SOCKS5', 'HTTP proxy', 'HTTPS', 'technical'],
-    image_url:    nil,
+    tags: ['proxy protocols', 'SOCKS5', 'HTTP proxy', 'HTTPS', 'technical'],
+    image_url: nil,
     content: <<~HTML
       <h2>HTTP Proxies</h2>
       <p>HTTP proxies only handle web traffic (HTTP/HTTPS). They interpret the traffic and can cache, filter, or log it. Suitable for web browsing and scraping.</p>
@@ -301,17 +302,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'vpn-vs-proxy-differences',
-    title:        "VPN vs Proxy: What's the Difference and Which Do You Need?",
-    excerpt:      "Clear up the confusion between VPNs and proxies—understand their differences, use cases, and limitations.",
-    category:     'VPN',
-    author:       'Security Team',
-    read_time:    '9 min',
-    featured:     false,
-    published:    true,
+    slug: 'vpn-vs-proxy-differences',
+    title: "VPN vs Proxy: What's the Difference and Which Do You Need?",
+    excerpt: 'Clear up the confusion between VPNs and proxies—understand their differences, use cases, and limitations.',
+    category: 'VPN',
+    author: 'Security Team',
+    read_time: '9 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-15',
-    tags:         ['VPN', 'proxy', 'comparison', 'privacy', 'security'],
-    image_url:    nil,
+    tags: %w[VPN proxy comparison privacy security],
+    image_url: nil,
     content: <<~HTML
       <h2>What is a Proxy?</h2>
       <p>A proxy server acts as an intermediary for specific application traffic—usually HTTP(S). Your browser sends requests through the proxy, which forwards them to the website. The website sees the proxy's IP.</p>
@@ -324,17 +325,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'datacenter-proxy-guide',
-    title:        "The Complete Guide to Datacenter Proxies: Speed, IP Ranges, and Detection",
-    excerpt:      "Everything you need to know about datacenter proxies—how they work, why they're fast, and how to avoid detection.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '11 min',
-    featured:     false,
-    published:    true,
+    slug: 'datacenter-proxy-guide',
+    title: 'The Complete Guide to Datacenter Proxies: Speed, IP Ranges, and Detection',
+    excerpt: "Everything you need to know about datacenter proxies—how they work, why they're fast, and how to avoid detection.",
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '11 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-20',
-    tags:         ['datacenter proxies', 'proxy detection', 'IP ranges', 'ASN'],
-    image_url:    nil,
+    tags: ['datacenter proxies', 'proxy detection', 'IP ranges', 'ASN'],
+    image_url: nil,
     content: <<~HTML
       <h2>What Makes Datacenter Proxies Fast?</h2>
       <p>Datacenter proxies run on enterprise servers with 1–40 Gbps uplinks. Compare that to residential connections averaging 100–500 Mbps. For throughput-heavy scraping, datacenter proxies dominate.</p>
@@ -349,17 +350,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'esim-setup-guide-iphone-android',
-    title:        "How to Set Up an eSIM on iPhone and Android: Step-by-Step",
-    excerpt:      "A complete guide to activating and using eSIM on both iPhone and Android devices.",
-    category:     'eSIM',
-    author:       'Travel Tech Team',
-    read_time:    '7 min',
-    featured:     false,
-    published:    true,
+    slug: 'esim-setup-guide-iphone-android',
+    title: 'How to Set Up an eSIM on iPhone and Android: Step-by-Step',
+    excerpt: 'A complete guide to activating and using eSIM on both iPhone and Android devices.',
+    category: 'eSIM',
+    author: 'Travel Tech Team',
+    read_time: '7 min',
+    featured: false,
+    published: true,
     published_at: '2025-03-25',
-    tags:         ['eSIM', 'iPhone', 'Android', 'setup', 'activation'],
-    image_url:    nil,
+    tags: %w[eSIM iPhone Android setup activation],
+    image_url: nil,
     content: <<~HTML
       <h2>iPhone eSIM Setup</h2>
       <ol>
@@ -384,17 +385,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'proxy-rotation-strategies',
-    title:        "Proxy Rotation Strategies: When and How to Rotate IPs",
-    excerpt:      "Master the art of IP rotation to maximise scraping efficiency and minimise bans.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '12 min',
-    featured:     false,
-    published:    true,
+    slug: 'proxy-rotation-strategies',
+    title: 'Proxy Rotation Strategies: When and How to Rotate IPs',
+    excerpt: 'Master the art of IP rotation to maximise scraping efficiency and minimise bans.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '12 min',
+    featured: false,
+    published: true,
     published_at: '2025-04-01',
-    tags:         ['proxy rotation', 'IP rotation', 'web scraping', 'strategies'],
-    image_url:    nil,
+    tags: ['proxy rotation', 'IP rotation', 'web scraping', 'strategies'],
+    image_url: nil,
     content: <<~HTML
       <h2>Why Rotate Proxies?</h2>
       <p>Even residential proxies get blocked if you hammer the same IP against a target. Rotation distributes requests across many IPs, making you indistinguishable from organic traffic.</p>
@@ -412,17 +413,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'vps-linux-server-hardening',
-    title:        "Linux VPS Server Hardening: Complete Security Checklist",
-    excerpt:      "A comprehensive checklist to secure your Linux VPS against common attacks and vulnerabilities.",
-    category:     'VPS',
-    author:       'Security Team',
-    read_time:    '20 min',
-    featured:     false,
-    published:    true,
+    slug: 'vps-linux-server-hardening',
+    title: 'Linux VPS Server Hardening: Complete Security Checklist',
+    excerpt: 'A comprehensive checklist to secure your Linux VPS against common attacks and vulnerabilities.',
+    category: 'VPS',
+    author: 'Security Team',
+    read_time: '20 min',
+    featured: false,
+    published: true,
     published_at: '2025-04-05',
-    tags:         ['VPS', 'Linux', 'security', 'hardening', 'server'],
-    image_url:    nil,
+    tags: %w[VPS Linux security hardening server],
+    image_url: nil,
     content: <<~HTML
       <h2>1. Initial Access Security</h2>
       <ul><li>Disable root SSH login (PermitRootLogin no)</li><li>Use SSH key authentication (disable password auth)</li><li>Change default SSH port</li><li>Use fail2ban to block brute-force attempts</li></ul>
@@ -439,17 +440,17 @@ BLOG_POSTS = [
     HTML
   },
   {
-    slug:         'static-isp-proxies-explained',
-    title:        "Static ISP Proxies Explained: The Best of Both Worlds",
-    excerpt:      "Discover why static ISP proxies are becoming the preferred choice for advanced proxy users.",
-    category:     'Proxies',
-    author:       'Tech Team',
-    read_time:    '8 min',
-    featured:     false,
-    published:    true,
+    slug: 'static-isp-proxies-explained',
+    title: 'Static ISP Proxies Explained: The Best of Both Worlds',
+    excerpt: 'Discover why static ISP proxies are becoming the preferred choice for advanced proxy users.',
+    category: 'Proxies',
+    author: 'Tech Team',
+    read_time: '8 min',
+    featured: false,
+    published: true,
     published_at: '2025-04-10',
-    tags:         ['ISP proxies', 'static proxies', 'proxy types', 'residential'],
-    image_url:    nil,
+    tags: ['ISP proxies', 'static proxies', 'proxy types', 'residential'],
+    image_url: nil,
     content: <<~HTML
       <h2>What are Static ISP Proxies?</h2>
       <p>Static ISP proxies are IP addresses obtained from Internet Service Providers but hosted on datacenter hardware. They appear as residential IPs to detection systems but deliver datacenter-grade speed and stability.</p>

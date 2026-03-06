@@ -18,17 +18,17 @@ class User < ApplicationRecord
   has_many :notifications, as: :recipient, dependent: :destroy
   has_one :affiliate, as: :affiliatable, dependent: :destroy
   has_many :affiliate_referrals, as: :referred, dependent: :destroy
-  
+
   belongs_to :reseller, optional: true
 
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :username, presence: true, uniqueness: { case_sensitive: false },
-            length: { minimum: 3, maximum: 30 },
-            format: { with: /\A[a-zA-Z0-9_]+\z/, message: 'can only contain letters, numbers, and underscores' }
+                       length: { minimum: 3, maximum: 30 },
+                       format: { with: /\A[a-zA-Z0-9_]+\z/, message: 'can only contain letters, numbers, and underscores' }
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
-  
+
   generates_token_for :password_reset, expires_in: 15.minutes do
     password_salt&.last(10)
   end

@@ -21,17 +21,17 @@ class VmProvisioningJobTest < ActiveJob::TestCase
     # Mock VmProvisioningService to succeed
     mock_service = mock
     mock_service.expects(:provision).returns({
-      ip_address: '10.0.0.5',
-      vm_id: '200',
-      external_port: 10_022,
-      protocol: 'ssh',
-      username: 'root',
-      password: 'password',
-      root_password: 'rootpassword'
-    })
+                                               ip_address: '10.0.0.5',
+                                               vm_id: '200',
+                                               external_port: 10_022,
+                                               protocol: 'ssh',
+                                               username: 'root',
+                                               password: 'password',
+                                               root_password: 'rootpassword'
+                                             })
 
     VmProvisioningService.stubs(:new).returns(mock_service)
-    
+
     perform_enqueued_jobs do
       VmProvisioningJob.perform_later(@test_vm.id)
     end
@@ -47,9 +47,10 @@ class VmProvisioningJobTest < ActiveJob::TestCase
     product = products(:one)
     pricing = product.product_pricings.where(active: true).first
     order = Order.create!(orderable: users(:one), product: product, product_pricing: pricing, status: 'processing')
-    vm_order = VmOrder.create!(order: order, os_type: 'ubuntu', vm_type: 'shared', cpu_cores: 1, ram_gb: 1, disk_gb: 10, status: 'pending')
+    vm_order = VmOrder.create!(order: order, os_type: 'ubuntu', vm_type: 'shared', cpu_cores: 1, ram_gb: 1,
+                               disk_gb: 10, status: 'pending')
     fail_vm = vm_order.create_vm!(status: 'pending')
-    
+
     service_mock = mock
     service_mock.expects(:provision).raises(StandardError, 'Proxmox error')
 

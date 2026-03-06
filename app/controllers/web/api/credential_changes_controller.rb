@@ -81,8 +81,9 @@ module Web
         proxy = MobileProxy.joins(:order).where(orders: { orderable: current_actor }).find_by(id: id) ||
                 StaticDatacenterProxy.joins(:order).where(orders: { orderable: current_actor }).find_by(id: id) ||
                 StaticIspProxy.joins(:order).where(orders: { orderable: current_actor }).find_by(id: id)
-        
+
         raise ActiveRecord::RecordNotFound unless proxy
+
         proxy
       end
     end

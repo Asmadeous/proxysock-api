@@ -6,7 +6,8 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
   test 'syncs proxies from provider' do
     # Create dependencies for sync
     reseller = resellers(:one)
-    order = Order.create!(orderable: reseller, product: products(:two), product_pricing: product_pricings(:pricing_two), status: 'active')
+    order = Order.create!(orderable: reseller, product: products(:two),
+                          product_pricing: product_pricings(:pricing_two), status: 'active')
     MobileProxyOrder.create!(order: order)
 
     # Mock external API client - note: type must match 'mobile_proxy' for MobileProxy sync

@@ -8,9 +8,7 @@ namespace :deposits do
 
     success_count = 0
     pending_deposits.find_each do |deposit|
-      if DepositSyncService.new(deposit).sync!
-        success_count += 1
-      end
+      success_count += 1 if DepositSyncService.new(deposit).sync!
     end
 
     puts "Sync complete. Updated #{success_count} deposits."

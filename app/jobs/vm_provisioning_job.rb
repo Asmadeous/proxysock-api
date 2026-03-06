@@ -59,7 +59,7 @@ class VmProvisioningJob < ApplicationJob
     # Get owner from VM order (order.orderable is polymorphic - User or Reseller)
     owner = vm.vm_order&.order&.orderable
     if owner
-      VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later 
+      VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later
       NotificationService.notify(
         recipient: owner,
         category: 'success',

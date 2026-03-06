@@ -34,20 +34,20 @@ class OrderProvisioningService
       # 3a. Send Invoice (New)
       InvoiceMailer.with(order: @order).invoice_email.deliver_later
     end
-    
+
     # 4. Provision based on product type
     provision_product!
 
     # 5. Generate and store invoice PDF via Active Storage
     begin
       InvoicePdfService.new(@order).generate_and_attach!
-    rescue => e
+    rescue StandardError => e
       Rails.logger.warn("Failed to generate invoice PDF for order #{@order.id}: #{e.message}")
     end
-    
+
     # 6. Record reseller profit share (replaced affiliate commission)
     ResellerEarningsService.record_profit_share!(@order)
-    
+
     NotificationService.notify(
       recipient: @actor,
       category: 'success',
@@ -92,8 +92,6 @@ class OrderProvisioningService
 
     raise e
   end
-
-  private
 
   def validate_and_deduct_balance!(total)
     unless enough_balance?(total)
@@ -174,7 +172,9 @@ class OrderProvisioningService
       proxy_slug = @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true' ? 'static-residential' : 'datacenter'
 
       # Find a base 1x product corresponding to the target slug
-      proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where('products.name LIKE ?', '1 x%').first
+      proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where(
+        'products.name LIKE ?', '1 x%'
+      ).first
       if proxy_pr.nil?
         Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
         raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
@@ -184,7 +184,8 @@ class OrderProvisioningService
       user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
-        response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1, protocol: 'http', locations: vm_order.country_code)
+        response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1,
+                                      protocol: 'http', locations: vm_order.country_code)
 
         # Store the API response metadata securely for recordkeeping
         @order.metadata ||= {}
@@ -197,9 +198,9 @@ class OrderProvisioningService
         job_params['proxy_username'] = response['username']
         job_params['proxy_password'] = response['password']
         job_params['proxy_protocol'] = 'http'
-        
+
         Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error("Failed to provision intercept proxy for VM: #{e.message}")
         raise ProvisioningError, "Dependency error acquiring proxy for VM: #{e.message}"
       end
@@ -228,18 +229,19 @@ class OrderProvisioningService
 
       # Place the order via Reseller API for ALL myproxyapi products
       client = MyProxyApiClient.new
-      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
+      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol,
+                                    locations: locations, whitelist_ip: client_ip)
 
       # Provider returns basic order info, but we need full details (IPs, etc.)
       # data: { order_id: "..." }
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
-      
+
       if provider_order_id.present?
         begin
           full_details = client.view_order(provider_order_id)
           # Store the detailed response (first item in data array)
           response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-        rescue => e
+        rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
         end
       end
@@ -342,14 +344,17 @@ class OrderProvisioningService
     moq = 1 if moq <= 0
 
     if quantity < moq
-      raise ProvisioningError, "Minimum order quantity for USA eSIM #{provider} is #{moq} line(s). Requested: #{quantity}."
+      raise ProvisioningError,
+            "Minimum order quantity for USA eSIM #{provider} is #{moq} line(s). Requested: #{quantity}."
     end
 
     UsaEsimCredential.transaction do
-      creds = UsaEsimCredential.lock("FOR UPDATE SKIP LOCKED").where(provider: provider, status: 'available').limit(quantity).to_a
+      creds = UsaEsimCredential.lock('FOR UPDATE SKIP LOCKED').where(provider: provider,
+                                                                     status: 'available').limit(quantity).to_a
 
       if creds.size < quantity
-        raise ProvisioningError, "Insufficient stock for USA eSIM #{provider}. Requested: #{quantity}, Available: #{creds.size}."
+        raise ProvisioningError,
+              "Insufficient stock for USA eSIM #{provider}. Requested: #{quantity}, Available: #{creds.size}."
       end
 
       usa_esim_order = UsaEsimOrder.create!(
@@ -388,15 +393,16 @@ class OrderProvisioningService
       user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
 
       client = MyProxyApiClient.new
-      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol, locations: locations, whitelist_ip: client_ip)
+      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol,
+                                    locations: locations, whitelist_ip: client_ip)
 
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
-      
+
       if provider_order_id.present?
         begin
           full_details = client.view_order(provider_order_id)
           response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-        rescue => e
+        rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy VPN order #{provider_order_id}: #{e.message}")
         end
       end
@@ -417,7 +423,7 @@ class OrderProvisioningService
             content_type: 'application/x-openvpn-profile'
           )
           Rails.logger.info("Stored OVPN config for order #{@order.id} (provider: #{provider_order_id})")
-        rescue => e
+        rescue StandardError => e
           Rails.logger.warn("Failed to download/store OVPN config for order #{@order.id}: #{e.message}")
         end
       end

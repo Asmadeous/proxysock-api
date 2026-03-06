@@ -9,31 +9,27 @@ module Web
       def ip_checker
         ip = params[:ip]
         if ip.blank?
-          ip = request.headers['X-Forwarded-For']&.split(',')&.first&.strip || 
-               request.headers['X-Real-IP'] || 
+          ip = request.headers['X-Forwarded-For']&.split(',')&.first&.strip ||
+               request.headers['X-Real-IP'] ||
                request.headers['CF-Connecting-IP'] ||
                request.remote_ip
         end
 
-        if ip.blank?
-          return render json: { error: 'Unable to detect IP address' }, status: :bad_request
-        end
-        
+        return render json: { error: 'Unable to detect IP address' }, status: :bad_request if ip.blank?
+
         # Determine valid IPv4 or IPv6
         unless ip =~ Resolv::IPv4::Regex || ip =~ Resolv::IPv6::Regex
           return render json: { error: 'Invalid IP address format' }, status: :bad_request
         end
 
         api_key = ENV['IPDATA_API_KEY']
-        if api_key.blank?
-          return render json: { error: 'IPDATA_API_KEY not configured' }, status: :internal_server_error
-        end
+        return render json: { error: 'IPDATA_API_KEY not configured' }, status: :internal_server_error if api_key.blank?
 
-        requested_fields = [
-          'ip', 'is_eu', 'city', 'region', 'region_code', 'country_name', 'country_code',
-          'continent_name', 'continent_code', 'latitude', 'longitude', 'postal', 
-          'calling_code', 'flag', 'emoji_flag', 'emoji_unicode', 'asn', 'company',
-          'carrier', 'timezone', 'currency', 'threat', 'usage_type', 'languages', 'count'
+        requested_fields = %w[
+          ip is_eu city region region_code country_name country_code
+          continent_name continent_code latitude longitude postal
+          calling_code flag emoji_flag emoji_unicode asn company
+          carrier timezone currency threat usage_type languages count
         ].join(',')
 
         response = HTTParty.get(
@@ -65,14 +61,12 @@ module Web
             "https://api.ipdata.co/asn/#{data['asn']['asn']}?api-key=#{api_key}",
             headers: { 'Accept' => 'application/json' }
           )
-          if asn_resp.success?
-            data['asn_details'] = asn_resp.parsed_response
-          end
+          data['asn_details'] = asn_resp.parsed_response if asn_resp.success?
         end
 
         # Enhancements for backwards compatibility based on JS code
         score, risk = calculate_risk_score(data['threat'])
-        
+
         enhanced_result = data.merge(
           'score' => score,
           'risk' => risk,
@@ -83,15 +77,19 @@ module Web
           'ip_city' => data['city'],
           'ip_postcode' => data['postal'],
           'ISP_Name' => data.dig('asn', 'name') || data.dig('company', 'name'),
-          'ISP_Fraud_Score' => data.dig('threat', 'scores') ? (data['threat']['scores'].values.sum / data['threat']['scores'].length.to_f).floor : nil,
+          'ISP_Fraud_Score' => if data.dig('threat',
+                                           'scores')
+                                 (data['threat']['scores'].values.sum / data['threat']['scores'].length.to_f).floor
+                               end,
           'proxy_type' => get_proxy_type(data['threat']),
           'connection_type' => data['usage_type'] || data.dig('asn', 'type') || data.dig('company', 'type')
         )
 
         render json: enhanced_result
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error("IP Checker Error: #{e.message}")
-        render json: { error: 'Internal server error occurred while processing IP data' }, status: :internal_server_error
+        render json: { error: 'Internal server error occurred while processing IP data' },
+               status: :internal_server_error
       end
 
       private
@@ -140,7 +138,7 @@ module Web
         return 'iCloud Relay' if threat['is_icloud_relay']
         return 'Proxy' if threat['is_proxy']
         return 'Datacenter' if threat['is_datacenter']
-        
+
         'Clean'
       end
     end

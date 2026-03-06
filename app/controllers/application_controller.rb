@@ -53,8 +53,6 @@ class ApplicationController < ActionController::API
     Rails.logger.error "Audit Log Failed: #{e.message}"
   end
 
-  private
-
   def handle_standard_error(exception)
     # Report to Sentry
     Sentry.capture_exception(exception)

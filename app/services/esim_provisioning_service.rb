@@ -52,16 +52,16 @@ class EsimProvisioningService
     result  = service.order_esim(@product.provider_product_id || @product.metadata&.dig('package_code'))
 
     EsimOrder.create!(
-      order:          @order,
-      country_code:   @product.metadata&.dig('country_code') || 'global',
+      order: @order,
+      country_code: @product.metadata&.dig('country_code') || 'global',
       data_amount_gb: @product.metadata&.dig('data_gb') || 1,
-      duration_days:  @product.metadata&.dig('duration_days') || 30,
-      status:         'pending_provisioning',
-      package_code:   @product.provider_product_id,
-      esim_provider:  'esim_access',
-      esim_type:      'data_only',
-      moq_quantity:   1,
-      api_response:   result.to_json,
+      duration_days: @product.metadata&.dig('duration_days') || 30,
+      status: 'pending_provisioning',
+      package_code: @product.provider_product_id,
+      esim_provider: 'esim_access',
+      esim_type: 'data_only',
+      moq_quantity: 1,
+      api_response: result.to_json,
       provider_order_no: result['orderNo']
     )
 
@@ -77,12 +77,12 @@ class EsimProvisioningService
     EsimInventory.transaction do
       # Lock and reserve exactly `quantity` items atomically to prevent overselling.
       items = EsimInventory
-                .lock
-                .available
-                .by_provider(provider)
-                .where(esim_type: esim_type)
-                .limit(quantity)
-                .to_a
+              .lock
+              .available
+              .by_provider(provider)
+              .where(esim_type: esim_type)
+              .limit(quantity)
+              .to_a
 
       if items.size < quantity
         raise OutOfStockError,
@@ -96,14 +96,14 @@ class EsimProvisioningService
       duration_days  = @product.metadata&.dig('duration_days') || 30
 
       esim_order = EsimOrder.create!(
-        order:          @order,
-        country_code:   country_code,
+        order: @order,
+        country_code: country_code,
         data_amount_gb: data_amount_gb,
-        duration_days:  duration_days,
-        status:         'completed',
-        esim_provider:  provider,
-        esim_type:      esim_type,
-        moq_quantity:   quantity
+        duration_days: duration_days,
+        status: 'completed',
+        esim_provider: provider,
+        esim_type: esim_type,
+        moq_quantity: quantity
       )
 
       # Provision one Esim record per inventory item
@@ -111,24 +111,24 @@ class EsimProvisioningService
         item.mark_as_sold!
 
         Esim.create!(
-          esim_order:      esim_order,
-          esim_provider:   provider,
-          iccid:           item.iccid,
-          smdp_status:     'ENABLED',
-          esim_status:     'active',
-          status:          'active',
+          esim_order: esim_order,
+          esim_provider: provider,
+          iccid: item.iccid,
+          smdp_status: 'ENABLED',
+          esim_status: 'active',
+          status: 'active',
           has_phone_number: esim_type == 'voice_data_sms',
-          qr_code_url:     item.qr_code_url,
-          qr_code_data:    item.activation_code,  # LPA activation string
+          qr_code_url: item.qr_code_url,
+          qr_code_data: item.activation_code, # LPA activation string
           activation_code: item.activation_code,
-          pin1:            item.pin1,
-          puk1:            item.puk1,
-          expires_at:      duration_days.days.from_now
+          pin1: item.pin1,
+          puk1: item.puk1,
+          expires_at: duration_days.days.from_now
         )
       end
 
       @order.update!(
-        status:       'active',
+        status: 'active',
         total_amount: @order.product.product_pricings.first.selling_price * quantity
       )
 

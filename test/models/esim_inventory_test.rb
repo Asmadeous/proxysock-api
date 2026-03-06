@@ -54,12 +54,12 @@ class EsimInventoryTest < ActiveSupport::TestCase
   # ──────────────────────────────────────────────────────────────
   test 'voice_data_sms scope only returns voice type' do
     voice = EsimInventory.voice_data_sms
-    assert voice.all? { |i| i.esim_type == 'voice_data_sms' }
+    assert(voice.all? { |i| i.esim_type == 'voice_data_sms' })
   end
 
   test 'data_only scope only returns data type' do
     data = EsimInventory.data_only
-    assert data.all? { |i| i.esim_type == 'data_only' }
+    assert(data.all? { |i| i.esim_type == 'data_only' })
   end
 
   # ──────────────────────────────────────────────────────────────

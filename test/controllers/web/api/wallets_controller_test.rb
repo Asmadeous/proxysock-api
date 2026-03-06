@@ -37,17 +37,17 @@ module Web
       end
 
       test 'should list transactions' do
-      # Create some transactions
-      txn = Transaction.create!(
-        transactable: @user,
-        reference: @user,
-        amount: 10.0,
-        transaction_type: 'credit',
-        status: 'success',
-        currency: 'USD',
-        description: 'Deposit'
-      )
-      @user.wallet.credit!(10.0, 'Deposit', {}, txn)
+        # Create some transactions
+        txn = Transaction.create!(
+          transactable: @user,
+          reference: @user,
+          amount: 10.0,
+          transaction_type: 'credit',
+          status: 'success',
+          currency: 'USD',
+          description: 'Deposit'
+        )
+        @user.wallet.credit!(10.0, 'Deposit', {}, txn)
 
         get '/web/api/wallet', headers: auth_header(@user)
 

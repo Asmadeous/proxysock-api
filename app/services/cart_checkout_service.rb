@@ -40,13 +40,12 @@ class CartCheckoutService
     end
   end
 
-  private
-
   # ========== Wallet Payment ==========
   def process_wallet_payment!(grand_total)
     wallet = @actor.wallet
     if wallet.nil? || wallet.balance < grand_total
-      return { success: false, error: "Insufficient balance. Required: #{grand_total}, Available: #{wallet&.balance || 0}" }
+      return { success: false,
+               error: "Insufficient balance. Required: #{grand_total}, Available: #{wallet&.balance || 0}" }
     end
 
     created_orders = []

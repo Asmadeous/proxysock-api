@@ -8,7 +8,8 @@ module Api
       setup do
         @reseller = resellers(:one)
         wallet = @reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: @reseller, wallet_type: 'main')
-        txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 100.0, transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
+        txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 100.0,
+                                  transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(100.0, 'Init', {}, txn)
       end
 

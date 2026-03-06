@@ -9,7 +9,7 @@ count = Product.where("provider_product_id IS NULL OR provider_product_id = ''")
 
 puts "Found #{count} stale proxy products."
 
-if count > 0
+if count.positive?
   Product.where("provider_product_id IS NULL OR provider_product_id = ''")
          .where(product_type: 'proxy')
          .destroy_all

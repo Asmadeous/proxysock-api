@@ -50,19 +50,19 @@ module Web
         referrals = affiliate.affiliate_referrals
 
         {
-          referral_code:     affiliate.referral_code,
-          referral_url:      affiliate.referral_url,
-          status:            affiliate.status,
-          commission_rate:   affiliate.commission_rate,
-          discount_rate:     affiliate.discount_rate,
-          total_earned:      affiliate.total_earned,
-          total_paid_out:    affiliate.total_paid_out,
-          pending_balance:   affiliate.pending_balance,
-          last_payout_at:    affiliate.last_payout_at,
-          total_referrals:   referrals.count,
-          converted:         referrals.converted.count,
+          referral_code: affiliate.referral_code,
+          referral_url: affiliate.referral_url,
+          status: affiliate.status,
+          commission_rate: affiliate.commission_rate,
+          discount_rate: affiliate.discount_rate,
+          total_earned: affiliate.total_earned,
+          total_paid_out: affiliate.total_paid_out,
+          pending_balance: affiliate.pending_balance,
+          last_payout_at: affiliate.last_payout_at,
+          total_referrals: referrals.count,
+          converted: referrals.converted.count,
           pending_referrals: referrals.pending.count,
-          payouts:           affiliate.affiliate_payouts.order(created_at: :desc).limit(10).map do |p|
+          payouts: affiliate.affiliate_payouts.order(created_at: :desc).limit(10).map do |p|
             { id: p.id, amount: p.amount, status: p.status, created_at: p.created_at, paid_at: p.paid_at }
           end
         }

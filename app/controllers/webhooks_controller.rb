@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class WebhooksController < ApplicationController
-
   def paystack
     payload = request.body.read
     signature = request.headers['x-paystack-signature']
@@ -33,15 +32,13 @@ class WebhooksController < ApplicationController
       expected = OpenSSL::HMAC.hexdigest('SHA1', ENV['PLISIO_SECRET_KEY'], sorted_data)
 
       unless Rack::Utils.secure_compare(expected, received_hash.to_s)
-        Rails.logger.warn("[Webhook] Plisio verify_hash mismatch — rejecting")
+        Rails.logger.warn('[Webhook] Plisio verify_hash mismatch — rejecting')
         return head :bad_request
       end
     end
 
     webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id)
-    if webhook_params[:status] == 'completed'
-      handle_payment(webhook_params, 'plisio')
-    end
+    handle_payment(webhook_params, 'plisio') if webhook_params[:status] == 'completed'
     head :ok
   end
 
@@ -56,12 +53,16 @@ class WebhooksController < ApplicationController
     if ENV['PAYVRA_WEBHOOK_SECRET'].present? && hmac_header.present?
       expected = OpenSSL::HMAC.hexdigest('SHA512', ENV['PAYVRA_WEBHOOK_SECRET'], payload)
       unless Rack::Utils.secure_compare(expected, hmac_header.to_s)
-        Rails.logger.warn("[Webhook] Payvra HMAC signature mismatch — rejecting")
+        Rails.logger.warn('[Webhook] Payvra HMAC signature mismatch — rejecting')
         return head :bad_request
       end
     end
 
-    data = JSON.parse(payload) rescue {}
+    data = begin
+      JSON.parse(payload)
+    rescue StandardError
+      {}
+    end
     event_type = data['eventType']
 
     # Payvra sends eventType: PAYMENT_COMPLETED when payment is confirmed
@@ -135,7 +136,7 @@ class WebhooksController < ApplicationController
 
   def handle_checkout_session(reference, _data, gateway, _metadata)
     session = CheckoutSession.find_by(gateway_reference: reference)
-    return unless session && session.pending?
+    return unless session&.pending?
 
     Rails.logger.info("[Webhook] Processing checkout session #{session.id} via #{gateway}")
 
