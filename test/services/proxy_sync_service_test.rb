@@ -8,7 +8,7 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
     reseller = resellers(:one)
     order = Order.create!(orderable: reseller, product: products(:two),
                           product_pricing: product_pricings(:pricing_two), status: 'active')
-    MobileProxyOrder.create!(order: order)
+    MobileProxyOrder.create!(order: order, myproxyapi_order_id: '999')
 
     # Mock external API client - note: type must match 'mobile_proxy' for MobileProxy sync
     mock_data = [
@@ -48,7 +48,7 @@ class ProxySyncServiceTest < ActiveSupport::TestCase
       product_pricing: product_pricings(:pricing_two),
       status: 'active'
     )
-    mp_order = MobileProxyOrder.create!(order: order)
+    mp_order = MobileProxyOrder.create!(order: order, myproxyapi_order_id: '123')
 
     proxy = MobileProxy.create!(
       mobile_proxy_order: mp_order,
