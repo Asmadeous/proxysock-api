@@ -24,6 +24,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -116,19 +117,11 @@ const VPSOrdersPage = () => {
   const fetchVPSOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/vps_orders?select=*,vps_plans(*)&order=created_at.desc`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const transformedOrders = data.map((order: any) => ({
+      const response = await api.get('/web/api/orders?product_type=vps');
+      if (response.data && response.data.orders) {
+        const transformedOrders = response.data.orders.map((order: any) => ({
           ...order,
-          plan: order.vps_plans
+          plan: order.metadata?.plan_details || order.metadata
         }));
         setOrders(transformedOrders);
       }

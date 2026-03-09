@@ -66,7 +66,8 @@ module Web
       private
 
       def serialize_product(product)
-        pricing = product.product_pricings.find_by(active: true)
+        pricings = product.product_pricings.select(&:active)
+        default_pricing = pricings.first
 
         base_data = {
           id: product.id,
@@ -76,10 +77,12 @@ module Web
           product_type: product.product_type,
           category: product.product_category&.name,
           category_slug: product.product_category&.slug,
-          price: pricing&.selling_price,
-          currency: pricing&.currency,
+          price: default_pricing&.user_selling_price || default_pricing&.selling_price,
+          api_price: default_pricing&.api_price,
+          currency: default_pricing&.currency,
           provider_type: product.provider_type,
-          provider: product.provider
+          provider: product.provider,
+          pricings: pricings.map { |p| serialize_pricing(p) }
         }
 
         # Merge metadata (which contains cpu, ram, storage specs for VMs, or data/days for eSIMs)
@@ -94,6 +97,19 @@ module Web
         end
 
         base_data
+      end
+
+      def serialize_pricing(pricing)
+        {
+          id: pricing.id,
+          duration_type: pricing.duration_type,
+          duration_value: pricing.duration_value,
+          api_price: pricing.api_price.to_f,
+          selling_price: pricing.selling_price.to_f,
+          user_selling_price: pricing.user_selling_price.to_f,
+          reseller_selling_price: pricing.reseller_selling_price.to_f,
+          currency: pricing.currency
+        }
       end
     end
   end

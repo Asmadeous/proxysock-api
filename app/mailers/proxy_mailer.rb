@@ -7,6 +7,7 @@ class ProxyMailer < ApplicationMailer
     @owner = params[:owner]
     @proxy = params[:proxy]
     @order = params[:order]
+    @assignment = params[:assignment]
     @title = "Your Proxy Credentials - Order ##{@order.order_number}"
 
     mail(

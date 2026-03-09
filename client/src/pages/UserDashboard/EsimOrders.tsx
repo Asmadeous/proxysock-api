@@ -23,6 +23,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -59,6 +60,7 @@ interface ESIMOrder {
   created_at: string;
   updated_at: string;
   api_order_id: string;
+  reorderable?: boolean;
   // Related profile data
   profiles?: {
     iccid: string;
@@ -105,20 +107,10 @@ const ESIMOrdersPage = () => {
   const fetchESIMOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/esim_orders?select=*,esim_profiles(*)&order=created_at.desc`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await api.get('/web/api/orders?product_type=esim');
 
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
+      if (response.data && response.data.orders) {
+        setOrders(response.data.orders);
       }
     } catch (error) {
       console.error("Failed to fetch eSIM orders:", error);
@@ -244,6 +236,23 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleReorder = async (orderId: string) => {
+    if (!globalThis.confirm("Are you sure you want to top up this eSIM?")) return;
+
+    try {
+      setLoading(true);
+      const response = await api.post(`/web/api/orders/${orderId}/reorder`);
+      if (response.data) {
+        fetchESIMOrders();
+      }
+    } catch (error: any) {
+      console.error("Reorder failed:", error);
+      alert(error.response?.data?.error || "Failed to place top-up order");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!accessToken) {
@@ -623,11 +632,21 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                       <Button
                         variant="outline"
                         onClick={() => setSelectedOrder(order)}
-                        className="flex-1 gap-2"
+                        className="flex-1 gap-2 border-primary/30 hover:bg-primary/5"
                       >
                         <QrCode className="h-4 w-4" />
                         Details
                       </Button>
+
+                      {order.reorderable && (
+                        <Button
+                          onClick={() => handleReorder(order.id)}
+                          className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          Top-up
+                        </Button>
+                      )}
+
                       {hasProfiles && (
                         <Button
                           onClick={() => downloadOrderDetails(order)}

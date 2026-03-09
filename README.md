@@ -281,27 +281,6 @@ A **dual-purpose Rails application** with:
 
 ---
 
-## MIGRATION STRATEGY (Supabase → Rails)
-
-### Phase 1: Parallel Operation (Week 1-4)
-- Rails app runs alongside Supabase
-- All writes go to both systems
-- Read requests from Rails (fallback to Supabase if missing)
-- Reseller API works fully on Rails
-- E-commerce still uses Supabase
-
-### Phase 2: Mirror Reads (Week 5-8)
-- Reseller API fully functional on Rails
-- E-commerce controllers call Rails models
-- Authentication checks both systems
-- Customer data migrated incrementally
-
-### Phase 3: Full Transition (Week 9+)
-- All reads from Rails
-- Supabase becomes backup only
-- Verify data consistency
-- Decommission Supabase tables gradually
-
 ---
 
 ## KEY DESIGN PATTERNS
@@ -385,7 +364,6 @@ A **dual-purpose Rails application** with:
 - [ ] Understand immutable balance system
 - [ ] Understand pessimistic locking approach
 - [ ] Review two-module architecture
-- [ ] Plan database migration from Supabase
 - [ ] Set up development environment
 - [ ] Create Git branching strategy
 

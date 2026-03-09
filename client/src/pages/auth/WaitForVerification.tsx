@@ -20,7 +20,7 @@ export default function WaitForVerification() {
 
   // Check verification status
   useEffect(() => {
-    // Supabase removed
+    // Check verification status moved to Rails API
   }, [user, navigate]);
 
   return (

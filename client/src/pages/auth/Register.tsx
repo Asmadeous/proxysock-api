@@ -145,7 +145,7 @@ export default function Register() {
     return false;
   }, [submitAttempts, isRateLimited, rateLimitResetTime]);
 
-  // Handle rate limit errors from Supabase
+  // Handle rate limit errors from Rails Auth
   const handleRateLimitError = (error: any) => {
     const now = Date.now();
     let resetTime = now + 60 * 60 * 1000; // Default 1 hour

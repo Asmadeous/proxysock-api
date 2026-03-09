@@ -25,7 +25,9 @@ module Admin
             active: Order.where(status: 'active').count,
             pending: Order.where(status: 'pending').count,
             failed: Order.where(status: %w[failed error]).count,
-            processing: Order.where(status: 'processing').count
+            processing: Order.where(status: 'processing').count,
+            by_type: Order.joins(:product).group('products.product_type').count,
+            revenue_by_type: Order.joins(:product).group('products.product_type').sum(:total_amount)
           }
         }
       end

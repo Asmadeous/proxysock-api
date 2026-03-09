@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { fetchTransactions } from "../../../services/transaction";
+import { fetchAdminTransactions } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 
 interface TxRow {
@@ -23,8 +23,9 @@ export default function TransactionsTab() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await fetchTransactions();
-            const sorted = (data || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            const res = await fetchAdminTransactions();
+            const data = res.data.transactions || [];
+            const sorted = (data || []).sort((a: TxRow, b: TxRow) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             setTransactions(sorted as TxRow[]);
         } catch { toast.error("Failed to load transactions"); }
         finally { setLoading(false); }

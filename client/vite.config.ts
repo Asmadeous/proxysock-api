@@ -46,9 +46,6 @@ export default defineConfig({
             ) {
               return "vendor-core";
             }
-            if (id.includes("@supabase")) {
-              return "supabase-vendor";
-            }
             if (id.includes("lucide-react") || id.includes("@heroicons")) {
               return "icons-vendor";
             }
@@ -94,7 +91,7 @@ export default defineConfig({
       'Content-Security-Policy': [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://js.paystack.co https://www.googletagmanager.com https://embed.tawk.to https://*.tawk.to https://js.stripe.com https://www.google-analytics.com https://www.redditstatic.com https://cdn.jsdelivr.net",
-        "connect-src 'self' https://www.google-analytics.com https://va.tawk.to https://*.tawk.to wss://*.tawk.to https://xknakbxmpznclriiauim.supabase.co wss://xknakbxmpznclriiauim.supabase.co https://v6.exchangerate-api.com https://api.stripe.com https://*.datadoghq.com https://r.stripe.com https://www.redditstatic.com",
+        "connect-src 'self' https://www.google-analytics.com https://va.tawk.to https://*.tawk.to wss://*.tawk.to https://v6.exchangerate-api.com https://api.stripe.com https://*.datadoghq.com https://r.stripe.com https://www.redditstatic.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://paystack.com https://embed.tawk.to https://*.tawk.to https://js.stripe.com https://cdn.jsdelivr.net",
         "font-src 'self' https://fonts.gstatic.com https://embed.tawk.to https://*.tawk.to data:",
         "img-src 'self' data: blob: https://www.proxysock.com https://www.proxystore.net https://upload.wikimedia.org https://flagcdn.com https://embed.tawk.to https://*.tawk.to https://www.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net",

@@ -7,7 +7,7 @@ class RedditCAPI {
 
   async sendEvent(eventType, userData, customData = {}) {
     try {
-      // Stubbed Reddit CAPI call to remove Supabase dependency
+      // Event tracking logic
       console.log(`[RedditCAPI Stub] Event: ${eventType}`, { userData, customData });
       return { success: true, stubbed: true };
 

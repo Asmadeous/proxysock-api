@@ -561,6 +561,7 @@ module Web
           status: order.status == 'active' ? 'completed' : order.status,
           created_at: order.created_at,
           expires_at: resource.try(:expires_at),
+          reorderable: order.reorderable?(current_actor),
           payment_method: 'wallet'
         }
 

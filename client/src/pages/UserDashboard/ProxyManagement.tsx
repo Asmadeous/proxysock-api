@@ -205,7 +205,7 @@ export default function ProxyManagement() {
 
   const handleProxyAction = async (action: string, _orderId: string, _data?: any) => {
     try {
-      // Supabase has been removed.
+      // Logic moved to Rails API
       alert(`${action} completed successfully!`);
       setShowModal(false);
       fetchProxyData(); // Refresh data

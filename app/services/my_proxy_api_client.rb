@@ -15,32 +15,37 @@ class MyProxyApiClient
   # Fetch product plans by category
   # --------------------------------------------------------------------------
 
+  def fetch_category_data(slug)
+    data = request(:get, "#{BASE_URL}/products/#{slug}")['data']
+    data.is_a?(Array) ? (data.first || {}) : (data || {})
+  end
+
   def fetch_products_datacenter
-    request(:get, "#{BASE_URL}/products/datacenter")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/datacenter"))
   end
 
   def fetch_products_isp
-    request(:get, "#{BASE_URL}/products/isp")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/isp"))
   end
 
   def fetch_products_static_residential
-    request(:get, "#{BASE_URL}/products/static-residential")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/static-residential"))
   end
 
   def fetch_products_residential_vpn
-    request(:get, "#{BASE_URL}/products/residential-vpn")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/residential-vpn"))
   end
 
   def fetch_products_residential_rotating
-    request(:get, "#{BASE_URL}/products/residential-rotating")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/residential-rotating"))
   end
 
   def fetch_products_premium_isp
-    request(:get, "#{BASE_URL}/products/premium-isp")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/premium-isp"))
   end
 
   def fetch_products_mobile
-    request(:get, "#{BASE_URL}/products/mobile")['data'] || []
+    extract_proxy_plans(request(:get, "#{BASE_URL}/products/mobile"))
   end
 
   # Place an order on the provider.
@@ -107,6 +112,25 @@ class MyProxyApiClient
   end
 
   private
+
+  # The per-category endpoints return:
+  #   { "status": 200, "data": { "id": ..., "proxy_plans": [...], "isp": [...] } }
+  # OR for /products/all:
+  #   { "status": 200, "data": [ { "proxy_plans": [...] }, ... ] }
+  # We need to extract the proxy_plans array from the response.
+  def extract_proxy_plans(response)
+    data = response['data']
+
+    if data.is_a?(Array)
+      # /products/all returns an array of categories
+      data.flat_map { |category| category['proxy_plans'] || [] }
+    elsif data.is_a?(Hash)
+      # Single category endpoint returns a hash
+      data['proxy_plans'] || []
+    else
+      []
+    end
+  end
 
   # Authenticate and return a JWT token (cached for the lifetime of this object).
   def fetch_token

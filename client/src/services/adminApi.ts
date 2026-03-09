@@ -180,4 +180,8 @@ export const closeSupportChat = (id: string) =>
 export const fetchMonitoringData = () =>
     adminApi.get("/monitoring");
 
+// ── Transactions (Admin) ──────────────────────────
+export const fetchAdminTransactions = (params?: Record<string, string>) =>
+    adminApi.get("/transactions", { params });
+
 export default adminApi;
