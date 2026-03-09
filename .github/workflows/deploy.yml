@@ -7,8 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ${{ github.repository }}
-  CLIENT_IMAGE: ${{ github.repository_owner }}/proxysock-client
+  API_IMAGE: asmadeous/proxysock-api
+  CLIENT_IMAGE: asmadeous/proxysock-client
 
 jobs:
   # Wait for CI to pass before deploying
