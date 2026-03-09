@@ -34,26 +34,18 @@ export default defineConfig({
               id.includes("react") ||
               id.includes("react-dom") ||
               id.includes("react-router-dom") ||
-              id.includes("@headlessui") ||
-              id.includes("@radix-ui") ||
+              id.includes("@tanstack") ||
+              id.includes("zustand") ||
+              id.includes("use-sync-external-store") ||
               id.includes("framer-motion") ||
-              id.includes("use-sidecar") ||
-              id.includes("use-callback-ref") ||
-              id.includes("aria-hidden") ||
-              id.includes("react-remove-scroll") ||
-              id.includes("detect-node-es") ||
-              id.includes("get-nonce")
+              id.includes("@radix-ui") ||
+              id.includes("@headlessui")
             ) {
               return "vendor-core";
             }
-            if (id.includes("lucide-react") || id.includes("@heroicons")) {
+            if (id.includes("lucide-react") || id.includes("@heroicons") || id.includes("@fortawesome")) {
               return "icons-vendor";
             }
-            return id
-              .toString()
-              .split("node_modules/")[1]
-              .split("/")[0]
-              .replace("@", "");
           }
         },
         entryFileNames: "assets/[name]-[hash].js",
