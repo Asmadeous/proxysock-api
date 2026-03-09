@@ -57,25 +57,26 @@ export const useCalculateOrderItems = ({
     const plan = item.plan;
     const period = item.period || 1;
     if (plan.is_owned) {
-      const basePrice = Number(plan.base_price) || 0;
+      const basePrice = Number((plan as any).base_price) || 0;
+      const effectivePrice = Number(plan.price) || 0;
+
       if (plan.billing_type === "daily") {
-        const pricePerDay = Number(plan.price_per_day) || 0;
+        const pricePerDay = Number((plan as any).price_per_day) || effectivePrice;
         return basePrice + period * pricePerDay;
       } else if (plan.billing_type === "weekly") {
-        const pricePerDay = Number(plan.price_per_day) || 0;
-        const weeks = Math.ceil(period / 7);
-        return basePrice + weeks * pricePerDay * 7;
+        const pricePerWeek = Number((plan as any).price_per_week) || effectivePrice;
+        return basePrice + period * pricePerWeek;
       } else if (plan.billing_type === "monthly") {
-        const monthlyPrice = Number(plan.price) || 0;
+        const monthlyPrice = Number((plan as any).price_per_month) || effectivePrice;
         return basePrice + period * monthlyPrice;
       } else if (plan.billing_type === "usage_gb") {
-        const pricePerGb = Number(plan.price_per_gb) || 0;
-        const gbIncluded = Number(plan.gb_included) || 0;
+        const pricePerGb = Number((plan as any).price_per_gb) || effectivePrice;
+        const gbIncluded = Number((plan as any).gb_included) || 0;
         const gbPurchased = Number(period) || 1;
         const billableGb = Math.max(0, gbPurchased - gbIncluded);
         return basePrice + billableGb * pricePerGb;
       } else {
-        return basePrice || Number(plan.price) || 0;
+        return basePrice + (effectivePrice * period) || Number(plan.price) || 0;
       }
     } else {
       const planPrice = Number(plan.price) || 0;
