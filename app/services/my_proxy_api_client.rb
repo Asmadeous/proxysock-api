@@ -7,23 +7,40 @@ require 'json'
 # Handles authentication (JWT Bearer token), order placement, credential
 # updates, IP rotation, and VPN OVPN download.
 class MyProxyApiClient
-  BASE_URL     = ENV.fetch('MY_PROXY_API_URL', 'https://api.myproxyapi.com')
+  BASE_URL     = ENV.fetch('MY_PROXY_API_URL',  '')
   API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME', '')
   API_SECRET   = ENV.fetch('MY_PROXY_API_SECRET', '')
 
   # --------------------------------------------------------------------------
-  # Fetch all active proxies from the provider.
-  # NOTE: The real endpoint is not documented publicly for this client.
-  # When the provider docs are available, uncomment the real API call below.
-  # Returns an empty array until the real endpoint is configured to avoid
-  # poisoning the database with fake data.
+  # Fetch product plans by category
   # --------------------------------------------------------------------------
-  def fetch_proxies
-    # TODO: Replace with real API call once endpoint is confirmed:
-    # response = request(:get, "#{BASE_URL}/proxies")
-    # response['data'] || []
-    Rails.logger.warn('[MyProxyApiClient] fetch_proxies is not connected to a real API. Returning empty array.')
-    []
+
+  def fetch_products_datacenter
+    request(:get, "#{BASE_URL}/products/datacenter")['data'] || []
+  end
+
+  def fetch_products_isp
+    request(:get, "#{BASE_URL}/products/isp")['data'] || []
+  end
+
+  def fetch_products_static_residential
+    request(:get, "#{BASE_URL}/products/static-residential")['data'] || []
+  end
+
+  def fetch_products_residential_vpn
+    request(:get, "#{BASE_URL}/products/residential-vpn")['data'] || []
+  end
+
+  def fetch_products_residential_rotating
+    request(:get, "#{BASE_URL}/products/residential-rotating")['data'] || []
+  end
+
+  def fetch_products_premium_isp
+    request(:get, "#{BASE_URL}/products/premium-isp")['data'] || []
+  end
+
+  def fetch_products_mobile
+    request(:get, "#{BASE_URL}/products/mobile")['data'] || []
   end
 
   # Place an order on the provider.
@@ -36,10 +53,10 @@ class MyProxyApiClient
   # @return [Hash] API response
   def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil, whitelist_ip: nil)
     payload = {
-      user_id:  user_id.to_i,
-      product:  product_api_id.to_i,
-      period:   period.to_s,
-      debug:    'api'
+      user_id: user_id.to_i,
+      product: product_api_id.to_i,
+      period: period.to_s,
+      debug: 'api'
     }
     payload[:protocol]     = protocol.to_s     if protocol.present?
     payload[:locations]    = locations.to_s    if locations.present?

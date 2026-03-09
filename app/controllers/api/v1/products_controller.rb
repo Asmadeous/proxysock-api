@@ -58,8 +58,8 @@ module Api
           id: product.id,
           name: product.name,
           category: product.product_category&.name,
-          base_price: pricing&.selling_price,
-          currency: pricing&.currency,
+          base_price: pricing&.selling_price.to_f,
+          currency: pricing&.currency || 'USD',
           provider_type: product.provider,
           product_type: product.product_type
         }

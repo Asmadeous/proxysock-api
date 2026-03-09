@@ -318,7 +318,7 @@ class VmProvisioningService
     # Generate temporary inventory for this VM using root_password
     escaped_pass = Shellwords.escape(vm.root_password || '')
     user = (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'Administrator' : 'root'
-    
+
     inventory_content = if user == 'Administrator'
                           "[windows]\n#{vm.ip_address} ansible_user=#{user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore"
                         else

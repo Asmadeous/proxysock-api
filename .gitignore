@@ -63,3 +63,4 @@ Thumbs.db
 # Ignore monitoring data volumes
 /monitoring/prometheus/data/
 /monitoring/grafana/data/
+extract_pdf.rb

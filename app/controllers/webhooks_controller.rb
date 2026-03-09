@@ -107,12 +107,12 @@ class WebhooksController < ApplicationController
     # so we must convert: kobo → NGN → USD.
     paid_amount_usd =
       if gateway == 'paystack'
-        paid_ngn       = data['amount'].to_f / 100.0           # kobo → NGN
-        exchange_rate  = deposit.metadata['exchange_rate'].to_f # stored at deposit creation time
-        exchange_rate  = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f if exchange_rate.zero?
-        paid_ngn / exchange_rate                                # NGN → USD
+        paid_ngn       = data['amount'].to_f / 100.0 # kobo → NGN
+        exchange_rate  = deposit.metadata['exchange_rate'].to_f
+        exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
+        paid_ngn / exchange_rate # NGN → USD
       else
-        data['amount'].to_f  # Plisio, Payvra — amounts already in USD
+        data['amount'].to_f # Plisio, Payvra — amounts already in USD
       end
 
     # Allow a small tolerance (±1%) for floating-point / FX rounding
@@ -134,7 +134,6 @@ class WebhooksController < ApplicationController
                                            })
     end
   end
-
 
   def handle_order_payment(reference, _data, _gateway, metadata)
     order_id = metadata['order_id'] || reference.split('_')[1]

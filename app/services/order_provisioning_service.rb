@@ -190,7 +190,10 @@ class OrderProvisioningService
         # place_order returns { data: { order_id: "..." } } — we need to call view_order
         # to get the actual proxy credentials (IP, port, username, password).
         provider_order_id = order_response.dig('data', 'order_id') || order_response['order_id']
-        raise ProvisioningError, 'MyProxyApi did not return an order_id' if provider_order_id.blank?
+        if provider_order_id.blank?
+          raise ProvisioningError,
+                "MyProxyApi did not return an order_id. #{order_response.inspect}"
+        end
 
         full_details = client.view_order(provider_order_id)
         response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']

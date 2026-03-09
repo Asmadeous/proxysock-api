@@ -26,13 +26,14 @@ paths:
                       type: object
                       properties:
                         id:
-                          type: integer
+                          type: string
                         name:
                           type: string
                         base_price:
-                          type: number
+                          type: string
                         currency:
                           type: string
+                          nullable: true
         '401':
           description: unauthorized
   "/api/v1/products/{id}":

@@ -17,6 +17,12 @@ module ActiveSupport
       # Global stub for PaystackService to prevent network calls
       PaystackService.any_instance.stubs(:initialize_transaction).returns({ authorization_url: 'http://mock-paystack.com' })
       PaystackService.any_instance.stubs(:generate_payment_link).returns('http://mock-paystack.com')
+
+      # Global stub for MyProxyApiClient to prevent network calls and test failures
+      MyProxyApiClient.any_instance.stubs(:place_order).returns({ 'data' => { 'order_id' => 'mock_123' },
+                                                                  'order_id' => 'mock_123' })
+      MyProxyApiClient.any_instance.stubs(:view_order).returns({ 'data' => { 'ip' => '1.2.3.4', 'port' => 8080,
+                                                                             'username' => 'test_user', 'password' => 'test_pass' } })
     end
 
     # Helper to create JWT token for testing

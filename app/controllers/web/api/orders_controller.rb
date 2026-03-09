@@ -184,11 +184,13 @@ module Web
         else
           # Redirect to payment gateway
           gateway = params[:gateway] || 'paystack'
-          payment_url = generate_order_payment_link(gateway, order, total)
+          payment_data = generate_order_payment_link(gateway, order, total)
 
           render json: {
             order: serialize_order(order),
-            payment_url: payment_url,
+            payment_url: payment_data[:url],
+            payment_amount: payment_data[:amount],
+            payment_currency: payment_data[:currency],
             message: 'Complete payment to activate order'
           }, status: :accepted
         end
@@ -283,15 +285,17 @@ module Web
             checkout_session.generate_reference!
           end
 
-          payment_url = generate_session_payment_link(gateway, checkout_session, total_amount)
+          payment_data = generate_session_payment_link(gateway, checkout_session, total_amount)
 
-          unless payment_url
+          unless payment_data && payment_data[:url]
             raise StandardError, "Failed to generate payment link from #{gateway}. Check gateway credentials or logs."
           end
 
           render json: {
             message: 'Complete payment to activate orders',
-            payment_url: payment_url,
+            payment_url: payment_data[:url],
+            payment_amount: payment_data[:amount],
+            payment_currency: payment_data[:currency],
             reference: checkout_session.gateway_reference,
             checkout_session_id: checkout_session.id
           }, status: :accepted
@@ -672,31 +676,43 @@ module Web
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
-          amount_ngn = amount * exchange_rate
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}"
-          PaystackService.new.initialize_transaction(
-            email: current_actor.email,
-            amount: (amount_ngn * 100).to_i, # in kobo
-            reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
-            callback_url: frontend_callback_url,
-            metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
-          )[:authorization_url]
+          {
+            url: PaystackService.new.initialize_transaction(
+              email: current_actor.email,
+              amount: (amount_ngn * 100).to_i, # in kobo
+              reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
+              callback_url: frontend_callback_url,
+              metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
+            )[:authorization_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'plisio'
-          PlisioService.new.create_invoice(
-            order_number: "ORD_#{order.id}",
+          {
+            url: PlisioService.new.create_invoice(
+              order_number: "ORD_#{order.id}",
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:invoice_url],
             amount: amount,
-            currency: 'USD',
-            callback_url: callback_url,
-            email: current_actor.email
-          )[:invoice_url]
+            currency: 'USD'
+          }
         when 'payvra'
-          PayvraService.new.create_payment(
+          {
+            url: PayvraService.new.create_payment(
+              amount: amount,
+              currency: 'USD',
+              reference: "ORD_#{order.id}",
+              callback_url: callback_url
+            )[:payment_url],
             amount: amount,
-            currency: 'USD',
-            reference: "ORD_#{order.id}",
-            callback_url: callback_url
-          )[:payment_url]
+            currency: 'USD'
+          }
         end
       end
 
@@ -706,31 +722,43 @@ module Web
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
-          amount_ngn = amount * exchange_rate
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
-          PaystackService.new.initialize_transaction(
-            email: current_actor.email,
-            amount: (amount_ngn * 100).to_i, # in kobo
-            reference: reference,
-            callback_url: frontend_callback_url,
-            metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
-          )[:authorization_url]
+          {
+            url: PaystackService.new.initialize_transaction(
+              email: current_actor.email,
+              amount: (amount_ngn * 100).to_i, # in kobo
+              reference: reference,
+              callback_url: frontend_callback_url,
+              metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
+            )[:authorization_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'plisio'
-          PlisioService.new.create_invoice(
-            order_number: reference,
+          {
+            url: PlisioService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:invoice_url],
             amount: amount,
-            currency: 'USD',
-            callback_url: callback_url,
-            email: current_actor.email
-          )[:invoice_url]
+            currency: 'USD'
+          }
         when 'payvra'
-          PayvraService.new.create_payment(
+          {
+            url: PayvraService.new.create_payment(
+              amount: amount,
+              currency: 'USD',
+              reference: reference,
+              callback_url: callback_url
+            )[:payment_url],
             amount: amount,
-            currency: 'USD',
-            reference: reference,
-            callback_url: callback_url
-          )[:payment_url]
+            currency: 'USD'
+          }
         end
       end
     end
