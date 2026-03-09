@@ -21,7 +21,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     project_domains = [
       %r{https://.+\.proxysock\.net},
       'https://proxysock.net',
-      'https://www.proxysock.net'
+      'https://www.proxysock.net',
+      %r{https://.+\.proxysock\.com},
+      'https://proxysock.com',
+      'https://www.proxysock.com'
     ]
 
     # Include ENV-defined URLs
