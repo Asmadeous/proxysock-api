@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowPathIcon, BanknotesIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { ArrowPathIcon, BanknotesIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, ShoppingCartIcon, DevicePhoneMobileIcon, ComputerDesktopIcon, ServerIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
@@ -27,7 +27,11 @@ export default function OrdersTab() {
     const [total, setTotal] = useState(0);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
-    const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, failed: 0, processing: 0 });
+    const [stats, setStats] = useState({
+        total: 0, active: 0, pending: 0, failed: 0, processing: 0,
+        by_type: {} as Record<string, number>,
+        revenue_by_type: {} as Record<string, number>
+    });
     const [rescueTarget, setRescueTarget] = useState<OrderRow | null>(null);
     const [refundTarget, setRefundTarget] = useState<OrderRow | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -96,7 +100,62 @@ export default function OrdersTab() {
         <div className="space-y-4">
             <h2 className="text-2xl font-bold text-foreground">Orders</h2>
 
-            {/* Stats */}
+            {/* Type Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                    <div className="p-3 bg-purple-500/10 rounded-xl">
+                        <ShoppingCartIcon className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground font-medium">Proxy Orders</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-foreground">{stats.by_type?.proxy || 0}</span>
+                            <span className="text-xs text-muted-foreground">${Number(stats.revenue_by_type?.proxy || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                    <div className="p-3 bg-green-500/10 rounded-xl">
+                        <DevicePhoneMobileIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground font-medium">eSIM Orders</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-foreground">{stats.by_type?.esim || stats.by_type?.usa_esim || 0}</span>
+                            <span className="text-xs text-muted-foreground">${Number(stats.revenue_by_type?.esim || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                    <div className="p-3 bg-red-500/10 rounded-xl">
+                        <ComputerDesktopIcon className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground font-medium">RDP Orders</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-foreground">{stats.by_type?.rdp || 0}</span>
+                            <span className="text-xs text-muted-foreground">${Number(stats.revenue_by_type?.rdp || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                    <div className="p-3 bg-blue-500/10 rounded-xl">
+                        <ServerIcon className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground font-medium">VPS Orders</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-foreground">{stats.by_type?.vps || 0}</span>
+                            <span className="text-xs text-muted-foreground">${Number(stats.revenue_by_type?.vps || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Status Tabs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {statusTabs.map(({ key, label, count, icon, color }) => (
                     <button

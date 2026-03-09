@@ -1,0 +1,973 @@
+[
+  {
+    "name": "Ultra Residential RDP",
+    "slug": "ultra-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3004",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 8,
+      "features": [
+        "Residential IP",
+        "1 Concurrent User",
+        "Multi-OS Support",
+        "Priority Support",
+        "DDoS Protection",
+        "Backup Service",
+        "High Performance Tier"
+      ],
+      "cpu_cores": 4,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 160,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 208
+      },
+      "concurrent_users": 1,
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "session_duration_hours": 0
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "Rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "220.0",
+        "cost_price": "132.0",
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Premium Residential VPS",
+    "slug": "premium-residential-vps",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "1002",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 6,
+      "features": [
+        "Residential IP",
+        "99.9% Uptime",
+        "NVMe SSD Storage",
+        "Priority Support",
+        "DDoS Protection"
+      ],
+      "cpu_cores": 3,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 120,
+      "bandwidth_gb": 0,
+      "os_templates": [
+        "ubuntu-server-vps",
+        "debian-server-vps",
+        "rocky-server-vps",
+        "alma-server-vps",
+        "windows-server-2022-vps"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 53
+      },
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ]
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "product_category_name": "Vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "65.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Basic Residential VPS",
+    "slug": "basic-residential-vps",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "1001",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 2,
+      "features": [
+        "Residential IP",
+        "99.9% Uptime",
+        "SSD Storage",
+        "Priority Support"
+      ],
+      "cpu_cores": 1,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 40,
+      "bandwidth_gb": 0,
+      "os_templates": [
+        "ubuntu-server-vps",
+        "debian-server-vps",
+        "rocky-server-vps",
+        "alma-server-vps",
+        "windows-server-2022-vps"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 23
+      },
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ]
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "product_category_name": "Vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "35.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Standard Residential VPS",
+    "slug": "standard-residential-vps",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "1006",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 4,
+      "features": [
+        "Residential IP",
+        "99.9% Uptime",
+        "SSD Storage",
+        "Priority Support",
+        "DDoS Protection"
+      ],
+      "cpu_cores": 2,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 80,
+      "bandwidth_gb": 0,
+      "os_templates": [
+        "ubuntu-server-vps",
+        "debian-server-vps",
+        "rocky-server-vps",
+        "alma-server-vps",
+        "windows-server-2022-vps"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 38
+      },
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ]
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "product_category_name": "Vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "50.0",
+        "cost_price": "30.0",
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Ultra Residential VPS",
+    "slug": "ultra-residential-vps",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "1007",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 8,
+      "features": [
+        "Residential IP Address",
+        "Full Root/Admin Access",
+        "DDoS Protection",
+        "SSD Storage",
+        "Unlimited Bandwidth",
+        "99.9% Uptime SLA",
+        "Instant Setup",
+        "24/7 Support"
+      ],
+      "cpu_cores": 4,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 160,
+      "bandwidth_gb": 0,
+      "os_templates": [
+        "ubuntu-server-vps",
+        "debian-server-vps",
+        "rocky-server-vps",
+        "alma-server-vps",
+        "windows-server-2022-vps"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 88
+      },
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ]
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "product_category_name": "Vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "100.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Standard Residential RDP",
+    "slug": "standard-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3002",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 4,
+      "features": [
+        "Residential IP",
+        "1 Concurrent Users",
+        "Multi-OS Support",
+        "Priority Support",
+        "DDoS Protection"
+      ],
+      "cpu_cores": 2,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 80,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 83
+      },
+      "concurrent_users": 1,
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "session_duration_hours": 0
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "Rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "95.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Basic Residential RDP",
+    "slug": "basic-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3001",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 2,
+      "features": [
+        "Residential IP",
+        "1 Concurrent User",
+        "Multi-OS Support",
+        "24/7 Support"
+      ],
+      "cpu_cores": 1,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 40,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 28
+      },
+      "concurrent_users": 1,
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "session_duration_hours": 0
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "Rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "40.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Premium Residential RDP",
+    "slug": "premium-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3003",
+    "provider_type": "inhouse",
+    "metadata": {
+      "ram_gb": 6,
+      "features": [
+        "Residential IP",
+        "1 Concurrent Users",
+        "Multi-OS Support",
+        "Priority Support",
+        "DDoS Protection",
+        "Backup Service"
+      ],
+      "cpu_cores": 3,
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Australia"
+      ],
+      "storage_gb": 120,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "service_type": "residential",
+      "country_pricing": {
+        "Canada": 138
+      },
+      "concurrent_users": 1,
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "session_duration_hours": 0
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "Rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "150.0",
+        "cost_price": null,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Colt USA Premium",
+    "slug": "colt-usa-premium",
+    "product_type": "usa_esim",
+    "provider": "colt",
+    "provider_product_id": "colt-usa-1",
+    "provider_type": "inventory",
+    "metadata": {
+      "moq": 5,
+      "data_gb": 2.0,
+      "features": [
+        "US Phone Number Included",
+        "Unlimited Voice Calls",
+        "Unlimited SMS & MMS",
+        "10 GB High-Speed Data",
+        "4G/5G Network Access",
+        "Instant Activation"
+      ],
+      "esim_type": "voice_data_sms",
+      "country_code": "US",
+      "category_slug": "usa_esim",
+      "duration_days": 30
+    },
+    "active": true,
+    "available_to": "reseller",
+    "product_category_slug": "usa_esim",
+    "product_category_name": "USA eSIM",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "24.99",
+        "cost_price": null,
+        "duration_type": "days",
+        "duration_value": 30,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "VPS Starter",
+    "slug": "vps-starter",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "vps-starter",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 1,
+      "ram_gb": 1,
+      "storage_gb": 20,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "vps"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 6.99,
+        "cost_price": 4.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "VPS Basic",
+    "slug": "vps-basic",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "vps-basic",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 2,
+      "ram_gb": 2,
+      "storage_gb": 40,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "vps"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 12.99,
+        "cost_price": 8.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "VPS Standard",
+    "slug": "vps-standard",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "vps-standard",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 2,
+      "ram_gb": 4,
+      "storage_gb": 60,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "vps"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 19.99,
+        "cost_price": 14.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "VPS Pro",
+    "slug": "vps-pro",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "vps-pro",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 4,
+      "ram_gb": 8,
+      "storage_gb": 100,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "vps"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 34.99,
+        "cost_price": 24.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "VPS Enterprise",
+    "slug": "vps-enterprise",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "vps-enterprise",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 8,
+      "ram_gb": 16,
+      "storage_gb": 200,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "vps"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 69.99,
+        "cost_price": 49.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "RDP Basic",
+    "slug": "rdp-basic",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "rdp-basic",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 2,
+      "ram_gb": 4,
+      "storage_gb": 60,
+      "os_template": "windows-server-2022",
+      "vm_type": "rdp",
+      "rdp": true
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 29.99,
+        "cost_price": 19.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "RDP Standard",
+    "slug": "rdp-standard",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "rdp-standard",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 4,
+      "ram_gb": 8,
+      "storage_gb": 100,
+      "os_template": "windows-server-2022",
+      "vm_type": "rdp",
+      "rdp": true
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 49.99,
+        "cost_price": 34.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "RDP Pro",
+    "slug": "rdp-pro",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "rdp-pro",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 8,
+      "ram_gb": 16,
+      "storage_gb": 200,
+      "os_template": "windows-server-2022",
+      "vm_type": "rdp",
+      "rdp": true
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 84.99,
+        "cost_price": 59.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Linux RDP Basic",
+    "slug": "linux-rdp-basic",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "linux-rdp-basic",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 2,
+      "ram_gb": 4,
+      "storage_gb": 60,
+      "os_template": "ubuntu-22-04",
+      "vm_type": "rdp",
+      "rdp": true
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 22.99,
+        "cost_price": 14.99,
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Lyca USA Essential",
+    "slug": "lyca-usa-essential",
+    "product_type": "usa_esim",
+    "provider": "lyca",
+    "provider_product_id": "lyca-usa-1",
+    "provider_type": "inventory",
+    "metadata": {
+      "moq": 1,
+      "data_gb": 8.0,
+      "features": [
+        "Unlimited Voice"
+      ],
+      "esim_type": "voice_data_sms",
+      "country_code": "US"
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "usa_esim",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 24.99,
+        "duration_type": "days",
+        "duration_value": 30,
+        "active": true
+      }
+    ]
+  },
+  {
+    "product_type": "proxy",
+    "provider": "xproxy",
+    "provider_type": "xproxy",
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "mobile",
+    "product_category_name": "Mobile",
+    "name": "1 x Mobile Proxy - 1 Day",
+    "slug": "xproxy-mobile-1day",
+    "provider_product_id": "xproxy-mobile-1day",
+    "metadata": {
+      "location": "Canada",
+      "isp": [
+        {
+          "id": 4,
+          "name": "Bell",
+          "slug": "bell"
+        },
+        {
+          "id": 5,
+          "name": "Rogers",
+          "slug": "rogers"
+        },
+        {
+          "id": 6,
+          "name": "Telus",
+          "slug": "telus"
+        }
+      ],
+      "isp_ids": [
+        "4",
+        "5",
+        "6"
+      ],
+      "billing_type": "daily"
+    },
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 24.0,
+        "cost_price": 0.0,
+        "duration_type": "daily",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "product_type": "proxy",
+    "provider": "xproxy",
+    "provider_type": "xproxy",
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "mobile",
+    "product_category_name": "Mobile",
+    "name": "1 x Mobile Proxy - 7 Days",
+    "slug": "xproxy-mobile-7days",
+    "provider_product_id": "xproxy-mobile-7days",
+    "metadata": {
+      "location": "Canada",
+      "isp": [
+        {
+          "id": 4,
+          "name": "Bell",
+          "slug": "bell"
+        },
+        {
+          "id": 5,
+          "name": "Rogers",
+          "slug": "rogers"
+        },
+        {
+          "id": 6,
+          "name": "Telus",
+          "slug": "telus"
+        }
+      ],
+      "isp_ids": [
+        "4",
+        "5",
+        "6"
+      ],
+      "billing_type": "weekly"
+    },
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 120.0,
+        "cost_price": 0.0,
+        "duration_type": "weekly",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "product_type": "proxy",
+    "provider": "xproxy",
+    "provider_type": "xproxy",
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "mobile",
+    "product_category_name": "Mobile",
+    "name": "1 x Mobile Proxy - 30 Days",
+    "slug": "xproxy-mobile-30days",
+    "provider_product_id": "xproxy-mobile-30days",
+    "metadata": {
+      "location": "Canada",
+      "isp": [
+        {
+          "id": 4,
+          "name": "Bell",
+          "slug": "bell"
+        },
+        {
+          "id": 5,
+          "name": "Rogers",
+          "slug": "rogers"
+        },
+        {
+          "id": 6,
+          "name": "Telus",
+          "slug": "telus"
+        }
+      ],
+      "isp_ids": [
+        "4",
+        "5",
+        "6"
+      ],
+      "billing_type": "monthly"
+    },
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 240.0,
+        "cost_price": 0.0,
+        "duration_type": "monthly",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "product_type": "proxy",
+    "provider": "xproxy",
+    "provider_type": "xproxy",
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "mobile",
+    "product_category_name": "Mobile",
+    "name": "Mobile Proxy (Pay Per GB)",
+    "slug": "xproxy-mobile-usage",
+    "provider_product_id": "xproxy-mobile-usage",
+    "metadata": {
+      "location": "Canada",
+      "isp": [
+        {
+          "id": 4,
+          "name": "Bell",
+          "slug": "bell"
+        },
+        {
+          "id": 5,
+          "name": "Rogers",
+          "slug": "rogers"
+        },
+        {
+          "id": 6,
+          "name": "Telus",
+          "slug": "telus"
+        }
+      ],
+      "isp_ids": [
+        "4",
+        "5",
+        "6"
+      ],
+      "billing_type": "usage_gb"
+    },
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": 1.0,
+        "cost_price": 0.0,
+        "duration_type": "usage_gb",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  }
+]

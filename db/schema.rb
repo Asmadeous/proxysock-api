@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_09_200007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -479,6 +479,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   create_table "orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "checkout_session_id"
     t.datetime "created_at", null: false
+    t.jsonb "credentials", default: []
     t.string "currency"
     t.datetime "expires_at"
     t.jsonb "metadata"
@@ -649,6 +650,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.uuid "vm_id"
+  end
+
+  create_table "proxy_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.decimal "gb_limit"
+    t.decimal "gb_used", default: "0.0"
+    t.boolean "is_owned_proxy", default: true
+    t.uuid "order_id", null: false
+    t.uuid "owned_proxy_billing_plan_id"
+    t.string "password", null: false
+    t.uuid "proxy_instance_id", null: false
+    t.string "status", default: "active"
+    t.datetime "updated_at", null: false
+    t.uuid "user_id"
+    t.string "username", null: false
+    t.index ["expires_at"], name: "index_proxy_assignments_on_expires_at"
+    t.index ["order_id"], name: "index_proxy_assignments_on_order_id"
+    t.index ["proxy_instance_id"], name: "index_proxy_assignments_on_proxy_instance_id"
+    t.index ["status"], name: "index_proxy_assignments_on_status"
+    t.index ["user_id"], name: "index_proxy_assignments_on_user_id"
+  end
+
+  create_table "proxy_instances", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "device_type"
+    t.decimal "health_score", default: "1.0"
+    t.datetime "last_health_check"
+    t.jsonb "metadata", default: {}
+    t.string "proxy_address", null: false
+    t.string "status", default: "available"
+    t.decimal "success_rate", default: "1.0"
+    t.datetime "updated_at", null: false
+    t.index ["proxy_address"], name: "index_proxy_instances_on_proxy_address", unique: true
+    t.index ["status"], name: "index_proxy_instances_on_status"
   end
 
   create_table "rate_limits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1172,6 +1208,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   add_foreign_key "product_pricings", "products"
   add_foreign_key "products", "product_categories"
   add_foreign_key "proxmox_operations", "vms"
+  add_foreign_key "proxy_assignments", "orders"
+  add_foreign_key "proxy_assignments", "proxy_instances"
   add_foreign_key "reseller_orders", "orders"
   add_foreign_key "reseller_orders", "resellers"
   add_foreign_key "residential_proxy_accounts", "residential_rotating_proxies"

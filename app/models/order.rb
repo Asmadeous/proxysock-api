@@ -73,6 +73,10 @@ class Order < ApplicationRecord
       return false
     end
 
+    if product.product_type == 'esim'
+      return product.metadata&.dig('package_type') == 'topup'
+    end
+
     true
   end
 

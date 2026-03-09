@@ -11,8 +11,6 @@ import {
   Globe,
   Smartphone,
   Sparkles,
-  Star,
-
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -73,12 +71,6 @@ export const renderMobileProxyPlans = ({
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    {plan.is_owned && (
-                      <Badge variant="default" className="gap-1">
-                        <Star className="w-3 h-3" />
-                        Premium
-                      </Badge>
-                    )}
                     <div className="p-2 bg-emerald-500/10 rounded-lg">
                       <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
@@ -127,19 +119,15 @@ export const renderMobileProxyPlans = ({
                       <span className="text-sm font-medium truncate max-w-32">
                         {isp.name}
                       </span>
-                      {((isp.locations &&
-                        Object.keys(isp.locations).length > 0) ||
-                        selectedLocationCategory === "usa") && (
-                          <img
-                            src={`https://flagcdn.com/16x12/${selectedLocationCategory === "usa" ? "us" : "ca"}.png`}
-                            alt="flag"
-                            className="w-4 h-3 rounded-sm"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = "none";
-                            }}
-                          />
-                        )}
+                      <img
+                        src={`https://flagcdn.com/16x12/${selectedLocationCategory === "usa" ? "us" : "ca"}.png`}
+                        alt={`${selectedLocationCategory} flag`}
+                        className="w-4 h-3 rounded-sm"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                        }}
+                      />
                     </div>
                   ))}
                 </div>

@@ -775,6 +775,14 @@ function ESIMPackagesPageContent() {
                   <CardHeader className="border-b">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
+                        {pkg.packageType === "topup" && (
+                          <Badge
+                            variant="destructive"
+                            className="bg-red-600 hover:bg-red-700 mb-2 animate-pulse"
+                          >
+                            TOP-UP PLAN
+                          </Badge>
+                        )}
                         <CardTitle className="text-xl mb-2">
                           {pkg.location_name || "Global eSIM"}
                         </CardTitle>

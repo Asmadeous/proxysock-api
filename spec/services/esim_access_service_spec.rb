@@ -34,7 +34,10 @@ RSpec.describe EsimAccessService do
         expect(body['packageInfoList'].first['packageCode']).to eq(package_code)
         
         # Verify signature
-        expected_sig = OpenSSL::HMAC.hexdigest('SHA256', secret_key, req.body)
+        timestamp  = req['RT-Timestamp']
+        request_id = req['RT-RequestID']
+        sign_data  = "#{timestamp}#{request_id}#{api_key}#{req.body}"
+        expected_sig = OpenSSL::HMAC.hexdigest('SHA256', secret_key, sign_data)
         expect(req['RT-Signature']).to eq(expected_sig)
 
         double('response', code: '200', body: mock_response.to_json, is_a?: true)
@@ -57,7 +60,7 @@ RSpec.describe EsimAccessService do
 
   describe '#list_packages' do
     it 'sends a GET request and returns the obj array' do
-      mock_pkg_response = { 'success' => true, 'obj' => [{ 'packageCode' => 'PKG1' }] }
+      mock_pkg_response = { 'success' => true, 'obj' => { 'packageList' => [{ 'packageCode' => 'PKG1' }] } }
       allow_any_instance_of(Net::HTTP).to receive(:request).and_return(
         double('response', code: '200', body: mock_pkg_response.to_json, is_a?: true)
       )

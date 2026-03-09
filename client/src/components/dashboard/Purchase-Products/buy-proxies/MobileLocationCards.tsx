@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -6,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowRight, Globe, Smartphone, Star } from "lucide-react";
+import { ArrowRight, Globe, Smartphone } from "lucide-react";
 
 import { Category } from "@/types";
 
@@ -44,12 +43,6 @@ export const renderMobileLocationCards = ({
           <CardHeader>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                {locationCategory.premium && (
-                  <Badge variant="default" className="gap-1 bg-amber-500 hover:bg-amber-600 text-white border-none">
-                    <Star className="w-3 h-3" />
-                    In-house
-                  </Badge>
-                )}
                 <div className="p-2 bg-emerald-500/10 rounded-lg">
                   <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -69,7 +62,7 @@ export const renderMobileLocationCards = ({
                   <Globe className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{country}</span>
                   <img
-                    src={`https://flagcdn.com/16x12/${country.toLowerCase()}.png`}
+                    src={`https://flagcdn.com/16x12/${country.toLowerCase() === 'usa' ? 'us' : country.toLowerCase() === 'canada' ? 'ca' : country.toLowerCase()}.png`}
                     alt={`${country} flag`}
                     className="w-4 h-3 rounded-sm"
                     onError={(e) => {

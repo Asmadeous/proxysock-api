@@ -285,6 +285,7 @@ Rails.application.routes.draw do
 
       # System Monitoring
       get 'monitoring', to: 'monitoring#index'
+      resources :transactions, only: %i[index show]
     end
   end
 

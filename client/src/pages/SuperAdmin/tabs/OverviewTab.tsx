@@ -10,8 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import StatsCard from "../components/StatsCard";
 import StatusBadge from "../components/StatusBadge";
-import { fetchAdminUsers, fetchAdminOrders, fetchAffiliates } from "../../../services/adminApi";
-import { fetchTransactions } from "../../../services/transaction";
+import { fetchAdminUsers, fetchAdminOrders, fetchAffiliates, fetchAdminTransactions } from "../../../services/adminApi";
 
 export default function OverviewTab() {
     const [loading, setLoading] = useState(true);
@@ -27,13 +26,13 @@ export default function OverviewTab() {
                 const [usersRes, ordersRes, txRes, affRes] = await Promise.allSettled([
                     fetchAdminUsers({ per: "1" }),
                     fetchAdminOrders({ per: "5" }),
-                    fetchTransactions(),
+                    fetchAdminTransactions(),
                     fetchAffiliates({ per: "1" }),
                 ]);
 
                 const usersTotal = usersRes.status === "fulfilled" ? usersRes.value.data.total : 0;
                 const ordersData = ordersRes.status === "fulfilled" ? ordersRes.value.data : { orders: [], stats: {}, total: 0 };
-                const txData = txRes.status === "fulfilled" ? txRes.value : [];
+                const txData = txRes.status === "fulfilled" ? (txRes.value.data.transactions || txRes.value.data || []) : [];
                 const affTotal = affRes.status === "fulfilled" ? affRes.value.data.total : 0;
 
                 const totalRevenue = Array.isArray(txData)

@@ -26,7 +26,6 @@
   <link rel="dns-prefetch" href="//js.stripe.com" />
   <link rel="dns-prefetch" href="//paystack.com" />
   <link rel="dns-prefetch" href="//checkout.paystack.com" />
-  <link rel="dns-prefetch" href="//xknakbxmpznclriiauim.supabase.co" />
   <link rel="dns-prefetch" href="//v6.exchangerate-api.com" />
   <link rel="dns-prefetch" href="//*.datadoghq.com" />
   <link rel="dns-prefetch" href="//www.redditstatic.com" />
@@ -99,7 +98,6 @@
         https://meta-q.cdn.bubble.io
         https://payvra.com
         https://img.freepik.com
-        https://*.supabase.co
         https://*.paystack.co
         https://api.dicebear.com;
 
@@ -107,8 +105,6 @@
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
-        https://xknakbxmpznclriiauim.supabase.co
-        wss://xknakbxmpznclriiauim.supabase.co
         https://v6.exchangerate-api.com
         https://api.paystack.co
         https://pixel-config.reddit.com
@@ -466,7 +462,6 @@
       console.warn = function (...args) {
         const message = args.join(" ");
         const suppressedMessages = [
-          "Multiple GoTrueClient instances",
           "React Router Future Flag Warning",
           "No storage available for session",
           "reportIncident",

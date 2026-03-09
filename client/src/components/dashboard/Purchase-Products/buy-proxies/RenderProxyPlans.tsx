@@ -260,8 +260,7 @@ export const renderProxyPlans = ({
                   >
                     <Globe className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">{isp.name}</span>
-                    {(selectedCategory !== "mobile" ||
-                      selectedLocationCategory === "premium") &&
+                    {selectedCategory !== "mobile" &&
                       isp.locations &&
                       Object.keys(isp.locations).map((countryCode) => (
                         <img
