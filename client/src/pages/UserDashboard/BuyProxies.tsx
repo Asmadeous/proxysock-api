@@ -215,13 +215,16 @@ export default function BuyProxies() {
     } else if (plan.is_owned) {
       if (plan.billing_type === "usage_gb") {
         // Premium mobile per-GB pricing: base price + (GB * price_per_gb)
-        const pricePerGb = Number(plan.price_per_gb) || 1; // Default to $1/GB
-        const baseCost = basePriceFromBase || basePrice;
+        // If price_per_gb is undefined, we assume basePrice is the price per GB.
+        const pricePerGb = Number((plan as any).price_per_gb) || basePrice || 1;
+        const baseCost = basePriceFromBase || 0;
         const perGBCost = period * pricePerGb;
-        const finalPrice = baseCost + perGBCost; // Removed USA markup
+        const finalPrice = baseCost + perGBCost;
         setTotalPrice(finalPrice);
       } else {
-        const finalPrice = basePriceFromBase || basePrice; // Removed USA markup
+        // Time based (daily, weekly, monthly)
+        const unitPrice = basePriceFromBase || basePrice;
+        const finalPrice = unitPrice * period;
         setTotalPrice(finalPrice);
       }
     } else {
