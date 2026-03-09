@@ -63,7 +63,9 @@ export const usePaymentCheckoutHandlers = ({
   };
 
   const getQuantity = (item: CartItem): number => {
-    return item.quantity || item.period || item.duration || 1;
+    // Only return explicit quantity (number of instances like eSIMs), 
+    // otherwise default to 1 instance. Period/duration are handled in metadata.
+    return item.quantity || 1;
   };
 
   const buildMetadata = (item: CartItem) => {
