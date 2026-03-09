@@ -8,11 +8,11 @@ let currentGuestToken: string | null = null;
 
 export const getCableConsumer = (): Consumer => {
     // Determine the active token (try user, then reseller, then employee, then fallback to guest)
-    const activeToken = localStorage.getItem("token")
+    const activeToken = localStorage.getItem("authToken")
         || localStorage.getItem("resellerToken")
         || localStorage.getItem("employeeToken");
 
-    const activeGuestToken = localStorage.getItem("guest_session_token");
+    const activeGuestToken = localStorage.getItem("guestChat") ? JSON.parse(localStorage.getItem("guestChat")!).sessionToken : null;
 
     // Rebuild consumer if tokens changed
     if (!consumer || activeToken !== currentToken || activeGuestToken !== currentGuestToken) {
