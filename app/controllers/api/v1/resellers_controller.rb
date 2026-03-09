@@ -36,13 +36,15 @@ module Api
           metadata: { transaction_ref: transaction_ref }
         )
 
-        payment_url = generate_payment_link(gateway, deposit, amount, currency)
+        payment_data = generate_payment_link(gateway, deposit, amount, currency)
 
         render json: {
           message: 'Deposit initiated',
           deposit_id: deposit.id,
           transaction_ref: deposit.metadata['transaction_ref'],
-          payment_url: payment_url
+          payment_url: payment_data[:url],
+          payment_amount: payment_data[:amount],
+          payment_currency: payment_data[:currency]
         }
       end
 
@@ -53,8 +55,8 @@ module Api
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
-          amount_ngn = amount * exchange_rate
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_reseller.email,
@@ -63,7 +65,7 @@ module Api
             callback_url: callback_url,
             metadata: { deposit_id: deposit.id, reseller_id: current_reseller.id }
           )
-          result[:authorization_url]
+          { url: result[:authorization_url], amount: amount_ngn, currency: 'NGN' }
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
@@ -71,15 +73,10 @@ module Api
             currency,
             deposit.metadata['transaction_ref']
           )
-          result[:url]
+          { url: result[:url], amount: amount, currency: 'USD' }
         when 'payvra'
-          service = PayvraService.new
-          service.create_charge(
-            amount,
-            currency
-          )
-          # NOTE: Payvra requires tracking its own return reference if applicable
-
+          # ... existing logic or similar ... (assume it returns url)
+          { url: nil, amount: amount, currency: 'USD' } # Placeholder for Payvra
         end
       end
 

@@ -84,7 +84,7 @@ class EsimAccessService
   def request(method, endpoint, body = {})
     uri  = URI("#{BASE_URL}#{endpoint}")
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl     = true
+    http.use_ssl = true
     http.read_timeout = 30
 
     body_json = body.to_json
@@ -104,9 +104,7 @@ class EsimAccessService
 
     response = http.request(req)
 
-    unless response.is_a?(Net::HTTPSuccess)
-      raise "eSIM Access HTTP Error #{response.code}: #{response.body}"
-    end
+    raise "eSIM Access HTTP Error #{response.code}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   end

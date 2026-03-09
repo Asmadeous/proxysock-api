@@ -3,31 +3,33 @@
 require 'rails_helper'
 
 RSpec.describe UserMailer, type: :mailer do
-  describe 'verification_email' do
-    let(:mail) { UserMailer.verification_email }
+  let(:user) { User.create!(username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', password: 'password123') }
+
+  describe 'confirmation_email' do
+    let(:mail) { UserMailer.confirmation_email(user) }
 
     it 'renders the headers' do
-      expect(mail.subject).to eq('Verification email')
-      expect(mail.to).to eq(['to@example.org'])
-      expect(mail.from).to eq(['from@example.com'])
+      expect(mail.subject).to eq('Confirm your ProxySock account')
+      expect(mail.to).to eq([user.email])
+      expect(mail.from).to eq(['noreply@proxysock.com'])
     end
 
     it 'renders the body' do
-      expect(mail.body.encoded).to match('Hi')
+      expect(mail.body.encoded).to match('Thanks for signing up for ProxySock!')
     end
   end
 
   describe 'password_reset_email' do
-    let(:mail) { UserMailer.password_reset_email }
+    let(:mail) { UserMailer.password_reset_email(user) }
 
     it 'renders the headers' do
-      expect(mail.subject).to eq('Password reset email')
-      expect(mail.to).to eq(['to@example.org'])
-      expect(mail.from).to eq(['from@example.com'])
+      expect(mail.subject).to eq('Reset your ProxySock password')
+      expect(mail.to).to eq([user.email])
+      expect(mail.from).to eq(['noreply@proxysock.com'])
     end
 
     it 'renders the body' do
-      expect(mail.body.encoded).to match('Hi')
+      expect(mail.body.encoded).to match('We received a request to reset your ProxySock password.')
     end
   end
 end

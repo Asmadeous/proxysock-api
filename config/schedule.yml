@@ -10,9 +10,9 @@ inventory_restock:
   cron: "0 6 * * *"   # Every day at 6 AM
   class: "InventoryRestockWorker"
 
-proxy_sync:
-  cron: "*/5 * * * *" # Every 5 minutes
-  class: "ProxySyncJob"
+product_sync:
+  cron: "0 */6 * * *" # Every 6 hours
+  class: "ProductSyncJob"
 
 esim_sync:
   cron: "*/30 * * * *" # Every 30 minutes

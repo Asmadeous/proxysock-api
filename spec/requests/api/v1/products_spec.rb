@@ -17,10 +17,10 @@ RSpec.describe 'api/v1/products', type: :request do
                    items: {
                      type: :object,
                      properties: {
-                       id: { type: :integer },
+                       id: { type: :string },
                        name: { type: :string },
                        base_price: { type: :number },
-                       currency: { type: :string }
+                       currency: { type: :string, nullable: true }
                      }
                    }
                  }
@@ -37,8 +37,8 @@ RSpec.describe 'api/v1/products', type: :request do
         before do
           category = ProductCategory.create!(name: 'Proxies')
           product = Product.create!(name: 'Test Proxy', product_type: 'proxy', provider_type: 'xproxy',
-                                    product_category: category)
-          ProductPricing.create!(product: product, selling_price: 10.0, active: true)
+                                     product_category: category)
+          ProductPricing.create!(product: product, selling_price: 10.0, active: true, currency: 'USD')
         end
 
         run_test!
