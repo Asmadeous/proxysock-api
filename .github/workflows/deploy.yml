@@ -91,6 +91,9 @@ jobs:
           labels: ${{ steps.client-meta.outputs.labels }}
           build-args: |
             VITE_PAYSTACK_PUBLIC_KEY=${{ secrets.VITE_PAYSTACK_PUBLIC_KEY }}
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_RAILS_API_URL=${{ secrets.VITE_RAILS_API_URL }}
+            VITE_WS_URL=${{ secrets.VITE_WS_URL }}
           cache-from: type=gha,scope=client
           cache-to: type=gha,scope=client,mode=max
 
