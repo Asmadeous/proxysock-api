@@ -66,7 +66,9 @@ class XProxyService
 
     # Billing Logic
     is_usage_based = order.product_pricing&.duration_type == 'usage_gb'
-    gb_limit = is_usage_based ? (order.quantity || 1) : nil
+    duration = order.metadata&.dig('period').to_i
+    duration = 1 if duration <= 0
+    gb_limit = is_usage_based ? duration : nil
     
     expiry_date = calculate_expiry(order)
 
@@ -119,11 +121,15 @@ class XProxyService
   private
 
   def calculate_expiry(order)
+    # The frontend maps the desired "duration" or "GB" into the metadata['period'] block
+    duration = order.metadata&.dig('period').to_i
+    duration = 1 if duration <= 0
+
     case order.product_pricing&.duration_type
     when 'usage_gb' then 1.year.from_now
-    when 'daily'    then (order.quantity || 1).days.from_now
-    when 'weekly'   then (order.quantity || 1).weeks.from_now
-    when 'monthly'  then (order.quantity || 1).months.from_now
+    when 'daily'    then duration.days.from_now
+    when 'weekly'   then duration.weeks.from_now
+    when 'monthly'  then duration.months.from_now
     else 30.days.from_now
     end
   end
