@@ -10,7 +10,7 @@ class VpnMailer < ApplicationMailer
     @title = "Your VPN Credentials - Order ##{@order.order_number}"
 
     mail(
-      to: @owner.email,
+      to: params[:target_email].presence || @owner.email,
       subject: "Your VPN Credentials are Ready - Order ##{@order.order_number}"
     )
   end

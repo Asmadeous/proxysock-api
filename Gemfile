@@ -89,3 +89,5 @@ gem 'rack-attack', '~> 6.8'
 # PDF invoice generation
 gem 'prawn', '~> 2.5'
 gem 'prawn-table', '~> 0.2'
+
+gem "resend", "~> 1.0"

@@ -18,15 +18,15 @@ module Admin
           employee.update(last_login_at: Time.current)
           token = employee.generate_jwt
 
-          render json: {
-            message: 'Zoho login successful',
-            employee: serialize_employee(employee),
-            token: token
-          }
+          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+          redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}&target=/admin", allow_other_host: true
         rescue SecurityError => e
-          render json: { error: e.message }, status: :forbidden
+          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+          redirect_to "#{frontend_url}/admin/login?error=#{CGI.escape(e.message)}", allow_other_host: true
         rescue StandardError => e
-          render json: { error: "Zoho Authentication failed: #{e.message}" }, status: :unprocessable_entity
+          Rails.logger.error "Zoho Auth Error: #{e.message}"
+          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+          redirect_to "#{frontend_url}/admin/login?error=auth_failed", allow_other_host: true
         end
       end
 

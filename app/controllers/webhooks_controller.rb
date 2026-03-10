@@ -25,19 +25,19 @@ class WebhooksController < ApplicationController
       # Build the data hash excluding verify_hash and Rails internal params
       callback_data = params.to_unsafe_h.except('verify_hash', 'controller', 'action', 'format')
 
-      # Sort by key alphabetically and JSON-encode
-      sorted_data = callback_data.sort.to_h.to_json
+      # Sort by key alphabetically and JSON-encode (must be compact JSON, no spaces)
+      sorted_data = JSON.generate(callback_data.sort.to_h)
 
       # HMAC-SHA1 with secret key
       expected = OpenSSL::HMAC.hexdigest('SHA1', ENV['PLISIO_SECRET_KEY'], sorted_data)
 
       unless Rack::Utils.secure_compare(expected, received_hash.to_s)
-        Rails.logger.warn('[Webhook] Plisio verify_hash mismatch — rejecting')
+        Rails.logger.warn("[Webhook] Plisio verify_hash mismatch — rejecting. Expected: #{expected}, Got: #{received_hash}")
         return head :bad_request
       end
     end
 
-    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id)
+    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id, :source_amount, :source_currency)
     handle_payment(webhook_params, 'plisio') if webhook_params[:status] == 'completed'
     head :ok
   end
@@ -111,8 +111,11 @@ class WebhooksController < ApplicationController
         exchange_rate  = deposit.metadata['exchange_rate'].to_f
         exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
         paid_ngn / exchange_rate # NGN → USD
+      elsif gateway == 'plisio'
+        # Plisio: 'source_amount' is the fiat amount (USD)
+        data['source_amount'].to_f
       else
-        data['amount'].to_f # Plisio, Payvra — amounts already in USD
+        data['amount'].to_f # Payvra — amounts already in USD
       end
 
     # Allow a small tolerance (±1%) for floating-point / FX rounding

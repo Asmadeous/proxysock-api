@@ -63,6 +63,8 @@ export const fetchAdminProduct = (id: string | number) => adminApi.get(`/product
 export const createAdminProduct = (data: Record<string, unknown>) => adminApi.post("/products", { product: data });
 export const updateAdminProduct = (id: string | number, data: Record<string, unknown>) => adminApi.patch(`/products/${id}`, { product: data });
 export const deleteAdminProduct = (id: string | number) => adminApi.delete(`/products/${id}`);
+export const syncInhouseProducts = () => adminApi.post("/products/sync_inhouse");
+export const syncExternalProducts = () => adminApi.post("/products/sync_external");
 
 // ── Resellers ─────────────────────────────────────
 export const fetchResellers = (params?: Record<string, string>) =>

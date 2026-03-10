@@ -54,7 +54,7 @@ export default function ESIMPage() {
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "USD",
-      lowPrice: "6.99",
+      lowPrice: "1.99",
       highPrice: "49.99",
       offerCount: "50+",
     },

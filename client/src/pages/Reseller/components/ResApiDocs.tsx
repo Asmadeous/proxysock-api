@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     CodeBracketIcon,
     CommandLineIcon,
@@ -9,11 +9,24 @@ import {
     KeyIcon
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
+import { fetchResellerProfile } from "../../../services/resellerApi";
 
 export default function ResApiDocs() {
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
     const isEnterprise = user?.reseller_type === "infrastructure";
-    const apiKey = isEnterprise ? (user?.dedicated_api_key || "ps_live_••••••••••••••••") : "ROTATIONAL_TOKEN_ACTIVE";
+    const [apiKey, setApiKey] = useState(isEnterprise ? (user?.dedicated_api_key || "LOADING...") : "ROTATIONAL_TOKEN_ACTIVE");
+
+    useEffect(() => {
+        if (isEnterprise && !user?.dedicated_api_key) {
+            fetchResellerProfile().then(res => {
+                const data = Array.isArray(res.data) ? res.data[0] : res.data;
+                if (data.dedicated_api_key) {
+                    setApiKey(data.dedicated_api_key);
+                    localStorage.setItem("resellerUser", JSON.stringify({ ...user, dedicated_api_key: data.dedicated_api_key }));
+                }
+            }).catch(() => setApiKey("FAILED_TO_LOAD"));
+        }
+    }, [isEnterprise, user]);
 
     const [activeTab, setActiveTab] = useState<"access" | "docs">("access");
 

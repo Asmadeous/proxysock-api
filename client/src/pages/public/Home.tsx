@@ -76,7 +76,7 @@ export default function MainLandingPage() {
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "USD",
-      lowPrice: "2.99",
+      lowPrice: "1.00",
       highPrice: "199.99",
       offerCount: "4",
     },

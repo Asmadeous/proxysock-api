@@ -69,14 +69,26 @@ module Api
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
-            amount,
-            currency,
-            deposit.metadata['transaction_ref']
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_reseller.email
           )
           { url: result[:url], amount: amount, currency: 'USD' }
         when 'payvra'
-          # ... existing logic or similar ... (assume it returns url)
-          { url: nil, amount: amount, currency: 'USD' } # Placeholder for Payvra
+          service = PayvraService.new
+          result = service.create_invoice(
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_reseller.email
+          )
+          # Store Payvra's txn_id so DepositSyncService can verify it later.
+          deposit.metadata['payvra_invoice_id'] = result[:txn_id]
+          deposit.save!
+          { url: result[:url], amount: amount, currency: 'USD' }
         end
       end
 

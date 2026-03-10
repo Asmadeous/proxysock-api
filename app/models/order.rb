@@ -123,6 +123,22 @@ class Order < ApplicationRecord
     end
   end
 
+  def trigger_reseller_webhook
+    return unless reseller
+
+    payload = {
+      order_id: id,
+      order_number: order_number,
+      product: product.name,
+      status: status,
+      total_amount: total_amount,
+      metadata: metadata,
+      resource: provisioned_resource&.as_json
+    }
+
+    WebhookDispatchWorker.perform_later(reseller.id, 'order.completed', payload)
+  end
+
   aasm column: :status do
     state :pending, initial: true
     state :awaiting_payment # For gateway checkout
@@ -141,7 +157,7 @@ class Order < ApplicationRecord
     end
 
     event :activate do
-      transitions from: :processing, to: :active
+      transitions from: :processing, to: :active, after: :trigger_reseller_webhook
     end
 
     event :expire do

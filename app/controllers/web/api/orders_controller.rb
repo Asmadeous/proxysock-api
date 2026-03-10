@@ -34,7 +34,7 @@ module Web
         if params[:range].present? && params[:range] != 'all'
           days = params[:range].to_i
           days = 30 if days.zero? # fallback
-          orders = orders.where('created_at >= ?', days.days.ago)
+          orders = orders.where('orders.created_at >= ?', days.days.ago)
         end
 
         # Normalize status names for frontend
@@ -100,10 +100,10 @@ module Web
         last_month = 1.month.ago.beginning_of_month
 
         total_spent = orders.sum(:total_amount).to_f
-        monthly_spending = orders.where('created_at >= ?', current_month).sum(:total_amount).to_f
-        last_month_spending = orders.where(created_at: last_month...current_month).sum(:total_amount).to_f
+        monthly_spending = orders.where('orders.created_at >= ?', current_month).sum(:total_amount).to_f
+        last_month_spending = orders.where(orders: { created_at: last_month...current_month }).sum(:total_amount).to_f
 
-        recent_orders = orders.includes(:product).order(created_at: :desc).limit(10).map do |o|
+        recent_orders = orders.includes(:product).order('orders.created_at' => :desc).limit(10).map do |o|
           {
             id: o.id,
             status: o.status,
@@ -699,18 +699,19 @@ module Web
               currency: 'USD',
               callback_url: callback_url,
               email: current_actor.email
-            )[:invoice_url],
+            )[:url],
             amount: amount,
             currency: 'USD'
           }
         when 'payvra'
           {
-            url: PayvraService.new.create_payment(
+            url: PayvraService.new.create_invoice(
+              order_number: "ORD_#{order.id}",
               amount: amount,
               currency: 'USD',
-              reference: "ORD_#{order.id}",
-              callback_url: callback_url
-            )[:payment_url],
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
             currency: 'USD'
           }
@@ -745,18 +746,19 @@ module Web
               currency: 'USD',
               callback_url: callback_url,
               email: current_actor.email
-            )[:invoice_url],
+            )[:url],
             amount: amount,
             currency: 'USD'
           }
         when 'payvra'
           {
-            url: PayvraService.new.create_payment(
+            url: PayvraService.new.create_invoice(
+              order_number: reference,
               amount: amount,
               currency: 'USD',
-              reference: reference,
-              callback_url: callback_url
-            )[:payment_url],
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
             currency: 'USD'
           }

@@ -265,8 +265,14 @@ class OrderProvisioningService
       @order.activate!
 
       # Send credentials email using the API response data
+      target_email = @order.metadata&.dig('credentials_email').presence
       owner = @actor || @order.orderable
-      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+      InvoiceMailer.with(
+        order: @order,
+        owner: owner,
+        api_response: response,
+        target_email: target_email
+      ).api_proxy_credentials_email.deliver_later
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
       proxy = assign_proxy_from_inventory(@product.provider_type)
@@ -334,11 +340,13 @@ class OrderProvisioningService
   end
 
   def send_proxy_credentials(proxy)
+    target_email = @order.metadata&.dig('credentials_email').presence
     owner = @actor || @order.orderable
     ProxyMailer.with(
       owner: owner,
       proxy: proxy,
-      order: @order
+      order: @order,
+      target_email: target_email
     ).credentials_email.deliver_later
   end
 
@@ -388,7 +396,13 @@ class OrderProvisioningService
       end
 
       # Send credentials email
-      UsaEsimMailer.with(owner: @actor, credentials: creds, order: @order).credentials_email.deliver_later
+      target_email = @order.metadata&.dig('credentials_email').presence
+      UsaEsimMailer.with(
+        owner: @actor,
+        credentials: creds,
+        order: @order,
+        target_email: target_email
+      ).credentials_email.deliver_later
 
       @order.update!(status: 'active')
     end
@@ -469,8 +483,13 @@ class OrderProvisioningService
       metadata: { server: @product.metadata&.dig('server') }
     )
 
+    target_email = @order.metadata&.dig('credentials_email').presence
     owner = @actor || @order.orderable
-    VpnMailer.with(owner: owner, vpn_account: vpn_account).credentials_email.deliver_later
+    VpnMailer.with(
+      owner: owner,
+      vpn_account: vpn_account,
+      target_email: target_email
+    ).credentials_email.deliver_later
 
     @order.activate!
   end

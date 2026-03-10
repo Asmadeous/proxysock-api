@@ -76,7 +76,7 @@ module Admin
         if @reseller.infrastructure? && !@reseller.earnings_wallet
           @reseller.create_earnings_wallet!(wallet_type: 'earnings')
         end
-        @reseller.generate_dedicated_api_key if @reseller.infrastructure? && @reseller.dedicated_api_key.blank?
+        @reseller.generate_dedicated_api_key if @reseller.dedicated_api_key.blank?
         @reseller.save! if @reseller.changed?
         credentials = @reseller.api_credentials
         record_audit_log('reseller.onboarded', @reseller)

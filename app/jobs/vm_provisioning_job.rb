@@ -59,7 +59,24 @@ class VmProvisioningJob < ApplicationJob
     # Get owner from VM order (order.orderable is polymorphic - User or Reseller)
     owner = vm.vm_order&.order&.orderable
     if owner
-      VmMailer.with(owner: owner, vm: vm).credentials_email.deliver_later
+      target_email = vm.vm_order&.order&.metadata&.dig('credentials_email').presence
+      VmMailer.with(owner: owner, vm: vm, target_email: target_email).credentials_email.deliver_later
+
+      if owner.is_a?(Reseller)
+        payload = {
+          order_id: vm.vm_order.order_id,
+          vm_id: vm.id,
+          ip_address: vm.ip_address,
+          status: 'active',
+          credentials: {
+            username: vm.ssh_username,
+            password: vm.root_password,
+            port: vm.rdp_port || vm.ssh_port
+          }
+        }
+        WebhookDispatchWorker.perform_later(owner.id, 'credentials.ready', payload)
+      end
+
       NotificationService.notify(
         recipient: owner,
         category: 'success',

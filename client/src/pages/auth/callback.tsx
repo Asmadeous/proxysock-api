@@ -36,11 +36,15 @@ export default function AuthCallback() {
 
         // Check for OAuth callback params (token from Rails OAuth flow)
         const oauthToken = searchParams.get('auth_token');
+        const target = searchParams.get('target') || '/dashboard';
+
         if (oauthToken) {
           storeSession(oauthToken);
           updateLastActivity();
           toast.success('Welcome! You have been signed in.');
-          setTimeout(() => navigate('/dashboard'), 1000);
+
+          // Clear URL params and navigate to target
+          setTimeout(() => navigate(target), 1000);
           return;
         }
 

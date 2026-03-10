@@ -45,8 +45,6 @@ const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/auth/VerifyEmail"));
 
 // ─── Payment result pages ────────────────────────────────────
-const DepositSuccess = lazy(() => import("./pages/payments/DepositSuccess"));
-const DepositFailed = lazy(() => import("./pages/payments/DepositFailed"));
 const PaymentSuccess = lazy(() => import("./pages/payments/PaymentSuccess"));
 const PaymentFailed = lazy(() => import("./pages/payments/PaymentFailed"));
 
@@ -226,8 +224,6 @@ export default function App() {
               <Route path="/reseller" element={<ResellerDashboard />} />
 
               {/* Payment Results */}
-              <Route path="/deposit/success" element={<DepositSuccess />} />
-              <Route path="/deposit/failed" element={<DepositFailed />} />
               <Route
                 path="/payments/success"
                 element={<PaymentSuccess clearCart={() => { }} />}

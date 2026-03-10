@@ -52,9 +52,9 @@ export default function RDPPage() {
     },
     offers: {
       "@type": "AggregateOffer",
-      priceCurrency: "CAD",
-      lowPrice: "28.00",
-      highPrice: "208.00",
+      priceCurrency: "USD",
+      lowPrice: "40.00",
+      highPrice: "220.00",
       offerCount: "4",
     },
   };
@@ -64,7 +64,7 @@ export default function RDPPage() {
     "@type": "WebPage",
     name: "Residential RDP Hosting - Windows & Linux Remote Desktop | ProxySock",
     description:
-      "Get residential RDP hosting with real IPs for trading bots, automation, and remote desktop access. Windows Server 2022, Ubuntu, Fedora. Starting from $28 CAD.",
+      "Get residential RDP hosting with real IPs for trading bots, automation, and remote desktop access. Windows Server 2022, Ubuntu, Fedora. Starting from $40 USD.",
     url: globalThis.location?.href,
   };
 
@@ -74,11 +74,11 @@ export default function RDPPage() {
         {/* Enhanced SEO meta tags */}
         <title>
           Residential RDP Hosting - Windows & Linux Remote Desktop | ProxySock -
-          99.9% Uptime
+          99.9% Uptime Guaranteed
         </title>
         <meta
           name="description"
-          content="Get residential RDP hosting with real IPs for trading bots, automation, and remote desktop access. Windows Server 2022, Ubuntu, Fedora. Starting from $28 CAD."
+          content="Get residential RDP hosting with real IPs for trading bots, automation, and remote desktop access. Windows Server 2022, Ubuntu, Fedora. Starting from $40 USD."
         />
         <meta
           name="keywords"

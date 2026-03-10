@@ -59,7 +59,7 @@ export const RDPCTA = ({ trackConversion }: RDPCTAProps) => {
             <ArrowRightIcon className="h-5 w-5 ml-2" />
           </Link>
           <p className="mt-4 text-primary-foreground/80 text-sm">
-            Starting at $28 CAD • Instant setup • Full admin access • Cancel
+            Starting at $40 USD • Instant setup • Full admin access • Cancel
             anytime
           </p>
         </motion.div>

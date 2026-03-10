@@ -213,7 +213,12 @@ Rails.application.routes.draw do
         post :assign, on: :member
       end
 
-      resources :products
+      resources :products do
+        collection do
+          post :sync_inhouse
+          post :sync_external
+        end
+      end
 
       resources :tickets, only: %i[index show update] do
         member do
