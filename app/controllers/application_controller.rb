@@ -77,4 +77,28 @@ class ApplicationController < ActionController::API
       message: exception.message
     }, status: :bad_request
   end
+
+  def redirect_to_frontend(path, options = {})
+    frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+    target = if path.start_with?('http')
+               path
+             else
+               "#{frontend_url}#{path.start_with?('/') ? '' : '/'}#{path}"
+             end
+
+    # Validate host against allowed frontend URL
+    begin
+      target_uri = URI.parse(target)
+      allowed_uri = URI.parse(frontend_url)
+
+      if target_uri.host == allowed_uri.host && target_uri.port == allowed_uri.port
+        redirect_to target, options.merge(allow_other_host: true)
+      else
+        Rails.logger.warn "Blocked unsafe redirect to: #{target}"
+        render json: { error: 'Unsafe redirect blocked' }, status: :forbidden
+      end
+    rescue URI::InvalidURIError
+      render json: { error: 'Invalid redirect URL' }, status: :bad_request
+    end
+  end
 end

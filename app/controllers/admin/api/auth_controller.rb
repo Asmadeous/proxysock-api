@@ -18,15 +18,12 @@ module Admin
           employee.update(last_login_at: Time.current)
           token = employee.generate_jwt
 
-          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-          redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}&target=/admin", allow_other_host: true
+          redirect_to_frontend "/auth/callback?auth_token=#{token}&target=/admin"
         rescue SecurityError => e
-          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-          redirect_to "#{frontend_url}/admin/login?error=#{CGI.escape(e.message)}", allow_other_host: true
+          redirect_to_frontend "/admin/login?error=#{CGI.escape(e.message)}"
         rescue StandardError => e
           Rails.logger.error "Zoho Auth Error: #{e.message}"
-          frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-          redirect_to "#{frontend_url}/admin/login?error=auth_failed", allow_other_host: true
+          redirect_to_frontend '/admin/login?error=auth_failed'
         end
       end
 
