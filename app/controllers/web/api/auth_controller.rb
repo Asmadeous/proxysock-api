@@ -64,16 +64,14 @@ module Web
       def google_callback
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
-
+ 
         user.update(last_login_at: Time.current)
         token = user.generate_jwt
-
-        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-        redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}", allow_other_host: true
+ 
+        redirect_to_frontend "/auth/callback?auth_token=#{token}"
       rescue StandardError => e
         Rails.logger.error "OAuth Callback Error: #{e.message}"
-        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-        redirect_to "#{frontend_url}/login?error=oauth_failed", allow_other_host: true
+        redirect_to_frontend '/login?error=oauth_failed'
       end
 
       # GET /web/api/auth/twitter (redirect to OAuth)
@@ -85,16 +83,14 @@ module Web
       def twitter_callback
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
-
+ 
         user.update(last_login_at: Time.current)
         token = user.generate_jwt
-
-        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-        redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}", allow_other_host: true
+ 
+        redirect_to_frontend "/auth/callback?auth_token=#{token}"
       rescue StandardError => e
         Rails.logger.error "OAuth Callback Error: #{e.message}"
-        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-        redirect_to "#{frontend_url}/login?error=oauth_failed", allow_other_host: true
+        redirect_to_frontend '/login?error=oauth_failed'
       end
 
       # GET /web/api/auth/me - Get current user
