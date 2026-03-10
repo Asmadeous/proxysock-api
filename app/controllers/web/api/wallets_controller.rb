@@ -91,26 +91,27 @@ module Web
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
-            order_number: deposit.metadata['transaction_ref'],
             amount: amount,
             currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
             email: current_actor.email
           )
-          { url: result[:invoice_url], amount: amount, currency: 'USD' }
+          { url: result[:url], amount: amount, currency: 'USD' }
 
         when 'payvra'
           service = PayvraService.new
-          result = service.create_payment(
+          result = service.create_invoice(
             amount: amount,
             currency: currency,
-            reference: deposit.metadata['transaction_ref'],
-            callback_url: callback_url
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_actor.email
           )
-          # Store Payvra's invoice_id so DepositSyncService can verify via their API later.
-          deposit.metadata['payvra_invoice_id'] = result[:invoice_id]
+          # Store Payvra's txn_id (invoice id) so DepositSyncService can verify via their API later.
+          deposit.metadata['payvra_invoice_id'] = result[:txn_id]
           deposit.save!
-          { url: result[:payment_url], amount: amount, currency: 'USD' }
+          { url: result[:url], amount: amount, currency: 'USD' }
         end
       end
     end

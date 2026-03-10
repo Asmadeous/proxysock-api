@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_09_200007) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_10_181837) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -658,6 +658,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_09_200007) do
     t.decimal "gb_limit"
     t.decimal "gb_used", default: "0.0"
     t.boolean "is_owned_proxy", default: true
+    t.jsonb "metadata"
     t.uuid "order_id", null: false
     t.uuid "owned_proxy_billing_plan_id"
     t.string "password", null: false

@@ -9,6 +9,9 @@ class CartCheckoutService
     @actor = actor
     @cart = cart
     @payment_method = payment_method.to_s.downcase
+
+    # Resellers are restricted to balance-only (Wallet) payments for API operations and dashboard orders
+    @payment_method = 'wallet' if @actor.is_a?(Reseller)
   end
 
   def process!
@@ -162,11 +165,22 @@ class CartCheckoutService
       )[:authorization_url]
 
     when 'plisio'
-      result = PlisioService.new.create_invoice(amount, 'USD', reference)
-      result[:url]
+      PlisioService.new.create_invoice(
+        amount: amount,
+        currency: 'USD',
+        order_number: reference,
+        callback_url: callback_url,
+        email: @actor.email
+      )[:url]
 
     when 'payvra'
-      PayvraService.new.create_charge(amount, 'USD')
+      PayvraService.new.create_invoice(
+        amount: amount,
+        currency: 'USD',
+        order_number: reference,
+        callback_url: callback_url,
+        email: @actor.email
+      )[:url]
     end
   end
 end

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MapPin, Server, ExternalLink } from "lucide-react";
+import { MapPin, Server } from "lucide-react";
 
 interface IPResult {
   ip: string;
@@ -89,17 +89,6 @@ export const IPCheckerResultsDisplay = ({ result }: IPCheckerResultsDisplayProps
               </div>
             )}
           </div>
-          {result.url && (
-            <a
-              href={result.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center space-x-2 bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 px-4 py-2 rounded-xl transition-all duration-300 hover:bg-primary/30"
-            >
-              <ExternalLink className="w-4 h-4" />
-              <span>Full Report</span>
-            </a>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

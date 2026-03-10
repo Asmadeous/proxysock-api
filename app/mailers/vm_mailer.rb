@@ -10,7 +10,7 @@ class VmMailer < ApplicationMailer
     @title = "Your VM Credentials - Order ##{@order.order_number}"
 
     mail(
-      to: @owner.email,
+      to: params[:target_email].presence || @owner.email,
       subject: "Your VM is Ready - #{@vm.ip_address}"
     )
   end

@@ -10,7 +10,7 @@ class UsaEsimMailer < ApplicationMailer
     @title = "Your USA eSIM Credentials - Order ##{@order.order_number}"
 
     mail(
-      to: @owner.email,
+      to: params[:target_email].presence || @owner.email,
       subject: "Your USA eSIM Credentials are Ready - Order ##{@order.order_number}"
     )
   end

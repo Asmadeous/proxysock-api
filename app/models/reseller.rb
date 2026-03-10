@@ -44,7 +44,7 @@ class Reseller < ApplicationRecord
   end
 
   before_create :generate_api_key
-  before_create :generate_dedicated_api_key, if: :infrastructure?
+  before_create :generate_dedicated_api_key, if: -> { infrastructure? || dedicated_api_key.present? }
 
   # Price multiplier based on tier (infrastructure has a surcharge for overhead)
   def price_multiplier
@@ -88,7 +88,7 @@ class Reseller < ApplicationRecord
 
   # API credentials based on tier
   def api_credentials
-    if infrastructure?
+    if dedicated_api_key.present?
       {
         reseller_id: id,
         username: username,

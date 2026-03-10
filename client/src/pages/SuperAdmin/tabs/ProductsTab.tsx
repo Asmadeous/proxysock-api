@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { PlusIcon, PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon, CloudArrowDownIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
-import { fetchAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct } from "../../../services/adminApi";
+import {
+    fetchAdminProducts,
+    createAdminProduct,
+    updateAdminProduct,
+    deleteAdminProduct,
+    syncInhouseProducts,
+    syncExternalProducts
+} from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 
 interface ProductRow {
@@ -116,6 +123,34 @@ export default function ProductsTab() {
         }
     };
 
+    const handleSyncInhouse = async () => {
+        if (!window.confirm("Sync in-house products from local data file?")) return;
+        setActionLoading(true);
+        try {
+            await syncInhouseProducts();
+            toast.success("In-house products synced");
+            load();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Failed to sync in-house products");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleSyncExternal = async () => {
+        if (!window.confirm("Sync external products from MyProxyApi & eSIM Access? This might take a few moments.")) return;
+        setActionLoading(true);
+        try {
+            await syncExternalProducts();
+            toast.success("External products synced");
+            load();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Failed to sync external products");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const columns = [
         { key: "id", label: "ID", render: (row: ProductRow) => <span className="text-muted-foreground">#{row.id}</span> },
         {
@@ -135,9 +170,27 @@ export default function ProductsTab() {
         <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <h2 className="text-2xl font-bold text-foreground">Products Management</h2>
-                <button onClick={() => openModal("create")} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors text-foreground rounded-xl text-sm font-medium">
-                    <PlusIcon className="h-5 w-5" /> Add Product
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSyncInhouse}
+                        disabled={actionLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 transition-colors rounded-xl text-sm font-medium disabled:opacity-50"
+                        title="Load local in-house products"
+                    >
+                        <CloudArrowDownIcon className="h-5 w-5" /> In-House Sync
+                    </button>
+                    <button
+                        onClick={handleSyncExternal}
+                        disabled={actionLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 transition-colors rounded-xl text-sm font-medium disabled:opacity-50"
+                        title="Sync from external APIs"
+                    >
+                        <ArrowPathIcon className="h-5 w-5" /> External Sync
+                    </button>
+                    <button onClick={() => openModal("create")} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors text-foreground rounded-xl text-sm font-medium">
+                        <PlusIcon className="h-5 w-5" /> Add Product
+                    </button>
+                </div>
             </div>
 
             <DataTable

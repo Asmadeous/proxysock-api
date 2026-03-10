@@ -53,9 +53,9 @@ export default function VPSPage() {
     },
     offers: {
       "@type": "AggregateOffer",
-      priceCurrency: "CAD",
-      lowPrice: "23.00",
-      highPrice: "88.00",
+      priceCurrency: "USD",
+      lowPrice: "35.00",
+      highPrice: "100.00",
       offerCount: "4",
     },
   };
@@ -63,9 +63,9 @@ export default function VPSPage() {
   const webPageData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Residential VPS Hosting - Windows & Linux Virtual Private Servers | ProxySock",
+    name: "Residential VPS Hosting - Real IPs, High Performance | ProxySock",
     description:
-      "Get residential VPS hosting with real IPs for web scraping, automation, and development. Windows Server 2022, Ubuntu, Fedora. Starting from $23 CAD.",
+      "Get residential VPS hosting with real IPs for web scraping, automation, and development. Starting from $35 USD.",
     url: globalThis.location?.href,
   };
 
@@ -74,12 +74,12 @@ export default function VPSPage() {
       <Helmet>
         {/* Enhanced SEO meta tags */}
         <title>
-          Residential VPS Hosting - Windows & Linux Virtual Private Servers |
-          ProxySock - 99.9% Uptime
+          Residential VPS Hosting - Real IPs, High Performance | ProxySock -
+          99.9% Uptime Guaranteed
         </title>
         <meta
           name="description"
-          content="Get residential VPS hosting with real IPs for web scraping, automation, and development. Windows Server 2022, Ubuntu, Fedora. Starting from $23 CAD."
+          content="Get residential VPS hosting with real IPs for web scraping, automation, and development. Starting from $35 USD."
         />
         <meta
           name="keywords"

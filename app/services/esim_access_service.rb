@@ -27,7 +27,7 @@ class EsimAccessService
         { packageCode: package_code, count: count, price: price }
       ]
     }
-    response = request(:post, '/order/profiles', body)
+    response = request(:post, '/esim/order', body)
 
     return response['obj'].merge('transactionId' => transaction_id) if response['success'] == true
 

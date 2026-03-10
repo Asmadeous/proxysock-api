@@ -424,6 +424,10 @@ export default function ResellersTab() {
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
                 </Field>
 
+                <Field label="Dedicated API Key">
+                    <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
+                </Field>
+
                 {/* Enterprise-only fields */}
                 {configForm.reseller_type === "infrastructure" && (
                     <>
@@ -435,9 +439,6 @@ export default function ResellersTab() {
                         </Field>
                         <Field label="Subscription Expires">
                             <input className={inputClasses} type="date" value={configForm.subscription_expires_at} onChange={(e) => setConfigForm({ ...configForm, subscription_expires_at: e.target.value })} />
-                        </Field>
-                        <Field label="Dedicated API Key">
-                            <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
                         </Field>
                         <Field label="Customer Email (for invoices)">
                             <input className={inputClasses} type="email" value={configForm.customer_email} onChange={(e) => setConfigForm({ ...configForm, customer_email: e.target.value })} placeholder="customer@example.com" />

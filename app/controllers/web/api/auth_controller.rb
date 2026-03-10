@@ -68,13 +68,12 @@ module Web
         user.update(last_login_at: Time.current)
         token = user.generate_jwt
 
-        render json: {
-          message: 'Google login successful',
-          user: serialize_user(user),
-          token: token
-        }
+        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+        redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}", allow_other_host: true
       rescue StandardError => e
-        render json: { error: "OAuth failed: #{e.message}" }, status: :unprocessable_entity
+        Rails.logger.error "OAuth Callback Error: #{e.message}"
+        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+        redirect_to "#{frontend_url}/login?error=oauth_failed", allow_other_host: true
       end
 
       # GET /web/api/auth/twitter (redirect to OAuth)
@@ -90,13 +89,12 @@ module Web
         user.update(last_login_at: Time.current)
         token = user.generate_jwt
 
-        render json: {
-          message: 'Twitter login successful',
-          user: serialize_user(user),
-          token: token
-        }
+        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+        redirect_to "#{frontend_url}/auth/callback?auth_token=#{token}", allow_other_host: true
       rescue StandardError => e
-        render json: { error: "OAuth failed: #{e.message}" }, status: :unprocessable_entity
+        Rails.logger.error "OAuth Callback Error: #{e.message}"
+        frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
+        redirect_to "#{frontend_url}/login?error=oauth_failed", allow_other_host: true
       end
 
       # GET /web/api/auth/me - Get current user

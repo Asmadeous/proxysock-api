@@ -15,7 +15,6 @@ const vpnPlans = [
   {
     name: "Basic",
     price: "$15",
-    cadPrice: "$9.99",
     speed: "100 Mbps",
     locations: "10 Locations",
     devices: "2 Devices",
@@ -29,7 +28,6 @@ const vpnPlans = [
   {
     name: "Pro",
     price: "$25",
-    cadPrice: "$19.99",
     speed: "500 Mbps",
     locations: "30 Locations",
     devices: "5 Devices",
@@ -44,7 +42,6 @@ const vpnPlans = [
   {
     name: "Premium",
     price: "$35",
-    cadPrice: "$29.99",
     speed: "1 Gbps",
     locations: "50+ Locations",
     devices: "10 Devices",
@@ -58,7 +55,6 @@ const vpnPlans = [
   {
     name: "Ultimate",
     price: "$55",
-    cadPrice: "$49.99",
     speed: "Unlimited",
     locations: "50+ Locations",
     devices: "Unlimited",
@@ -102,9 +98,6 @@ export const VPNPlansSection = ({ trackConversion }: VPNPlansSectionProps) => {
               🌍 50+ Server Locations Worldwide: USA • UK • Germany • Canada •
               Australia • Japan • Singapore • More
             </p>
-            <span className="bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full font-manrope-bold">
-              🇨🇦 Best Prices in Canada!
-            </span>
           </div>
         </motion.div>
 
@@ -117,11 +110,10 @@ export const VPNPlansSection = ({ trackConversion }: VPNPlansSectionProps) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${
-                plan.popular
+              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${plan.popular
                   ? "border-primary shadow-lg shadow-primary/20"
                   : "border-border"
-              } relative`}
+                } relative`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -145,11 +137,6 @@ export const VPNPlansSection = ({ trackConversion }: VPNPlansSectionProps) => {
                   </span>
                   <span className="text-muted-foreground text-sm">
                     /month USD
-                  </span>
-                </div>
-                <div className="bg-primary/20 border border-primary/50 rounded px-2 py-1 inline-block">
-                  <span className="text-primary text-xs font-manrope-semibold">
-                    🇨🇦 {plan.cadPrice} CAD/mo
                   </span>
                 </div>
               </div>
@@ -181,11 +168,10 @@ export const VPNPlansSection = ({ trackConversion }: VPNPlansSectionProps) => {
                     "/dashboard/vpn"
                   )
                 }
-                className={`w-full block text-center px-4 py-2 rounded-md transition-colors text-sm font-manrope-semibold ${
-                  plan.name === "Ultimate"
+                className={`w-full block text-center px-4 py-2 rounded-md transition-colors text-sm font-manrope-semibold ${plan.name === "Ultimate"
                     ? "bg-green-600 text-white hover:bg-green-700"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
-                }`}
+                  }`}
               >
                 Get Started →
               </Link>

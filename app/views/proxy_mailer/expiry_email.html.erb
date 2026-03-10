@@ -1,0 +1,33 @@
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #000000;">Proxy Service Ended</h1>
+
+<p style="margin-bottom: 24px;">Dear <%= @owner.try(:username) || @owner.try(:email) %>,</p>
+
+<% if @reason.to_s == 'gb_depleted' %>
+  <p style="margin-bottom: 24px;">Your proxy for order <strong>#<%= @order.order_number %></strong> has been disconnected because <strong>your data allowance of <%= @assignment.gb_limit %> GB has been fully used</strong>.</p>
+
+  <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; color: #4B5563;">
+      <tr>
+        <td style="padding: 8px 0;">Data Used</td>
+        <td style="padding: 8px 0; text-align: right; color: #DC2626; font-weight: 600;"><%= @assignment.gb_used %> GB / <%= @assignment.gb_limit %> GB</td>
+      </tr>
+    </table>
+  </div>
+<% else %>
+  <p style="margin-bottom: 24px;">Your proxy for order <strong>#<%= @order.order_number %></strong> has been disconnected because <strong>your subscription period has expired</strong>.</p>
+
+  <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; color: #4B5563;">
+      <tr>
+        <td style="padding: 8px 0;">Expired At</td>
+        <td style="padding: 8px 0; text-align: right; color: #DC2626; font-weight: 600;"><%= @assignment.expires_at&.strftime('%B %d, %Y at %I:%M %p') %></td>
+      </tr>
+    </table>
+  </div>
+<% end %>
+
+<p style="margin-bottom: 24px;">To continue using our proxy services, please renew your subscription or purchase a new plan.</p>
+
+<div style="text-align: center; margin: 40px 0;">
+    <a href="<%= ENV['FRONTEND_URL'] %>/dashboard/orders" class="btn">Renew Now</a>
+</div>

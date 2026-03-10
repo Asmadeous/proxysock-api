@@ -62,6 +62,24 @@ module Admin
         head :no_content
       end
 
+      def sync_inhouse
+        InHouseProductSyncService.new.sync
+        render json: { message: 'In-house products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_external
+        # Sync MyProxyApi
+        ProductSyncService.new.sync_all_products
+        # Sync EsimAccess
+        EsimSyncService.new.sync_packages!
+        
+        render json: { message: 'External products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
       private
 
       def set_product

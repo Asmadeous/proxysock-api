@@ -17,20 +17,33 @@ class XProxyService
   def sync_proxies
     @logger.info('[XProxyService] Starting proxy sync...')
     begin
-      data = request(:get, '/api/v1/info_list')
-      unless data && data['data'].is_a?(Array)
-        log_system_event('sync_invalid_response', 'error', 'Invalid response from XProxy API during sync', { response: data })
-        return
-      end
+      sync_stats = { fetched: 0, updated: 0, created: 0, errors: 0 }
+      page = 1
+      limit = 50
 
-      proxies = data['data']
-      sync_stats = { fetched: proxies.length, updated: 0, created: 0, errors: 0 }
+      loop do
+        data = request(:get, "/api/v1/info_list?page=#{page}&limit=#{limit}")
+        unless data && data['data'].is_a?(Array)
+          log_system_event('sync_invalid_response', 'error', 'Invalid response from XProxy API during sync', { response: data })
+          break
+        end
 
-      proxies.each do |proxy_data|
-        process_proxy(proxy_data, sync_stats)
-      rescue StandardError => e
-        @logger.error("[XProxyService] Error processing proxy: #{e.message}")
-        sync_stats[:errors] += 1
+        proxies = data['data']
+        break if proxies.empty?
+
+        sync_stats[:fetched] += proxies.length
+
+        proxies.each do |proxy_data|
+          process_proxy(proxy_data, sync_stats)
+        rescue StandardError => e
+          @logger.error("[XProxyService] Error processing proxy: #{e.message}")
+          sync_stats[:errors] += 1
+        end
+
+        total = data['total'].to_i
+        break if sync_stats[:fetched] >= total
+
+        page += 1
       end
 
       log_system_event('sync_completed', 'info', "Proxy sync completed: #{sync_stats[:created]} created, #{sync_stats[:updated]} updated", { stats: sync_stats })
@@ -109,16 +122,73 @@ class XProxyService
 
   def cleanup_expired
     @logger.info('[XProxyService] Running cleanup of expired assignments...')
+    disconnected = 0
+
     ProxyAssignment.active.find_each do |assignment|
-      if assignment.expired?
-        @logger.info("[XProxyService] Disconnecting expired assignment #{assignment.id}")
-        assignment.disconnect!
-        # Potential XProxy API call to remote credentials here
-      end
+      next unless assignment.expired?
+
+      reason = assignment.expiry_reason
+      @logger.info("[XProxyService] Disconnecting assignment #{assignment.id} (#{reason})")
+
+      assignment.disconnect!(reason: reason)
+      invalidate_proxy_sessions(assignment.proxy_instance.proxy_address)
+      disconnected += 1
+    rescue StandardError => e
+      @logger.error("[XProxyService] Failed to disconnect assignment #{assignment.id}: #{e.message}")
     end
+
+    @logger.info("[XProxyService] Cleanup complete: #{disconnected} assignment(s) disconnected.")
+  end
+
+  # Call this from a controller or webhook whenever the user consumes data.
+  # gb_amount should be a Float (e.g. 0.5 for 500 MB).
+  # Returns true if the limit was just crossed — callers may want to surface
+  # a warning to the user immediately in that case.
+  def record_gb_usage!(assignment_id, gb_amount)
+    assignment = ProxyAssignment.active.find(assignment_id)
+    just_depleted = assignment.record_usage!(gb_amount)
+
+    if just_depleted
+      @logger.info("[XProxyService] GB limit reached for assignment #{assignment.id} — disconnecting")
+      assignment.disconnect!(reason: :gb_depleted)
+      invalidate_proxy_sessions(assignment.proxy_instance.proxy_address)
+    end
+
+    just_depleted
+  rescue ActiveRecord::RecordNotFound
+    @logger.warn("[XProxyService] record_gb_usage!: assignment #{assignment_id} not found or not active")
+    false
+  end
+
+  # Rotate IP for a proxy (format: "ip:port")
+  # GET /api/v1/rotate_ip/proxy/:proxy
+  def rotate_ip(proxy_address)
+    @logger.info("[XProxyService] Rotating IP for #{proxy_address}")
+    result = request(:get, "/api/v1/rotate_ip/proxy/#{proxy_address}")
+    log_system_event('rotate_ip', result['status'] ? 'info' : 'error', result['msg'], { proxy: proxy_address })
+    result
+  end
+
+  # Reboot the dongle at a given proxy address (format: "ip:port")
+  # GET /api/v1/reboot/proxy/:proxy
+  def reboot_dongle(proxy_address)
+    @logger.info("[XProxyService] Rebooting dongle at #{proxy_address}")
+    result = request(:get, "/api/v1/reboot/proxy/#{proxy_address}")
+    log_system_event('reboot_dongle', result['status'] ? 'info' : 'error', result['msg'], { proxy: proxy_address })
+    result
   end
 
   private
+
+  # Reboot the dongle to invalidate any live sessions after disconnect.
+  # Errors are swallowed so that one failed reboot doesn't block the rest
+  # of the cleanup loop.
+  def invalidate_proxy_sessions(proxy_address)
+    reboot_dongle(proxy_address)
+    @logger.info("[XProxyService] Invalidated sessions on #{proxy_address}")
+  rescue StandardError => e
+    @logger.error("[XProxyService] Failed to invalidate sessions on #{proxy_address}: #{e.message}")
+  end
 
   def calculate_expiry(order)
     # The frontend maps the desired "duration" or "GB" into the metadata['period'] block
@@ -138,10 +208,13 @@ class XProxyService
     proxy_port = data['proxy_port']
     return unless proxy_port
 
-    proxy_address = "74.208.234.109:#{proxy_port}" 
+    # Use the host returned by the API rather than a hardcoded IP
+    host = data['host'].presence || BASE_URL.gsub(%r{^https?://}, '')
+    proxy_address = "#{host}:#{proxy_port}"
+
     device_info = data['device_extra_info'] || {}
     provider_name = device_info['provider'] || 'unknown'
-    
+
     provider_to_isp_id = {
       'Bell' => '4', 'BELL' => '4',
       'Rogers' => '5', 'ROGERS' => '5',
@@ -151,7 +224,7 @@ class XProxyService
 
     metadata = {
       protocols: ['http', 'socks5'],
-      isp: provider_name.toLowerCase(),
+      isp: provider_name.downcase,
       isp_id: isp_id,
       device_type: data['device_manufacture'] || 'residential',
       http_port: data['proxy_port'],
@@ -159,6 +232,9 @@ class XProxyService
       public_ip: data['public_ip'],
       last_rotation: data['last_rotation'],
       device_imei: data['device_imei'],
+      signal_strength: device_info['signal_strength'],
+      network_mode: device_info['network_mode'],
+      sim_live: device_info['sim_live'],
       sync_source: 'xproxy_api'
     }
 
@@ -184,13 +260,15 @@ class XProxyService
   end
 
   def send_credentials_email(order, assignment, proxy_instance)
-    return unless order.orderable.is_a?(User)
+    target_email = order.metadata&.dig('credentials_email').presence
+    owner = order.orderable
 
     ProxyMailer.with(
-      owner: order.orderable,
+      owner: owner,
       proxy: proxy_instance,
       order: order,
-      assignment: assignment
+      assignment: assignment,
+      target_email: target_email
     ).credentials_email.deliver_later
   rescue StandardError => e
     @logger.error("[XProxyService] Email failed: #{e.message}")
@@ -207,8 +285,11 @@ class XProxyService
     http.use_ssl = uri.scheme == 'https'
 
     req = case method
-          when :get then Net::HTTP::Get.new(uri)
-          when :post then Net::HTTP::Post.new(uri)
+          when :get    then Net::HTTP::Get.new(uri)
+          when :post   then Net::HTTP::Post.new(uri)
+          when :put    then Net::HTTP::Put.new(uri)
+          when :delete then Net::HTTP::Delete.new(uri)
+          else raise ArgumentError, "Unsupported HTTP method: #{method}"
           end
 
     req.basic_auth(USERNAME, PASSWORD)

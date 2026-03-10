@@ -33,13 +33,16 @@ import { useNavigate } from "react-router-dom";
 import backgroundNode from "@/assets/images/backgroundNode.webp";
 import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
 import { useThemeStore } from "@/store/themeStore";
+import api from '../../services/api';
 
 export default function ResellerProgram() {
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         company: "",
-        interest: "", // vps, rdp, both
+        resellerType: "api_only", // api_only, dedicated_infrastructure
+        productsWanted: [] as string[],
+        interest: "", // kept for legacy if needed, but we use productsWanted now
         volume: "",
         message: "",
     });
@@ -61,12 +64,28 @@ export default function ResellerProgram() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulator API call
         try {
-            // In a real implementation, this would POST to your backend
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            // Prepare the inquiry message
+            const inquiryMessage = `
+Reseller Inquiry:
+-----------------
+Name: ${formData.name}
+Email: ${formData.email}
+Company: ${formData.company}
+Reseller Type: ${formData.resellerType === 'api_only' ? 'API Only' : 'Dedicated Infrastructure'}
+Products Wanted: ${formData.productsWanted.join(', ')}
+Expected Volume: ${formData.volume}
+Additional Info: ${formData.message || 'N/A'}
+            `.trim();
 
-            console.log("Reseller Application:", formData);
+            // Submit via Guest Chat API (publicly accessible)
+            await api.post('/api/v1/guest_chats', {
+                guest_name: formData.name,
+                guest_email: formData.email,
+                subject: `New Reseller Application: ${formData.company}`,
+                message: inquiryMessage
+            });
+
             toast.success("Application Submitted!", {
                 description: "Our partnership team will review your details and contact you shortly.",
             });
@@ -75,6 +94,8 @@ export default function ResellerProgram() {
                 name: "",
                 email: "",
                 company: "",
+                resellerType: "api_only",
+                productsWanted: [],
                 interest: "",
                 volume: "",
                 message: "",
@@ -347,18 +368,17 @@ export default function ResellerProgram() {
 
                                 <div className="grid sm:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <Label htmlFor="interest">Product Interest</Label>
+                                        <Label htmlFor="resellerType">Reseller Type</Label>
                                         <Select
-                                            value={formData.interest}
-                                            onValueChange={(val) => handleSelectChange("interest", val)}
+                                            value={formData.resellerType}
+                                            onValueChange={(val) => handleSelectChange("resellerType", val)}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select Products" />
+                                                <SelectValue placeholder="Select Reseller Type" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="vps">VPS Only</SelectItem>
-                                                <SelectItem value="rdp">RDP Only</SelectItem>
-                                                <SelectItem value="both">Both VPS & RDP</SelectItem>
+                                                <SelectItem value="api_only">API Only (Rotational Tokens)</SelectItem>
+                                                <SelectItem value="dedicated_infrastructure">Dedicated Infrastructure</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -378,6 +398,39 @@ export default function ResellerProgram() {
                                                 <SelectItem value="10k+">$10,000+</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Products Wanted</Label>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-xl border border-border/50">
+                                        {[
+                                            { id: 'vps', label: 'VPS' },
+                                            { id: 'rdp', label: 'RDP' },
+                                            { id: 'proxy', label: 'Proxies' },
+                                            { id: 'vpn', label: 'VPN' },
+                                            { id: 'esim', label: 'eSIM' }
+                                        ].map((product) => (
+                                            <label key={product.id} className="flex items-center gap-2 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                                                    checked={formData.productsWanted.includes(product.id)}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            productsWanted: checked
+                                                                ? [...prev.productsWanted, product.id]
+                                                                : prev.productsWanted.filter(id => id !== product.id)
+                                                        }));
+                                                    }}
+                                                />
+                                                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                                                    {product.label}
+                                                </span>
+                                            </label>
+                                        ))}
                                     </div>
                                 </div>
 

@@ -276,7 +276,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
     }
 
     // Handle payment result pages
-    if (pathname === "/deposit/success") {
+    if (pathname === "/payments/success") {
       return {
         title: `Payment Successful - ${siteName}`,
         description: "Your payment has been processed successfully.",
@@ -284,7 +284,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
       };
     }
 
-    if (pathname === "/deposit/failed") {
+    if (pathname === "/payments/failed") {
       return {
         title: `Payment Failed - ${siteName}`,
         description: "There was an issue processing your payment.",

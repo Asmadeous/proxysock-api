@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import backgroundNode from "@/assets/images/backgroundNode.webp";
 import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
 import { useThemeStore } from "@/store/themeStore";
+import api from "../../services/api";
 
 import {
   IPCheckerHeroSection,
@@ -17,6 +18,7 @@ import {
   IPCheckerCurrencyCard,
   IPCheckerCarrierCard,
   IPCheckerAdvancedFeatures,
+  IPCheckerAdvancedIntelligence,
 } from "../../components/landing/tools/IPChecker";
 
 interface IPResult {
@@ -149,6 +151,17 @@ interface IPResult {
   score?: number;
   risk?: string;
   url?: string;
+
+  // Backwards compatibility mapping
+  ip_country_name?: string;
+  ip_country_code?: string;
+  ip_state_name?: string;
+  ip_city?: string;
+  ip_postcode?: string;
+  ISP_Name?: string;
+  ISP_Fraud_Score?: number;
+  proxy_type?: string;
+  connection_type?: string;
 }
 
 export default function ModernIPChecker() {
@@ -165,38 +178,22 @@ export default function ModernIPChecker() {
     const autoAnalyzeIP = async () => {
       try {
         setLoading(true);
-        setLoadingStage("Detecting your IP address...");
+        setLoadingStage("Detecting and analyzing your public IP address...");
 
-        // Call Rails API directly
-        const response = await fetch(
-          `/web/api/tools/ip_checker`,
-          {
-            method: "GET",
-            headers: { Accept: "application/json" },
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Auto-detection failed");
-        }
-
-        setLoadingStage("Processing comprehensive analysis...");
-        await new Promise((resolve) => setTimeout(resolve, 500)); // UX delay
-
-        const data: IPResult = await response.json();
+        // Rely purely on server-side detection for auto-analyze
+        const response = await api.get(`/web/api/tools/ip_checker`);
+        const data: IPResult = response.data;
 
         if (data.error) {
           setError(data.error);
         } else {
-          // Set the detected IP in the input field
           setIpAddress(data.ip);
           setResult(data);
         }
       } catch (err: any) {
         console.error("Auto analysis failed:", err);
         setError(
-          err.message || "Failed to automatically analyze your IP address"
+          err.response?.data?.error || err.message || "Failed to automatically analyze your IP address"
         );
       } finally {
         setLoading(false);
@@ -215,20 +212,10 @@ export default function ModernIPChecker() {
     setLoadingStage("Analyzing IP address...");
 
     try {
-      const response = await fetch(
-        `/web/api/tools/ip_checker?ip=${ipAddress.trim()}`,
-        {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Analysis failed");
-      }
-
-      const data: IPResult = await response.json();
+      const response = await api.get(`/web/api/tools/ip_checker`, {
+        params: { ip: ipAddress.trim() }
+      });
+      const data: IPResult = response.data;
 
       if (data.error) {
         setError(data.error);
@@ -236,9 +223,8 @@ export default function ModernIPChecker() {
         setResult(data);
       }
     } catch (err: any) {
-      setError(
-        err.message || "An error occurred while analyzing the IP address"
-      );
+      const errorMessage = err.response?.data?.error || err.message || "An error occurred while analyzing the IP address";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -275,15 +261,13 @@ export default function ModernIPChecker() {
           </div>
         </div>
 
-        {/* Search Interface - Only show if results are displayed */}
-        {result && (
-          <IPCheckerSearchInterface
-            ipAddress={ipAddress}
-            setIpAddress={setIpAddress}
-            handleManualSearch={handleManualSearch}
-            loading={loading}
-          />
-        )}
+        {/* Search Interface - Always show this to allow scanning another IP */}
+        <IPCheckerSearchInterface
+          ipAddress={ipAddress}
+          setIpAddress={setIpAddress}
+          handleManualSearch={handleManualSearch}
+          loading={loading}
+        />
 
         {/* Error Display */}
         {error && <IPCheckerErrorDisplay error={error} />}
@@ -312,7 +296,14 @@ export default function ModernIPChecker() {
               {result.carrier && <IPCheckerCarrierCard carrier={result.carrier} />}
             </div>
 
-            {/* Advanced Features */}
+            {/* Advanced Intelligence Section (Full Report details) */}
+            <IPCheckerAdvancedIntelligence
+              company={result.company}
+              languages={result.languages}
+              asnDetails={result.asn_details}
+            />
+
+            {/* Advanced Features (Threats/Blocklists) */}
             <IPCheckerAdvancedFeatures
               scores={result.threat?.scores}
               blocklists={result.threat?.blocklists}
