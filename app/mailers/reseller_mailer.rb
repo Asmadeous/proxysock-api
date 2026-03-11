@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class ResellerMailer < ApplicationMailer
-  default from: 'noreply@proxysock.com'
 
   def welcome_email
     @reseller = params[:reseller]

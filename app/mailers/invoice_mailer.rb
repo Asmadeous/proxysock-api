@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class InvoiceMailer < ApplicationMailer
-  default from: ENV.fetch('SMTP_FROM_EMAIL', 'noreply@proxysock.com')
 
   # Sent when an order transitions to 'processing'
   def invoice_email
