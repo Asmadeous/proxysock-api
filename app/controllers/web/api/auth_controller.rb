@@ -2,9 +2,12 @@
 
 module Web
   module Api
-    class AuthController < BaseController
-      include ActionController::RequestForgeryProtection
-      include ActionController::Helpers
+    class AuthController < ActionController::Base
+      include JwtAuthenticated
+      include ErrorHandling
+      # By default, Base includes forgery protection. 
+      # We skip it for API JSON requests using JWT, but keep it for browser-based SSO forms.
+      protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
       # POST /web/api/auth/register
       skip_before_action :authenticate_request,
                          only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter

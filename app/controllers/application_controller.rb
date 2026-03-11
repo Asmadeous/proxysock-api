@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::API
-  # Order matters: standard error is catch-all
-  rescue_from StandardError, with: :handle_standard_error
-  rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
-  rescue_from ActionController::ParameterMissing, with: :handle_bad_request
+  include ErrorHandling
 
   before_action :update_last_seen_at
 
@@ -14,7 +11,6 @@ class ApplicationController < ActionController::API
     actor = if defined?(current_employee) && current_employee
               current_employee
             elsif defined?(current_user) && current_user
-              current_user
             elsif defined?(current_reseller) && current_reseller
               current_reseller
             end
@@ -32,7 +28,6 @@ class ApplicationController < ActionController::API
     actor = if defined?(current_employee) && current_employee
               current_employee
             elsif defined?(current_user) && current_user
-              current_user
             elsif defined?(current_reseller) && current_reseller
               current_reseller # If resellers can trigger audits
             else
@@ -52,64 +47,5 @@ class ApplicationController < ActionController::API
   rescue StandardError => e
     Rails.logger.error "Audit Log Failed: #{e.message}"
   end
-
-  def handle_standard_error(exception)
-    # Report to Sentry
-    Sentry.capture_exception(exception)
-
-    # Generic response
-    render json: {
-      error: 'Internal Server Error',
-      request_id: request.request_id
-    }, status: :internal_server_error
-  end
-
-  def handle_not_found(exception)
-    render json: {
-      error: 'Not Found',
-      message: exception.message # Safe to expose "Couldn't find X with id=Y" usually, or obscure it.
-    }, status: :not_found
-  end
-
-  def handle_bad_request(exception)
-    render json: {
-      error: 'Bad Request',
-      message: exception.message
-    }, status: :bad_request
-  end
-
-  def redirect_to_frontend(path, options = {})
-    frontend_url = ENV.fetch('FRONTEND_URL', 'http://localhost:3001')
-    target = if path.start_with?('http')
-               path
-             else
-               "#{frontend_url}#{path.start_with?('/') ? '' : '/'}#{path}"
-             end
-
-    # Validate host against allowed frontend URL
-    begin
-      target_uri = URI.parse(target)
-      allowed_uri = URI.parse(frontend_url)
-
-      # In development, we might be flexible with ports if the host is localhost/127.0.0.1
-      allowed_host = allowed_uri.host
-      target_host = target_uri.host
-      
-      is_local = ['localhost', '127.0.0.1'].include?(target_host) && 
-                 ['localhost', '127.0.0.1'].include?(allowed_host)
-
-      is_valid_host = target_host == allowed_host || (Rails.env.development? && is_local)
-      is_valid_port = target_uri.port == allowed_uri.port || (Rails.env.development? && is_local)
-
-      if is_valid_host && is_valid_port
-        redirect_to target, options.merge(allow_other_host: true)
-      else
-        Rails.logger.warn "Blocked unsafe redirect to: #{target} (Frontend URL: #{frontend_url})"
-        render json: { error: 'Unsafe redirect blocked', target: target }, status: :forbidden
-      end
-    rescue URI::InvalidURIError => e
-      Rails.logger.error "Invalid redirect URL: #{target} - #{e.message}"
-      render json: { error: 'Invalid redirect URL' }, status: :bad_request
-    end
-  end
+end
 end

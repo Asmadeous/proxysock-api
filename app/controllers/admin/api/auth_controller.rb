@@ -2,9 +2,10 @@
 
 module Admin
   module Api
-    class AuthController < ApplicationController
-      include ActionController::RequestForgeryProtection
-      include ActionController::Helpers
+    class AuthController < ActionController::Base
+      include JwtAuthenticated
+      include ErrorHandling
+      protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
       # GET /admin/api/auth/zoho (redirect to OAuth)
       # GET /admin/api/auth/zoho (redirect to OAuth via POST form)
       def zoho
