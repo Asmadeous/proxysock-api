@@ -130,11 +130,14 @@ class WebhooksController < ApplicationController
     ActiveRecord::Base.transaction do
       deposit.update!(status: 'completed', completed_at: Time.current)
 
-      deposit.depositable&.wallet&.credit!(paid_amount_usd, "Deposit via #{gateway}", {
-                                             gateway: gateway,
-                                             gateway_ref: reference,
-                                             paid_amount_usd: paid_amount_usd
-                                           })
+      wallet = deposit.depositable.wallet
+      raise "Wallet missing for #{deposit.depositable_type} #{deposit.depositable_id}" if wallet.nil?
+
+      wallet.credit!(paid_amount_usd, "Deposit via #{gateway}", {
+        gateway: gateway,
+        gateway_ref: reference,
+        paid_amount_usd: paid_amount_usd
+      })
     end
   end
 
