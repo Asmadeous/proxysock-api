@@ -77,7 +77,7 @@ services:
       - postgres_production_data:/var/lib/postgresql/data
     profiles: [ "prod" ]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U proxysock_api"]
+      test: ["CMD-SHELL", "pg_isready -U proxysock_api -d proxysock_api_production"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -175,7 +175,7 @@ services:
       - postgres_staging_data:/var/lib/postgresql/data
     profiles: [ "staging" ]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U proxysock_api"]
+      test: ["CMD-SHELL", "pg_isready -U proxysock_api -d proxysock_api_staging"]
       interval: 5s
       timeout: 5s
       retries: 5
