@@ -8,9 +8,14 @@ default: &default
 development:
   <<: *default
   database: cache
+
 test:
   <<: *default
 
-production:
-  database: cache
+staging:
   <<: *default
+  database: cache
+
+production:
+  <<: *default
+  database: cache
