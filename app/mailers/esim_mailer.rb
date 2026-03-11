@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class EsimMailer < ApplicationMailer
-  default from: ENV.fetch('SMTP_FROM_EMAIL', 'noreply@proxysock.com')
 
   def delivery_email
     @user = params[:user]

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class VpnMailer < ApplicationMailer
-  default from: ENV.fetch('SMTP_FROM_EMAIL', 'noreply@proxysock.com')
 
   def credentials_email
     @owner = params[:owner]
