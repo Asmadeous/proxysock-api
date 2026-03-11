@@ -11,6 +11,7 @@ class ApplicationController < ActionController::API
     actor = if defined?(current_employee) && current_employee
               current_employee
             elsif defined?(current_user) && current_user
+              current_user
             elsif defined?(current_reseller) && current_reseller
               current_reseller
             end
@@ -28,6 +29,7 @@ class ApplicationController < ActionController::API
     actor = if defined?(current_employee) && current_employee
               current_employee
             elsif defined?(current_user) && current_user
+              current_user
             elsif defined?(current_reseller) && current_reseller
               current_reseller # If resellers can trigger audits
             else
@@ -47,5 +49,4 @@ class ApplicationController < ActionController::API
   rescue StandardError => e
     Rails.logger.error "Audit Log Failed: #{e.message}"
   end
-end
 end
