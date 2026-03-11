@@ -3,9 +3,17 @@
 module Admin
   module Api
     class AuthController < ApplicationController
+      include ActionController::RequestForgeryProtection
+      include ActionController::Helpers
       # GET /admin/api/auth/zoho (redirect to OAuth)
+      # GET /admin/api/auth/zoho (redirect to OAuth via POST form)
       def zoho
-        redirect_to '/auth/zoho_oauth2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/zoho" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /admin/api/auth/zoho/callback
@@ -15,10 +23,14 @@ module Admin
         begin
           employee = Employee.from_omniauth(auth)
 
-          employee.update(last_login_at: Time.current)
-          token = employee.generate_jwt
-
-          redirect_to_frontend "/auth/callback?auth_token=#{token}&target=/admin"
+          if employee.persisted?
+            employee.update(last_login_at: Time.current)
+            token = employee.generate_jwt
+            redirect_to_frontend "/auth/callback?auth_token=#{token}&target=/admin"
+          else
+            Rails.logger.error "Zoho Auth Persistence Error: #{employee.errors.full_messages.join(', ')}"
+            redirect_to_frontend "/admin/login?error=registration_failed&message=#{CGI.escape(employee.errors.full_messages.first)}"
+          end
         rescue SecurityError => e
           redirect_to_frontend "/admin/login?error=#{CGI.escape(e.message)}"
         rescue StandardError => e

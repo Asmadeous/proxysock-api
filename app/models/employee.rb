@@ -37,7 +37,7 @@ class Employee < ApplicationRecord
       employee.first_name = auth.info.first_name || auth.info.name&.split&.first || 'Employee'
       employee.last_name = auth.info.last_name || auth.info.name&.split&.last || ''
       employee.password = SecureRandom.hex(16)
-      employee.role = 'staff' # Default role
+      employee.role = 'support' # Use valid role from ROLES
       employee.active = true
       employee.department = Department.find_or_create_by(name: 'General')
     end

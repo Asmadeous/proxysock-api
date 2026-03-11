@@ -91,13 +91,24 @@ class ApplicationController < ActionController::API
       target_uri = URI.parse(target)
       allowed_uri = URI.parse(frontend_url)
 
-      if target_uri.host == allowed_uri.host && target_uri.port == allowed_uri.port
+      # In development, we might be flexible with ports if the host is localhost/127.0.0.1
+      allowed_host = allowed_uri.host
+      target_host = target_uri.host
+      
+      is_local = ['localhost', '127.0.0.1'].include?(target_host) && 
+                 ['localhost', '127.0.0.1'].include?(allowed_host)
+
+      is_valid_host = target_host == allowed_host || (Rails.env.development? && is_local)
+      is_valid_port = target_uri.port == allowed_uri.port || (Rails.env.development? && is_local)
+
+      if is_valid_host && is_valid_port
         redirect_to target, options.merge(allow_other_host: true)
       else
-        Rails.logger.warn "Blocked unsafe redirect to: #{target}"
-        render json: { error: 'Unsafe redirect blocked' }, status: :forbidden
+        Rails.logger.warn "Blocked unsafe redirect to: #{target} (Frontend URL: #{frontend_url})"
+        render json: { error: 'Unsafe redirect blocked', target: target }, status: :forbidden
       end
-    rescue URI::InvalidURIError
+    rescue URI::InvalidURIError => e
+      Rails.logger.error "Invalid redirect URL: #{target} - #{e.message}"
       render json: { error: 'Invalid redirect URL' }, status: :bad_request
     end
   end

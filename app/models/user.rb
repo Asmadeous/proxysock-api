@@ -42,8 +42,16 @@ class User < ApplicationRecord
     where(provider: auth.provider, uid: auth.uid).first_or_create do |user|
       user.email = auth.info.email
       user.first_name = auth.info.first_name || auth.info.name&.split&.first || 'User'
-      user.last_name = auth.info.last_name || auth.info.name&.split&.last || ''
+      user.last_name = auth.info.last_name || auth.info.name&.split&.last
+      user.last_name = 'User' if user.last_name.blank?
       user.password = SecureRandom.hex(16) # Random password for SSO users
+      user.username = auth.info.nickname || auth.info.username || auth.info.email.split('@').first
+      
+      # Ensure username uniqueness if the split email is taken
+      if User.exists?(username: user.username)
+        user.username = "#{user.username}_#{SecureRandom.hex(4)}"
+      end
+
       user.email_verified_at = Time.current
       user.status = 'active'
     end

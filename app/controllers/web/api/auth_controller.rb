@@ -3,6 +3,8 @@
 module Web
   module Api
     class AuthController < BaseController
+      include ActionController::RequestForgeryProtection
+      include ActionController::Helpers
       # POST /web/api/auth/register
       skip_before_action :authenticate_request,
                          only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter
@@ -55,9 +57,14 @@ module Web
         end
       end
 
-      # GET /web/api/auth/google (redirect to OAuth)
+      # GET /web/api/auth/google (redirect to OAuth via POST form)
       def google
-        redirect_to '/auth/google_oauth2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/google_oauth2" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /web/api/auth/google/callback
@@ -65,18 +72,27 @@ module Web
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
  
-        user.update(last_login_at: Time.current)
-        token = user.generate_jwt
- 
-        redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        if user.persisted?
+          user.update(last_login_at: Time.current)
+          token = user.generate_jwt
+          redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        else
+          Rails.logger.error "Google OAuth Persistence Error: #{user.errors.full_messages.join(', ')}"
+          redirect_to_frontend "/login?error=registration_failed&message=#{CGI.escape(user.errors.full_messages.first)}"
+        end
       rescue StandardError => e
-        Rails.logger.error "OAuth Callback Error: #{e.message}"
+        Rails.logger.error "Google OAuth Callback Error: #{e.message}"
         redirect_to_frontend '/login?error=oauth_failed'
       end
 
-      # GET /web/api/auth/twitter (redirect to OAuth)
+      # GET /web/api/auth/twitter (redirect to OAuth via POST form)
       def twitter
-        redirect_to '/auth/twitter2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/twitter2" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /web/api/auth/twitter/callback
@@ -84,12 +100,16 @@ module Web
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
  
-        user.update(last_login_at: Time.current)
-        token = user.generate_jwt
- 
-        redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        if user.persisted?
+          user.update(last_login_at: Time.current)
+          token = user.generate_jwt
+          redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        else
+          Rails.logger.error "Twitter OAuth Persistence Error: #{user.errors.full_messages.join(', ')}"
+          redirect_to_frontend "/login?error=registration_failed&message=#{CGI.escape(user.errors.full_messages.first)}"
+        end
       rescue StandardError => e
-        Rails.logger.error "OAuth Callback Error: #{e.message}"
+        Rails.logger.error "Twitter OAuth Callback Error: #{e.message}"
         redirect_to_frontend '/login?error=oauth_failed'
       end
 
