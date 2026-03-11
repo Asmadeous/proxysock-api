@@ -12,8 +12,14 @@ class User < ApplicationRecord
   has_one :main_wallet, -> { where(wallet_type: 'main') }, as: :owner, class_name: 'Wallet'
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
 
+  after_create :initialize_wallet
+
   def wallet
-    main_wallet
+    main_wallet || create_main_wallet!(wallet_type: 'main')
+  end
+
+  def initialize_wallet
+    wallet
   end
   has_many :notifications, as: :recipient, dependent: :destroy
   has_one :affiliate, as: :affiliatable, dependent: :destroy
