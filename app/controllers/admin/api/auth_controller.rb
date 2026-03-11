@@ -5,7 +5,10 @@ module Admin
     class AuthController < ActionController::Base
       include JwtAuthenticated
       include ErrorHandling
+      # Skip forgery protection for API requests because of origin mismatch between domains
       protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
+      skip_forgery_protection if: -> { request.format.json? }
+
 
       skip_before_action :authenticate_request, only: %i[zoho zoho_callback login failure]
       # GET /admin/api/auth/zoho (redirect to OAuth)
