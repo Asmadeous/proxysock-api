@@ -13,8 +13,8 @@ module Api
           password: 'password123',
           reseller_type: 'api_only'
         )
-        # Create wallet for reseller
-        wallet = Wallet.create!(owner: @reseller)
+        # Use the automatically initialized wallet
+        wallet = @reseller.wallet
         txn = Transaction.create!(transactable: @reseller, reference: @reseller, amount: 500.0,
                                   transaction_type: 'credit', status: 'success', currency: 'USD', description: 'Init')
         wallet.credit!(500.0, 'Init', {}, txn)
