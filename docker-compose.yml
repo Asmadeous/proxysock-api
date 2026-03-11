@@ -104,7 +104,7 @@ services:
     env_file:
       - .env
     environment:
-      - RAILS_ENV=test
+      - RAILS_ENV=staging
       - DB_HOST=db-staging
       - DB_USERNAME=proxysock_api
       - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}
@@ -145,7 +145,7 @@ services:
     env_file:
       - .env
     environment:
-      - RAILS_ENV=test
+      - RAILS_ENV=staging
       - DB_HOST=db-staging
       - DB_USERNAME=proxysock_api
       - DB_PASSWORD=${PROXYSOCK_API_DATABASE_PASSWORD}

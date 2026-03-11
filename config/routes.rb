@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
+  mount ActionCable.server => '/cable'
   mount Rswag::Ui::Engine => '/api-docs'
   mount Rswag::Api::Engine => '/api-docs'
   # Reseller API
@@ -135,9 +136,6 @@ Rails.application.routes.draw do
         post :deposit
       end
 
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
-      end
 
       # VMs
       resources :vms, only: %i[index show create destroy] do
@@ -179,6 +177,7 @@ Rails.application.routes.draw do
         collection do
           get :unread_count
           put :read_all
+          post :mark_as_read
         end
       end
 

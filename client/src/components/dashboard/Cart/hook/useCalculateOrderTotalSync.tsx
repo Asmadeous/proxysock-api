@@ -1,8 +1,4 @@
 import { useCallback, useMemo } from "react";
-import {
-  SHOPIFY_TRANSACTION_FEE_FIXED,
-  SHOPIFY_TRANSACTION_FEE_PERCENT,
-} from "@/constants/cart";
 import { CartItem } from "@/pages/UserDashboard/Cart";
 
 export const useCalculateOrderItems = ({
@@ -111,18 +107,6 @@ export const useCalculateOrderItems = ({
     );
   }, [cartItems, calculateItemTotalSync]);
 
-  const calculateShopifyTransactionFee = useCallback((subtotal: number): number => {
-    return (
-      subtotal * SHOPIFY_TRANSACTION_FEE_PERCENT + SHOPIFY_TRANSACTION_FEE_FIXED
-    );
-  }, []);
-
-  const calculateOrderTotalWithShopifyFees = useCallback(() => {
-    const subtotal = calculateOrderTotalSync();
-    const transactionFee = calculateShopifyTransactionFee(subtotal);
-    return subtotal + transactionFee;
-  }, [calculateOrderTotalSync, calculateShopifyTransactionFee]);
-
   return useMemo(() => ({
     convertToNGN,
     calculateVPSItemTotal,
@@ -130,8 +114,6 @@ export const useCalculateOrderItems = ({
     calculateProxyItemTotal,
     calculateItemTotalSync,
     calculateOrderTotalSync,
-    calculateShopifyTransactionFee,
-    calculateOrderTotalWithShopifyFees,
   }), [
     convertToNGN,
     calculateVPSItemTotal,
@@ -139,7 +121,5 @@ export const useCalculateOrderItems = ({
     calculateProxyItemTotal,
     calculateItemTotalSync,
     calculateOrderTotalSync,
-    calculateShopifyTransactionFee,
-    calculateOrderTotalWithShopifyFees,
   ]);
 };
