@@ -32,20 +32,45 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
       attrs.delete('created_at')
       attrs.delete('updated_at')
       
-      # Use find_or_initialize_by if possible, or just create
-      # We assume 'id' can be used if we enable identity insert (Postgres)
-      # But easier is to just create new ones unless they exist.
-      # For now, let's keep it simple: create if missing by searching for unique keys.
-      case model_name
-      when 'User', 'Employee', 'Reseller'
-        model.find_or_create_by!(email: attrs['email']) { |m| m.assign_attributes(attrs) }
-      when 'ProductCategory', 'Product'
-        model.find_or_create_by!(slug: attrs['slug']) { |m| m.assign_attributes(attrs) }
-      when 'Department'
-        model.find_or_create_by!(name: attrs['name']) { |m| m.assign_attributes(attrs) }
-      else
-        # Fallback to create (might cause duplicates if run multiple times)
-        model.create!(attrs) unless model.exists?(attrs.slice('id'))
+      record = nil
+      
+      # Step 1: Try finding by ID if present
+      record = model.find_by(id: attrs['id']) if attrs['id'].present?
+      
+      # Step 2: Try finding by unique business keys if not found by ID
+      if record.nil?
+        case model_name
+        when 'User', 'Employee', 'Reseller'
+          record = model.find_by(email: attrs['email'])
+        when 'ProductCategory', 'Product'
+          record = model.find_by(slug: attrs['slug'])
+        when 'Department'
+          record = model.find_by(name: attrs['name'])
+        when 'Affiliate'
+          record = model.find_by(referral_code: attrs['referral_code'])
+        end
+      end
+
+      # Step 3: Create or Update
+      begin
+        if record
+          # Update existing record (found by email/slug but maybe different ID)
+          # We skip updating pure IDs to avoid breaking constraints
+          record.update!(attrs.except('id'))
+        else
+          # Create new record
+          model.create!(attrs)
+        end
+      rescue ActiveRecord::RecordInvalid => e
+        # If the failure is due to 'Affiliatable must exist', it's a polymorphic mapping issue
+        # We'll skip it for now and log it
+        if e.message.include?('Affiliatable must exist')
+           puts "    ⚠️  Skipped #{model_name} (#{attrs['id']}): Owner record missing."
+        elsif e.message.include?('has already been taken')
+           puts "    ⚠️  Skipped #{model_name} (#{attrs['id']}): Duplicate unique field."
+        else
+           raise e
+        end
       end
     end
   end

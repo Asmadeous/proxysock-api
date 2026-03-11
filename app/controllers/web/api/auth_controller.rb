@@ -21,7 +21,7 @@ module Web
 
         if user.save
           # Send confirmation email
-          UserMailer.confirmation_email(user).deliver_later
+          ::UserMailer.confirmation_email(user).deliver_later
 
           token = user.generate_jwt
           render json: {
@@ -30,6 +30,7 @@ module Web
             token: token
           }, status: :created
         else
+          Rails.logger.warn "Registration failed for #{user.email}: #{user.errors.full_messages.join(', ')}"
           render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
         end
       end
@@ -207,14 +208,14 @@ module Web
       def confirm_email
         user = User.find_by(email_confirmation_token: params[:token])
         if user.nil?
-          render json: { error: 'Invalid or expired confirmation token' }, status: :unprocessable_entity
+          redirect_to_frontend '/login?error=invalid_token'
         elsif user.email_verified_at.present?
           token = user.generate_jwt
-          render json: { message: 'Email already confirmed', user: serialize_user(user), token: token }
+          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=already_confirmed"
         else
           user.update!(email_verified_at: Time.current, email_confirmation_token: nil)
           token = user.generate_jwt
-          render json: { message: 'Email confirmed successfully', user: serialize_user(user), token: token }
+          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=confirmed"
         end
       end
 
@@ -227,7 +228,7 @@ module Web
           render json: { message: 'Email is already confirmed.' }
         else
           user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
-          UserMailer.confirmation_email(user).deliver_later
+          ::UserMailer.confirmation_email(user).deliver_later
           render json: { message: 'Verification email resent! Check your inbox.' }
         end
       end
@@ -240,7 +241,7 @@ module Web
             password_reset_token: SecureRandom.urlsafe_base64(32),
             password_reset_sent_at: Time.current
           )
-          UserMailer.password_reset_email(user).deliver_later
+          ::UserMailer.password_reset_email(user).deliver_later
         end
         render json: { message: 'If an account with that email exists, password reset instructions have been sent.' }
       end
