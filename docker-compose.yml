@@ -215,6 +215,7 @@ services:
       - DB_USERNAME=asmadeous
       - DB_PASSWORD=Asmadeous@2025
       - RAILS_ENV=development
+      - FRONTEND_URL=http://localhost:3001
     profiles: [ "dev" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
