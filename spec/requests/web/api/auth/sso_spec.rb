@@ -7,7 +7,9 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
 
   before do
     OmniAuth.config.test_mode = true
+    allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('FRONTEND_URL', 'http://localhost:3001').and_return(frontend_url)
+    allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with('FRONTEND_URL').and_return(frontend_url)
   end
 
@@ -46,7 +48,15 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
     end
 
     context "when user already exists" do
-      let!(:existing_user) { create(:user, email: 'testuser@example.com', username: 'existing_one') }
+      let!(:existing_user) do
+        User.create!(
+          email: 'testuser@example.com',
+          username: 'existing_one',
+          first_name: 'Existing',
+          last_name: 'User',
+          password: 'password123'
+        )
+      end
 
       it "links the provider and redirects to frontend" do
         expect {
@@ -62,7 +72,15 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
     end
 
     context "when username conflict exists" do
-      let!(:other_user) { create(:user, email: 'other@example.com', username: 'testuser') }
+      let!(:other_user) do
+        User.create!(
+          email: 'other@example.com',
+          username: 'testuser',
+          first_name: 'Other',
+          last_name: 'User',
+          password: 'password123'
+        )
+      end
 
       it "generates a unique username and creates the user" do
         expect {
@@ -88,7 +106,16 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
       })
     end
 
-    let!(:employee) { create(:employee, email: 'admin@example.com') }
+    let!(:employee) do
+      Employee.create!(
+        email: 'admin@example.com',
+        first_name: 'Admin',
+        last_name: 'User',
+        password: 'password123',
+        department: Department.find_or_create_by(name: 'General'),
+        role: 'support'
+      )
+    end
 
     before do
       OmniAuth.config.mock_auth[:zoho] = zoho_auth_hash
