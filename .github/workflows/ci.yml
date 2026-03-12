@@ -159,5 +159,7 @@ jobs:
           file: ./client/Dockerfile
           push: false
           tags: proxysock-client:${{ github.sha }}
+          build-args: |
+            VITE_HUNDREDPAY_PUBLIC_KEY=${{ secrets.VITE_HUNDREDPAY_PUBLIC_KEY }}
           cache-from: type=gha,scope=client
           cache-to: type=gha,scope=client,mode=max
