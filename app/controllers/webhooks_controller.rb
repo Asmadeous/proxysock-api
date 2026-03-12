@@ -79,6 +79,39 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
+  def hundredpay
+    # 100Pay sends a POST with charge data.
+    # We'll use the chargeId to verify the transaction status server-side for security.
+    data = params.to_unsafe_h
+    charge_id = data['chargeId'] || data['id'] || data.dig('data', 'chargeId')
+
+    unless charge_id
+      Rails.logger.warn('[Webhook] 100Pay: Missing chargeId in payload')
+      return head :bad_request
+    end
+
+    # Server-side verification to confirm status
+    verification = HundredpayService.new.verify_transaction(charge_id)
+
+    if verification[:status] == 'success'
+      # 100Pay metadata may contain order_number/reference or we use ref_id
+      reference = data['ref_id'] || data.dig('data', 'charge', 'ref_id') || charge_id
+
+      # Prepare data for handle_payment
+      payment_data = {
+        'reference' => reference,
+        'amount' => verification[:amount],
+        'currency' => verification[:currency],
+        'metadata' => data['metadata'] || data.dig('data', 'charge', 'metadata') || {}
+      }
+
+      handle_payment(payment_data, 'hundredpay')
+    else
+      Rails.logger.info("[Webhook] 100Pay: Payment not success yet (status: #{verification[:internal_status]})")
+    end
+    head :ok
+  end
+
   private
 
   def handle_payment(data, gateway)
@@ -106,14 +139,18 @@ class WebhooksController < ApplicationController
     # Paystack amounts are in kobo (NGN × 100).  We stored deposit.amount in USD,
     # so we must convert: kobo → NGN → USD.
     paid_amount_usd =
-      if gateway == 'paystack'
+      case gateway
+      when 'paystack'
         paid_ngn       = data['amount'].to_f / 100.0 # kobo → NGN
         exchange_rate  = deposit.metadata['exchange_rate'].to_f
         exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
         paid_ngn / exchange_rate # NGN → USD
-      elsif gateway == 'plisio'
+      when 'plisio'
         # Plisio: 'source_amount' is the fiat amount (USD)
         data['source_amount'].to_f
+      when 'hundredpay'
+        # 100Pay billing amounts are in USD (unless specified otherwise, but we use USD)
+        data['amount'].to_f
       else
         data['amount'].to_f # Payvra — amounts already in USD
       end

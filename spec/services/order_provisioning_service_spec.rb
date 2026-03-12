@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe OrderProvisioningService do
   let(:user) { User.create!(username: 'prov_user', email: 'prov@test.com', first_name: 'P', last_name: 'U', password: 'password123') }
-  let!(:wallet) { Wallet.create!(owner: user, wallet_type: 'main') }
+  let(:wallet) { user.wallet }
   let(:category) { ProductCategory.create!(name: 'Proxies', slug: 'proxies') }
   let(:product) { Product.create!(name: 'Proxy', product_type: 'proxy', provider: 'myproxyapi', product_category: category, available_to: 'both') }
   let!(:pricing) { ProductPricing.create!(product: product, selling_price: 15.0, active: true, currency: 'USD') }

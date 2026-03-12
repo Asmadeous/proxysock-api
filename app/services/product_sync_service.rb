@@ -36,7 +36,7 @@ class ProductSyncService
     cleanup_previous_plans
 
     # 2. Sync ONLY Proxy and VPN categories
-    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp mobile]
+    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp mobile global-isp]
     
     categories.each do |cat_slug|
       sync_category(cat_slug)
@@ -78,8 +78,15 @@ class ProductSyncService
 
     begin
       data = @client.fetch_category_data(category_slug)
-      plans = data['proxy_plans'] || []
-      isps = data['isp'] || []
+      
+      # Handle if data is directly an array (some endpoints might do this)
+      if data.is_a?(Array)
+        plans = data.flat_map { |item| item['proxy_plans'] || (item['id'] ? [item] : []) }
+        isps = data.flat_map { |item| item['isp'] || [] }.uniq
+      else
+        plans = data['proxy_plans'] || []
+        isps = data['isp'] || []
+      end
       
       @logger.info("Category #{category_slug} returned #{plans.size} plans and #{isps.size} ISPs")
 
@@ -133,6 +140,11 @@ class ProductSyncService
     # as the location ID for place_order and flag display.
     # We should NOT attempt to override them with ISO codes if the API uses something else.
     
+    meta['targetSectionId'] = plan['targetSectionId'] if plan['targetSectionId']
+    meta['targetId'] = plan['targetId'] if plan['targetId']
+    meta['resi'] = plan['resi'] if plan['resi']
+    meta['type'] = plan['type'] if plan['type']
+
     meta
   end
 

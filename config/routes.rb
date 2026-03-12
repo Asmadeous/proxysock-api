@@ -26,7 +26,10 @@ Rails.application.routes.draw do
       end
 
       resources :orders, only: %i[index create show] do
-        get :stats, on: :collection
+        collection do
+          get :stats
+          post :checkout_cart
+        end
         member do
           get :credentials
           post :renew
@@ -130,12 +133,16 @@ Rails.application.routes.draw do
           get :download_ovpn
           get :download_invoice
           get :download_rdp_config
+          post :change_protocol
+          post :update_credentials
+          post :rotate_ip
+          post :whitelist, action: :whitelist_add
+          delete :whitelist, action: :whitelist_delete
         end
       end
       resource :wallet, only: [:show] do
         post :deposit
       end
-
 
       # VMs
       resources :vms, only: %i[index show create destroy] do
@@ -312,6 +319,7 @@ Rails.application.routes.draw do
     post 'paystack', to: 'webhooks#paystack'
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
+    post 'hundredpay', to: 'webhooks#hundredpay'
   end
 
   # VM Status Callback (Ansible playbooks POST here on completion/failure)

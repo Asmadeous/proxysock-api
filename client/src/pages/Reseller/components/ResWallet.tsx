@@ -25,7 +25,7 @@ export default function ResWallet() {
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
     const [withdrawDetails, setWithdrawDetails] = useState<Record<string, string>>({});
-    const [_paymentGateway, _setPaymentGateway] = useState("paystack"); // Keep paystack as default, Coinbase removed
+    const [paymentGateway, setPaymentGateway] = useState("paystack");
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
@@ -58,8 +58,7 @@ export default function ResWallet() {
 
         setIsProcessing(true);
         try {
-            // Only Paystack supported as per user request (removed Coinbase)
-            const res = await createResellerDeposit({ amount, gateway: 'paystack' });
+            const res = await createResellerDeposit({ amount, gateway: paymentGateway });
             if (res.data.checkout_url) {
                 window.location.href = res.data.checkout_url;
             } else {
@@ -301,15 +300,36 @@ export default function ResWallet() {
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-sm font-bold ml-1">Secure Gateway</Label>
-                                <div className="p-4 rounded-2xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between group cursor-pointer">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-primary/10 rounded-xl"><CreditCard className="w-5 h-5 text-primary" /></div>
-                                        <div>
-                                            <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
-                                            <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation</p>
+                                <div className="grid gap-3">
+                                    {/* Paystack Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("paystack")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "paystack" ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "paystack" ? "bg-primary/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "paystack" ? "text-primary" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (NGN)</p>
+                                            </div>
                                         </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "paystack" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
-                                    <div className="h-5 w-5 rounded-full border-4 border-primary bg-white shadow-inner" />
+
+                                    {/* 100Pay Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("hundredpay")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "hundredpay" ? "border-purple-500 bg-purple-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "hundredpay" ? "bg-purple-500/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "hundredpay" ? "text-purple-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">100Pay (Card & Crypto)</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Global Payment Hub (USD)</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "hundredpay" ? "border-purple-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
                                 </div>
                             </div>
                         </div>

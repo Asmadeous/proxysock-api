@@ -7,13 +7,13 @@ module Web
 
       # POST /web/api/analytics/reddit-capi
       def reddit_capi
-        # Log the valid conversion event (stub for now)
-        Rails.logger.info "Reddit CAPI Event received: #{params.inspect}"
+        result = RedditConversionService.new(params).track
 
-        # Ideally, this is where you would call the Reddit Conversion API
-        # RedditConversionService.new(params).track
-
-        render json: { message: 'Conversion tracked successfully' }, status: :ok
+        if result[:success]
+          render json: { message: 'Conversion tracked successfully', reddit: result[:response] }, status: :ok
+        else
+          render json: { error: 'Failed to track conversion', details: result[:error] }, status: :unprocessable_entity
+        end
       end
     end
   end

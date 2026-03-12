@@ -243,7 +243,7 @@ export const renderProxyPlans = ({
               {plan.billing_type === "usage_gb" && plan.gb_limit && (
                 <Badge variant="warning">Up to {plan.gb_limit} GB</Badge>
               )}
-              {selectedCategory === "residential" &&
+              {(selectedCategory === "residential" || selectedCategory === "residential-rotating") &&
                 plan.gb_min &&
                 plan.gb_max && (
                   <Badge variant="outline">
@@ -251,7 +251,7 @@ export const renderProxyPlans = ({
                   </Badge>
                 )}
             </div>
-            {plan.isp && plan.isp.length > 0 && (
+            {plan.isp && plan.isp.length > 0 && Number(plan.ips_included) > 0 && (
               <div className="flex flex-wrap gap-2">
                 {plan.isp.map((isp) => (
                   <div

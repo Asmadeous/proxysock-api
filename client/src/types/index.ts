@@ -99,6 +99,7 @@ export interface CartItem {
     city: City | null;
   };
   locationsString: string;
+  locationId?: number | string;
   period: number;
   protocol: "http" | "socks5";
   totalPrice?: number;

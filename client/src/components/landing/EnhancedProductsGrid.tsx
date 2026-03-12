@@ -54,7 +54,7 @@ export const EnhancedProductsGrid = ({
             activation, and 24/7 expert support.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
           {/* Proxy Services Card */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}

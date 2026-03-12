@@ -14,7 +14,7 @@ RSpec.describe 'Webhooks', type: :request do
 
   describe 'POST /webhooks/paystack' do
     let(:user) { User.create!(username: 'webhook_user', email: 'webhook@test.com', first_name: 'W', last_name: 'H', password: 'password123') }
-    let!(:wallet) { Wallet.create!(owner: user, wallet_type: 'main') }
+    let(:wallet) { user.wallet }
     let(:transaction_ref) { 'DEP_mock_123' }
     let!(:deposit) do
       Deposit.create!(

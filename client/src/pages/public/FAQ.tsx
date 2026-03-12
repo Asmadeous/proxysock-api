@@ -21,7 +21,7 @@ export default function Faq() {
   useEffect(() => {
     // Set page title
     document.title =
-      "FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM Services";
+      "FAQ - ProxySock | Comprehensive Answers About Proxies, VPN, RDP, VPS & eSIM Services";
   }, []);
 
   // Structured Data for SEO
@@ -30,7 +30,7 @@ export default function Faq() {
     "@type": "FAQPage",
     name: "ProxySock FAQ - Comprehensive Answers About Our Services",
     description:
-      "Find comprehensive answers to common questions about ProxySock's proxy services, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered.",
+      "Find comprehensive answers to common questions about ProxySock's proxy services, VPN solutions, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered.",
     url: globalThis.location?.origin + "/faq",
     mainEntity: [
       {
@@ -63,9 +63,9 @@ export default function Faq() {
   const webPageData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM Services",
+    name: "FAQ - ProxySock | Comprehensive Answers About Proxies, VPN, RDP, VPS & eSIM Services",
     description:
-      "Find comprehensive answers to common questions about ProxySock's proxy services, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered by our experts.",
+      "Find comprehensive answers to common questions about ProxySock's proxy services, VPN solutions, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered by our experts.",
     url: globalThis.location?.href,
   };
 
@@ -74,12 +74,12 @@ export default function Faq() {
       <Helmet>
         {/* Enhanced SEO meta tags */}
         <title>
-          FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM
+          FAQ - ProxySock | Comprehensive Answers About Proxies, VPN, RDP, VPS & eSIM
           Services
         </title>
         <meta
           name="description"
-          content="Find comprehensive answers to common questions about ProxySock's proxy services, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered by our experts."
+          content="Find comprehensive answers to common questions about ProxySock's proxy services, VPN solutions, RDP hosting, VPS solutions, and eSIM plans. 50+ detailed questions answered by our experts."
         />
         <meta
           name="keywords"
@@ -92,11 +92,11 @@ export default function Faq() {
         {/* Open Graph tags for social media integration */}
         <meta
           property="og:title"
-          content="FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM Services"
+          content="FAQ - ProxySock | Comprehensive Answers About Proxies, VPN, RDP, VPS & eSIM Services"
         />
         <meta
           property="og:description"
-          content="Find comprehensive answers to common questions about ProxySock's proxy services, RDP hosting, VPS solutions, and eSIM plans."
+          content="Find comprehensive answers to common questions about ProxySock's proxy services, VPN solutions, RDP hosting, VPS solutions, and eSIM plans."
         />
         <meta property="og:url" content="https://www.proxysock.com/faq" />
         <meta
@@ -109,11 +109,11 @@ export default function Faq() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta
           name="twitter:title"
-          content="FAQ - ProxySock | Comprehensive Answers About Proxies, RDP, VPS & eSIM Services"
+          content="FAQ - ProxySock | Comprehensive Answers About Proxies, VPN, RDP, VPS & eSIM Services"
         />
         <meta
           name="twitter:description"
-          content="Find comprehensive answers to common questions about ProxySock's proxy services, RDP hosting, VPS solutions, and eSIM plans."
+          content="Find comprehensive answers to common questions about ProxySock's proxy services, VPN solutions, RDP hosting, VPS solutions, and eSIM plans."
         />
         <meta
           name="twitter:image"

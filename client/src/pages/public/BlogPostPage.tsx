@@ -33,6 +33,7 @@ export default function BlogPostPage() {
 
         // Fetch related posts
         getBlogPosts({ category: currentPost.category }).then((res) => {
+          // Use id (the slug from URL) for filtering out current post
           setRelatedPosts(res.posts.filter((p) => p.id !== id).slice(0, 3));
         });
 
@@ -44,9 +45,13 @@ export default function BlogPostPage() {
           value: 0,
         });
       })
-      .catch(() => navigate("/blog"))
+      .catch((err) => {
+        console.error("Error loading blog post:", err);
+        navigate("/blog");
+      })
       .finally(() => setIsLoading(false));
-  }, [id, navigate, trackPageView, trackViewContent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, navigate]);
 
 
   const handleShare = async () => {

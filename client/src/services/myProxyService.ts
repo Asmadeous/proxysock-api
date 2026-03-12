@@ -119,6 +119,12 @@ function standardizePlanName(plan: ProxyPlan): string {
   }
 
   const name = plan.name.toLowerCase();
+  
+  // Don't rename residential rotating proxies to "Mobile Proxy"
+  if (name.includes('residential') || name.includes('rotating')) {
+    return plan.name;
+  }
+
   if (plan.billing_type === 'usage_gb' || (plan.gb_min && Number(plan.gb_min) > 0)) {
     return 'Per-GB Mobile Proxy';
   } else if (name.includes('1 day') || plan.duration_days === 1) {
@@ -149,6 +155,11 @@ function sortPlans(plans: ProxyPlan[]): ProxyPlan[] {
 
     if (aPriority !== bPriority) {
       return aPriority - bPriority;
+    }
+
+    // Sort by GB range for residential products
+    if (Number(a.gb_min) !== Number(b.gb_min)) {
+      return Number(a.gb_min) - Number(b.gb_min);
     }
 
     return Number(a.price) - Number(b.price);
@@ -192,6 +203,7 @@ export const fetchProductCategories = async (): Promise<Category[]> => {
     { id: '4', slug: 'static-residential', name: 'Static Residential' },
     { id: '5', slug: 'residential-rotating', name: 'Residential Rotating Proxies' },
     { id: '6', slug: 'mobile', name: 'Mobile' },
+    { id: '7', slug: 'global-isp', name: 'Global ISP' },
   ];
 };
 
@@ -234,7 +246,8 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
       'premium-isp': 'Premium ISP',
       'static-residential': 'Static Residential',
       'residential-rotating': 'Residential Rotating Proxies',
-      'mobile': 'Mobile'
+      'mobile': 'Mobile',
+      'global-isp': 'Global ISP'
     };
 
     const result: any = {

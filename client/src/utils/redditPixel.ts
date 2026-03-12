@@ -1,6 +1,6 @@
 
 // src/utils/redditPixel.ts - Updated with navigation tracking
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 // ✅ FIXED: Simple TypeScript declarations
 declare global {
@@ -67,8 +67,27 @@ class RedditPixelTracker {
     }
   }
 
-  private async sendToConversionsAPI(_eventData: any) {
-    return null;
+  private async sendToConversionsAPI(eventData: any) {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_RAILS_API_URL}/analytics/reddit-capi`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(eventData)
+      });
+
+      if (!response.ok) {
+        console.warn('Reddit CAPI response not OK:', await response.text());
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Reddit CAPI Request Error:', error);
+      return null;
+    }
   }
 
   async trackPageView() {
@@ -402,11 +421,11 @@ export const useRedditPixel = (pixelId: string) => {
   }, [pixelId]);
 };
 
-// ✅ ENHANCED: Hook for tracking with all methods including lead tracking
+// Hook for tracking with all methods including lead tracking
 export const useRedditTracking = () => {
   const tracker = (globalThis as any).redditPixelTracker;
 
-  return {
+  return useMemo(() => ({
     trackPageView: () => tracker?.trackPageView(),
     trackNavigation: (pageName: string, href: string) => tracker?.trackNavigation(pageName, href),
     trackSearch: (searchTerm: string, category?: string) => tracker?.trackSearch(searchTerm, category),
@@ -434,7 +453,7 @@ export const useRedditTracking = () => {
       items?: any[];
       category: string;
     }) => tracker?.trackPurchase(data)
-  };
+  }), [tracker]);
 };
 
 // For existing registration component and contact forms

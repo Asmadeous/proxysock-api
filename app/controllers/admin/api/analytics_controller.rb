@@ -9,7 +9,7 @@ module Admin
 
         render json: {
           metrics: {
-            total_revenue: Transaction.where(created_at: range, payment_status: 'succeeded').sum(:amount),
+            total_revenue: Transaction.where(created_at: range, status: 'success').sum(:amount),
             total_orders: Order.where(created_at: range).count,
             new_users: User.where(created_at: range).count,
             active_users: User.where(status: 'active').count,
@@ -63,7 +63,7 @@ module Admin
                      else 'DATE(created_at)'
                      end
 
-        revenue_data = Transaction.where(created_at: range, payment_status: 'succeeded')
+        revenue_data = Transaction.where(created_at: range, status: 'success')
                                   .group(Arel.sql(group_expr))
                                   .select(Arel.sql("#{group_expr} as period, SUM(amount) as total, COUNT(*) as tx_count"))
                                   .order(Arel.sql('period ASC'))
@@ -71,9 +71,9 @@ module Admin
         render json: {
           data: revenue_data.map { |r| { period: r.period, total: r.total.to_f, count: r.tx_count } },
           summary: {
-            total: Transaction.where(created_at: range, payment_status: 'succeeded').sum(:amount).to_f,
-            average: Transaction.where(created_at: range, payment_status: 'succeeded').average(:amount)&.to_f || 0,
-            count: Transaction.where(created_at: range, payment_status: 'succeeded').count
+            total: Transaction.where(created_at: range, status: 'success').sum(:amount).to_f,
+            average: Transaction.where(created_at: range, status: 'success').average(:amount)&.to_f || 0,
+            count: Transaction.where(created_at: range, status: 'success').count
           }
         }
       end
@@ -139,7 +139,7 @@ module Admin
       end
 
       def revenue_by_day(range)
-        Transaction.where(created_at: range, payment_status: 'succeeded')
+        Transaction.where(created_at: range, status: 'success')
                    .group(Arel.sql('DATE(created_at)'))
                    .sum(:amount)
                    .map { |date, total| { date: date, value: total.to_f } }

@@ -231,36 +231,70 @@ class OrderProvisioningService
       @order.activate!
 
     when 'myproxyapi'
-      # The frontend captures 'period' as GB Traffic amount for residential rotating, or months/days for others.
-      period = @order.metadata['period'] || 1
-      locations = @order.metadata['locationsString'] || 1
+      # Extract provisioning params from order metadata.
+      # 'period' = months/days string for static IPs, GB for residential rotating, IPs count for mobile
+      period    = @order.metadata['period'] || 1
       client_ip = @order.metadata['client_ip']
-      protocol = @order.metadata['protocol'] || 'http'
-      api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1') # From API docs example user_id
+      protocol  = @order.metadata['protocol'] || 'http'
+      api_id    = @product.provider_product_id
+      user_id   = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
 
-      # Place the order via Reseller API for ALL myproxyapi products
+      # 'locationId' is the numeric city/ISP ID the API expects.
+      # 'locationsString' is the human-readable label (e.g. "Dallas, Texas") — NOT for the API.
+      locations = @order.metadata['locationId'] || @order.metadata['locationsString']
+
       client = MyProxyApiClient.new
-      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol,
-                                    locations: locations, whitelist_ip: client_ip)
+      
+      # Determine debug label from payment method used
+      payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
+
+      provisioning_params = {
+        user_id: user_id,
+        product_api_id: api_id,
+        period: period,
+        protocol: protocol,
+        locations: locations,
+        whitelist_ip: client_ip,
+        debug: payment_debug
+      }
+
+      # Handle Global ISP specific parameters
+      category_slug = @product.product_category&.slug
+      if category_slug == 'global-isp'
+        provisioning_params[:type] = 'global-isp'
+        provisioning_params[:target_section_id] = @order.metadata['targetSectionId'] || @product.metadata&.dig('targetSectionId')
+        provisioning_params[:target_id] = @order.metadata['targetId'] || @product.metadata&.dig('targetId')
+      end
+
+      # Handle Residential Rotating V2 (resi: 1)
+      if category_slug == 'residential-rotating' && (@order.metadata['resi'].present? || @product.metadata&.dig('resi').present?)
+        provisioning_params[:resi] = @order.metadata['resi'] || @product.metadata&.dig('resi')
+      end
+
+      response = client.place_order(**provisioning_params)
 
       # Provider returns basic order info, but we need full details (IPs, etc.)
-      # data: { order_id: "..." }
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
         begin
-          full_details = client.view_order(provider_order_id)
-          # Store the detailed response (first item in data array)
+          # Use the appropriate view endpoint based on product category
+          full_details = if category_slug == 'global-isp'
+                           client.view_global_isp_order(provider_order_id)
+                         elsif category_slug == 'mobile'
+                           client.view_mobile_order(provider_order_id)
+                         else
+                           client.view_order(provider_order_id)
+                         end
           response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
         rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
         end
       end
 
-      # "put it in a metadata tag" -> store API payload/response in order metadata
       @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
+      @order.metadata['provider_order_id'] = provider_order_id
       @order.save!
       @order.activate!
 
@@ -411,22 +445,36 @@ class OrderProvisioningService
   # ========== VPN Provisioning ==========
   def provision_vpn!
     if @product.provider_type == 'myproxyapi'
-      period = @order.metadata['period'] || 1
-      locations = @order.metadata['locationsString'] || 1
+      period    = @order.metadata['period'] || 1
+      locations = @order.metadata['locationId'] || @order.metadata['locationsString']
       client_ip = @order.metadata['client_ip']
-      protocol = @order.metadata['protocol'] || 'http'
-      api_id = @product.provider_product_id
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
+      protocol  = @order.metadata['protocol'] || 'http'
+      api_id    = @product.provider_product_id
+      user_id   = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
 
       client = MyProxyApiClient.new
-      response = client.place_order(user_id: user_id, product_api_id: api_id, period: period, protocol: protocol,
-                                    locations: locations, whitelist_ip: client_ip)
+
+      # Determine debug label from payment method used
+      payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
+
+      provisioning_params = {
+        user_id: user_id,
+        product_api_id: api_id,
+        period: period,
+        protocol: protocol,
+        locations: locations,
+        whitelist_ip: client_ip,
+        debug: payment_debug
+      }
+
+      response = client.place_order(**provisioning_params)
 
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
         begin
-          full_details = client.view_order(provider_order_id)
+          # VPN orders have their own view endpoint
+          full_details = client.view_vpn_order(provider_order_id)
           response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
         rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy VPN order #{provider_order_id}: #{e.message}")
@@ -435,11 +483,11 @@ class OrderProvisioningService
 
       @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
+      @order.metadata['provider_order_id'] = provider_order_id
       @order.save!
       @order.activate!
 
       # Download and store the OVPN config file via Active Storage
-      provider_order_id = response.dig('order', 'order_id') || response.dig('data', 'order_id') || provider_order_id
       if provider_order_id.present?
         begin
           ovpn_content = client.download_ovpn(provider_order_id)

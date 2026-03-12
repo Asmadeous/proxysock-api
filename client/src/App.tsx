@@ -121,8 +121,8 @@ export default function App() {
         <Toaster position="top-right" richColors={true} />
         <AutoSEO
           siteName="ProxySock"
-          defaultTitle="ProxySock - Buy Premium Proxies, RDP, VPS & eSIM Online"
-          defaultDescription="Buy premium proxies, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support."
+          defaultTitle="ProxySock - Buy Premium Proxies, VPN, RDP, VPS & eSIM Online"
+          defaultDescription="Buy premium proxies, VPN, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support."
         >
           <Suspense fallback={<PageLoader />}>
             <Routes>

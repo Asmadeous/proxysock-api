@@ -25,7 +25,7 @@ import {
   PencilIcon,
   ArrowPathIcon as RotateIcon
 } from "@heroicons/react/24/outline";
-import api, { updateProxyCredentials, rotateProxyIp } from "../../services/api";
+import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
 import { toast } from "react-hot-toast";
 
 interface ProxyOrder {
@@ -203,15 +203,38 @@ export default function ProxyManagement() {
     toast.success('Copied to clipboard!');
   };
 
-  const handleProxyAction = async (action: string, _orderId: string, _data?: any) => {
+  const handleProxyAction = async (action: string, orderId: string, data?: any) => {
     try {
-      // Logic moved to Rails API
-      alert(`${action} completed successfully!`);
+      setLoading(true);
+      switch (action) {
+        case 'whitelist-add':
+          await whitelistAdd(orderId, data.ip, data.description);
+          toast.success('IP added to whitelist');
+          break;
+        case 'whitelist-remove':
+          await whitelistDelete(orderId, data.ip);
+          toast.success('IP removed from whitelist');
+          break;
+        case 'protocol-change':
+          await changeProxyProtocol(orderId, data.protocol);
+          toast.success('Protocol updated successfully');
+          break;
+        case 'extend-order':
+          await api.post(`/web/api/orders/${orderId}/renew`, { period: data.period });
+          toast.success('Extension requested successfully');
+          break;
+        default:
+          alert(`${action} is not yet implemented`);
+          return;
+      }
       setShowModal(false);
       fetchProxyData(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to ${action}:`, error);
-      alert(`Failed to ${action}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const msg = error.response?.data?.error || `Failed to ${action}`;
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -582,7 +605,7 @@ export default function ProxyManagement() {
                         <div key={ip} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
                           <code>{ip}</code>
                           <button
-                            onClick={() => handleProxyAction('whitelist-remove', selectedOrder.order_id, { ip })}
+                            onClick={() => handleProxyAction('whitelist-remove', selectedOrder.id, { ip })}
                             className="text-destructive hover:text-destructive/80"
                           >
                             <TrashIcon className="h-4 w-4" />
@@ -608,7 +631,7 @@ export default function ProxyManagement() {
                     <button
                       onClick={() => {
                         if (formData.newIp) {
-                          handleProxyAction('whitelist-add', selectedOrder.order_id, {
+                          handleProxyAction('whitelist-add', selectedOrder.id, {
                             ip: formData.newIp,
                             description: formData.description || 'Added via dashboard'
                           });
@@ -673,7 +696,7 @@ export default function ProxyManagement() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => handleProxyAction('extend-order', selectedOrder.order_id, { period: formData.period || 1 })}
+                    onClick={() => handleProxyAction('extend-order', selectedOrder.id, { period: formData.period || 1 })}
                     className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 px-4 rounded-lg font-medium transition-colors"
                   >
                     Extend Subscription

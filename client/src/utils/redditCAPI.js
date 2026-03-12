@@ -7,9 +7,31 @@ class RedditCAPI {
 
   async sendEvent(eventType, userData, customData = {}) {
     try {
-      // Event tracking logic
-      console.log(`[RedditCAPI Stub] Event: ${eventType}`, { userData, customData });
-      return { success: true, stubbed: true };
+      const payload = {
+        event_type: eventType,
+        event_time: Date.now(),
+        event_source_url: window.location.href,
+        user_data: this.prepareUserData(userData),
+        custom_data: customData
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_RAILS_API_URL}/analytics/reddit-capi`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send Reddit CAPI event');
+      }
+
+      const data = await response.json();
+      console.log(`[RedditCAPI] Event ${eventType} sent:`, data);
+      return data;
 
     } catch (error) {
       console.error('Reddit CAPI Error:', error)
