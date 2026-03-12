@@ -131,6 +131,8 @@ module Api
         else
           create_infrastructure_order(product, pricing)
         end
+      rescue ActiveRecord::RecordNotFound => e
+        raise e
       rescue StandardError => e
         Rails.logger.error("Reseller Order Error: #{e.message}")
         render json: { error: e.message }, status: :unprocessable_entity
@@ -417,12 +419,11 @@ module Api
         @order.reload
         resource = @order.provisioned_resource
 
-        render json: {
+        render json: serialize_order(@order).merge(
           message: 'Order completed',
-          order: serialize_order(@order),
           credentials: resource ? serialize_credentials(@order, resource) : nil,
           available_balance: current_reseller.main_wallet&.balance.to_f
-        }, status: :created
+        ), status: :created
       end
 
       # ── infrastructure: Gateway-based order ──
