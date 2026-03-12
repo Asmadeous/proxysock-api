@@ -7,9 +7,12 @@ require 'json'
 # Handles authentication (JWT Bearer token), order placement, credential
 # updates, IP rotation, and VPN OVPN download.
 class MyProxyApiClient
-  BASE_URL     = ENV.fetch('MY_PROXY_API_URL',  '')
+  BASE_URL     = ENV.fetch('MY_PROXY_API_URL', 'https://reseller.myproxyapi.com/api/v1')
   API_USERNAME = ENV.fetch('MY_PROXY_API_USERNAME', '')
   API_SECRET   = ENV.fetch('MY_PROXY_API_SECRET', '')
+
+  # The BASE_URL usually ends in /v1. We'll strip it to allow version switching.
+  ROOT_URL = BASE_URL.gsub(/\/v1\/?$/, '')
 
   # --------------------------------------------------------------------------
   # Fetch product plans by category
@@ -48,26 +51,89 @@ class MyProxyApiClient
     extract_proxy_plans(request(:get, "#{BASE_URL}/products/mobile"))
   end
 
+  def fetch_products_global_isp
+    extract_proxy_plans(request(:get, "#{ROOT_URL}/v1/products/global-isp"))
+  end
+
+  # ==========================================================================
+  # Residential Rotating V2 Endpoints
+  # ==========================================================================
+
+  def fetch_v2_residential_rotating_orders
+    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating")
+  end
+
+  def fetch_v2_residential_rotating_order(order_id)
+    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating/#{order_id}")
+  end
+
+  def fetch_v2_res_rot_settings
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-settings")
+  end
+
+  def fetch_v2_res_rot_countries
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")
+  end
+
+  def fetch_v2_res_rot_states(country_code)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")
+  end
+
+  def fetch_v2_res_rot_cities(country_code, state_slug)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")
+  end
+
+  def fetch_v2_res_rot_isp(country_code)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")
+  end
+
+  def generate_v2_res_rot_proxy(payload)
+    request(:post, "#{ROOT_URL}/v2/residential-rotating/generate-proxy", payload)
+  end
+
   # Place an order on the provider.
   # @param user_id           [Integer] Internal reseller user ID
   # @param product_api_id    [String]  Provider's product identifier
-  # @param period            [Integer] Duration or traffic amount
+  # @param period            [String]  Duration ("1d","1w","1","3","6","12") or GB for residential
   # @param protocol          [String]  e.g. 'http', 'socks5'
-  # @param locations         [String]  Location identifier
+  # @param locations         [String]  Location/city ID (numeric string)
   # @param whitelist_ip      [String]  Client IP for whitelisting (Mobile proxies)
+  # @param type              [String]  'global-isp' for Global ISP plans
+  # @param target_section_id [Integer] Global ISP targetSectionId
+  # @param target_id         [Integer] Global ISP targetId
+  # @param resi              [Integer] Set to 1 for Residential Rotating V2
+  # @param debug             [String]  Payment method indicator (e.g. 'balance', 'paystack', 'reseller_balance')
   # @return [Hash] API response
-  def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil, whitelist_ip: nil)
+  def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil,
+                  whitelist_ip: nil, type: nil, target_section_id: nil, target_id: nil, resi: nil, debug: nil)
     payload = {
       user_id: user_id.to_i,
       product: product_api_id.to_i,
-      period: period.to_s,
-      debug: 'api'
+      period: period.to_s
     }
-    payload[:protocol]     = protocol.to_s     if protocol.present?
-    payload[:locations]    = locations.to_s    if locations.present?
-    payload[:whitelist_ip] = whitelist_ip.to_s if whitelist_ip.present?
+    payload[:protocol]          = protocol.to_s          if protocol.present?
+    payload[:locations]         = locations.to_s         if locations.present?
+    payload[:whitelist_ip]      = whitelist_ip.to_s      if whitelist_ip.present?
+    payload[:type]              = type.to_s              if type.present?
+    payload[:targetSectionId]   = target_section_id.to_i if target_section_id.present?
+    payload[:targetId]          = target_id.to_i         if target_id.present?
+    payload[:resi]              = resi.to_i              if resi.present?
+    payload[:debug]             = debug.to_s             if debug.present?
 
     request(:post, "#{BASE_URL}/products/place-order", payload)
+  end
+
+  # Get price for a potential order.
+  # Endpoint: POST /products/get-price
+  def get_price(user_id:, product_api_id:, period:, type: nil)
+    payload = {
+      user_id: user_id.to_i,
+      product: product_api_id.to_i,
+      period: period.to_s
+    }
+    payload[:type] = type.to_s if type.present?
+
+    request(:post, "#{BASE_URL}/products/get-price", payload)
   end
 
   # Fetch full details for an existing order (IP, credentials, etc.).
@@ -75,6 +141,38 @@ class MyProxyApiClient
   # @return [Hash]
   def view_order(order_id)
     request(:get, "#{BASE_URL}/orders/view/#{order_id}")
+  end
+
+  # Fetch VPN order details.
+  # Endpoint: GET /orders/vpn/view/{order_id}
+  def view_vpn_order(order_id)
+    request(:get, "#{BASE_URL}/orders/vpn/view/#{order_id}")
+  end
+
+  # Fetch mobile order details.
+  # Endpoint: GET /mobile-orders/view/{order_id}
+  def view_mobile_order(order_id)
+    request(:get, "#{BASE_URL}/mobile-orders/view/#{order_id}")
+  end
+
+  # ========== Global ISP Specific ==========
+
+  # Fetch Global ISP configuration/details needed to place an order.
+  # Endpoint: GET /ext1/details/isp
+  def fetch_global_isp_config
+    request(:get, "#{BASE_URL}/ext1/details/isp")
+  end
+
+  # Fetch Global ISP orders list.
+  # Endpoint: GET /ext1/orders
+  def fetch_global_isp_orders
+    request(:get, "#{BASE_URL}/ext1/orders")
+  end
+
+  # Fetch Global ISP order details.
+  # Endpoint: GET /ext1/order-details/{order_id}
+  def view_global_isp_order(order_id)
+    request(:get, "#{BASE_URL}/ext1/order-details/#{order_id}")
   end
 
   # Download the OVPN configuration file for a VPN order.
@@ -94,21 +192,81 @@ class MyProxyApiClient
     response.body
   end
 
-  # Update proxy credentials.
+  # Update proxy credentials (Static IPs).
   # Endpoint: PATCH /orders/change-credentials
-  # @param order_id  [String] Provider order ID
-  # @param username  [String]
-  # @param password  [String]
   def update_credentials(order_id, username, password)
     body = { order_id: order_id, username: username, password: password }
     request(:patch, "#{BASE_URL}/orders/change-credentials", body)
   end
 
-  # Rotate the IP address for an order.
+  # Update VPN credentials.
+  # Endpoint: PATCH /orders/vpn/change-credentials
+  def update_vpn_credentials(order_id, username, password)
+    body = { order_id: order_id, username: username, password: password }
+    request(:patch, "#{BASE_URL}/orders/vpn/change-credentials", body)
+  end
+
+  # Rotate/replace the IP address for a static order.
   # Endpoint: PATCH /orders/replacement
-  # @param order_id [String] Provider order ID
-  def rotate_ip(order_id)
-    request(:patch, "#{BASE_URL}/orders/replacement", { order_id: order_id })
+  def rotate_ip(order_id, locations: nil)
+    body = { order_id: order_id }
+    body[:locations] = locations.to_s if locations.present?
+    request(:patch, "#{BASE_URL}/orders/replacement", body)
+  end
+
+  # Change proxy protocol (HTTP vs SOCKS5) for static IPs.
+  # Endpoint: PATCH /orders/change-protocol
+  def change_protocol(order_id, protocol)
+    body = { order_id: order_id, protocol: protocol }
+    request(:patch, "#{BASE_URL}/orders/change-protocol", body)
+  end
+
+  # Whitelist an IP address (Static IPs).
+  # Endpoint: POST /orders/whitelist-add
+  def whitelist_add(order_id, ip, description = nil)
+    body = { order_id: order_id, ip: ip }
+    body[:description] = description if description.present?
+    request(:post, "#{BASE_URL}/orders/whitelist-add", body)
+  end
+
+  # Remove an IP from whitelist (Static IPs).
+  # Endpoint: DELETE /orders/whitelist-delete
+  def whitelist_delete(order_id, ip)
+    body = { order_id: order_id, ip: ip }
+    request(:delete, "#{BASE_URL}/orders/whitelist-delete", body)
+  end
+
+  # ========== Mobile-specific endpoints ==========
+
+  # Update whitelisted IP for a mobile order.
+  # Endpoint: PATCH /mobile-orders/update-whitelisted-ip
+  def mobile_update_whitelisted_ip(order_id, ip)
+    body = { order_id: order_id, ip: ip }
+    request(:patch, "#{BASE_URL}/mobile-orders/update-whitelisted-ip", body)
+  end
+
+  # Update rotation setting for a mobile order (on/off).
+  # Endpoint: PATCH /mobile-orders/update-rotation
+  def mobile_update_rotation(order_id, status)
+    body = { order_id: order_id, status: status }
+    request(:patch, "#{BASE_URL}/mobile-orders/update-rotation", body)
+  end
+
+  # Restart a VPN order.
+  # Endpoint: GET /orders/vpn/restart/{order_id}
+  def restart_vpn(order_id)
+    request(:get, "#{BASE_URL}/orders/vpn/restart/#{order_id}")
+  end
+
+  # Extend an order.
+  # Endpoint: POST /products/place-extend
+  def place_extend(user_id:, order_id:, period:)
+    payload = {
+      user_id: user_id.to_s,
+      order_id: order_id.to_s,
+      period: period.to_s
+    }
+    request(:post, "#{BASE_URL}/products/place-extend", payload)
   end
 
   private
@@ -136,7 +294,7 @@ class MyProxyApiClient
   def fetch_token
     return @token if @token
 
-    endpoint = "#{BASE_URL}/getToken"
+    endpoint = "#{ROOT_URL}/v1/getToken"
     uri      = URI(endpoint)
     http     = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
@@ -164,9 +322,10 @@ class MyProxyApiClient
     http.read_timeout = 30
 
     req = case method
-          when :get   then Net::HTTP::Get.new(uri)
-          when :post  then Net::HTTP::Post.new(uri)
-          when :patch then Net::HTTP::Patch.new(uri)
+          when :get    then Net::HTTP::Get.new(uri)
+          when :post   then Net::HTTP::Post.new(uri)
+          when :patch  then Net::HTTP::Patch.new(uri)
+          when :delete then Net::HTTP::Delete.new(uri)
           else raise ArgumentError, "Unsupported HTTP method: #{method}"
           end
 

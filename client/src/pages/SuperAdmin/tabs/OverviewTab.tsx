@@ -36,7 +36,7 @@ export default function OverviewTab() {
                 const affTotal = affRes.status === "fulfilled" ? affRes.value.data.total : 0;
 
                 const totalRevenue = Array.isArray(txData)
-                    ? txData.filter((t) => t.payment_status === "succeeded")
+                    ? txData.filter((t) => t.status === "success")
                         .reduce((sum: number, t) => sum + Number(t.amount || 0), 0)
                     : 0;
 

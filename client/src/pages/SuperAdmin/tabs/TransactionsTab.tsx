@@ -10,8 +10,8 @@ interface TxRow {
     user_id: string;
     amount: number;
     currency: string;
-    payment_status: string | null;
-    payment_method: string;
+    status: string | null;
+    payment_gateway: string;
     created_at: string;
 }
 
@@ -33,27 +33,27 @@ export default function TransactionsTab() {
 
     useEffect(() => { load(); }, [load]);
 
-    const filtered = statusFilter ? transactions.filter((t) => t.payment_status === statusFilter) : transactions;
+    const filtered = statusFilter ? transactions.filter((t) => t.status === statusFilter) : transactions;
 
     const statusCounts = {
         all: transactions.length,
-        succeeded: transactions.filter((t) => t.payment_status === "succeeded").length,
-        pending: transactions.filter((t) => t.payment_status === "pending").length,
-        failed: transactions.filter((t) => t.payment_status === "failed").length,
+        success: transactions.filter((t) => t.status === "success").length,
+        pending: transactions.filter((t) => t.status === "pending").length,
+        failed: transactions.filter((t) => t.status === "failed").length,
     };
 
     const columns = [
         { key: "id", label: "Transaction ID", render: (row: TxRow) => <span className="font-mono text-xs">{String(row.id).slice(0, 12)}</span> },
         { key: "order_id", label: "Order", render: (row: TxRow) => <span className="font-mono text-xs">{String(row.order_id).slice(0, 8)}</span> },
         { key: "amount", label: "Amount", sortable: true, render: (row: TxRow) => <span className="font-medium">{(row.currency || "USD").toUpperCase()} {Number(row.amount).toFixed(2)}</span> },
-        { key: "payment_method", label: "Method", render: (row: TxRow) => <span className="text-sm capitalize text-muted-foreground">{row.payment_method || "—"}</span> },
-        { key: "payment_status", label: "Status", sortable: true, render: (row: TxRow) => <StatusBadge status={row.payment_status || "unknown"} /> },
+        { key: "payment_gateway", label: "Gateway", render: (row: TxRow) => <span className="text-sm capitalize text-muted-foreground">{row.payment_gateway || "—"}</span> },
+        { key: "status", label: "Status", sortable: true, render: (row: TxRow) => <StatusBadge status={row.status || "unknown"} /> },
         { key: "created_at", label: "Date", sortable: true, render: (row: TxRow) => <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleString()}</span> },
     ];
 
     const tabs = [
         { key: "", label: "All", count: statusCounts.all },
-        { key: "succeeded", label: "Succeeded", count: statusCounts.succeeded },
+        { key: "success", label: "Success", count: statusCounts.success },
         { key: "pending", label: "Pending", count: statusCounts.pending },
         { key: "failed", label: "Failed", count: statusCounts.failed },
     ];

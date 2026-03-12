@@ -7,6 +7,7 @@ module ErrorHandling
     # Shared rescue logic
     rescue_from StandardError, with: :handle_standard_error
     rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
+    rescue_from ActiveRecord::RecordInvalid, with: :handle_record_invalid
     rescue_from ActionController::ParameterMissing, with: :handle_bad_request
   end
 
@@ -35,6 +36,14 @@ module ErrorHandling
       error: 'Bad Request',
       message: exception.message
     }, status: :bad_request
+  end
+
+  def handle_record_invalid(exception)
+    render json: {
+      error: 'Validation Failed',
+      message: exception.record.errors.full_messages.join(', '),
+      errors: exception.record.errors
+    }, status: :unprocessable_entity
   end
 
   def redirect_to_frontend(path, options = {})

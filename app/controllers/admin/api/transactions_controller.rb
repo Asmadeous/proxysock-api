@@ -8,7 +8,7 @@ module Admin
         transactions = Transaction.all.order(created_at: :desc)
         
         # Filtering
-        transactions = transactions.where(payment_status: params[:status]) if params[:status].present?
+        transactions = transactions.where(status: params[:status]) if params[:status].present?
         transactions = transactions.where('id::text ILIKE ?', "%#{params[:q]}%") if params[:q].present?
 
         page_num = (params[:page] || 1).to_i

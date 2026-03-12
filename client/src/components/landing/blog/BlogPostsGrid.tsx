@@ -329,7 +329,7 @@ export function BlogPostsGrid({
 
               <div className="p-6">
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                  Get the latest guides on proxies, RDP, VPS, and eSIM delivered
+                  Get the latest guides on proxies, RDP, VPS, VPN, and eSIM delivered
                   to your inbox every week.
                 </p>
                 <Link
@@ -449,6 +449,11 @@ export function BlogPostsGrid({
                       to: "/dashboard/esim-packages",
                       label: "Buy eSIM",
                       icon: "📱",
+                    },
+                    {
+                      to: "/dashboard/vpn",
+                      label: "Buy VPN",
+                      icon: "🛡️",
                     },
                   ].map((link) => (
                     <li key={link.to}>

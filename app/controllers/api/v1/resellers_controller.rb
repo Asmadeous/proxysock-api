@@ -24,7 +24,7 @@ module Api
 
         return render json: { error: 'Minimum deposit for resellers is $1000' }, status: :bad_request if amount < 1000
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra].include?(gateway)
+                                                                                         payvra hundredpay].include?(gateway)
 
         # Create Pending Deposit
         transaction_ref = "DEP_#{SecureRandom.hex(8)}"
@@ -88,6 +88,16 @@ module Api
           # Store Payvra's txn_id so DepositSyncService can verify it later.
           deposit.metadata['payvra_invoice_id'] = result[:txn_id]
           deposit.save!
+          { url: result[:url], amount: amount, currency: 'USD' }
+        when 'hundredpay'
+          service = HundredpayService.new
+          result = service.create_invoice(
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_reseller.email
+          )
           { url: result[:url], amount: amount, currency: 'USD' }
         end
       end

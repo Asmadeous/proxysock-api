@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe 'Web::Api::Orders', type: :request do
   let(:user) { User.create!(username: 'order_user', email: 'order@test.com', first_name: 'O', last_name: 'U', password: 'password123') }
-  let!(:wallet) { Wallet.create!(owner: user, wallet_type: 'main') }
+  let(:wallet) { user.wallet }
   let(:token) { user.generate_jwt }
   let(:headers) { { 'Authorization' => "Bearer #{token}", 'Accept' => 'application/json' } }
 

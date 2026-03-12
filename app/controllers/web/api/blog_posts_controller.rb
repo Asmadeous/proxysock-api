@@ -10,10 +10,16 @@ module Web
         posts = posts.where('title ILIKE :q OR excerpt ILIKE :q', q: "%#{params[:q]}%") if params[:q].present?
         posts = posts.where(featured: true) if params[:featured] == 'true'
 
+        category_counts = BlogPost.published.group(:category).count
+        
+        categories_data = BlogPost::CATEGORIES.map do |name|
+          { name: name, count: category_counts[name] || 0 }
+        end
+
         render json: {
           posts: posts.map(&:as_blog_json),
-          total: posts.count,
-          categories: BlogPost::CATEGORIES
+          total: BlogPost.published.count,
+          categories: categories_data
         }
       end
 

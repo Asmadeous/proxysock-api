@@ -25,23 +25,30 @@ export default function ResSupportChat() {
     }, [loadChat]);
 
     useEffect(() => {
-        const consumer = getCableConsumer();
-        const sub = consumer.subscriptions.create(
-            { channel: "ChatChannel" },
-            {
-                received: (data: any) => {
-                    if (data.action === 'message_created') {
-                        setMessages(prev => {
-                            if (prev.find(m => m.id === data.message.id)) return prev;
-                            return [...prev, data.message];
-                        });
-                    }
+        let sub: any = null;
+        if (chatMeta.id) {
+            const consumer = getCableConsumer();
+            sub = consumer.subscriptions.create(
+                {
+                    channel: "ChatChannel",
+                    chat_id: chatMeta.id,
+                    chat_type: "SupportChat"
                 },
-                connected() { console.log("[Reseller Chat] Connected"); }
-            }
-        );
-        return () => sub.unsubscribe();
-    }, []);
+                {
+                    received: (data: any) => {
+                        if (data.action === 'message_created') {
+                            setMessages(prev => {
+                                if (prev.find(m => m.id === data.message.id)) return prev;
+                                return [...prev, data.message];
+                            });
+                        }
+                    },
+                    connected() { console.log("[Reseller Chat] Connected"); }
+                }
+            );
+        }
+        return () => { if (sub) sub.unsubscribe(); };
+    }, [chatMeta.id]);
 
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 

@@ -22,6 +22,7 @@ interface UsePaymentCheckoutHandlersProps {
   setIsLoadingPlisio: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingPayvra: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
   // functions
   clearCart: () => void;
   // constants
@@ -41,6 +42,7 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingPlisio,
   setIsLoadingPayvra,
   setIsLoadingPaystack,
+  setIsLoadingHundredpay,
   clearCart,
   usaEsimInCart,
   onSuccess,
@@ -97,6 +99,13 @@ export const usePaymentCheckoutHandlers = ({
         meta.isp = item.locations?.isp?.name;
         meta.city = item.locations?.city?.name;
         meta.duration_days = (item.period || 1) * 30;
+        // Pass numeric location/city ID for the MyProxyApi 'locations' param
+        meta.locationId = item.locationId || (item.locations?.city as any)?.id || (item.locations?.isp as any)?.id;
+        // Global ISP specific fields
+        if ((item as any).targetSectionId) meta.targetSectionId = (item as any).targetSectionId;
+        if ((item as any).targetId) meta.targetId = (item as any).targetId;
+        // Residential Rotating V2
+        if ((item as any).resi) meta.resi = (item as any).resi;
         break;
       case "esim":
       case "usa-esim":
@@ -214,11 +223,13 @@ export const usePaymentCheckoutHandlers = ({
   const handlePlisioCheckout = () => handleDepositGateway('plisio', setIsLoadingPlisio);
   const handlePayvraCheckout = () => handleDepositGateway('payvra', setIsLoadingPayvra);
   const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
+  const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
 
   return {
     handleBalancePayment,
     handlePlisioCheckout,
     handlePayvraCheckout,
     handlePaystackCheckout,
+    handleHundredpayCheckout,
   };
 };

@@ -153,7 +153,7 @@ export default function BuyProxies() {
     const gbMax = Number(plan.gb_max) || 0;
 
     if (
-      selectedCategory === "residential" &&
+      (selectedCategory === "residential" || selectedCategory === "residential-rotating") &&
       plan.billing_type === "usage_gb"
     ) {
       if (gbMin <= 0 || gbMax <= 0 || gbMax < gbMin) {
@@ -185,7 +185,11 @@ export default function BuyProxies() {
       const pricePerGb = Number(plan.price) || 0;
       const finalPrice = period * pricePerGb;
       setTotalPrice(finalPrice);
-    } else if (selectedCategory === "residential" && gbMin > 0 && gbMax > 0) {
+    } else if (
+      (selectedCategory === "residential" || selectedCategory === "residential-rotating") &&
+      gbMin > 0 &&
+      gbMax > 0
+    ) {
       // Handle residential plans without explicit billing_type but with GB ranges
       if (gbMax < gbMin) {
         setError("Invalid GB range for this plan.");
@@ -332,7 +336,7 @@ export default function BuyProxies() {
       conversionTracker.trackViewContent({
         productId: String(plan.id),
         productName: plan.name,
-        category: selectedCategory === "residential" ? "residential-proxy" : "proxy",
+        category: (selectedCategory === "residential" || selectedCategory === "residential-rotating") ? "residential-proxy" : "proxy",
         value: Number(plan.price) || 0,
         currency: "USD"
       });
@@ -374,9 +378,12 @@ export default function BuyProxies() {
       "isp",
       "premium-isp",
       "static-residential",
+      "global-isp",
     ].includes(selectedCategory);
     const isMobileIP = selectedCategory === "mobile";
-    const isResidentialRotating = selectedCategory === "residential";
+    const isResidentialRotating =
+      selectedCategory === "residential" ||
+      selectedCategory === "residential-rotating";
 
     // CRITICAL: Validate GB range for residential plans BEFORE proceeding
     if (isResidentialRotating) {
@@ -445,10 +452,11 @@ export default function BuyProxies() {
     };
     const newCartItem: CartItem = {
       product: String(selectedPlan),
-      productType: selectedCategory === "residential" ? "residential" : "proxy",
+      productType: (selectedCategory === "residential" || selectedCategory === "residential-rotating") ? "residential" : "proxy",
       plan: cartPlan,
       locations: { isp: ispDetails, city: cityDetails },
       locationsString,
+      locationId: cityDetails?.id ?? ispDetails?.id ?? undefined,
       period,
       protocol,
       totalPrice,
@@ -477,7 +485,7 @@ export default function BuyProxies() {
         conversionTracker.trackAddToCart({
           productId: String(plan.id),
           productName: plan.name,
-          category: selectedCategory === "residential" ? "residential-proxy" : "proxy",
+          category: (selectedCategory === "residential" || selectedCategory === "residential-rotating") ? "residential-proxy" : "proxy",
           value: totalPrice,
           currency: "USD"
         });
@@ -612,7 +620,7 @@ export default function BuyProxies() {
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {selectedCategory === "residential" &&
+                    {(selectedCategory === "residential" || selectedCategory === "residential-rotating") &&
                       selectedCategoryData?.proxy_plans?.find(
                         (p) => p.id === selectedPlan,
                       )?.billing_type === "usage_gb"

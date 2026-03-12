@@ -12,7 +12,11 @@ module Admin
         posts = posts.where(published: params[:published] == 'true') if params[:published].present?
         posts = posts.by_category(params[:category]) if params[:category].present?
 
-        render json: { posts: posts.map(&:as_blog_json), total: posts.total_count }
+        render json: {
+          posts: posts.map(&:as_blog_json),
+          total: posts.total_count,
+          categories: BlogPost::CATEGORIES
+        }
       end
 
       # GET /admin/api/blog_posts/:slug
@@ -59,7 +63,9 @@ module Admin
       end
 
       def blog_post_params
-        params.permit(:slug, :title, :excerpt, :content, :category, :author,
+        # Handle both flat and wrapped (Rails style) parameters
+        data = params.key?(:blog_post) ? params.require(:blog_post) : params
+        data.permit(:slug, :title, :excerpt, :content, :category, :author,
                       :read_time, :featured, :published, :image_url,
                       :published_at, tags: [])
       end

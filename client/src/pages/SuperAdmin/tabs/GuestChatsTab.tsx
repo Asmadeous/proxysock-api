@@ -69,7 +69,7 @@ export default function GuestChatsTab() {
         if (selectedChat) {
             const consumer = getCableConsumer();
             sub = consumer.subscriptions.create(
-                { channel: "ChatChannel", chat_id: selectedChat.id },
+                { channel: "ChatChannel", chat_id: selectedChat.id, chat_type: "GuestChat" },
                 {
                     received: (data: any) => {
                         if (data.action === 'message_created') {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRedditTracking } from "../../utils/redditPixel";
 import { type ExtendedPost } from "../../data/blogPost";
-import { getBlogPosts } from "../../services/blog";
+import { getBlogPosts, type BlogListResponse } from "../../services/blog";
 import { BlogHeroSection } from "../../components/landing/blog/BlogHeroSection";
 import { BlogNewsTicker } from "../../components/landing/blog/BlogNewsTicker";
 import { BlogSearchFilter } from "../../components/landing/blog/BlogSearchFilter";
@@ -51,15 +51,7 @@ export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [backendPosts, setBackendPosts] = useState<ExtendedPost[]>([]);
-  const [categories, setCategories] = useState<Category[]>([
-    { name: "All", count: 0 },
-    { name: "Proxies", count: 0 },
-    { name: "RDP", count: 0 },
-    { name: "VPS", count: 0 },
-    { name: "eSIM", count: 0 },
-    { name: "Tutorials", count: 0 },
-    { name: "News", count: 0 },
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<ExtendedPost[]>([]);
   const [newsArticles, setNewsArticles] = useState<ExtendedPost[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState<boolean>(false);
@@ -70,21 +62,19 @@ export default function BlogPage() {
 
   // Fetch backend blog posts
   useEffect(() => {
-    getBlogPosts().then((res) => {
+    getBlogPosts().then((res: BlogListResponse) => {
       setBackendPosts(res.posts);
 
-      setCategories((prev) => {
-        const counts = res.posts.reduce((acc, p) => {
-          acc[p.category] = (acc[p.category] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-
-        return prev.map(c => {
-          if (c.name === "All") return { ...c, count: res.total };
-          if (c.name === "News") return c; // keep news count
-          return { ...c, count: counts[c.name] || 0 };
-        });
-      });
+      // Merge news count into the categories from API
+      const newCategories = [
+        { name: "All", count: res.total + newsArticles.length },
+        ...(res.categories || []).map((cat: Category) => ({
+          ...cat,
+          count: cat.name === "News" ? cat.count + newsArticles.length : cat.count
+        }))
+      ];
+      
+      setCategories(newCategories);
     }).catch(console.error);
   }, []);
 
@@ -100,7 +90,7 @@ export default function BlogPage() {
         apikey: NEWSDATA_API_KEY,
         language: "en",
         category: "technology,business",
-        q: "proxy OR VPS OR RDP OR hosting OR cloud OR datacenter OR esim",
+        q: "proxy OR VPS OR RDP OR VPN OR hosting OR cloud OR datacenter OR esim",
       });
 
       if (page) {
@@ -167,6 +157,22 @@ export default function BlogPage() {
     fetchNews();
   }, []);
 
+  // Sync categories count when newsArticles or backendPosts change
+  useEffect(() => {
+    if (categories.length > 0) {
+      const counts = backendPosts.reduce((acc, p) => {
+        acc[p.category] = (acc[p.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      setCategories(prev => prev.map(cat => {
+        if (cat.name === "All") return { ...cat, count: backendPosts.length + newsArticles.length };
+        if (cat.name === "News") return { ...cat, count: (counts["News"] || 0) + newsArticles.length };
+        return { ...cat, count: counts[cat.name] || 0 };
+      }));
+    }
+  }, [newsArticles, backendPosts]);
+
   useEffect(() => {
     // SEO Meta Tags
     document.title =
@@ -175,13 +181,13 @@ export default function BlogPage() {
     const metaDescription = document.createElement("meta");
     metaDescription.setAttribute("name", "description");
     metaDescription.content =
-      "Find answers to common questions about our proxy, VPS, RDP, and eSIM services. Get help with setup, billing, technical issues, and stay updated with latest tech news.";
+      "Find answers to common questions about our proxy, VPS, RDP, VPN, and eSIM services. Get help with setup, billing, technical issues, and stay updated with latest tech news.";
     document.head.appendChild(metaDescription);
 
     const metaKeywords = document.createElement("meta");
     metaKeywords.setAttribute("name", "keywords");
     metaKeywords.content =
-      "proxy guides, RDP tutorials, VPS hosting guides, eSIM setup, web scraping tutorial, forex RDP, game server VPS, datacenter proxies, residential proxies, Windows RDP, Ubuntu VPS, tech news, cloud computing news";
+      "proxy guides, RDP tutorials, VPN guides, VPS hosting guides, eSIM setup, web scraping tutorial, forex RDP, game server VPS, datacenter proxies, residential proxies, Windows RDP, Ubuntu VPS, tech news, cloud computing news";
     document.head.appendChild(metaKeywords);
 
     // Open Graph
@@ -199,7 +205,7 @@ export default function BlogPage() {
       "@type": "Blog",
       name: "ProxySock Blog",
       description:
-        "Expert guides for proxies, RDP, VPS, and eSIM services with latest tech news",
+        "Expert guides for proxies, RDP, VPS, VPN, and eSIM services with latest tech news",
       url: "https://proxysock.com/blog",
       publisher: {
         "@type": "Organization",

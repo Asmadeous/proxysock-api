@@ -72,9 +72,18 @@ export const changeVmPassword = (id: string | number, password: string) =>
   api.post(`/web/api/credential_changes/vm/${id}/password`, { password });
 
 export const updateProxyCredentials = (id: string | number, data: { username?: string, password?: string }) =>
-  api.post(`/web/api/credential_changes/proxy/${id}/credentials`, data);
+  api.post(`/web/api/orders/${id}/update_credentials`, data);
 
 export const rotateProxyIp = (id: string | number) =>
-  api.post(`/web/api/credential_changes/proxy/${id}/rotate_ip`);
+  api.post(`/web/api/orders/${id}/rotate_ip`);
+
+export const changeProxyProtocol = (id: string | number, protocol: string) =>
+  api.post(`/web/api/orders/${id}/change_protocol`, { protocol });
+
+export const whitelistAdd = (id: string | number, ip: string, description?: string) =>
+  api.post(`/web/api/orders/${id}/whitelist`, { ip, description });
+
+export const whitelistDelete = (id: string | number, ip: string) =>
+  api.delete(`/web/api/orders/${id}/whitelist`, { data: { ip } });
 
 export default api;

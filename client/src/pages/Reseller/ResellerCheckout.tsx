@@ -37,6 +37,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
     const [isLoadingPayvra, setIsLoadingPayvra] = useState(false);
     const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
+    const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isAnyPaymentProcessing, setIsAnyPaymentProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -113,6 +114,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const {
         handleBalancePayment,
         handlePaystackCheckout,
+        handleHundredpayCheckout,
         handlePayvraCheckout,
         handlePlisioCheckout,
     } = usePaymentCheckoutHandlers({
@@ -127,6 +129,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         setIsLoadingPlisio,
         setIsLoadingPayvra,
         setIsLoadingPaystack,
+        setIsLoadingHundredpay,
         clearCart: () => {
             localStorage.removeItem("cartItems");
             setCartItems([]);
@@ -139,6 +142,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const handleCheckout = () => {
         if (selectedPaymentMethod === "balance") handleBalancePayment();
         else if (selectedPaymentMethod === "paystack") handlePaystackCheckout();
+        else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "payvra") handlePayvraCheckout();
     };
@@ -147,7 +151,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
 
 
     const isProcessing =
-        isLoadingBalance || isLoadingPaystack || isLoadingPlisio || isLoadingPayvra || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingPayvra || isAnyPaymentProcessing;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -224,6 +228,20 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                         <div className="flex-1">
                                             <div className="font-semibold">Crypto (Plisio)</div>
                                             <div className="text-sm text-muted-foreground">BTC, ETH, USDT</div>
+                                        </div>
+                                    </Label>
+                                </div>
+
+                                {/* 100Pay Option */}
+                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                    <RadioGroupItem value="hundredpay" id="hundredpay" className="sr-only" />
+                                    <Label htmlFor="hundredpay" className="flex items-center gap-4 w-full cursor-pointer">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                            <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold">100Pay (Card & Crypto)</div>
+                                            <div className="text-sm text-muted-foreground">Universal Payment Gateway</div>
                                         </div>
                                     </Label>
                                 </div>

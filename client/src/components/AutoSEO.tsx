@@ -25,8 +25,8 @@ interface AutoSEOProps {
 const AutoSEO: React.FC<AutoSEOProps> = ({
   children,
   siteName = "ProxySock",
-  defaultTitle = "ProxySock - Buy Premium Proxies, RDP, VPS & eSIM Online",
-  defaultDescription = "Buy premium proxies, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support.",
+  defaultTitle = "ProxySock - Buy Premium Proxies, VPN, RDP, VPS & eSIM Online",
+  defaultDescription = "Buy premium proxies, VPN, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support.",
 }) => {
   const location = useLocation();
   const baseUrl = "https://proxysock.com";
@@ -46,7 +46,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
     "/": {
       title: defaultTitle, // Now uses the defaultTitle prop
       description: defaultDescription, // Also uses defaultDescription prop
-      keywords: ["proxy", "VPS", "RDP", "eSIM", "hosting", "servers"],
+      keywords: ["proxy", "VPN", "VPS", "RDP", "eSIM", "hosting", "servers"],
       ogType: "website",
     },
     "/proxies": {
@@ -79,22 +79,22 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
     "/about": {
       title: `About Us - ${siteName}`,
       description:
-        "Learn about ProxySock's mission to provide premium proxy, VPS, RDP & eSIM services with 99.9% uptime and 24/7 support.",
-      keywords: ["about", "company", "proxy provider", "VPS hosting"],
+        "Learn about ProxySock's mission to provide premium proxy, VPN, VPS, RDP & eSIM services with 99.9% uptime and 24/7 support.",
+      keywords: ["about", "company", "proxy provider", "VPN provider", "VPS hosting"],
       ogType: "website",
     },
     "/contact": {
       title: `Contact Support - ${siteName}`,
       description:
-        "Get 24/7 support for proxy, VPS, RDP & eSIM services. Live chat, email & ticket support. Expert assistance available.",
+        "Get 24/7 support for proxy, VPN, VPS, RDP & eSIM services. Live chat, email & ticket support. Expert assistance available.",
       keywords: ["contact", "support", "help", "customer service"],
       ogType: "website",
     },
     "/faq": {
       title: `FAQ - Frequently Asked Questions - ${siteName}`,
       description:
-        "Find answers about proxy servers, VPS hosting, RDP services & eSIM packages. Setup guides, troubleshooting & more.",
-      keywords: ["FAQ", "help", "questions", "proxy help", "VPS support"],
+        "Find answers about proxy servers, VPN solutions, VPS hosting, RDP services & eSIM packages. Setup guides, troubleshooting & more.",
+      keywords: ["FAQ", "help", "questions", "proxy help", "VPN help", "VPS support"],
       ogType: "website",
     },
     "/proxy-purpose": {
@@ -113,7 +113,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
     "/HowToConnect": {
       title: `How to Connect - Setup Guide - ${siteName}`,
       description:
-        "Step-by-step guides to connect proxy, VPS & RDP services. Easy setup tutorials for all platforms and applications.",
+        "Step-by-step guides to connect proxy, VPN, VPS & RDP services. Easy setup tutorials for all platforms and applications.",
       keywords: [
         "setup",
         "configuration",
@@ -322,7 +322,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
           ? `${formattedPageName} - ${siteName}`
           : fallbackTitle,
       description: `${defaultDescription} - ${formattedPageName} page`,
-      keywords: ["proxy", "VPS", "RDP", "hosting"],
+      keywords: ["proxy", "VPN", "VPS", "RDP", "hosting"],
     };
   };
 
@@ -385,6 +385,7 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
             description: defaultDescription,
             serviceType: [
               "Proxy Services",
+              "VPN Services",
               "RDP Hosting",
               "VPS Hosting",
               "eSIM Services",
@@ -433,6 +434,15 @@ const AutoSEO: React.FC<AutoSEOProps> = ({
                     name: "eSIM Services",
                     description:
                       "Global, regional, and business eSIM cards for international connectivity",
+                  },
+                },
+                {
+                  "@type": "Offer",
+                  itemOffered: {
+                    "@type": "Service",
+                    name: "VPN Services",
+                    description:
+                      "High-speed residential VPN connections with global locations and secure encryption",
                   },
                 },
               ],
