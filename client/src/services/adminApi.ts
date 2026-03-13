@@ -50,8 +50,14 @@ export const fetchEmployee = (id: number) =>
     adminApi.get(`/employees/${id}`);
 export const createEmployee = (data: Record<string, unknown>) =>
     adminApi.post("/employees", data);
-export const updateEmployee = (id: number, data: Record<string, unknown>) =>
-    adminApi.patch(`/employees/${id}`, data);
+export const updateEmployee = (id: number, data: Record<string, unknown> | FormData) => {
+    if (data instanceof FormData) {
+        return adminApi.patch(`/employees/${id}`, data, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+    }
+    return adminApi.patch(`/employees/${id}`, data);
+};
 export const deleteEmployee = (id: number) =>
     adminApi.delete(`/employees/${id}`);
 export const assignTickets = (id: number, ticketIds: number[]) =>

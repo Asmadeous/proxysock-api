@@ -20,6 +20,20 @@ module Web
         user.email_confirmation_token = SecureRandom.urlsafe_base64(32)
 
         if user.save
+          # Track affiliate referral if a referral code was provided
+          if params[:user][:referral_code].present?
+            begin
+              AffiliateService.track_signup!(user, params[:user][:referral_code])
+            rescue StandardError => e
+              Rails.logger.warn "Referral tracking failed for code '#{params[:user][:referral_code]}': #{e.message}"
+            end
+          end
+
+          if user.avatar.attached?
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(user.avatar, only_path: true)
+            user.update_column(:profile_picture_url, proxy_path)
+          end
+
           # Send confirmation email
           ::UserMailer.confirmation_email(user).deliver_later
 
@@ -138,7 +152,7 @@ module Web
 
       # PATCH /web/api/auth/update_profile
       def update_profile
-        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url)
+        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url, :avatar)
 
         # Check username uniqueness if changed
         if permitted[:username].present? && permitted[:username] != current_user.username && User.where(
@@ -148,6 +162,11 @@ module Web
         end
 
         if current_user.update(permitted)
+          if current_user.avatar.attached?
+            # Store the stable proxy path directly in the database
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(current_user.avatar, only_path: true)
+            current_user.update_column(:profile_picture_url, proxy_path)
+          end
           render json: { message: 'Profile updated successfully', user: serialize_user(current_user) }
         else
           render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
@@ -272,7 +291,7 @@ module Web
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
-                                     :country, :city, :username, :profile_picture_url)
+                                     :country, :city, :username, :profile_picture_url, :referral_code, :avatar)
       end
 
       def login_params
@@ -290,7 +309,7 @@ module Web
           status: user.status,
           country: user.country,
           city: user.city,
-          profile_picture_url: user.profile_picture_url,
+          profile_picture_url: user.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(user.avatar, only_path: true) : user.profile_picture_url,
           balance: wallet&.balance.to_f || 0.0,
           currency: wallet&.currency || 'USD'
         }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { UserIcon, BuildingOfficeIcon, EnvelopeIcon, KeyIcon } from "@heroicons/react/24/outline";
 import { fetchResellerProfile, updateResellerProfile } from "../../../services/resellerApi";
 import { toast } from "react-hot-toast";
+import { formatImageUrl } from "../../../services/api";
 
 export default function ResSettings() {
     const [loading, setLoading] = useState(true);
@@ -11,8 +12,10 @@ export default function ResSettings() {
         company_name: "",
         email: "",
         username: "",
-        dedicated_api_key: ""
+        dedicated_api_key: "",
+        profile_picture_url: ""
     });
+    const [profilePicture, setProfilePicture] = useState<File | null>(null);
 
     useEffect(() => {
         fetchResellerProfile()
@@ -25,7 +28,8 @@ export default function ResSettings() {
                     company_name: data.company_name || "",
                     email: data.email || "",
                     username: data.username || "",
-                    dedicated_api_key: data.dedicated_api_key || ""
+                    dedicated_api_key: data.dedicated_api_key || "",
+                    profile_picture_url: data.profile_picture_url || ""
                 });
             })
             .catch(() => toast.error("Failed to load profile"))
@@ -36,14 +40,37 @@ export default function ResSettings() {
         if (!profile.id) return;
         setSaving(true);
         try {
-            await updateResellerProfile(profile.id, {
-                company_name: profile.company_name,
-                username: profile.username
+            let payload: any;
+            if (profilePicture) {
+                payload = new FormData();
+                payload.append("reseller[company_name]", profile.company_name);
+                payload.append("reseller[username]", profile.username);
+                payload.append("reseller[avatar]", profilePicture);
+            } else {
+                payload = {
+                    reseller: {
+                        company_name: profile.company_name,
+                        username: profile.username
+                    }
+                };
+            }
+
+            const response = await updateResellerProfile(profile.id, payload);
+            const updatedData = Array.isArray(response.data) ? response.data[0] : response.data;
+            
+            setProfile({
+                id: updatedData.id,
+                company_name: updatedData.company_name || "",
+                email: updatedData.email || "",
+                username: updatedData.username || "",
+                dedicated_api_key: updatedData.dedicated_api_key || "",
+                profile_picture_url: updatedData.profile_picture_url || ""
             });
+            
             toast.success("Profile updated successfully");
-            // Update local storage if needed
-            const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
-            localStorage.setItem("resellerUser", JSON.stringify({ ...user, company_name: profile.company_name, username: profile.username }));
+            localStorage.setItem("resellerUser", JSON.stringify(updatedData));
+            window.dispatchEvent(new Event("reseller-user-updated"));
+            setProfilePicture(null); // Clear the file selection after success
         } catch {
             toast.error("Failed to update profile");
         } finally {
@@ -102,6 +129,26 @@ export default function ResSettings() {
                                         onChange={e => setProfile({ ...profile, company_name: e.target.value })}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Company Logo / Profile Picture (Optional)</label>
+                                <div className="flex items-center gap-4">
+                                    {profile.profile_picture_url && !profilePicture && (
+                                        <img src={formatImageUrl(profile.profile_picture_url)} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-border/50" />
+                                    )}
+                                    <div className="relative w-full">
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg, image/png, image/gif, image/webp"
+                                            onChange={e => setProfilePicture(e.target.files ? e.target.files[0] : null)}
+                                            className="w-full bg-muted/30 border border-border/50 py-3 px-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-primary file:text-white hover:file:bg-primary/90"
+                                        />
+                                    </div>
+                                </div>
+                                {profilePicture && profilePicture.size > 5 * 1024 * 1024 && (
+                                    <p className="text-xs mt-1 text-destructive font-bold ml-1">File must be less than 5MB</p>
+                                )}
                             </div>
                         </div>
 

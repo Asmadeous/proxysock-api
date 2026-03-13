@@ -68,7 +68,16 @@ class ProductSyncService
   end
 
   def sync_category(category_slug)
-    product_type = (category_slug == 'residential-vpn' ? 'vpn' : 'proxy')
+    # Map category slugs to normalized product types
+    type_mapping = {
+      'residential-vpn' => 'vpn',
+      'static-residential' => 'static_residential',
+      'residential-rotating' => 'residential_rotating',
+      'premium-isp' => 'premium_isp',
+      'global-isp' => 'global_isp'
+    }
+    
+    product_type = type_mapping[category_slug] || category_slug.gsub('-', '_')
     
     category = ProductCategory.find_or_create_by!(slug: category_slug) do |c|
       c.name = category_slug.titleize
@@ -78,6 +87,16 @@ class ProductSyncService
 
     begin
       data = @client.fetch_category_data(category_slug)
+      
+      # For global-isp, we also need to fetch configuration details to get countries/locations
+      global_isp_config = nil
+      if category_slug == 'global-isp'
+        begin
+          global_isp_config = @client.fetch_global_isp_config['data']
+        rescue StandardError => e
+          @logger.warn("Could not fetch global-isp config: #{e.message}")
+        end
+      end
       
       # Handle if data is directly an array (some endpoints might do this)
       if data.is_a?(Array)
@@ -91,6 +110,10 @@ class ProductSyncService
       @logger.info("Category #{category_slug} returned #{plans.size} plans and #{isps.size} ISPs")
 
       plans.each do |plan|
+        # Enrich plan with global_isp_config if available
+        if global_isp_config && category_slug == 'global-isp'
+          plan['global_isp_config'] = global_isp_config
+        end
         sync_product(category, plan, isps, product_type)
       end
     rescue StandardError => e
@@ -131,21 +154,97 @@ class ProductSyncService
     meta['billing_type'] = plan['gb_min'] ? 'usage_gb' : 'monthly'
 
     # Filter/Attach ISPs to the plan
-    # If the plan has its own ISPs (like Mobile), use them. 
-    # Otherwise use category-level ISPs.
     plan_isps = plan['isp'] || category_isps
     meta['isp'] = plan_isps
 
-    # IMPORTANT: The frontend uses the actual keys from the 'locations' hash 
-    # as the location ID for place_order and flag display.
-    # We should NOT attempt to override them with ISO codes if the API uses something else.
+    # Extract Country Code from Name or metadata
+    plan_name = plan['name'].to_s
+    plan_name_lower = plan_name.downcase
     
+    # Try to find a country in the name
+    matched_country = COUNTRY_MAP.keys.find { |country| plan_name_lower.include?(country) }
+    meta['country_code'] = COUNTRY_MAP[matched_country] if matched_country
+    
+    # If not found in name, check if locations exist and try to derive from there
+    if meta['country_code'].blank? && plan['locations'].present?
+      # If locations is a hash or array, we might be able to extract it
+      # In many cases, it's just an ID string, but sometimes names appear.
+    end
+
+    # Parse Global ISP quantity ranges from product name.
+    # Examples: "1 x Global ISP" → qty_min=1, qty_max=1
+    #           "10-19 x Global ISP" → qty_min=10, qty_max=19
+    #           "2000 x Global ISP" → qty_min=2000, qty_max=999999 (open-ended)
+    if plan_name.match?(/\d+.*x\s+Global\s+ISP/i)
+      range_match = plan_name.match(/(\d+)-(\d+)\s*x/i)
+      single_match = plan_name.match(/(\d+)\s*x/i)
+
+      if range_match
+        meta['qty_min'] = range_match[1].to_i
+        meta['qty_max'] = range_match[2].to_i
+      elsif single_match
+        qty_val = single_match[1].to_i
+        if qty_val == 1
+          meta['qty_min'] = 1
+          meta['qty_max'] = 1
+        else
+          # Open-ended upper tier (e.g. "2000 x") — no upper bound
+          meta['qty_min'] = qty_val
+          meta['qty_max'] = 999999
+        end
+      end
+    end
+
+    # Extract locations if available
+    meta['locations'] = plan['locations'] if plan['locations']
+    # If this is Global ISP, extract countries and targets from the config
+    if plan['global_isp_config']
+      # plan['global_isp_config'] structure: { "target": [...], "country": [...], "period": [...] }
+      config = plan['global_isp_config']
+      countries_data = config['country'] || []
+      meta['countries'] = countries_data
+
+      # Map the first country as the primary flag/code
+      if countries_data.any?
+        first_country = countries_data.first
+        meta['country_code'] = alpha3_to_alpha2(first_country['alpha3']) || meta['country_code']
+      end
+      # Filter periods to only keep 30 days (per user request)
+      filtered_periods = (config['period'] || []).select { |p| p['name']&.to_s&.include?('30') }
+      
+      meta['periods'] = filtered_periods
+      meta['targets'] = config['target']
+      meta['countries'] = config['country']
+
+      # Build the config specifically for the frontend plural requirements
+      meta['global_isp_config'] = {
+        'countries' => config['country'] || [],
+        'targets' => config['target'] || [],
+        'periods' => filtered_periods
+      }
+      meta['config'] = meta['global_isp_config'] # Sync legacy key
+    end
+
     meta['targetSectionId'] = plan['targetSectionId'] if plan['targetSectionId']
     meta['targetId'] = plan['targetId'] if plan['targetId']
     meta['resi'] = plan['resi'] if plan['resi']
     meta['type'] = plan['type'] if plan['type']
 
     meta
+  end
+
+  def alpha3_to_alpha2(alpha3)
+    return nil if alpha3.blank?
+    
+    # Simple mapping for common countries in the API
+    {
+      'AUT' => 'AT', 'BRA' => 'BR', 'CAN' => 'CA', 'FRA' => 'FR',
+      'DEU' => 'DE', 'HKG' => 'HK', 'IND' => 'IN', 'ISR' => 'IL',
+      'ITA' => 'IT', 'JPN' => 'JP', 'LVA' => 'LV', 'NLD' => 'NL',
+      'POL' => 'PL', 'ROU' => 'RO', 'SGP' => 'SG', 'KOR' => 'KR',
+      'ESP' => 'ES', 'TWN' => 'TW', 'THA' => 'TH', 'TUR' => 'TR',
+      'UKR' => 'UA', 'USA' => 'US', 'GBR' => 'GB'
+    }[alpha3.upcase] || alpha3[0..1].upcase
   end
 
   def sync_pricing(product, plan)

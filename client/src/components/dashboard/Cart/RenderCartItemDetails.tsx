@@ -1,4 +1,4 @@
-import { CartItem } from "@/pages/UserDashboard/Cart";
+import { CartItem } from "@/types/index";
 import { useCalculateOrderItems } from "./hook/useCalculateOrderTotalSync";
 import { formatDataVolume, formatDuration } from "@/utils/cart/formatData";
 import {
@@ -62,20 +62,39 @@ const ProxyItemDetails = ({
         <div className="space-y-2.5 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Location</span>
-            <span className="font-medium">
-              {selectedCity
-                ? `${selectedCity.name}, ${selectedCity.state}`
-                : selectedIsp?.name || "Any"}
+            <span className="font-medium flex items-center gap-2 text-right">
+              {item.globalCountry ? (
+                <>
+                  {item.globalCountry.name}
+                  <img
+                    src={`https://flagcdn.com/16x12/${item.globalCountry.code?.toLowerCase()}.png`}
+                    alt={item.globalCountry.name}
+                    className="w-4 h-3 rounded-sm inline-block"
+                  />
+                </>
+              ) : selectedCity ? (
+                `${selectedCity.name}, ${selectedCity.state}`
+              ) : (
+                selectedIsp?.name || "Any"
+              )}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Period</span>
             <span className="font-medium">
-              {item.period}{" "}
-              {item.plan.billing_type === "usage_gb" ? "GB" : "month"}
-              {(item.period || 1) > 1 ? "s" : ""}
+              {((item.productType === "proxy" || item.productType === "global-isp") && item.plan?.global_isp_config)
+                ? `${Number(item.quantity) || 0} x ${item.plan.name} (${item.period || "Fixed"})`
+                : item.period}{" "}
+              {item.plan?.billing_type === "usage_gb" ? "GB" : item.plan?.global_isp_config ? "" : "month"}
+              {(!item.plan?.global_isp_config && (Number(item.period) || 1) > 1) ? "s" : ""}
             </span>
           </div>
+          {item.globalTarget && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Usage Target</span>
+              <span className="font-medium">{item.globalTarget.name}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Protocol</span>
             <span className="font-medium">
@@ -610,7 +629,7 @@ const VpnItemDetails = ({
           )}
           {item.vpnPlan.features && item.vpnPlan.features.length > 0 && (
             <div className="mt-3 space-y-1">
-              {item.vpnPlan.features.map((feature) => (
+              {item.vpnPlan.features.map((feature: string) => (
                 <div key={feature} className="flex items-start">
                   <Check className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mr-2 flex-shrink-0 mt-0.5" />
                   <span className="text-xs text-muted-foreground">
@@ -672,6 +691,7 @@ export const RenderCartItemDetails = ({
 
   switch (item.productType) {
     case "proxy":
+    case "global-isp":
       return <ProxyItemDetails {...commonProps} />;
     case "esim":
       return <EsimItemDetails {...commonProps} updateESIMQuantity={updateESIMQuantity} />;

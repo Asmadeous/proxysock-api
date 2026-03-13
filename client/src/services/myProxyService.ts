@@ -35,6 +35,9 @@ export interface VPNCategory {
   slug: string;
   information?: string[];
   vpn_plans?: VPNPlan[];
+  alpha3?: string; // Assuming these are meant to be added, not replace
+  alpha2?: string;
+  code?: string;
 }
 
 
@@ -221,19 +224,64 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
         planISPs = p.isp;
       }
 
+      let gbMin = Number(p.gb_min ?? 0);
+      let gbMax = Number(p.gb_max ?? 0);
+
+      // Global ISP uses proxy quantity ranges (qty_min/qty_max), NOT GB
+      let qtyMin = Number(p.qty_min ?? 0);
+      let qtyMax = Number(p.qty_max ?? 0);
+
+      if (categorySlug === 'global-isp') {
+        // Don't use gb_min/gb_max for Global ISP
+        gbMin = 0;
+        gbMax = 0;
+
+        // Parse quantity ranges from name if not provided by backend
+        if (qtyMin === 0 && qtyMax === 0) {
+          if (p.ips_included && Number(p.ips_included) > 0) {
+            qtyMin = Number(p.ips_included);
+            qtyMax = Number(p.ips_included);
+          } else {
+            const name = String(p.name);
+            const rangeMatch = name.match(/(\d+)-(\d+)\s*x/i);
+            const singleMatch = name.match(/(\d+)\s*x/i);
+            
+            if (rangeMatch) {
+              qtyMin = parseInt(rangeMatch[1]);
+              qtyMax = parseInt(rangeMatch[2]);
+            } else if (singleMatch) {
+              const val = parseInt(singleMatch[1]);
+              qtyMin = val;
+              qtyMax = val === 1 ? 1 : 999999; // open-ended for top tier
+            }
+          }
+        }
+      }
+
       const mappedPlan: ProxyPlan = {
         id: String(p.id),
         name: p.name,
         price: Number(p.price).toFixed(2),
         currency: p.currency || 'USD',
         ips_included: Number(p.ips_included ?? 0),
-        gb_min: Number(p.gb_min ?? 0),
-        gb_max: Number(p.gb_max ?? 0),
+        gb_min: gbMin,
+        gb_max: gbMax,
         is_owned: p.is_owned || p.provider_type === 'xproxy' || p.provider_type === 'inhouse',
         source_table: 'proxy_plans' as const,
         billing_type: p.billing_type,
         duration_days: p.duration_days,
-        isp: planISPs
+        isp: planISPs,
+        global_isp_config: p.global_isp_config || (p.targets ? {
+          targets: p.targets,
+          countries: (p.countries || []).map((c: any) => ({
+            ...c,
+            code: c.alpha2 || c.code // Ensure code is available for flags
+          })),
+          periods: p.periods
+        } : undefined),
+        qty_min: qtyMin || undefined,
+        qty_max: qtyMax || undefined,
+        resi: p.resi
       };
 
       mappedPlan.display_name = standardizePlanName(mappedPlan);

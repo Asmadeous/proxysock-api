@@ -51,6 +51,10 @@ export interface ProxyPlan {
   ips_included?: number; // Number of IPs included
   isp?: ISP[]; // Optional ISP details (from prior context)
   location_filter?: string; // Location filter for the plan
+  global_isp_config?: GlobalISPConfig;
+  qty_min?: number; // Minimum proxy quantity for Global ISP range tiers
+  qty_max?: number; // Maximum proxy quantity for Global ISP range tiers
+  resi?: number;
 }
 
 
@@ -73,6 +77,31 @@ export interface City {
   ips_available: number;
 }
 
+export interface GlobalISPCountry {
+  id: number;
+  name: string;
+  alpha3: string;
+  alpha2?: string;
+  code?: string;
+}
+
+export interface GlobalISPTarget {
+  id: number;
+  name: string;
+}
+
+export interface GlobalISPTargetSection {
+  name: string;
+  targets: GlobalISPTarget[];
+  sectionId: number;
+}
+
+export interface GlobalISPConfig {
+  countries: GlobalISPCountry[];
+  targets: GlobalISPTargetSection[];
+  periods: { id: string; name: string }[];
+}
+
 export interface Order {
   // proxy_id: PremProxy;
   proxy_id: any;
@@ -91,18 +120,43 @@ export interface Order {
 }
 
 export interface CartItem {
-  product: string;
-  productType: string;
-  plan: ProxyPlan | null;
-  locations: {
+  product?: string;
+  productType:
+  | "proxy"
+  | "esim"
+  | "vps"
+  | "rdp"
+  | "usa-esim"
+  | "vpn"
+  | "residential"
+  | "global-isp"
+  | "intercept";
+  plan?: ProxyPlan | null;
+  locations?: {
     isp: ISP | null;
     city: City | null;
   };
-  locationsString: string;
+  locationsString?: string;
   locationId?: number | string;
-  period: number;
-  protocol: "http" | "socks5";
+  globalCountry?: GlobalISPCountry;
+  globalTarget?: GlobalISPTarget;
+  globalTargetSectionId?: number;
+  quantity?: number;
+  period?: number | string;
+  protocol?: "http" | "socks5";
   totalPrice?: number;
+  esimPackage?: any;
+  vpsPlan?: any;
+  rdpPlan?: any;
+  usaEsimPlan?: any;
+  vpnPlan?: any;
+  osTemplate?: string;
+  hostname?: string;
+  rdpUsername?: string;
+  duration?: number;
+  managementType?: "unmanaged" | "managed";
+  location?: { country: string; countryCode: string };
+  effective_base_price?: number;
 }
 
 export interface Transaction {

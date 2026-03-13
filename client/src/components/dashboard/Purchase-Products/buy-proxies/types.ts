@@ -70,7 +70,7 @@ export interface ISP {
       city: City | null;
     };
     locationsString: string;
-    period: number;
+    period: number | string;
     protocol: "http" | "socks5";
     totalPrice?: number;
   }

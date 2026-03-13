@@ -41,11 +41,13 @@ class Order < ApplicationRecord
   has_one :usa_esim_order, dependent: :destroy
   has_one :vpn_order, dependent: :destroy
   has_one :vpn_account, through: :vpn_order, source: :vpn
+  has_one :global_isp_proxy_order, dependent: :destroy
+  has_one :global_isp_proxy, through: :global_isp_proxy_order
 
   def provisioned_resource
     case product.product_type
     when 'vps', 'rdp', 'vm' then vm
-    when 'proxy' then proxy # delegates to correct proxy association
+    when 'proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp' then proxy
     when 'esim' then esim_order
     when 'usa_esim' then usa_esim_order
     when 'vpn' then vpn_account
@@ -61,7 +63,8 @@ class Order < ApplicationRecord
       StaticIspProxy.find_by(order_id: id) ||
       PremiumIspProxy.joins(:premium_isp_proxy_order).find_by(premium_isp_proxy_orders: { order_id: id }) ||
       StaticResidentialProxy.joins(:static_residential_proxy_order).find_by(static_residential_proxy_orders: { order_id: id }) ||
-      ResidentialRotatingProxy.find_by(order_id: id)
+      ResidentialRotatingProxy.find_by(order_id: id) ||
+      GlobalIspProxy.joins(:global_isp_proxy_order).find_by(global_isp_proxy_orders: { order_id: id })
   end
 
   def reorderable?(actor)

@@ -14,7 +14,10 @@ class RedditConversionService
   end
 
   def track
-    return { error: 'Missing Reddit credentials' } unless @ad_account_id && @conversion_token
+    unless @ad_account_id && @conversion_token
+      Rails.logger.warn "Reddit CAPI: Skipping tracking due to missing credentials"
+      return { success: true, message: 'Skipped: Missing credentials' }
+    end
 
     uri = URI("#{BASE_URL}/#{@ad_account_id}")
     http = Net::HTTP.new(uri.host, uri.port)

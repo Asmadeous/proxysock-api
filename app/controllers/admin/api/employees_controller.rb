@@ -39,6 +39,11 @@ module Admin
           department: dept,
           active: true
         )
+        if params[:avatar].present?
+          employee.avatar.attach(params[:avatar])
+          proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(employee.avatar, only_path: true)
+          employee.update_column(:profile_picture_url, proxy_path)
+        end
         record_audit_log('employee.created', employee)
         render json: employee_json(employee), status: :created
       end
@@ -47,9 +52,16 @@ module Admin
       def update
         attrs = employee_params.to_h
         attrs[:department] = Department.find_or_create_by!(name: params[:department]) if params[:department].present?
-        @employee.update!(attrs)
-        record_audit_log('employee.updated', @employee)
-        render json: employee_json(@employee)
+        if @employee.update(attrs)
+          if @employee.avatar.attached?
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(@employee.avatar, only_path: true)
+            @employee.update_column(:profile_picture_url, proxy_path)
+          end
+          record_audit_log('employee.updated', @employee)
+          render json: employee_json(@employee)
+        else
+          render json: { errors: @employee.errors.full_messages }, status: :unprocessable_entity
+        end
       end
 
       # DELETE /admin/api/employees/:id
@@ -78,7 +90,7 @@ module Admin
       end
 
       def employee_params
-        permitted = params.permit(:first_name, :last_name, :email, :active, :work_email, :profile_picture_url)
+        permitted = params.permit(:first_name, :last_name, :email, :active, :work_email, :profile_picture_url, :avatar)
         permitted[:role] = params[:role] if params.key?(:role)
         permitted
       end
@@ -96,7 +108,7 @@ module Admin
           active: e.active?,
           last_login: e.last_login_at,
           created_at: e.created_at,
-          profile_picture_url: e.profile_picture_url
+          profile_picture_url: e.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(e.avatar, only_path: true) : e.profile_picture_url
         }
         if full
           data[:action_logs] = e.admin_action_logs.order(created_at: :desc).limit(20).map do |l|

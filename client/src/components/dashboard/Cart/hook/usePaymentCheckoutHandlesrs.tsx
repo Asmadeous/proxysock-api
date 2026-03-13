@@ -1,6 +1,6 @@
 
 import { useCalculateOrderItems } from "./useCalculateOrderTotalSync";
-import { CartItem } from "@/pages/UserDashboard/Cart";
+import { CartItem } from "@/types";
 import React from "react";
 import api from "@/services/api";
 
@@ -28,6 +28,7 @@ interface UsePaymentCheckoutHandlersProps {
   // constants
   usaEsimInCart: boolean;
   onSuccess?: (orderId: string) => void;
+  promoCode?: string;
 }
 
 export const usePaymentCheckoutHandlers = ({
@@ -46,6 +47,7 @@ export const usePaymentCheckoutHandlers = ({
   clearCart,
   usaEsimInCart,
   onSuccess,
+  promoCode,
 }: UsePaymentCheckoutHandlersProps) => {
   const {
     calculateOrderTotalSync,
@@ -54,7 +56,8 @@ export const usePaymentCheckoutHandlers = ({
   const getProductId = (item: CartItem): string | number | undefined => {
     switch (item.productType) {
       case "proxy":
-      case "residential": return item.plan?.id;
+      case "residential":
+      case "global-isp": return item.plan?.id;
       case "vps": return item.vpsPlan?.id;
       case "rdp": return item.rdpPlan?.id;
       case "esim": return item.esimPackage?.id;
@@ -84,26 +87,28 @@ export const usePaymentCheckoutHandlers = ({
           meta.cpu_cores = item.vpsPlan?.cpu_cores;
           meta.ram_gb = item.vpsPlan?.ram_gb;
           meta.storage_gb = item.vpsPlan?.storage_gb;
-          meta.countryCode = item.location?.countryCode;
+          meta.country_code = item.location?.countryCode;
         } else {
           meta.cpu_cores = item.rdpPlan?.cpu_cores;
           meta.ram_gb = item.rdpPlan?.ram_gb;
           meta.storage_gb = item.rdpPlan?.storage_gb;
-          meta.countryCode = item.location?.countryCode;
+          meta.country_code = item.location?.countryCode;
         }
         break;
       case "proxy":
       case "residential":
+      case "global-isp":
         meta.country_code = item.locationId || (item.locations?.city as any)?.country_id || (item.locations?.isp as any)?.country_code || (item.plan as any)?.country_code;
         meta.protocol = item.protocol;
         meta.isp = item.locations?.isp?.name;
         meta.city = item.locations?.city?.name;
-        meta.duration_days = (item.period || 1) * 30;
+        meta.duration_days = (Number(item.period) || 1) * 30;
         // Pass numeric location/city ID for the MyProxyApi 'locations' param
         meta.locationId = item.locationId || (item.locations?.city as any)?.id || (item.locations?.isp as any)?.id;
         // Global ISP specific fields
-        if ((item as any).targetSectionId) meta.targetSectionId = (item as any).targetSectionId;
-        if ((item as any).targetId) meta.targetId = (item as any).targetId;
+        if ((item as any).globalTarget?.id) meta.target_id = (item as any).globalTarget.id;
+        if ((item as any).globalTargetSectionId) meta.target_section_id = (item as any).globalTargetSectionId;
+        if ((item as any).globalCountry?.id) meta.selected_country_id = (item as any).globalCountry.id;
         // Residential Rotating V2
         if ((item as any).resi) meta.resi = (item as any).resi;
         break;
@@ -116,7 +121,7 @@ export const usePaymentCheckoutHandlers = ({
       case "vpn":
         meta.country_code = (item.locations?.isp as any)?.country_code || (item.locations?.city as any)?.country_id || "US";
         meta.protocol = item.protocol || "wireguard";
-        meta.duration_days = (item.period || 1) * 30;
+        meta.duration_days = (Number(item.period) || 1) * 30;
         break;
     }
 
@@ -151,7 +156,8 @@ export const usePaymentCheckoutHandlers = ({
 
       const payload = {
         items: buildCartPayload(),
-        payment_method: 'wallet'
+        payment_method: 'wallet',
+        ...(promoCode ? { promo_code: promoCode } : {}),
       };
 
       const { data: checkoutData } = await api.post("/web/api/orders/checkout_cart", payload);
@@ -197,7 +203,8 @@ export const usePaymentCheckoutHandlers = ({
       const payload = {
         items: buildCartPayload(),
         payment_method: 'gateway',
-        gateway: gatewayName
+        gateway: gatewayName,
+        ...(promoCode ? { promo_code: promoCode } : {}),
       };
 
       const { data } = await api.post("/web/api/orders/checkout_cart", payload);

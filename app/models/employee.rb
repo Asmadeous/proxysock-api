@@ -3,6 +3,9 @@
 class Employee < ApplicationRecord
   has_secure_password validations: false
 
+  has_one_attached :avatar
+  validate :avatar_security_checks
+
   belongs_to :department
   has_many :admin_action_logs
   has_many :user_impersonation_logs
@@ -56,5 +59,20 @@ class Employee < ApplicationRecord
 
   def full_name
     "#{first_name} #{last_name}"
+  end
+
+  private
+
+  def avatar_security_checks
+    return unless avatar.attached?
+
+    if avatar.blob.byte_size > 5.megabytes
+      errors.add(:avatar, 'size must be less than 5MB')
+    end
+
+    acceptable_types = %w[image/jpeg image/png image/gif image/webp]
+    unless acceptable_types.include?(avatar.content_type)
+      errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
+    end
   end
 end

@@ -81,7 +81,7 @@ module Admin
           last_name: employee.last_name,
           role: employee.role,
           department: employee.department&.name,
-          profile_picture_url: employee.profile_picture_url
+          profile_picture_url: employee.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(employee.avatar, only_path: true) : employee.profile_picture_url
         }
       end
     end

@@ -6,6 +6,9 @@ import {
   ChevronUp,
   Cpu,
   Globe,
+  Minus,
+  Package,
+  Plus,
   Sparkles,
 } from "lucide-react";
 
@@ -25,6 +28,14 @@ interface RenderISPOptionsProps {
   handleCitySelection: (cityId: number) => void;
   selectedCity: number | null;
   selectedISP: number | null;
+  selectedGlobalCountry: number | null;
+  selectedGlobalTarget: number | null;
+  selectedGlobalPeriod: string | null;
+  handleGlobalCountrySelection: (countryId: number) => void;
+  handleGlobalTargetSelection: (targetId: number, sectionId: number) => void;
+  handleGlobalPeriodSelection: (periodId: string) => void;
+  quantity: number;
+  setQuantity: (quantity: number) => void;
 }
 
 const PeriodSelector = ({
@@ -197,10 +208,18 @@ export const renderISPOptionsWithCountries = ({
   handleCitySelection,
   selectedCity,
   selectedISP,
+  selectedGlobalCountry,
+  selectedGlobalTarget,
+  selectedGlobalPeriod,
+  handleGlobalCountrySelection,
+  handleGlobalTargetSelection,
+  handleGlobalPeriodSelection,
+  quantity,
+  setQuantity,
 }: RenderISPOptionsProps) => {
   const plan = (selectedCategory === "mobile" && showMobilePlans)
-    ? mobileProxyPlans.find((p) => p.id === selectedPlan)
-    : selectedCategoryData?.proxy_plans?.find((p) => p.id === selectedPlan);
+    ? mobileProxyPlans.find((p) => String(p.id) === String(selectedPlan))
+    : selectedCategoryData?.proxy_plans?.find((p) => String(p.id) === String(selectedPlan));
 
   if (!plan) return null;
 
@@ -208,7 +227,7 @@ export const renderISPOptionsWithCountries = ({
   const isResidential = selectedCategory === "residential";
   const availableISPs = plan.isp || [];
 
-  let showPeriod = true;
+  let showPeriod = selectedCategory !== "global-isp"; // Hide default period selector for Global ISP
   let periodLabel = isMobile ? "Duration (Days)" : (isResidential && plan.billing_type === "usage_gb" ? "Data Amount (GB)" : "Validity (Months)");
 
   if (isMobile) {
@@ -250,6 +269,181 @@ export const renderISPOptionsWithCountries = ({
       )}
 
       <ProtocolSelector selected={protocol} onChange={setProtocol} />
+
+      {selectedCategory === "global-isp" && (
+        <Card className="border-orange-500/20 bg-orange-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Package className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              Number of Proxies
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(Number(plan.qty_min) || 1, quantity - 1))}
+                  disabled={quantity <= (Number(plan.qty_min) || 1)}
+                  className="p-3 rounded-xl border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Minus className="w-5 h-5" />
+                </button>
+                <div className="flex-1 relative">
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || (Number(plan.qty_min) || 1);
+                      const min = Number(plan.qty_min) || 1;
+                      const max = (Number(plan.qty_max) > 0 && Number(plan.qty_max) < 999999) ? Number(plan.qty_max) : 999999;
+                      setQuantity(Math.max(min, Math.min(max, val)));
+                    }}
+                    className="w-full text-center font-bold text-2xl bg-transparent border-none focus:outline-none focus:ring-0"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.min((Number(plan.qty_max) > 0 && Number(plan.qty_max) < 999999 ? Number(plan.qty_max) : 999999), quantity + 1))}
+                  disabled={Number(plan.qty_max) > 0 && Number(plan.qty_max) < 999999 ? quantity >= Number(plan.qty_max) : false}
+                  className="p-3 rounded-xl border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {Number(plan.qty_min) > 0 && (
+                <p className="text-[10px] text-muted-foreground text-center font-medium">
+                  {Number(plan.qty_min) === Number(plan.qty_max)
+                    ? `Fixed quantity: ${plan.qty_min} proxies`
+                    : `Select ${plan.qty_min} to ${Number(plan.qty_max) >= 999999 ? "unlimited" : plan.qty_max} proxies`}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedCategory === "global-isp" && plan.global_isp_config?.countries && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex items-center gap-2 bg-muted rounded-md px-3 py-1.5 border w-full">
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Available Countries:</span>
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {plan.global_isp_config.countries.map((country: any) => (
+                <img
+                  key={country.id}
+                  src={`https://flagcdn.com/16x12/${country.code?.toLowerCase()}.png`}
+                  alt={country.name}
+                  title={country.name}
+                  className="w-4 h-3 rounded-sm flex-shrink-0"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedCategory === "global-isp" && plan.global_isp_config && (
+        <div className="space-y-4 pt-2">
+          {/* Global Duration / Periods */}
+          {(plan.global_isp_config.periods || []).length > 0 && (
+            <Card className="border-blue-500/20 bg-blue-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  Select Duration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {(plan.global_isp_config.periods).map((p: any) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleGlobalPeriodSelection(p.id)}
+                      className={`py-3 px-4 rounded-lg border-2 font-semibold transition-all ${selectedGlobalPeriod === p.id
+                        ? "border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]"
+                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                        }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Targets Section */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Select Usage Target
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(plan.global_isp_config.targets || []).map((section: any) => (
+                <div key={section.sectionId} className="space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{section.name}</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(section.targets || []).map((target: any) => (
+                      <button
+                        key={target.id}
+                        onClick={() => handleGlobalTargetSelection(target.id, section.sectionId)}
+                        className={`py-2 px-3 rounded-md text-[11px] font-semibold transition-all border text-center ${selectedGlobalTarget === target.id
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                      >
+                        {target.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Global Locations */}
+          <Card className="border-emerald-500/20 bg-emerald-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Select Location / Country
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(plan.global_isp_config.countries || []).map((country: any) => {
+                  const flagCode = (country.alpha2 || country.alpha3?.slice(0,2) || 'us').toLowerCase();
+                  return (
+                    <button
+                      key={country.id}
+                      onClick={() => handleGlobalCountrySelection(country.id)}
+                      className={`flex items-center gap-2 py-2 px-3 rounded-md text-[11px] font-semibold transition-all border ${selectedGlobalCountry === country.id
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                        }`}
+                    >
+                      <img
+                        src={`https://flagcdn.com/24x18/${flagCode}.png`}
+                        alt={country.name}
+                        className="w-4 h-3 rounded-sm object-cover flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <span className="truncate">{country.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {!isResidential && availableISPs.length > 0 && (
         <Card>

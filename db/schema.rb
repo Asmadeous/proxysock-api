@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_10_181837) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_12_200128) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -396,6 +396,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_181837) do
     t.string "webhook_type"
   end
 
+  create_table "global_isp_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "city"
+    t.string "country_code"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.string "ip_address"
+    t.string "isp_name"
+    t.jsonb "metadata", default: {}
+    t.string "myproxyapi_order_id"
+    t.uuid "order_id"
+    t.string "password"
+    t.integer "port"
+    t.datetime "updated_at", null: false
+    t.string "username"
+    t.index ["myproxyapi_order_id"], name: "index_global_isp_proxies_on_myproxyapi_order_id"
+    t.index ["order_id"], name: "index_global_isp_proxies_on_order_id"
+  end
+
+  create_table "global_isp_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "global_isp_proxy_id"
+    t.string "myproxyapi_order_id"
+    t.uuid "order_id", null: false
+    t.string "target_id"
+    t.string "target_section_id"
+    t.datetime "updated_at", null: false
+    t.index ["global_isp_proxy_id"], name: "index_global_isp_proxy_orders_on_global_isp_proxy_id"
+    t.index ["order_id"], name: "index_global_isp_proxy_orders_on_order_id"
+  end
+
   create_table "guest_chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.text "body", null: false
     t.datetime "created_at", null: false
@@ -625,6 +655,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_181837) do
     t.index ["provider"], name: "index_products_on_provider"
     t.index ["provider_type"], name: "index_products_on_provider_type"
     t.index ["slug"], name: "index_products_on_slug"
+  end
+
+  create_table "promo_codes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "active", default: true
+    t.string "code"
+    t.datetime "created_at", null: false
+    t.uuid "created_by_id"
+    t.integer "current_uses", default: 0
+    t.string "description"
+    t.string "discount_type"
+    t.decimal "discount_value"
+    t.datetime "expires_at"
+    t.decimal "max_discount_amount"
+    t.integer "max_uses"
+    t.decimal "min_order_amount"
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_promo_codes_on_code", unique: true
   end
 
   create_table "provider_inventory_syncs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

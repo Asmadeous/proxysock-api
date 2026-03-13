@@ -11,6 +11,10 @@ module Api
 
       def update
         if current_reseller.update(reseller_params)
+          if current_reseller.avatar.attached?
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(current_reseller.avatar, only_path: true)
+            current_reseller.update_column(:profile_picture_url, proxy_path)
+          end
           render json: current_reseller
         else
           render json: { errors: current_reseller.errors }, status: :unprocessable_entity
@@ -103,7 +107,7 @@ module Api
       end
 
       def reseller_params
-        params.require(:reseller).permit(:company_name, :email, :profile_picture_url)
+        params.require(:reseller).permit(:company_name, :email, :profile_picture_url, :avatar)
       end
     end
   end

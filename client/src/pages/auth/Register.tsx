@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useCallback, useRef, useEffect } from "react";
 
@@ -33,7 +33,9 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [profilePictureUrl, setProfilePictureUrl] = useState("");
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [searchParams] = useSearchParams();
 
   // Enhanced rate limiting state
   const [submitAttempts, setSubmitAttempts] = useState(0);
@@ -68,6 +70,20 @@ export default function Register() {
       }
     }
   }, []);
+
+  // Capture referral code from URL (?ref=CODE)
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      setReferralCode(ref);
+      // Also save to localStorage in case user navigates away and returns
+      localStorage.setItem('referral_code', ref);
+    } else {
+      // Check localStorage for previously captured referral code
+      const storedRef = localStorage.getItem('referral_code');
+      if (storedRef) setReferralCode(storedRef);
+    }
+  }, [searchParams]);
 
   // Calculate password strength
   useEffect(() => {
@@ -226,17 +242,34 @@ export default function Register() {
     lastSubmitTime.current = Date.now();
 
     try {
-      const { data } = await registerUser({
-        email,
-        password,
-        password_confirmation: passwordConfirmation,
-        first_name: firstName,
-        last_name: lastName,
-        username,
-        country,
-        city,
-        profile_picture_url: profilePictureUrl,
-      });
+      let payload: any;
+      if (profilePicture) {
+        payload = new FormData();
+        payload.append("user[email]", email);
+        payload.append("user[password]", password);
+        payload.append("user[password_confirmation]", passwordConfirmation);
+        payload.append("user[first_name]", firstName);
+        payload.append("user[last_name]", lastName);
+        payload.append("user[username]", username);
+        payload.append("user[country]", country);
+        payload.append("user[city]", city);
+        payload.append("user[avatar]", profilePicture);
+        if (referralCode) payload.append("user[referral_code]", referralCode);
+      } else {
+        payload = {
+          email,
+          password,
+          password_confirmation: passwordConfirmation,
+          first_name: firstName,
+          last_name: lastName,
+          username,
+          country,
+          city,
+          referral_code: referralCode || undefined,
+        };
+      }
+
+      const { data } = await registerUser(payload);
 
       // Reset all rate limiting state on success
       setSubmitAttempts(0);
@@ -278,9 +311,12 @@ export default function Register() {
       setUsername("");
       setCountry("");
       setCity("");
-      setProfilePictureUrl("");
+      setProfilePicture(null);
 
       setTimeout(() => navigate("/wait-for-verification"), 1500);
+
+      // Clear referral code from localStorage after successful registration
+      localStorage.removeItem('referral_code');
     } catch (error: any) {
       console.error("Registration failed:", error);
       setSubmitAttempts((prev) => prev + 1);
@@ -363,12 +399,12 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+        <div className="flex-1 flex flex-col p-6 lg:p-12 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="w-full max-w-lg"
+            className="w-full max-w-lg m-auto"
           >
             <div className="space-y-6">
               {/* Form Header */}
@@ -404,8 +440,10 @@ export default function Register() {
                 submitAttempts={submitAttempts}
                 passwordError={passwordError}
                 passwordStrength={passwordStrength}
-                profilePictureUrl={profilePictureUrl}
-                setProfilePictureUrl={setProfilePictureUrl}
+                profilePicture={profilePicture}
+                setProfilePicture={setProfilePicture}
+                referralCode={referralCode}
+                setReferralCode={setReferralCode}
                 onSubmit={handleSubmit}
               />
 

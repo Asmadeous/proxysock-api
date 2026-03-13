@@ -79,8 +79,15 @@ export const createResellerDeposit = (data: { amount: number, gateway: string, c
 // ── Reseller Profile ──────────────────────────────
 export const fetchResellerProfile = () =>
     resellerApi.get("/resellers");
-export const updateResellerProfile = (id: number, data: Record<string, unknown>) =>
-    resellerApi.patch(`/resellers/${id}`, data);
+export const updateResellerProfile = (id: number, data: Record<string, unknown> | FormData) => {
+    if (data instanceof FormData) {
+        return resellerApi.patch(`/resellers/${id}`, data, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+    }
+    return resellerApi.patch(`/resellers/${id}`, data);
+};
+
 
 // ---- Notifications ----
 export const fetchResellerNotifications = () => resellerApi.get("/notifications");

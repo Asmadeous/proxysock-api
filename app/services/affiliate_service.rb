@@ -10,11 +10,10 @@ class AffiliateService
 
   def initialize(entity = nil)
     @entity = entity
-    # Affiliate program is currently halted.
   end
 
   def self.halted?
-    true
+    false
   end
 
   # ─────────────────────────────────────

@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe LedgerService do
   let(:user) { User.create!(username: 'ledger_user', email: 'ledger@test.com', first_name: 'L', last_name: 'S', password: 'password123') }
-  let(:wallet) { Wallet.create!(owner: user, wallet_type: 'main') }
+  let(:wallet) { user.wallet }
   let(:service) { LedgerService.new(wallet) }
 
   include ActiveSupport::Testing::TimeHelpers

@@ -23,8 +23,12 @@ module Web
           end
 
           if params[:product_type].present?
-            # Strict mapping to vps, rdp, proxy, etc.
-            scope = scope.where(product_type: params[:product_type])
+            # If 'proxy' is requested, include all granular proxy types
+            if params[:product_type] == 'proxy'
+              scope = scope.where(product_type: Product::PROXY_TYPES)
+            else
+              scope = scope.where(product_type: params[:product_type])
+            end
           end
 
           if params[:per_page] == 'all'
@@ -89,7 +93,7 @@ module Web
         base_data.merge!(product.metadata.symbolize_keys) if product.metadata.is_a?(Hash)
 
         # Proxy-specific metadata defaults if missing
-        if product.product_type == 'proxy'
+        if product.proxy?
           base_data[:ips_included] ||= 0
           base_data[:gb_min] ||= 0
           base_data[:gb_max] ||= 0
