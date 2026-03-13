@@ -45,17 +45,17 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Use Sidekiq for background jobs
+  # Use Sidekiq (matches your docker-compose)
   config.active_job.queue_adapter = :sidekiq
 
-  # Use SolidCache (Rails 8 default)
+  # Use SolidCache (standard Rails 8)
   config.cache_store = :solid_cache_store
 
-  # Force SSL and handle proxy headers
-  config.force_ssl = true
+  # Respect SSL from Nginx
   config.assume_ssl = true
+  config.force_ssl = true
 
-  # Action Mailer & URL configuration
+  # Action Mailer & URL settings
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.delivery_method = :resend
   config.action_mailer.perform_caching = false
