@@ -309,7 +309,7 @@ module Web
           status: user.status,
           country: user.country,
           city: user.city,
-          profile_picture_url: user.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(user.avatar, only_path: true) : user.profile_picture_url,
+          profile_picture_url: user.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(user.avatar) : user.profile_picture_url,
           balance: wallet&.balance.to_f || 0.0,
           currency: wallet&.currency || 'USD'
         }
