@@ -86,7 +86,7 @@ export default defineConfig({
         "connect-src 'self' https://www.google-analytics.com https://va.tawk.to https://*.tawk.to wss://*.tawk.to https://v6.exchangerate-api.com https://api.stripe.com https://*.datadoghq.com https://r.stripe.com https://www.redditstatic.com https://*.proxysock.net wss://*.proxysock.net",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://paystack.com https://embed.tawk.to https://*.tawk.to https://js.stripe.com https://cdn.jsdelivr.net",
         "font-src 'self' https://fonts.gstatic.com https://embed.tawk.to https://*.tawk.to data:",
-        "img-src 'self' data: blob: https://www.proxysock.com https://www.proxystore.net https://upload.wikimedia.org https://flagcdn.com https://embed.tawk.to https://*.tawk.to https://www.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net",
+        "img-src 'self' data: blob: https://www.proxysock.com https://www.proxystore.net https://upload.wikimedia.org https://flagcdn.com https://embed.tawk.to https://*.tawk.to https://www.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://apitest.proxysock.net",
         "frame-src 'self' https://checkout.paystack.com https://js.stripe.com",
         "object-src 'none'",
         "base-uri 'self'",
