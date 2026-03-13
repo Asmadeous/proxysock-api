@@ -15,6 +15,7 @@ import StatsCard from "../SuperAdmin/components/StatsCard";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
 import adminApi, { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { formatImageUrl } from "../../services/api";
 import SupportChatsTab from "../SuperAdmin/tabs/SupportChatsTab";
 
 // ── Employee-scoped API calls ──
@@ -37,12 +38,25 @@ const TABS: SidebarItem[] = [
 ];
 
 export default function EmployeeDashboard() {
+    const [user, setUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
     const [activeTab, setActiveTab] = useState("overview");
     const navigate = useNavigate();
-    const user = JSON.parse(localStorage.getItem("adminUser") || "{}");
 
     useEffect(() => {
-        if (!localStorage.getItem("adminToken")) navigate("/admin/login");
+        if (!localStorage.getItem("adminToken")) {
+            navigate("/admin/login");
+        }
+
+        const handleUpdate = () => {
+            setUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
+        };
+
+        window.addEventListener("storage", handleUpdate);
+        window.addEventListener("admin-user-updated", handleUpdate);
+        return () => {
+            window.removeEventListener("storage", handleUpdate);
+            window.removeEventListener("admin-user-updated", handleUpdate);
+        };
     }, [navigate]);
 
     const handleTab = (id: string) => {
@@ -64,6 +78,7 @@ export default function EmployeeDashboard() {
                 title="Employee"
                 userName={user.full_name || user.email || "Employee"}
                 userRole={user.role || "support"}
+                profilePictureUrl={formatImageUrl(user.profile_picture_url)}
                 accentColor="blue"
                 fetchNotifications={fetchAdminNotifications}
                 markNotificationsAsRead={markAdminNotificationsAsRead}

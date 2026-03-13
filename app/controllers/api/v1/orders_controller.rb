@@ -347,7 +347,7 @@ module Api
 
           # For external API products (proxies), alert admin via email
           is_external_api_product = order.product&.provider_type.to_s.downcase.include?('api') ||
-                                    order.product&.product_type == 'proxy'
+                                    order.product&.proxy?
           if is_external_api_product
             ResellerMailer.order_cancelled_admin_notification(order, current_reseller).deliver_later
           end

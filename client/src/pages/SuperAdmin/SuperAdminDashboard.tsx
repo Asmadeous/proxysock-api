@@ -14,10 +14,12 @@ import {
   ArrowRightOnRectangleIcon,
   ChartBarSquareIcon,
   InboxIcon,
+  TicketIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
 import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
 import { Loader2 } from "lucide-react";
+import { formatImageUrl } from "../../services/api";
 
 // Tab pages (Lazy loaded)
 const OverviewTab = lazy(() => import("./tabs/OverviewTab"));
@@ -35,6 +37,7 @@ const AnalyticsTab = lazy(() => import("./tabs/AnalyticsTab"));
 const GuestChatsTab = lazy(() => import("./tabs/GuestChatsTab"));
 const SupportChatsTab = lazy(() => import("./tabs/SupportChatsTab"));
 const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
+const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -51,6 +54,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "support_chats", name: "Support Chats", icon: InboxIcon },
   { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleLeftRightIcon },
   { id: "monitoring", name: "Monitoring", icon: ChartBarSquareIcon },
+  { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
 
@@ -69,6 +73,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   guest_chats: GuestChatsTab,
   support_chats: SupportChatsTab,
   monitoring: MonitoringTab,
+  promo_codes: PromoCodesTab,
   logs: SystemLogsTab,
 };
 
@@ -80,15 +85,28 @@ const TabLoader = () => (
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
   const navigate = useNavigate();
 
-  // Auth check
+  // Auth check & Storage sync
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
-    if (!token) navigate("/admin/login");
+    if (!token) {
+      navigate("/admin/login");
+    }
+
+    const handleUpdate = () => {
+      setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
+    };
+
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("admin-user-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("admin-user-updated", handleUpdate);
+    };
   }, [navigate]);
 
-  const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
   const userName = adminUser.full_name || adminUser.email || "Admin";
   const userRole = adminUser.role || "admin";
 
@@ -123,6 +141,7 @@ export default function SuperAdminDashboard() {
         title="SuperAdmin"
         userName={userName}
         userRole={userRole}
+        profilePictureUrl={formatImageUrl(adminUser.profile_picture_url)}
         fetchNotifications={fetchAdminNotifications}
         markNotificationsAsRead={markAdminNotificationsAsRead}
       />

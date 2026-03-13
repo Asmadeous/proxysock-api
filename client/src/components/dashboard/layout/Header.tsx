@@ -18,12 +18,14 @@ export const Header = ({
   setSidebarOpen,
   cartCount,
   userName,
+  profilePictureUrl,
 }: {
   isMobile: boolean;
   isSidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   cartCount: number;
   userName: string;
+  profilePictureUrl?: string;
 }) => {
   const { dark } = useThemeStore();
 
@@ -88,8 +90,12 @@ export const Header = ({
               className="flex items-center gap-2 p-1 rounded-full hover:bg-muted transition-colors outline-none"
               title="Profile Settings"
             >
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border border-primary/20">
-                {userName.charAt(0).toUpperCase()}
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 overflow-hidden">
+                {profilePictureUrl ? (
+                  <img src={profilePictureUrl} alt={userName} className="h-full w-full object-cover" />
+                ) : (
+                  (userName || "U").charAt(0).toUpperCase()
+                )}
               </div>
             </Link>
           </div>

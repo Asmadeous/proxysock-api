@@ -202,6 +202,7 @@ module Web
         items = params[:items] || []
         payment_method = params[:payment_method] || 'wallet'
         gateway = params[:gateway] || 'paystack'
+        promo_code_input = params[:promo_code]&.strip&.upcase
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
 
@@ -241,10 +242,37 @@ module Web
                         status: :unprocessable_entity
         end
 
+        # ── Apply Promo Code discount ──────────────────────────────
+        promo_discount = 0
+        promo_code_record = nil
+        if promo_code_input.present?
+          promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
+          if promo_code_record.nil?
+            return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity
+          elsif !promo_code_record.usable?
+            return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity
+          else
+            promo_discount = promo_code_record.calculate_discount(total_amount)
+          end
+        end
+
+        # ── Apply Affiliate Referral discount ──────────────────────
+        affiliate_discount = 0
+        referral = current_actor.affiliate_referrals.pending.first if current_actor.respond_to?(:affiliate_referrals)
+        if referral && !AffiliateService.halted?
+          affiliate = referral.affiliate
+          discount_pct = affiliate.discount_rate / 100.0
+          affiliate_discount = (total_amount * discount_pct).round(2)
+        end
+
+        # Calculate final amount
+        total_discount = promo_discount + affiliate_discount
+        final_amount = [total_amount - total_discount, 0].max.round(2)
+
         if payment_method == 'wallet'
           wallet = current_actor.wallet
-          if wallet.nil? || wallet.balance < total_amount
-            return render json: { error: "Insufficient balance. Required: #{total_amount}, Available: #{wallet&.balance || 0}" },
+          if wallet.nil? || wallet.balance < final_amount
+            return render json: { error: "Insufficient balance. Required: $#{final_amount}, Available: $#{wallet&.balance || 0}" },
                           status: :payment_required
           end
 
@@ -252,47 +280,85 @@ module Web
           ActiveRecord::Base.transaction do
             # Create all orders
             orders_to_create.each(&:save!)
+
+            # Record promo code usage
+            if promo_code_record && promo_discount > 0
+              promo_code_record.record_use!
+              # Store promo info on orders
+              orders_to_create.each do |order|
+                order.update_columns(metadata: order.metadata.merge(
+                  'promo_code' => promo_code_record.code,
+                  'promo_discount' => promo_discount
+                ))
+              end
+            end
+
+            # Record affiliate referral conversion
+            if referral && affiliate_discount > 0
+              referral.update!(referee_discount_applied: affiliate_discount)
+            end
+
             transaction = Transaction.create!(
               transactable: current_actor,
               reference: current_actor, # Virtual cart, self-reference
-              amount: total_amount,
+              amount: final_amount,
               transaction_type: 'debit',
               status: 'success',
               currency: 'USD',
-              description: "Virtual Cart Checkout (#{orders_to_create.count} items)"
+              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount > 0 ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount > 0 ? " | Referral: -$#{affiliate_discount}" : ''}"
             )
 
-            wallet.debit!(total_amount, 'Cart Checkout', {}, transaction)
+            wallet.debit!(final_amount, 'Cart Checkout', {}, transaction)
             # Provision each
             orders_to_create.each do |order|
               OrderProvisioningService.new(order, current_actor).process_without_deduction!
               created_orders << order
+            end
+
+            # Record affiliate commission after successful checkout
+            if referral && !AffiliateService.halted?
+              created_orders.each do |order|
+                AffiliateService.record_commission!(order)
+              end
             end
           end
 
           render json: {
             message: 'Checkout successful',
             orders: created_orders.map { |o| serialize_order(o.reload) },
-            available_balance: current_actor.wallet&.balance.to_f
+            available_balance: current_actor.wallet&.balance.to_f,
+            promo_discount: promo_discount > 0 ? promo_discount : nil,
+            affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
+            total_discount: total_discount > 0 ? total_discount : nil
           }, status: :created
         else
           # Gateway
           checkout_session = nil
-          created_orders = []
 
           ActiveRecord::Base.transaction do
             checkout_session = CheckoutSession.create!(
               orderable: current_actor,
-              total_amount: total_amount,
+              total_amount: final_amount,
               payment_method: gateway,
               status: 'pending',
-              metadata: { item_count: orders_to_create.count, items: items }
+              metadata: {
+                item_count: orders_to_create.count,
+                items: items,
+                promo_code: promo_code_record&.code,
+                promo_discount: promo_discount > 0 ? promo_discount : nil,
+                affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
+                original_total: total_amount,
+                final_total: final_amount
+              }
             )
 
             checkout_session.generate_reference!
+
+            # Record promo code usage upfront for gateway payments
+            promo_code_record&.record_use! if promo_discount > 0
           end
 
-          payment_data = generate_session_payment_link(gateway, checkout_session, total_amount)
+          payment_data = generate_session_payment_link(gateway, checkout_session, final_amount)
 
           unless payment_data && payment_data[:url]
             raise StandardError, "Failed to generate payment link from #{gateway}. Check gateway credentials or logs."
@@ -304,7 +370,10 @@ module Web
             payment_amount: payment_data[:amount],
             payment_currency: payment_data[:currency],
             reference: checkout_session.gateway_reference,
-            checkout_session_id: checkout_session.id
+            checkout_session_id: checkout_session.id,
+            promo_discount: promo_discount > 0 ? promo_discount : nil,
+            affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
+            total_discount: total_discount > 0 ? total_discount : nil
           }, status: :accepted
         end
       rescue StandardError => e
@@ -700,19 +769,32 @@ module Web
           if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
             api_res = order.metadata['my_proxy_api_response']
             base[:proxy_details] = api_res
-            # Extract from nested view-order structure: { order: {}, ips: [...], config: { auth_user_pass: {} } }
-            auth = api_res.dig('config', 'auth_user_pass') || {}
-            ips = api_res['ips'] || []
-            ips_info = api_res['ips_info'] || []
+            
+            # Handle both single record and multiple records (array)
+            records = api_res.is_a?(Array) ? api_res : [api_res]
+            first_rec = records.first || {}
+
+            # Extract from nested view-order structure if present
+            # { order: {}, ips: [...], config: { auth_user_pass: {} } }
+            auth = first_rec.dig('config', 'auth_user_pass') || {}
+            
+            all_ips = records.flat_map do |rec|
+              rec['ips'] || [rec['ip']].compact
+            end.uniq
+
+            all_ips_info = records.flat_map do |rec|
+              rec['ips_info'] || []
+            end
+
             base[:credentials] = {
-              username: auth['username'] || api_res['username'],
-              password: auth['password'] || api_res['password'],
-              endpoints: ips.presence || [api_res['ip']].compact
+              username: auth['username'] || first_rec['username'],
+              password: auth['password'] || first_rec['password'],
+              endpoints: all_ips
             }
-            base[:ips_info] = ips_info
+            base[:ips_info] = all_ips_info
             # Extract expiry from nested order details
-            base[:expires_at] ||= api_res.dig('order', 'end_time')
-            base[:provider_order_id] = api_res.dig('order', 'order_id') || api_res.dig('data', 'order_id')
+            base[:expires_at] ||= first_rec.dig('order', 'end_time') || first_rec['expires_at']
+            base[:provider_order_id] = first_rec.dig('order', 'order_id') || first_rec.dig('data', 'order_id') || first_rec['order_id']
           else
             base[:proxy_details] = resource&.as_json || {}
             base[:credentials] = {

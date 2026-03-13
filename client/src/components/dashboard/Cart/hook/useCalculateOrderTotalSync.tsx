@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { CartItem } from "@/pages/UserDashboard/Cart";
+import { CartItem } from "@/types";
 
 export const useCalculateOrderItems = ({
   cartItems,
@@ -51,7 +51,14 @@ export const useCalculateOrderItems = ({
   const calculateProxyItemTotal = useCallback((item: CartItem): number => {
     if (!item.plan) return 0;
     const plan = item.plan;
-    const period = item.period || 1;
+    const period = Number(item.period) || 1;
+    const quantity = Number(item.quantity) || 1;
+
+    if (plan.global_isp_config) {
+      // Global ISP pricing is strictly quantity * unitPrice
+      return (Number(plan.price) || 0) * quantity;
+    }
+
     if (plan.is_owned) {
       const basePrice = Number((plan as any).base_price) || 0;
       const effectivePrice = Number(plan.price) || 0;
@@ -81,23 +88,30 @@ export const useCalculateOrderItems = ({
   }, []);
 
   const calculateItemTotalSync = useCallback((item: CartItem): number => {
-    if (item.totalPrice !== undefined) return item.totalPrice;
-    if (item.productType === "esim" && item.esimPackage) {
-      return item.esimPackage.price * (item.quantity || 1);
-    } else if (item.productType === "proxy" && item.plan) {
-      return calculateProxyItemTotal(item);
-    } else if (item.productType === "residential" && item.plan) {
-      return (item.period || 1) * Number(item.plan.price);
-    } else if (item.productType === "vps" && item.vpsPlan) {
-      return calculateVPSItemTotal(item);
-    } else if (item.productType === "rdp" && item.rdpPlan) {
-      return calculateRDPItemTotal(item);
-    } else if (item.productType === "usa-esim" && item.usaEsimPlan) {
-      return item.usaEsimPlan.price * (item.quantity || 1);
-    } else if (item.productType === "vpn" && item.vpnPlan) {
-      return Number(item.vpnPlan.price) || 0;
+    // Priority 1: Respect pre-calculated totalPrice if it's a valid number
+    if (item.totalPrice !== undefined && item.totalPrice !== null && !isNaN(Number(item.totalPrice))) {
+      return Number(item.totalPrice);
     }
-    return 0;
+
+    let calculatedTotal = 0;
+    if (item.productType === "esim" && item.esimPackage) {
+      calculatedTotal = item.esimPackage.price * (item.quantity || 1);
+    } else if ((item.productType === "proxy" || item.productType === "global-isp") && item.plan) {
+      calculatedTotal = calculateProxyItemTotal(item);
+    } else if (item.productType === "residential" && item.plan) {
+      calculatedTotal = (Number(item.period) || 1) * (Number(item.plan.price) || 0);
+    } else if (item.productType === "vps" && item.vpsPlan) {
+      calculatedTotal = calculateVPSItemTotal(item);
+    } else if (item.productType === "rdp" && item.rdpPlan) {
+      calculatedTotal = calculateRDPItemTotal(item);
+    } else if (item.productType === "usa-esim" && item.usaEsimPlan) {
+      calculatedTotal = item.usaEsimPlan.price * (item.quantity || 1);
+    } else if (item.productType === "vpn" && item.vpnPlan) {
+      calculatedTotal = Number(item.vpnPlan.price) || 0;
+    }
+
+    // Final safety: ensure we return a finite number
+    return isFinite(calculatedTotal) ? calculatedTotal : 0;
   }, [calculateProxyItemTotal, calculateRDPItemTotal, calculateVPSItemTotal]);
 
   const calculateOrderTotalSync = useCallback(() => {

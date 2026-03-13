@@ -16,6 +16,7 @@ import {
     DollarSign
 } from "lucide-react";
 import AdminSidebar from "../SuperAdmin/components/AdminSidebar";
+import { formatImageUrl } from "../../services/api";
 
 // Directly imported components for core tabs
 import ResOverview from "./components/ResOverview";
@@ -72,15 +73,24 @@ const TabLoader = () => (
 export default function ResellerDashboard() {
     const [activeTab, setActiveTab] = useState("overview");
     const [devSubTab, setDevSubTab] = useState<string | null>(null);
+    const [resellerUser, setResellerUser] = useState(() => JSON.parse(localStorage.getItem("resellerUser") || "{}"));
     const navigate = useNavigate();
-
-    // Read reseller data from localStorage (NOT from AuthContext which is for regular users)
-    const resellerUser = JSON.parse(localStorage.getItem("resellerUser") || "{}");
 
     useEffect(() => {
         if (!localStorage.getItem("resellerToken")) {
             navigate("/reseller/login");
         }
+
+        const handleUpdate = () => {
+            setResellerUser(JSON.parse(localStorage.getItem("resellerUser") || "{}"));
+        };
+
+        window.addEventListener("storage", handleUpdate);
+        window.addEventListener("reseller-user-updated", handleUpdate);
+        return () => {
+            window.removeEventListener("storage", handleUpdate);
+            window.removeEventListener("reseller-user-updated", handleUpdate);
+        };
     }, [navigate]);
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
@@ -149,6 +159,7 @@ export default function ResellerDashboard() {
                 title={isEnterprise ? "Enterprise" : "API Reseller"}
                 userName={resellerUser?.company_name || resellerUser?.username || "Reseller"}
                 userRole={isEnterprise ? "Infrastructure Partner" : "API Partner"}
+                profilePictureUrl={formatImageUrl(resellerUser?.profile_picture_url)}
             />
 
             <main className="flex-1 overflow-y-auto">

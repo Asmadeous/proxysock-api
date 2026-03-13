@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { Sidebar } from "@/components/dashboard/layout/SideBar";
 import { useThemeStore } from "@/store/themeStore";
+import { formatImageUrl } from "../../services/api";
 
 export default function Dashboard() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -85,6 +86,7 @@ export default function Dashboard() {
             handleLogout={handleLogout}
             cartCount={cartCount}
             userName={userName}
+            profilePictureUrl={formatImageUrl(user?.profile_picture_url)}
             isCollapsed={isCollapsed}
             setIsCollapsed={setIsCollapsed}
           />
@@ -121,6 +123,7 @@ export default function Dashboard() {
                     handleLogout={handleLogout}
                     cartCount={cartCount}
                     userName={userName}
+                    profilePictureUrl={formatImageUrl(user?.profile_picture_url)}
                     isCollapsed={isCollapsed}
                     setIsCollapsed={setIsCollapsed}
                     onLinkClick={() => setSidebarOpen(false)}

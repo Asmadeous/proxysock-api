@@ -12,6 +12,12 @@ const api = axios.create({
   },
 });
 
+export const formatImageUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.startsWith('/')) return `${API_HOST}${url}`;
+  return url;
+};
+
 // Request interceptor for API calls
 api.interceptors.request.use(
   (config) => {
@@ -41,7 +47,14 @@ api.interceptors.response.use(
 
 // Auth Service
 export const loginUser = (data: any) => api.post("/web/api/auth/login", { user: data });
-export const registerUser = (data: any) => api.post("/web/api/auth/register", { user: data });
+export const registerUser = (data: any) => {
+  if (data instanceof FormData) {
+    return api.post("/web/api/auth/register", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  }
+  return api.post("/web/api/auth/register", { user: data });
+};
 export const checkUsername = (username: string) => api.get("/web/api/auth/check_username", { params: { username } });
 export const getMe = () => api.get("/api/v1/auth/me");
 

@@ -35,6 +35,8 @@ class User < ApplicationRecord
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
 
+  validate :avatar_security_checks
+
   generates_token_for :password_reset, expires_in: 15.minutes do
     password_salt&.last(10)
   end
@@ -51,11 +53,12 @@ class User < ApplicationRecord
       user.last_name = auth.info.last_name || auth.info.name&.split&.last
       user.last_name = 'User' if user.last_name.blank?
       user.password = SecureRandom.hex(16) # Random password for SSO users
-      user.username = auth.info.nickname || auth.info.username || auth.info.email.split('@').first
+      base_username = auth.info.nickname || auth.info.username || auth.info.email.split('@').first
+      user.username = base_username
       
-      # Ensure username uniqueness if the split email is taken
-      if User.exists?(username: user.username)
-        user.username = "#{user.username}_#{SecureRandom.hex(4)}"
+      # Ensure username uniqueness if the split email is taken (case-insensitive)
+      while User.where('LOWER(username) = ?', user.username.downcase).exists?
+        user.username = "#{base_username}_#{SecureRandom.hex(3)}"
       end
 
       user.email_verified_at = Time.current
@@ -87,6 +90,19 @@ class User < ApplicationRecord
   end
 
   private
+
+  def avatar_security_checks
+    return unless avatar.attached?
+
+    if avatar.blob.byte_size > 5.megabytes
+      errors.add(:avatar, 'size must be less than 5MB')
+    end
+
+    acceptable_types = %w[image/jpeg image/png image/gif image/webp]
+    unless acceptable_types.include?(avatar.content_type)
+      errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
+    end
+  end
 
   def password_required?
     # Password required only for non-SSO users

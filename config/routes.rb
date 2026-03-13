@@ -199,6 +199,13 @@ Rails.application.routes.draw do
       resources :affiliate_referrals, only: [:index]
       resources :affiliate_payouts,   only: [:index]
 
+      # Promo Codes
+      resources :promo_codes, only: [] do
+        collection do
+          post :validate
+        end
+      end
+
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
@@ -278,6 +285,9 @@ Rails.application.routes.draw do
       resources :affiliate_payouts, only: %i[index show] do
         patch :process_payout, on: :member
       end
+
+      # Promo Codes management
+      resources :promo_codes
 
       # Blog CMS
       resources :blog_posts, param: :slug do

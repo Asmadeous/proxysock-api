@@ -15,6 +15,9 @@ module Api
 
           if params[:product_type].present?
             types = params[:product_type].split(',')
+            if types.include?('proxy')
+              types = (types - ['proxy'] + Product::PROXY_TYPES).uniq
+            end
             scope = scope.where(product_type: types)
           end
 

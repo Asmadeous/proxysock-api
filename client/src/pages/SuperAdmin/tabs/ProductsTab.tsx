@@ -156,8 +156,24 @@ export default function ProductsTab() {
         {
             key: "name", label: "Product", sortable: true, render: (row: ProductRow) => (
                 <div>
-                    <p className="text-sm font-medium text-foreground">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">{row.provider}</p>
+                    <div className="flex items-center gap-2">
+                        {row.metadata?.country_code && (
+                            <img 
+                                src={`https://flagcdn.com/w20/${row.metadata.country_code.toLowerCase()}.png`} 
+                                alt={row.metadata.country_code}
+                                className="h-3 w-5 object-cover rounded-sm"
+                            />
+                        )}
+                        <p className="text-sm font-medium text-foreground">{row.name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">{row.provider}</p>
+                        {row.metadata?.locations && (
+                            <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded-full">
+                                {Array.isArray(row.metadata.locations) ? row.metadata.locations.join(', ') : row.metadata.locations}
+                            </span>
+                        )}
+                    </div>
                 </div>
             )
         },
@@ -222,7 +238,14 @@ export default function ProductsTab() {
                     </Field>
                     <Field label="Type *">
                         <select className={inputClasses} value={formData.product_type} onChange={e => setFormData({ ...formData, product_type: e.target.value })} required>
-                            <option value="residential">Residential Proxy</option>
+                            <option value="proxy">General Proxy</option>
+                            <option value="datacenter">Datacenter Proxy</option>
+                            <option value="isp">ISP Proxy</option>
+                            <option value="premium_isp">Premium ISP Proxy</option>
+                            <option value="global_isp">Global ISP Proxy</option>
+                            <option value="static_residential">Static Residential Proxy</option>
+                            <option value="residential_rotating">Residential Rotating Proxy</option>
+                            <option value="mobile">Mobile Proxy</option>
                             <option value="vps">VPS</option>
                             <option value="rdp">RDP</option>
                             <option value="vpn">VPN</option>

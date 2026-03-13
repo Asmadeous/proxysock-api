@@ -3,6 +3,9 @@
 class Reseller < ApplicationRecord
   has_secure_password
 
+  has_one_attached :avatar
+  validate :avatar_security_checks
+
   has_many :reseller_orders
   has_many :billing_histories, as: :billable
   has_many :deposits, as: :depositable
@@ -117,7 +120,8 @@ class Reseller < ApplicationRecord
     super(options).merge({
                            balance: balance,
                            earnings_balance: earnings_balance,
-                           price_multiplier: price_multiplier
+                           price_multiplier: price_multiplier,
+                           profile_picture_url: avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(avatar, only_path: true) : profile_picture_url
                          })
   end
 
@@ -130,5 +134,18 @@ class Reseller < ApplicationRecord
   def generate_api_key
     token = SecureRandom.hex(32)
     self.api_key_hash = Digest::SHA256.hexdigest(token)
+  end
+
+  def avatar_security_checks
+    return unless avatar.attached?
+
+    if avatar.blob.byte_size > 5.megabytes
+      errors.add(:avatar, 'size must be less than 5MB')
+    end
+
+    acceptable_types = %w[image/jpeg image/png image/gif image/webp]
+    unless acceptable_types.include?(avatar.content_type)
+      errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
+    end
   end
 end
