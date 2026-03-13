@@ -45,12 +45,8 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  config.cache_store = :solid_cache_store
-
-  # Replace the default in-process and non-durable queuing backend for Active Job.
-  config.active_job.queue_adapter = :solid_queue
-  config.solid_queue.connects_to = { database: { writing: :queue } }
+  # Use Sidekiq for background jobs (matching your docker-compose command)
+  config.active_job.queue_adapter = :sidekiq
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
@@ -61,7 +57,7 @@ Rails.application.configure do
   config.action_mailer.delivery_method = :resend
   config.action_mailer.perform_caching = false
   config.action_mailer.default_url_options = { host: 'apitest.proxysock.net', protocol: 'https' }
-  Rails.application.routes.default_url_options = config.action_mailer.default_url_options
+  Rails.application.routes.default_url_options = { host: 'apitest.proxysock.net', protocol: 'https' }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
