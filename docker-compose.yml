@@ -24,6 +24,8 @@ services:
         condition: service_healthy
       redis-production:
         condition: service_healthy
+    volumes:
+      - ./storage:/rails/storage
     profiles: [ "prod" ]
     restart: unless-stopped
 
@@ -122,6 +124,8 @@ services:
         condition: service_healthy
       redis-staging:
         condition: service_healthy
+    volumes:
+      - ./storage:/rails/storage
     profiles: [ "staging" ]
     restart: unless-stopped
 
