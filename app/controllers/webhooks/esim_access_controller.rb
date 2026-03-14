@@ -1,5 +1,5 @@
 class Webhooks::EsimAccessController < ApplicationController
-  skip_before_action :verify_authenticity_token
+  skip_before_action :verify_authenticity_token, raise: false
 
   def webhook
     # The webhook notification comes in as JSON with:
@@ -9,7 +9,9 @@ class Webhooks::EsimAccessController < ApplicationController
     #     ...
     #   }
     # }
-    data = params.permit!.to_h
+    data = params.permit(:notifyType, content: [
+      :orderNo, :iccid, :smdpStatus, :esimStatus, :matchingId
+    ]).to_h
 
     if data[:notifyType] == 'CHECK_HEALTH'
       render json: { success: true }
