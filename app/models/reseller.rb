@@ -28,6 +28,7 @@ class Reseller < ApplicationRecord
   has_one :affiliate, as: :affiliatable, dependent: :destroy
   has_many :affiliate_referrals, as: :referred, dependent: :destroy
   has_many :webhook_endpoints, dependent: :destroy
+  has_many :notifications, as: :recipient, dependent: :destroy
   has_many :tickets, as: :user
 
   delegate :balance, to: :main_wallet, allow_nil: true
