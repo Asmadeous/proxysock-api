@@ -276,20 +276,52 @@ module Api
             server_ip: resource.server_ip,
             status: resource.status
           }
-        when 'proxy'
-          # Dynamic credential mapping mapping for various proxy models
-          # MobileProxy, StaticDatacenterProxy, etc.
+        when 'proxy', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
+          # Dynamic credential mapping for various proxy models
+          # MobileProxy, StaticDatacenterProxy, GlobalIspProxy, etc.
+          proxies = if resource.respond_to?(:proxies)
+                      resource.proxies
+                    elsif resource.respond_to?(:global_isp_proxies)
+                      resource.global_isp_proxies
+                    elsif resource.respond_to?(:static_isp_proxies)
+                      resource.static_isp_proxies
+                    elsif resource.respond_to?(:esims)
+                      resource.esims
+                    else
+                      [resource]
+                    end
+
           render json: {
             type: 'proxy',
             order_id: order.id,
-            proxy_type: resource.class.name,
-            proxy_id: resource.id,
-            ip_address: resource.try(:ip_address),
-            port: resource.try(:port),
-            username: resource.try(:username),
-            password: resource.try(:password),
-            country_code: resource.try(:country_code),
-            status: resource.status
+            proxies: proxies.map do |p|
+              {
+                ip_address: p.try(:ip_address),
+                port: p.try(:port),
+                username: p.try(:username),
+                password: p.try(:password),
+                country_code: p.try(:country_code),
+                status: p.try(:status),
+                # eSIM specific
+                iccid: p.try(:iccid),
+                activation_code: p.try(:activation_code),
+                qr_code_url: p.try(:qr_code_data)
+              }.compact
+            end
+          }
+        when 'esim'
+          render json: {
+            type: 'esim',
+            order_id: order.id,
+            esims: resource.esims.map do |e|
+              {
+                iccid: e.iccid,
+                activation_code: e.activation_code,
+                qr_code_url: e.qr_code_data,
+                status: e.esim_status,
+                expires_at: e.expires_at
+              }
+            end
           }
         else
           render json: { error: 'Credentials not supported for this product type' }, status: :bad_request
@@ -399,8 +431,12 @@ module Api
           quantity: params[:quantity] || 1,
           metadata: (params[:metadata] || {}).merge(
             'client_ip' => request.remote_ip,
-            'payment_debug' => 'reseller_balance'
-          ),
+            'payment_debug' => 'reseller_balance',
+            'target_section_id' => params[:target_section_id],
+            'target_id' => params[:target_id],
+            'resi' => params[:resi],
+            'selected_country_id' => params[:selected_country_id]
+          ).compact,
           status: 'pending'
         )
 
@@ -509,6 +545,17 @@ module Api
             username: resource.try(:username),
             password: resource.try(:password),
             country_code: resource.try(:country_code)
+          )
+        when 'esim'
+          base.merge(
+            type: 'esim',
+            esims: resource.esims.map do |e|
+              {
+                iccid: e.iccid,
+                activation_code: e.activation_code,
+                qr_code_url: e.qr_code_data
+              }
+            end
           )
         when 'vpn'
           base.merge(

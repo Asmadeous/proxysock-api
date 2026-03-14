@@ -144,6 +144,10 @@ module Web
         meta[:period] = params[:period] if params[:period].present?
         meta[:locationsString] = params[:locationsString] if params[:locationsString].present?
         meta[:protocol] = params[:protocol] if params[:protocol].present?
+        meta[:target_section_id] = params[:target_section_id] if params[:target_section_id].present?
+        meta[:target_id] = params[:target_id] if params[:target_id].present?
+        meta[:resi] = params[:resi] if params[:resi].present?
+        meta[:selected_country_id] = params[:selected_country_id] if params[:selected_country_id].present?
         meta[:client_ip] = request.remote_ip # Capture client IP for MyProxyAPI whitelist_ip requirement
         meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'paystack')
 
@@ -227,8 +231,12 @@ module Web
             quantity: item[:quantity] || item['quantity'] || 1,
             metadata: (item[:metadata] || item['metadata'] || {}).merge(
               'client_ip' => request.remote_ip,
-              'payment_debug' => payment_debug
-            ),
+              'payment_debug' => payment_debug,
+              'target_section_id' => item[:target_section_id] || item['target_section_id'],
+              'target_id' => item[:target_id] || item['target_id'],
+              'resi' => item[:resi] || item['resi'],
+              'selected_country_id' => item[:selected_country_id] || item['selected_country_id']
+            ).compact,
             status: 'pending'
           )
 

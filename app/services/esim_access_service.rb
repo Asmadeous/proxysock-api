@@ -37,8 +37,25 @@ class EsimAccessService
   # Query eSIM details by ICCID.
   # Endpoint: POST /esim/query
   def fetch_esim_details(iccid)
-    response = request(:post, '/esim/query', { iccid: iccid })
+    response = request(:post, '/esim/query', {
+      iccid: iccid,
+      pager: { pageNum: 1, pageSize: 50 }
+    })
     response['obj']
+  end
+
+  # Fetch all allocated eSIM profiles for a given orderNo.
+  # Returns an array of profile hashes with iccid, ac, qrCodeUrl, etc.
+  # Endpoint: POST /esim/query
+  def fetch_profiles_by_order(order_no)
+    response = request(:post, '/esim/query', {
+      orderNo: order_no,
+      pager: { pageNum: 1, pageSize: 50 }
+    })
+
+    return [] unless response['success'] == true
+
+    response.dig('obj', 'esimList') || []
   end
 
   # Check data usage for up to 10 eSIMs by their transaction numbers.

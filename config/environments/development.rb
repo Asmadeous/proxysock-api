@@ -35,7 +35,11 @@ Rails.application.configure do
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.perform_caching = false
+  # URL Options
   config.action_mailer.default_url_options = { host: 'localhost', port: 5173 }
+  config.action_controller.default_url_options = { host: 'localhost', port: 3000 }
+  # Ensure routes also have a default host for URL generation outside of requests
+  Rails.application.routes.default_url_options = config.action_controller.default_url_options
 
   config.action_mailer.smtp_settings = {
     address: ENV.fetch('SMTP_HOST'),

@@ -9,6 +9,7 @@ class Employee < ApplicationRecord
   belongs_to :department
   has_many :admin_action_logs
   has_many :user_impersonation_logs
+  has_many :notifications, as: :recipient, dependent: :destroy
 
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :first_name, presence: true
