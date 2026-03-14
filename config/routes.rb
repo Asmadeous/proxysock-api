@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
+  namespace :webhooks do
+    get "esim_access/webhook"
+  end
   mount ActionCable.server => '/cable'
   mount Rswag::Ui::Engine => '/api-docs'
   mount Rswag::Api::Engine => '/api-docs'
@@ -331,6 +334,8 @@ Rails.application.routes.draw do
     post 'payvra', to: 'webhooks#payvra'
     post 'hundredpay', to: 'webhooks#hundredpay'
   end
+
+  post 'esim', to: 'webhooks/esim_access#webhook'
 
   # VM Status Callback (Ansible playbooks POST here on completion/failure)
   post 'vm/:id/status', to: 'vm_callbacks#status', as: :vm_callback_status
