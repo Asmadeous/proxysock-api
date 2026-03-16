@@ -62,8 +62,8 @@ module ErrorHandling
       # In development, we might be flexible with ports if the host is localhost/127.0.0.1
       allowed_host = allowed_uri.host
       target_host = target_uri.host
-      
-      is_local = ['localhost', '127.0.0.1'].include?(target_host) && 
+
+      is_local = ['localhost', '127.0.0.1'].include?(target_host) &&
                  ['localhost', '127.0.0.1'].include?(allowed_host)
 
       is_valid_host = target_host == allowed_host || (Rails.env.development? && is_local)

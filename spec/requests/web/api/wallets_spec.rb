@@ -18,32 +18,32 @@ RSpec.describe 'Web::Api::Wallets', type: :request do
       before do
         # Mocking FixerService to return a fixed rate
         allow(FixerService).to receive(:get_rate).with('USD', 'NGN').and_return(1400.0)
-        
+
         # Mocking PaystackService to return a mock payment URL
         mock_paystack = double('PaystackService')
         expect(PaystackService).to receive(:new).and_return(mock_paystack)
         expect(mock_paystack).to receive(:initialize_transaction).with(
           hash_including(
             email: user.email,
-            amount: 14000000
+            amount: 14_000_000
           )
         ).and_return({ authorization_url: 'http://paystack.com/pay/abc' })
       end
 
       it 'returns a successful response with NGN amount and currency' do
         post '/web/api/wallet/deposit', params: { amount: amount, gateway: gateway }, headers: headers
-        
+
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
         expect(json['payment_url']).to eq('http://paystack.com/pay/abc')
-        expect(json['payment_amount'].to_f).to eq(140000.0)
+        expect(json['payment_amount'].to_f).to eq(140_000.0)
         expect(json['payment_currency']).to eq('NGN')
       end
 
       it 'creates a pending deposit with stored exchange rate' do
-        expect {
+        expect do
           post '/web/api/wallet/deposit', params: { amount: amount, gateway: gateway }, headers: headers
-        }.to change(Deposit, :count).by(1)
+        end.to change(Deposit, :count).by(1)
 
         deposit = Deposit.last
         expect(deposit.status).to eq('pending')

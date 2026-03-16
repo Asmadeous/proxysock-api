@@ -20,6 +20,7 @@ import {
   formatDuration,
   type ESIMPackage,
   type PackageScope,
+  getLocationDisplayName,
 } from "../../hooks/useESIMPackages";
 import { useDebounce } from "use-debounce";
 import { ErrorBoundary } from "react-error-boundary";
@@ -784,7 +785,7 @@ function ESIMPackagesPageContent() {
                           </Badge>
                         )}
                         <CardTitle className="text-xl mb-2">
-                          {pkg.location_name || "Global eSIM"}
+                          {getLocationDisplayName(pkg.location_code, pkg.location_name)}
                         </CardTitle>
                         <Badge variant="default" className="gap-1">
                           <Smartphone className="h-3 w-3" />

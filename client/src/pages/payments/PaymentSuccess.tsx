@@ -272,13 +272,23 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
 
   // Determine product type display
   const getProductTypeDisplay = () => {
-    if (orderItems.length === 0) return 'Service';
-    if (orderItems.length === 1) return orderItems[0].category.toUpperCase();
+    // Check if we have items from localStorage
+    if (orderItems.length > 0) {
+      if (orderItems.length === 1) return orderItems[0].category.toUpperCase();
 
-    const uniqueCategories = [...new Set(orderItems.map(item => item.category))];
-    if (uniqueCategories.length === 1) return uniqueCategories[0].toUpperCase();
+      const uniqueCategories = [...new Set(orderItems.map(item => item.category))];
+      if (uniqueCategories.length === 1) return uniqueCategories[0].toUpperCase();
 
-    return `MIXED (${uniqueCategories.map(c => c.toUpperCase()).join(', ')})`;
+      return `MIXED (${uniqueCategories.map(c => c.toUpperCase()).join(', ')})`;
+    }
+
+    // Fallback to query parameters
+    const productTypeFromQuery = queryParams.get('product_type');
+    if (productTypeFromQuery) return productTypeFromQuery.toUpperCase();
+
+    // Last resort fallback based on transaction type
+    if (isActuallyDeposit) return 'WALLET DEPOSIT';
+    return typeFromQuery.toUpperCase();
   };
 
   return (

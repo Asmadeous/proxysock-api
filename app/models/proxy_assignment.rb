@@ -30,6 +30,7 @@ class ProxyAssignment < ApplicationRecord
   def expiry_reason
     return :gb_depleted  if gb_depleted?
     return :time_expired if time_expired?
+
     nil
   end
 
@@ -45,7 +46,7 @@ class ProxyAssignment < ApplicationRecord
     was_under = !gb_depleted?
     increment!(:gb_used, gb_amount)
     reload
-    was_under && gb_depleted?   # true = just crossed the limit right now
+    was_under && gb_depleted? # true = just crossed the limit right now
   end
 
   # ──────────────────────────────────────────────────────────────────────────

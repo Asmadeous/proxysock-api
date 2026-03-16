@@ -2,7 +2,7 @@
 
 Rails.application.routes.draw do
   namespace :webhooks do
-    get "esim_access/webhook"
+    get 'esim_access/webhook'
   end
   mount ActionCable.server => '/cable'
   mount Rswag::Ui::Engine => '/api-docs'
@@ -212,6 +212,7 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+      post 'monitoring/login', to: 'monitoring#login'
     end
   end
 

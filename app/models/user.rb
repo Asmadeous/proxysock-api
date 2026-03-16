@@ -55,11 +55,9 @@ class User < ApplicationRecord
       user.password = SecureRandom.hex(16) # Random password for SSO users
       base_username = auth.info.nickname || auth.info.username || auth.info.email.split('@').first
       user.username = base_username
-      
+
       # Ensure username uniqueness if the split email is taken (case-insensitive)
-      while User.where('LOWER(username) = ?', user.username.downcase).exists?
-        user.username = "#{base_username}_#{SecureRandom.hex(3)}"
-      end
+      user.username = "#{base_username}_#{SecureRandom.hex(3)}" while User.where('LOWER(username) = ?', user.username.downcase).exists?
 
       user.email_verified_at = Time.current
       user.status = 'active'
@@ -99,9 +97,9 @@ class User < ApplicationRecord
     end
 
     acceptable_types = %w[image/jpeg image/png image/gif image/webp]
-    unless acceptable_types.include?(avatar.content_type)
-      errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
-    end
+    return if acceptable_types.include?(avatar.content_type)
+
+    errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
   end
 
   def password_required?

@@ -16,6 +16,7 @@ class VmProvisioningJob < ApplicationJob
 
     # Merge VM order data with params (including proxy details for Ansible)
     provision_params = {
+      'db_vm_id' => vm_id,
       'job_id' => "vm-#{vm_id}-#{Time.now.to_i}",
       'os_template' => vm.vm_order.os_type,
       'vm_type' => vm.vm_type,
@@ -38,10 +39,10 @@ class VmProvisioningJob < ApplicationJob
     # Update VM with results including credentials
     vm.update!(
       ip_address: result[:ip_address],
-      proxmox_vm_id: result[:vm_id].to_s,
+      proxmox_vm_id: result[:pve_vmid].to_s,
       proxmox_node: VmProvisioningService::PROXMOX_NODE,
-      rdp_port: result[:protocol] == 'rdp' ? 3389 : nil,
-      ssh_port: result[:protocol] == 'ssh' ? 22 : nil,
+      rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
+      ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
       ssh_username: result[:username] || 'root',
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],
@@ -96,12 +97,13 @@ class VmProvisioningJob < ApplicationJob
     # Notify failure
     owner = vm.vm_order&.order&.orderable
     if owner
+      id_label = vm.proxmox_vm_id.presence || vm.hostname.presence || vm.id # Fallback to UUID only as last resort
       NotificationService.notify(
         recipient: owner,
         category: 'error',
         title: 'VM Provisioning Failed',
-        message: "VM ##{vm.id} provisioning failed. Retrying...",
-        metadata: { vm_id: vm.id, error: e.message }
+        message: "VM ##{id_label} provisioning failed. Retrying...",
+        metadata: { vm_id: vm.id, pve_vmid: vm.proxmox_vm_id, error: e.message }
       )
     end
 

@@ -5,7 +5,7 @@ class ChatChannel < ApplicationCable::Channel
     # Clients should ideally pass chat_id and chat_type ("SupportChat" or "GuestChat")
     # But we'll try to find the current chat if they don't, for user experience.
     @chat = resolve_chat
-    
+
     if @chat && authorized_to_view?(@chat)
       stream_for @chat
     else
@@ -26,9 +26,10 @@ class ChatChannel < ApplicationCable::Channel
     # 1. If ID is provided and is a valid UUID, use it
     if id.present? && id != 'current' && id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
       # Try both possible types if not specified
-      types = type.present? ? [type] : ['SupportChat', 'GuestChat']
+      types = type.present? ? [type] : %w[SupportChat GuestChat]
       types.each do |t|
         next unless %w[SupportChat GuestChat].include?(t)
+
         chat = t.constantize.find_by(id: id)
         return chat if chat
       end
@@ -41,8 +42,6 @@ class ChatChannel < ApplicationCable::Channel
       SupportChat.where(chatable: current_reseller).recent.first
     elsif guest_session_id
       GuestChat.find_by(session_token: guest_session_id)
-    else
-      nil
     end
   rescue StandardError
     nil

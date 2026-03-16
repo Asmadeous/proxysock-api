@@ -30,7 +30,7 @@ RSpec.describe UsaEsimCredential, type: :model do
       it 'prevents status from changing back to available once assigned' do
         allow(credential).to receive(:status_was).and_return('assigned')
         credential.status = 'available'
-        
+
         credential.valid?(:update)
         expect(credential.errors[:status]).to include('cannot be changed back to available once assigned')
       end
@@ -39,19 +39,19 @@ RSpec.describe UsaEsimCredential, type: :model do
         allow(credential).to receive(:order_id_was).and_return(1)
         allow(credential).to receive(:order_id_changed?).and_return(true)
         credential.order_id = 2
-        
+
         credential.valid?(:update)
         expect(credential.errors[:order_id]).to include('cannot be reassigned once set')
       end
-      
+
       it 'allows other updates' do
         allow(credential).to receive(:status_was).and_return('assigned')
         allow(credential).to receive(:order_id_was).and_return(1)
         allow(credential).to receive(:order_id_changed?).and_return(false)
-        
+
         credential.iccid = 'new_iccid'
         credential.valid?(:update)
-        
+
         expect(credential.errors[:status]).to be_empty
         expect(credential.errors[:order_id]).to be_empty
       end

@@ -5,6 +5,7 @@ class OrderProvisioningService
 
   def initialize(order, user_or_reseller)
     @order = order
+    @order.metadata ||= {}
     @actor = user_or_reseller # Can be User or Reseller
     @product = order.product
   end
@@ -138,13 +139,23 @@ class OrderProvisioningService
   # ========== VM Provisioning ==========
   def provision_vm!
     # Extract explicit user country selection or fallback to product default
-    country = @order.metadata&.dig('countryCode').presence || @product.metadata&.dig('country_code') || 'US'
+    country = (@order.metadata&.dig('countryCode').presence ||
+               @order.metadata&.dig('selected_country_id').presence ||
+               @order.metadata&.dig('country_code').presence ||
+               @product.metadata&.dig('country_code') || 'US').to_s.upcase
+
+    # Determine VM type: strictly 'vps' or 'rdp'
+    vm_type = if @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true'
+                'rdp'
+              else
+                'vps'
+              end
 
     # Create VM Order first
     vm_order = VmOrder.create!(
       order: @order,
       os_type: @product.metadata&.dig('os_template') || 'ubuntu-22-04',
-      vm_type: @product.metadata&.dig('vm_type') || 'shared-cpu',
+      vm_type: vm_type,
       cpu_cores: @product.metadata&.dig('cpu_cores') || 1,
       ram_gb: @product.metadata&.dig('ram_gb') || 1,
       disk_gb: @product.metadata&.dig('storage_gb') || 20,
@@ -161,10 +172,12 @@ class OrderProvisioningService
 
     job_params = {
       'os_template' => vm_order.os_type,
+      'vm_type' => vm_order.vm_type,
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
-      'country_code' => vm_order.country_code
+      'country_code' => vm_order.country_code,
+      'whitelist_ip' => @order.metadata&.dig('client_ip')
     }
 
     # Intercept non-Canadian VMs and bundle a localized proxy for Ansible configurations
@@ -180,12 +193,33 @@ class OrderProvisioningService
         raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
       end
 
+      # Determine location ID from product metadata for the API call
+      # The API expects a numeric location/city ID, not a country code.
+      location_id = nil
+      if proxy_pr.metadata['isp'].is_a?(Array)
+        proxy_pr.metadata['isp'].each do |isp|
+          next unless isp['locations'] && isp['locations'][country]
+
+          city = isp['locations'][country]['cities']&.first
+          if city
+            location_id = city['id']
+            break
+          end
+        end
+      end
+
       # Execute MyProxyApi Purchase
       user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
-        order_response = client.place_order(user_id: user_id, product_api_id: proxy_pr.provider_product_id, period: 1,
-                                            protocol: 'http', locations: vm_order.country_code)
+        order_response = client.place_order(
+          user_id: user_id,
+          product_api_id: proxy_pr.provider_product_id,
+          period: 1,
+          protocol: 'http',
+          locations: location_id,
+          whitelist_ip: @order.metadata['client_ip']
+        )
 
         # place_order returns { data: { order_id: "..." } } — we need to call view_order
         # to get the actual proxy credentials (IP, port, username, password).
@@ -236,7 +270,7 @@ class OrderProvisioningService
       # Extract provisioning params from order metadata.
       # 'period' = months/days string for static IPs, GB for residential rotating, IPs count for mobile
       raw_period = @order.metadata['period'] || @product.metadata&.dig('duration_value') || 1
-      
+
       # For Global ISP, strictly map period to '30d' or '7d' as per documentation
       period = if category_slug == 'global-isp'
                  if raw_period.to_s.include?('d')
@@ -262,11 +296,11 @@ class OrderProvisioningService
                     @order.metadata['selected_country_id'] || @order.metadata['locationId'] || @product.metadata&.dig('selected_country_id')
                   else
                     loc = @order.metadata['locationId'] || @order.metadata['locationsString']
-                    (loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating') ? loc : nil
+                    loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating' ? loc : nil
                   end
 
       client = MyProxyApiClient.new
-      
+
       # Determine debug label from payment method used
       payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
 

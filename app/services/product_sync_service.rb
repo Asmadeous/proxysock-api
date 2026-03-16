@@ -37,7 +37,7 @@ class ProductSyncService
 
     # 2. Sync ONLY Proxy and VPN categories
     categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp mobile global-isp]
-    
+
     categories.each do |cat_slug|
       sync_category(cat_slug)
     end
@@ -49,15 +49,15 @@ class ProductSyncService
 
   def cleanup_previous_plans
     @logger.info('[ProductSyncService] Cleaning up previous plans...')
-    
+
     my_products = Product.where(provider: 'myproxyapi')
-    
+
     my_products.find_each do |product|
       pricing_ids = product.product_pricings.pluck(:id)
-      
-      has_total_orders = Order.where(product_id: product.id).exists? || 
+
+      has_total_orders = Order.where(product_id: product.id).exists? ||
                          Order.where(product_pricing_id: pricing_ids).exists?
-      
+
       if has_total_orders
         product.update_columns(active: false)
         product.product_pricings.update_all(active: false)
@@ -76,9 +76,9 @@ class ProductSyncService
       'premium-isp' => 'premium_isp',
       'global-isp' => 'global_isp'
     }
-    
+
     product_type = type_mapping[category_slug] || category_slug.gsub('-', '_')
-    
+
     category = ProductCategory.find_or_create_by!(slug: category_slug) do |c|
       c.name = category_slug.titleize
       c.available_to = 'both'
@@ -87,7 +87,7 @@ class ProductSyncService
 
     begin
       data = @client.fetch_category_data(category_slug)
-      
+
       # For global-isp, we also need to fetch configuration details to get countries/locations
       global_isp_config = nil
       if category_slug == 'global-isp'
@@ -97,7 +97,7 @@ class ProductSyncService
           @logger.warn("Could not fetch global-isp config: #{e.message}")
         end
       end
-      
+
       # Handle if data is directly an array (some endpoints might do this)
       if data.is_a?(Array)
         plans = data.flat_map { |item| item['proxy_plans'] || (item['id'] ? [item] : []) }
@@ -106,7 +106,7 @@ class ProductSyncService
         plans = data['proxy_plans'] || []
         isps = data['isp'] || []
       end
-      
+
       @logger.info("Category #{category_slug} returned #{plans.size} plans and #{isps.size} ISPs")
 
       plans.each do |plan|
@@ -160,11 +160,11 @@ class ProductSyncService
     # Extract Country Code from Name or metadata
     plan_name = plan['name'].to_s
     plan_name_lower = plan_name.downcase
-    
+
     # Try to find a country in the name
     matched_country = COUNTRY_MAP.keys.find { |country| plan_name_lower.include?(country) }
     meta['country_code'] = COUNTRY_MAP[matched_country] if matched_country
-    
+
     # If not found in name, check if locations exist and try to derive from there
     if meta['country_code'].blank? && plan['locations'].present?
       # If locations is a hash or array, we might be able to extract it
@@ -190,7 +190,7 @@ class ProductSyncService
         else
           # Open-ended upper tier (e.g. "2000 x") — no upper bound
           meta['qty_min'] = qty_val
-          meta['qty_max'] = 999999
+          meta['qty_max'] = 999_999
         end
       end
     end
@@ -211,7 +211,7 @@ class ProductSyncService
       end
       # Filter periods to only keep 30 days (per user request)
       filtered_periods = (config['period'] || []).select { |p| p['name']&.to_s&.include?('30') }
-      
+
       meta['periods'] = filtered_periods
       meta['targets'] = config['target']
       meta['countries'] = config['country']
@@ -235,7 +235,7 @@ class ProductSyncService
 
   def alpha3_to_alpha2(alpha3)
     return nil if alpha3.blank?
-    
+
     # Simple mapping for common countries in the API
     {
       'AUT' => 'AT', 'BRA' => 'BR', 'CAN' => 'CA', 'FRA' => 'FR',

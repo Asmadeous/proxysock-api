@@ -12,7 +12,7 @@ class MyProxyApiClient
   API_SECRET   = ENV.fetch('MY_PROXY_API_SECRET', '')
 
   # The BASE_URL usually ends in /v1. We'll strip it to allow version switching.
-  ROOT_URL = BASE_URL.gsub(/\/v1\/?$/, '')
+  ROOT_URL = BASE_URL.gsub(%r{/v1/?$}, '')
 
   # --------------------------------------------------------------------------
   # Fetch product plans by category

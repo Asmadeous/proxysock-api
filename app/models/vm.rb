@@ -49,30 +49,41 @@ class Vm < ApplicationRecord
 
     service = VmProvisioningService.new(nil, Rails.logger)
 
-    # Map attributes to service params
+    management_type = vm_type.to_s.include?('managed') ? 'managed' : 'unmanaged'
+
     params = {
-      'job_id' => "vm-#{id}-#{Time.now.to_i}", # Unique job ID
-      'os_template' => vm_order.os_type, # Assuming VmOrder has os_type
-      'vm_type' => vm_type, # Vm has vm_type
+      'job_id' => "vm-#{id}-#{Time.now.to_i}",
+      'os_template' => vm_order.os_type,
+      'vm_type' => vm_type,
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
-      'hostname' => "vm-#{id}",            # Simple hostname strategy
-      'management_type' => 'unmanaged'     # Default or derived
+      'hostname' => "vm-#{id}",
+      'management_type' => management_type,
+      'root_password' => SecureRandom.hex(12) # Generate a secure password
     }
 
     begin
       result = service.provision(params)
 
+      # Update VM record with successful provisioning details
       update!(
         ip_address: result[:ip_address],
+        hostname: result[:hostname],
+        dns_name: result[:dns_name],
         proxmox_vm_id: result[:vm_id].to_s,
-        rdp_port: result[:protocol] == 'rdp' ? 3389 : nil,
-        ssh_port: result[:protocol] == 'ssh' ? 22 : nil,
-        expires_at: 30.days.from_now # Set initial expiry
+        rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
+        ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
+        ssh_username: result[:username],
+        ssh_password: result[:password],
+        root_password: result[:password],
+        provisioned_at: Time.current,
+        expires_at: Time.current + 30.days
       )
 
       mark_active!
+      # Send welcome email with credentials and custom ports
+      VmMailer.credentials_email(self).deliver_later
     rescue StandardError => e
       Rails.logger.error("VM Provisioning failed: #{e.message}")
       fail!
@@ -83,6 +94,11 @@ class Vm < ApplicationRecord
   def terminate!
     service = VmProvisioningService.new(nil, Rails.logger)
     service.cleanup_vm(proxmox_vm_id, ip_address, "vm-#{id}")
+
+    # Cleanup DNS
+    dns_service = CloudflareDnsService.new
+    dns_service.delete_vm_record(id)
+
     terminate
   end
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class SyncInHouseProducts < ActiveRecord::Migration[8.1]
   def up
     InHouseProductSyncService.new.sync

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class VpnMailer < ApplicationMailer
-
   def credentials_email
     @owner = params[:owner]
     @vpn_account = params[:vpn_account]

@@ -9,7 +9,6 @@ module Admin
       protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
       skip_forgery_protection if: -> { request.format.json? }
 
-
       skip_before_action :authenticate_request, only: %i[zoho zoho_callback login failure]
       # GET /admin/api/auth/zoho (redirect to OAuth)
       # GET /admin/api/auth/zoho (redirect to OAuth via POST form)

@@ -8,7 +8,8 @@ WORKDIR /home/asmadeous/Work/proxysock-api
 # Install 2026 system dependencies
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-    build-essential git curl libpq-dev libyaml-dev pkg-config libvips libjemalloc2 postgresql-client && \
+    build-essential git curl libpq-dev libyaml-dev pkg-config libvips libjemalloc2 postgresql-client \
+    ansible sshpass openssh-client && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 ENV RAILS_ENV=development \

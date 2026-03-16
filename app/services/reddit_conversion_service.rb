@@ -15,7 +15,7 @@ class RedditConversionService
 
   def track
     unless @ad_account_id && @conversion_token
-      Rails.logger.warn "Reddit CAPI: Skipping tracking due to missing credentials"
+      Rails.logger.warn 'Reddit CAPI: Skipping tracking due to missing credentials'
       return { success: true, message: 'Skipped: Missing credentials' }
     end
 

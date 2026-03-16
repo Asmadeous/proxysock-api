@@ -226,7 +226,16 @@ export default function App() {
               {/* Payment Results */}
               <Route
                 path="/payments/success"
-                element={<PaymentSuccess clearCart={() => { }} />}
+                element={
+                  <PaymentSuccess
+                    clearCart={() => {
+                      localStorage.removeItem("cartItems");
+                      globalThis.dispatchEvent(
+                        new CustomEvent("cart-updated", { detail: { count: 0 } })
+                      );
+                    }}
+                  />
+                }
               />
               <Route path="/payments/failed" element={<PaymentFailed />} />
 

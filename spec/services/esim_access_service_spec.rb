@@ -26,13 +26,13 @@ RSpec.describe EsimAccessService do
 
     it 'sends a signed POST request to /order/profiles' do
       # We need to catch the dynamic transactionId generated in the method
-      expect_any_instance_of(Net::HTTP).to receive(:request) do |http, req|
+      expect_any_instance_of(Net::HTTP).to receive(:request) do |_http, req|
         expect(req.path).to eq('/api/v1/open/esim/order')
         expect(req['RT-AccessCode']).to eq(api_key)
-        
+
         body = JSON.parse(req.body)
         expect(body['packageInfoList'].first['packageCode']).to eq(package_code)
-        
+
         # Verify signature
         timestamp  = req['RT-Timestamp']
         request_id = req['RT-RequestID']

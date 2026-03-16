@@ -41,7 +41,7 @@ RSpec.describe MyProxyApiClient do
     it 'sends a PATCH request to /orders/replacement' do
       token_resp = double('token_resp', code: '200', body: { token: 't' }.to_json)
       allow(token_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
-      
+
       rotate_resp = double('rotate_resp', code: '200', body: { 'status' => 'success' }.to_json)
       allow(rotate_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 

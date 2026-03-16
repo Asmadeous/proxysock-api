@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class InvoiceMailer < ApplicationMailer
-
   # Sent when an order transitions to 'processing'
   def invoice_email
     @order = params[:order]

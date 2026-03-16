@@ -63,14 +63,14 @@ class EsimSyncService
   def sync_product(category, pkg, package_type)
     # The API uses packageCode or slug. Prefer slug if available.
     provider_id = pkg['slug'].presence || pkg['packageCode']
-    
+
     product = Product.find_or_initialize_by(
       provider: 'esim_access',
       provider_product_id: provider_id
     )
 
     # Docs say price is value * 10,000 (e.g. 10000 = $1.00)
-    api_price = (pkg['price'].to_f / 10000.0).round(2)
+    api_price = (pkg['price'].to_f / 10_000.0).round(2)
 
     product.assign_attributes(
       name: pkg['name'],
@@ -142,6 +142,7 @@ class EsimSyncService
     )
 
     return unless total.positive? && used >= total
+
     esim.update(status: 'used_up')
   end
 end

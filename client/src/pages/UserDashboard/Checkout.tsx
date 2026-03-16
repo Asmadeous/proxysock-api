@@ -99,12 +99,30 @@ export default function Checkout() {
         paymentMethod: string
     ) => {
         const orderId = `order_${Date.now()}`;
-        // Simple version of data storage for success page
+        // Create a displayable list of items for the success page
+        const orderItems = _items.map(item => {
+            // Map productType to one of: vpn, vps, rdp, esim, proxy
+            let category = item.productType as string;
+            if (category === 'usa-esim') category = 'esim';
+            if (['global-isp', 'residential', 'intercept'].includes(category)) category = 'proxy';
+            if (category === 'vm') category = 'vps';
+
+            return {
+                id: `item_${Math.random().toString(36).substr(2, 9)}`,
+                name: item.product || item.plan?.name || item.esimPackage?.name || item.vpsPlan?.name || item.rdpPlan?.name || item.vpnPlan?.name || 'Service',
+                price: item.totalPrice || 0,
+                category: category || 'proxy',
+                quantity: item.quantity || 1
+            };
+        });
+
         localStorage.setItem("lastOrder", JSON.stringify({
             orderId,
             totalValue: totalUsd,
             paymentMethod,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            items: orderItems,
+            currency: "USD"
         }));
 
         // Track Reddit Purchase Conversion

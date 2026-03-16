@@ -15,6 +15,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getLocationDisplayName } from "@/hooks/useESIMPackages";
 
 interface ItemDetailsProps {
   item: CartItem;
@@ -60,28 +61,30 @@ const ProxyItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Location</span>
-            <span className="font-medium flex items-center gap-2 text-right">
-              {item.globalCountry ? (
-                <>
-                  {item.globalCountry.name}
-                  <img
-                    src={`https://flagcdn.com/16x12/${item.globalCountry.code?.toLowerCase()}.png`}
-                    alt={item.globalCountry.name}
-                    className="w-4 h-3 rounded-sm inline-block"
-                  />
-                </>
-              ) : selectedCity ? (
-                `${selectedCity.name}, ${selectedCity.state}`
-              ) : (
-                selectedIsp?.name || "Any"
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Location</span>
+            <div className="flex items-center gap-2 justify-end min-w-0 flex-1">
+              <span className="font-medium truncate text-right">
+                {item.globalCountry ? (
+                  item.globalCountry.name
+                ) : selectedCity ? (
+                  `${selectedCity.name}, ${selectedCity.state}`
+                ) : (
+                  selectedIsp?.name || "Any"
+                )}
+              </span>
+              {item.globalCountry && (
+                <img
+                  src={`https://flagcdn.com/16x12/${item.globalCountry.code?.toLowerCase()}.png`}
+                  alt={item.globalCountry.name}
+                  className="w-4 h-3 rounded-sm shrink-0"
+                />
               )}
-            </span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Period</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Period</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {((item.productType === "proxy" || item.productType === "global-isp") && item.plan?.global_isp_config)
                 ? `${Number(item.quantity) || 0} x ${item.plan.name} (${item.period || "Fixed"})`
                 : item.period}{" "}
@@ -90,14 +93,14 @@ const ProxyItemDetails = ({
             </span>
           </div>
           {item.globalTarget && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Usage Target</span>
-              <span className="font-medium">{item.globalTarget.name}</span>
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">Usage Target</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">{item.globalTarget.name}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Protocol</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground shrink-0">Protocol</span>
+            <span className="font-medium truncate text-right">
               {item.protocol?.toUpperCase() || "HTTP"}
             </span>
           </div>
@@ -155,24 +158,24 @@ const EsimItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Location</span>
-            <span className="font-medium">
-              {item.esimPackage.location_name || "Global"}
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Location</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
+              {getLocationDisplayName(item.esimPackage.location_code, item.esimPackage.location_name)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Data</span>
-            <span className="font-medium">
-              {formatDataVolume(item.esimPackage.volume)}
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Data</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
+              {formatDataVolume(item.esimPackage.volume || item.esimPackage.volume_bytes || 0)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Duration</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Duration</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {formatDuration(
-                item.esimPackage.duration,
-                item.esimPackage.duration_unit,
+                item.esimPackage.duration || item.esimPackage.duration_days || 0,
+                item.esimPackage.duration_unit || "days",
               )}
             </span>
           </div>
@@ -259,17 +262,17 @@ const ResidentialItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Coverage</span>
-            <span className="font-medium">Global Residential Pool</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Coverage</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">Global Residential Pool</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Data Amount</span>
-            <span className="font-medium">{item.period || 1} GB</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Data Amount</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">{item.period || 1} GB</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Protocol</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Protocol</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.protocol?.toUpperCase() || "HTTP"}
             </span>
           </div>
@@ -340,24 +343,24 @@ const VpsItemDetails = ({
           </div>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Duration</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Duration</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.duration || 1} month
               {(item.duration || 1) > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Management</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Management</span>
             <span
-              className={`capitalize font-medium ${item.managementType === "managed" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+              className={`capitalize font-medium truncate text-right flex-1 min-w-0 ${item.managementType === "managed" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
             >
               {item.managementType || "Unmanaged"}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Location</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Location</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.location ? `${item.location.country}` : "Any"}
             </span>
           </div>
@@ -428,24 +431,24 @@ const RdpItemDetails = ({
           </div>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Duration</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Duration</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.duration || 1} month
               {(item.duration || 1) > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Management</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Management</span>
             <span
-              className={`capitalize font-medium ${item.managementType === "managed" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+              className={`capitalize font-medium truncate text-right flex-1 min-w-0 ${item.managementType === "managed" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
             >
               {item.managementType || "Unmanaged"}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Location</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Location</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.location ? `${item.location.country}` : "Any"}
             </span>
           </div>
@@ -503,23 +506,23 @@ const UsaEsimItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Voice</span>
-            <span className="font-medium">{item.usaEsimPlan.voice_minutes}</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Voice</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.voice_minutes}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">SMS/MMS</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">SMS/MMS</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.usaEsimPlan.sms_included ? "Unlimited" : "Not Included"}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Data</span>
-            <span className="font-medium">{item.usaEsimPlan.data_amount}</span>
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Data</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.data_amount}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Duration</span>
-            <span className="font-medium">
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Duration</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
               {item.usaEsimPlan.duration} {item.usaEsimPlan.duration_unit}
             </span>
           </div>
@@ -616,15 +619,15 @@ const VpnItemDetails = ({
         </div>
         <div className="space-y-2.5 text-sm">
           {vpnIsp && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Provider</span>
-              <span className="font-medium">{vpnIsp.name}</span>
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">Provider</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">{vpnIsp.name}</span>
             </div>
           )}
           {locationText && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Location</span>
-              <span className="font-medium">{locationText}</span>
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">Location</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">{locationText}</span>
             </div>
           )}
           {item.vpnPlan.features && item.vpnPlan.features.length > 0 && (

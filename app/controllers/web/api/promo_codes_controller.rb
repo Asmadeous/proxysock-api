@@ -4,7 +4,7 @@ module Web
   module Api
     class PromoCodesController < BaseController
       skip_before_action :authenticate_request, only: [:validate]
-      
+
       # Validate is public (no auth required for preview)
       # Other actions would require authentication
 

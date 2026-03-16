@@ -46,11 +46,33 @@
             data: 0
             type: dword
 
-        - name: Enable RDP through firewall
-          win_firewall_rule:
-            name: Remote Desktop
-            enabled: yes
             state: present
+
+        - name: Configure RDP Port in Registry
+          win_regedit:
+            path: "{{ item }}"
+            name: PortNumber
+            data: "{{ custom_port | default(3389) }}"
+            type: dword
+          loop:
+            - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+            - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server"
+
+        - name: Allow RDP through firewall
+          win_firewall_rule:
+            name: "Remote Desktop - Custom ({{ custom_port | default(3389) }})"
+            localport: "{{ custom_port | default(3389) }}"
+            action: allow
+            direction: in
+            protocol: tcp
+            state: present
+            enabled: yes
+
+        - name: Restart Remote Desktop Service to apply port change
+          win_service:
+            name: TermService
+            state: restarted
+          ignore_errors: yes
 
         - name: Set hostname
           win_hostname:

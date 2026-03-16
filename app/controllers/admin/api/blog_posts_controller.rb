@@ -66,8 +66,8 @@ module Admin
         # Handle both flat and wrapped (Rails style) parameters
         data = params.key?(:blog_post) ? params.require(:blog_post) : params
         data.permit(:slug, :title, :excerpt, :content, :category, :author,
-                      :read_time, :featured, :published, :image_url,
-                      :published_at, tags: [])
+                    :read_time, :featured, :published, :image_url,
+                    :published_at, tags: [])
       end
     end
   end

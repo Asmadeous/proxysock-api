@@ -108,6 +108,13 @@
             no_log: true
           register: root_password_result
         
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
+        
         - name: Verify root password was set
           debug:
             msg: "Root password changed: {{ root_password_result.changed }}"
@@ -148,12 +155,24 @@
               - vim
               - openssh-client
               - openssh-server
+              - fail2ban
+              - unattended-upgrades
             state: present
           retries: 5
           delay: 20
           register: install_result
           until: install_result is succeeded
-        
+
+        - name: Ensure security services are running
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - fail2ban
+            - unattended-upgrades
+          ignore_errors: yes
+
         - name: Validate configuration
           command: >
             bash -c "
@@ -169,23 +188,11 @@
             msg: "Configuration complete: {{ validation.stdout }}"
         
         - name: Notify API - Success
-          uri:
-            url: "{{ api_url }}/vm/{{ vm_id }}/status"
-            method: POST
-            headers:
-              Authorization: "Bearer {{ api_key }}"
-              Content-Type: "application/json"
-            body_format: json
-            body:
-              vm_id: "{{ vm_id }}"
-              status: "configured"
-              os_template: "{{ os_template }}"
-              management_type: "{{ management_type }}"
-              timestamp: "{{ ansible_date_time.iso8601 }}"
           delegate_to: localhost
           register: api_success
-          validate_certs: yes
-          no_log: true
+          uri:
+            validate_certs: yes
+            no_log: true
       
       rescue:
         - name: Capture failure details

@@ -21,8 +21,8 @@ Rails.application.config.middleware.use OmniAuth::Builder do
     strategy = _env['omniauth.error.strategy']
     message = _env['omniauth.error.type']
     Rails.logger.error "OmniAuth Failure: #{strategy} - #{message}"
-    
+
     # Redirect to the failure path defined in routes
-    Rack::Response.new(["302 Redirect"], 302, 'Location' => '/auth/failure').finish
+    Rack::Response.new(['302 Redirect'], 302, 'Location' => '/auth/failure').finish
   end
 end

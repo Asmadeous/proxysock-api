@@ -8,7 +8,7 @@ RSpec.describe UsaEsimOrder, type: :model do
       association = described_class.reflect_on_association(:order)
       expect(association.macro).to eq :belongs_to
     end
-    
+
     it 'has many usa_esim_credentials' do
       association = described_class.reflect_on_association(:usa_esim_credentials)
       expect(association.macro).to eq :has_many

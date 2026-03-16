@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class UsaEsimMailer < ApplicationMailer
-
   def credentials_email
     @owner = params[:owner]
     @credentials = params[:credentials]

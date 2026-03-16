@@ -55,7 +55,7 @@ class InHouseProductSyncService
     data['pricings'].each do |pricing_data|
       # Normalize duration type to lowercase
       d_type = (pricing_data['duration_type'] || 'month').downcase
-      
+
       pricing = product.product_pricings.find_or_initialize_by(
         currency: pricing_data['currency'] || 'USD',
         duration_type: d_type,

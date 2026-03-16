@@ -38,9 +38,9 @@ class EsimAccessService
   # Endpoint: POST /esim/query
   def fetch_esim_details(iccid)
     response = request(:post, '/esim/query', {
-      iccid: iccid,
-      pager: { pageNum: 1, pageSize: 50 }
-    })
+                         iccid: iccid,
+                         pager: { pageNum: 1, pageSize: 50 }
+                       })
     response['obj']
   end
 
@@ -49,9 +49,9 @@ class EsimAccessService
   # Endpoint: POST /esim/query
   def fetch_profiles_by_order(order_no)
     response = request(:post, '/esim/query', {
-      orderNo: order_no,
-      pager: { pageNum: 1, pageSize: 50 }
-    })
+                         orderNo: order_no,
+                         pager: { pageNum: 1, pageSize: 50 }
+                       })
 
     return [] unless response['success'] == true
 
@@ -107,7 +107,7 @@ class EsimAccessService
     timestamp  = Time.now.to_i.to_s
     request_id = SecureRandom.uuid
     body_json  = body.to_json
-    
+
     # Calculate signature as per docs
     sign_data = "#{timestamp}#{request_id}#{@access_code}#{body_json}"
     signature = OpenSSL::HMAC.hexdigest('SHA256', @secret_key, sign_data)
