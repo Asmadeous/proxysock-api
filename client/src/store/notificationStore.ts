@@ -133,19 +133,52 @@ export const useNotificationStore = create<NotificationStore>()(
                 // Already subscribed
                 if (subscription) return;
 
-                const newSubscription = subscribeToNotifications((data) => {
-                    // Transform ActionCable data to Notification format
-                    const notification: Notification = {
-                        id: (data as Record<string, unknown>).id as number,
-                        category: (data as Record<string, unknown>).category as Notification["category"],
-                        title: (data as Record<string, unknown>).title as string,
-                        message: (data as Record<string, unknown>).message as string,
-                        metadata: ((data as Record<string, unknown>).metadata as Record<string, unknown>) || {},
-                        read: false,
-                        read_at: null,
-                        created_at: (data as Record<string, unknown>).created_at as string,
-                    };
-                    addNotification(notification);
+                const newSubscription = subscribeToNotifications((data: any) => {
+                    const { action, notification: nestedNotification, id: notificationId } = data;
+
+                    switch (action) {
+                        case 'notification_created':
+                            if (nestedNotification) {
+                                // Transform backend data to Notification format
+                                const notification: Notification = {
+                                    id: nestedNotification.id,
+                                    category: nestedNotification.category,
+                                    title: nestedNotification.title,
+                                    message: nestedNotification.message,
+                                    metadata: nestedNotification.metadata || {},
+                                    read: !!nestedNotification.read_at,
+                                    read_at: nestedNotification.read_at,
+                                    created_at: nestedNotification.created_at,
+                                };
+                                addNotification(notification);
+                            }
+                            break;
+
+                        case 'notifications_read_all':
+                            set((state) => ({
+                                notifications: state.notifications.map((n) => ({
+                                    ...n,
+                                    read: true,
+                                    read_at: new Date().toISOString(),
+                                })),
+                                unreadCount: 0,
+                            }));
+                            break;
+
+                        case 'notification_read':
+                            if (notificationId) {
+                                set((state) => ({
+                                    notifications: state.notifications.map((n) =>
+                                        n.id === notificationId ? { ...n, read: true, read_at: new Date().toISOString() } : n
+                                    ),
+                                    unreadCount: Math.max(0, state.unreadCount - 1),
+                                }));
+                            }
+                            break;
+
+                        default:
+                            console.log("[ActionCable] Unhandled notification action:", action);
+                    }
                 });
 
                 set({ subscription: newSubscription });
