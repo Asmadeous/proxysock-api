@@ -8,7 +8,7 @@ RSpec.describe XProxyService, type: :service do
   let(:logger) { instance_double(ActiveSupport::Logger, info: nil, error: nil) }
 
   # Helper: stub a single HTTP response from the XProxy API
-  def stub_request_response(method, path, body)
+  def stub_request_response(method, _path, body)
     response = instance_double(Net::HTTPSuccess, code: '200', body: body.to_json)
     allow(response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 
@@ -18,8 +18,8 @@ RSpec.describe XProxyService, type: :service do
     allow(http).to receive(:request).and_return(response)
 
     req_class = {
-      get:    Net::HTTP::Get,
-      post:   Net::HTTP::Post,
+      get: Net::HTTP::Get,
+      post: Net::HTTP::Post,
       delete: Net::HTTP::Delete
     }.fetch(method)
     req = instance_double(req_class)
@@ -32,21 +32,21 @@ RSpec.describe XProxyService, type: :service do
   # Build a fake device hash as returned by GET /api/v1/info_list
   def fake_device(overrides = {})
     {
-      'position'          => 1,
-      'host'             => '74.208.234.109',
-      'proxy_port'       => 4001,
-      'socks5_port'      => 4001,
-      'public_ip'        => '113.185.76.192',
-      'last_rotation'    => nil,
+      'position' => 1,
+      'host' => '74.208.234.109',
+      'proxy_port' => 4001,
+      'socks5_port' => 4001,
+      'public_ip' => '113.185.76.192',
+      'last_rotation' => nil,
       'device_manufacture' => 'XProxy-Hilink',
-      'device_imei'      => '353899262396854',
+      'device_imei' => '353899262396854',
       'device_extra_info' => {
-        'provider'        => 'Bell',
-        'provider_id'     => '4',
-        'connected'       => true,
-        'sim_live'        => true,
+        'provider' => 'Bell',
+        'provider_id' => '4',
+        'connected' => true,
+        'sim_live' => true,
         'signal_strength' => 5,
-        'network_mode'    => '4G'
+        'network_mode' => '4G'
       }
     }.merge(overrides)
   end
@@ -119,7 +119,7 @@ RSpec.describe XProxyService, type: :service do
   describe 'process_proxy (via sync_proxies)' do
     let(:proxy_double) do
       instance_double(ProxyInstance,
-        new_record?: true, assign_attributes: nil, save!: nil, status: 'available')
+                      new_record?: true, assign_attributes: nil, save!: nil, status: 'available')
     end
 
     before do

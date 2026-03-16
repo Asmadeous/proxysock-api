@@ -151,7 +151,11 @@ class CartCheckoutService
     # The callback_url is where the USER is redirected after payment.
     # The webhook URL is configured in Paystack dashboard, or we can pass it if supported.
     # Currently we want the user back on the FRONTEND success page.
-    callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{@payment_method}&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
+    # Determine product type for the success page (if it's a single type or multiple)
+    types = @cart.cart_items.map { |i| i.product.product_type }.uniq
+    product_type = types.size == 1 ? types.first : 'mixed'
+
+    callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{@payment_method}&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=#{product_type}"
     reference = session.gateway_reference
 
     case @payment_method

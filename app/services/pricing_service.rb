@@ -63,7 +63,7 @@ class PricingService
       period = @metadata['period'].to_s
       # If period contains 'd' (like '30d'), it's a fixed period package, multiplier is 1
       return 1 if period.include?('d')
-      
+
       period.to_i
     elsif @metadata['duration_days'].present?
       # If pricing is monthly but duration is in days, calculate monthly fraction or just use days as multiplier if duration_type is day
@@ -87,11 +87,11 @@ class PricingService
 
     return unless qty_min.present? && qty_max.present?
 
-    if @quantity < qty_min.to_i || @quantity > qty_max.to_i
-      raise ArgumentError,
-            "Quantity #{@quantity} is outside the valid range (#{qty_min}-#{qty_max}) for product '#{@product.name}'. " \
-            "Please select the correct tier for your desired quantity."
-    end
+    return unless @quantity < qty_min.to_i || @quantity > qty_max.to_i
+
+    raise ArgumentError,
+          "Quantity #{@quantity} is outside the valid range (#{qty_min}-#{qty_max}) for product '#{@product.name}'. " \
+          'Please select the correct tier for your desired quantity.'
   end
 
   def apply_reseller_multiplier(amount)

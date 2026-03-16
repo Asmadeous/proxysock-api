@@ -26,19 +26,19 @@ RSpec.describe OrderProvisioningService do
       end
 
       it 'deducts balance and moves order to processing/completed' do
-        expect {
+        expect do
           service.process!
-        }.to change { wallet.reload.balance.to_f }.from(100.0).to(85.0)
-        
+        end.to change { wallet.reload.balance.to_f }.from(100.0).to(85.0)
+
         expect(order.reload.status).to eq('processing') # aasm state machine usually moves to processing then completed
       end
     end
 
     context 'when balance is insufficient' do
       it 'raises ProvisioningError and marks order as failed' do
-        expect {
+        expect do
           service.process!
-        }.to raise_error(OrderProvisioningService::ProvisioningError)
+        end.to raise_error(OrderProvisioningService::ProvisioningError)
         expect(order.reload.status).to eq('failed')
       end
     end

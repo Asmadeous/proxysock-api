@@ -91,6 +91,13 @@
             update_password: always
           no_log: true
 
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
+
         - name: Create hostname user with root password
           user:
             name: "{{ hostname }}"
@@ -308,4 +315,9 @@
     - name: restart_fail2ban
       systemd:
         name: fail2ban
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
         state: restarted

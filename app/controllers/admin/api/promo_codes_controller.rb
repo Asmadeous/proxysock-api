@@ -56,7 +56,7 @@ module Admin
 
       def promo_params
         params.permit(:code, :discount_type, :discount_value, :max_uses, :expires_at,
-                       :active, :min_order_amount, :max_discount_amount, :description)
+                      :active, :min_order_amount, :max_discount_amount, :description)
       end
 
       def promo_json(p)

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class VmMailer < ApplicationMailer
-
   def credentials_email
     @vm = params[:vm]
     @order = @vm.vm_order.order

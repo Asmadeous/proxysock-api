@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe "Web::Api::Auth SSO", type: :request do
+RSpec.describe 'Web::Api::Auth SSO', type: :request do
   let(:frontend_url) { 'http://localhost:3001' }
 
   before do
@@ -13,30 +13,30 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
     allow(ENV).to receive(:[]).with('FRONTEND_URL').and_return(frontend_url)
   end
 
-  describe "GET /web/api/auth/google_callback" do
+  describe 'GET /web/api/auth/google_callback' do
     let(:google_auth_hash) do
       OmniAuth::AuthHash.new({
-        provider: 'google_oauth2',
-        uid: '123456',
-        info: {
-          email: 'testuser@example.com',
-          first_name: 'Test',
-          last_name: 'User',
-          name: 'Test User'
-        }
-      })
+                               provider: 'google_oauth2',
+                               uid: '123456',
+                               info: {
+                                 email: 'testuser@example.com',
+                                 first_name: 'Test',
+                                 last_name: 'User',
+                                 name: 'Test User'
+                               }
+                             })
     end
 
     before do
       OmniAuth.config.mock_auth[:google_oauth2] = google_auth_hash
-      Rails.application.env_config["omniauth.auth"] = google_auth_hash
+      Rails.application.env_config['omniauth.auth'] = google_auth_hash
     end
 
-    context "when user does not exist" do
-      it "creates a new user with a generated username and redirects to frontend" do
-        expect {
-          get "/web/api/auth/google/callback"
-        }.to change(User, :count).by(1)
+    context 'when user does not exist' do
+      it 'creates a new user with a generated username and redirects to frontend' do
+        expect do
+          get '/web/api/auth/google/callback'
+        end.to change(User, :count).by(1)
 
         user = User.last
         expect(user.email).to eq('testuser@example.com')
@@ -47,7 +47,7 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
       end
     end
 
-    context "when user already exists" do
+    context 'when user already exists' do
       let!(:existing_user) do
         User.create!(
           email: 'testuser@example.com',
@@ -58,10 +58,10 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
         )
       end
 
-      it "links the provider and redirects to frontend" do
-        expect {
-          get "/web/api/auth/google/callback"
-        }.not_to change(User, :count)
+      it 'links the provider and redirects to frontend' do
+        expect do
+          get '/web/api/auth/google/callback'
+        end.not_to change(User, :count)
 
         existing_user.reload
         expect(existing_user.provider).to eq('google_oauth2')
@@ -71,7 +71,7 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
       end
     end
 
-    context "when username conflict exists" do
+    context 'when username conflict exists' do
       let!(:other_user) do
         User.create!(
           email: 'other@example.com',
@@ -82,10 +82,10 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
         )
       end
 
-      it "generates a unique username and creates the user" do
-        expect {
-          get "/web/api/auth/google/callback"
-        }.to change(User, :count).by(1)
+      it 'generates a unique username and creates the user' do
+        expect do
+          get '/web/api/auth/google/callback'
+        end.to change(User, :count).by(1)
 
         user = User.last
         expect(user.username).to start_with('testuser_')
@@ -93,17 +93,17 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
     end
   end
 
-  describe "GET /admin/api/auth/zoho/callback" do
+  describe 'GET /admin/api/auth/zoho/callback' do
     let(:zoho_auth_hash) do
       OmniAuth::AuthHash.new({
-        provider: 'zoho',
-        uid: 'zoho123',
-        info: {
-          email: 'admin@example.com',
-          first_name: 'Admin',
-          last_name: 'User'
-        }
-      })
+                               provider: 'zoho',
+                               uid: 'zoho123',
+                               info: {
+                                 email: 'admin@example.com',
+                                 first_name: 'Admin',
+                                 last_name: 'User'
+                               }
+                             })
     end
 
     let!(:employee) do
@@ -119,12 +119,12 @@ RSpec.describe "Web::Api::Auth SSO", type: :request do
 
     before do
       OmniAuth.config.mock_auth[:zoho] = zoho_auth_hash
-      Rails.application.env_config["omniauth.auth"] = zoho_auth_hash
+      Rails.application.env_config['omniauth.auth'] = zoho_auth_hash
       allow(Employee).to receive(:from_omniauth).and_return(employee)
     end
 
-    it "redirects to frontend with target /admin" do
-      get "/admin/api/auth/zoho/callback"
+    it 'redirects to frontend with target /admin' do
+      get '/admin/api/auth/zoho/callback'
       expect(response).to redirect_to(%r{#{frontend_url}/auth/callback\?auth_token=.*target=/admin})
     end
   end

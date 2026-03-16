@@ -11,7 +11,7 @@ module Web
         posts = posts.where(featured: true) if params[:featured] == 'true'
 
         category_counts = BlogPost.published.group(:category).count
-        
+
         categories_data = BlogPost::CATEGORIES.map do |name|
           { name: name, count: category_counts[name] || 0 }
         end

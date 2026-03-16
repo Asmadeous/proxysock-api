@@ -290,7 +290,7 @@ module Web
             orders_to_create.each(&:save!)
 
             # Record promo code usage
-            if promo_code_record && promo_discount > 0
+            if promo_code_record && promo_discount.positive?
               promo_code_record.record_use!
               # Store promo info on orders
               orders_to_create.each do |order|
@@ -302,7 +302,7 @@ module Web
             end
 
             # Record affiliate referral conversion
-            if referral && affiliate_discount > 0
+            if referral && affiliate_discount.positive?
               referral.update!(referee_discount_applied: affiliate_discount)
             end
 
@@ -313,7 +313,7 @@ module Web
               transaction_type: 'debit',
               status: 'success',
               currency: 'USD',
-              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount > 0 ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount > 0 ? " | Referral: -$#{affiliate_discount}" : ''}"
+              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount.positive? ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount.positive? ? " | Referral: -$#{affiliate_discount}" : ''}"
             )
 
             wallet.debit!(final_amount, 'Cart Checkout', {}, transaction)
@@ -335,9 +335,9 @@ module Web
             message: 'Checkout successful',
             orders: created_orders.map { |o| serialize_order(o.reload) },
             available_balance: current_actor.wallet&.balance.to_f,
-            promo_discount: promo_discount > 0 ? promo_discount : nil,
-            affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
-            total_discount: total_discount > 0 ? total_discount : nil
+            promo_discount: promo_discount.positive? ? promo_discount : nil,
+            affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
+            total_discount: total_discount.positive? ? total_discount : nil
           }, status: :created
         else
           # Gateway
@@ -353,8 +353,8 @@ module Web
                 item_count: orders_to_create.count,
                 items: items,
                 promo_code: promo_code_record&.code,
-                promo_discount: promo_discount > 0 ? promo_discount : nil,
-                affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
+                promo_discount: promo_discount.positive? ? promo_discount : nil,
+                affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
                 original_total: total_amount,
                 final_total: final_amount
               }
@@ -363,7 +363,7 @@ module Web
             checkout_session.generate_reference!
 
             # Record promo code usage upfront for gateway payments
-            promo_code_record&.record_use! if promo_discount > 0
+            promo_code_record&.record_use! if promo_discount.positive?
           end
 
           payment_data = generate_session_payment_link(gateway, checkout_session, final_amount)
@@ -379,9 +379,9 @@ module Web
             payment_currency: payment_data[:currency],
             reference: checkout_session.gateway_reference,
             checkout_session_id: checkout_session.id,
-            promo_discount: promo_discount > 0 ? promo_discount : nil,
-            affiliate_discount: affiliate_discount > 0 ? affiliate_discount : nil,
-            total_discount: total_discount > 0 ? total_discount : nil
+            promo_discount: promo_discount.positive? ? promo_discount : nil,
+            affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
+            total_discount: total_discount.positive? ? total_discount : nil
           }, status: :accepted
         end
       rescue StandardError => e
@@ -777,7 +777,7 @@ module Web
           if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
             api_res = order.metadata['my_proxy_api_response']
             base[:proxy_details] = api_res
-            
+
             # Handle both single record and multiple records (array)
             records = api_res.is_a?(Array) ? api_res : [api_res]
             first_rec = records.first || {}
@@ -785,7 +785,7 @@ module Web
             # Extract from nested view-order structure if present
             # { order: {}, ips: [...], config: { auth_user_pass: {} } }
             auth = first_rec.dig('config', 'auth_user_pass') || {}
-            
+
             all_ips = records.flat_map do |rec|
               rec['ips'] || [rec['ip']].compact
             end.uniq
@@ -898,7 +898,7 @@ module Web
         when 'paystack'
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}"
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
           {
             url: PaystackService.new.initialize_transaction(
               email: current_actor.email,
@@ -957,7 +957,7 @@ module Web
         when 'paystack'
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
           {
             url: PaystackService.new.initialize_transaction(
               email: current_actor.email,

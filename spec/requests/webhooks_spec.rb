@@ -32,7 +32,7 @@ RSpec.describe 'Webhooks', type: :request do
         data: {
           reference: transaction_ref,
           status: 'success',
-          amount: 7000000, # 50 USD * 1400 NGN/USD * 100 kobo = 7,000,000
+          amount: 7_000_000, # 50 USD * 1400 NGN/USD * 100 kobo = 7,000,000
           currency: 'NGN',
           metadata: { deposit_id: deposit.id }
         }
@@ -43,7 +43,7 @@ RSpec.describe 'Webhooks', type: :request do
 
     it 'processes a successful charge and credits the wallet' do
       post '/webhooks/paystack', params: payload, headers: { 'X-Paystack-Signature' => signature, 'Content-Type' => 'application/json' }
-      
+
       expect(response).to have_http_status(:ok)
       expect(deposit.reload.status).to eq('completed')
       expect(wallet.reload.balance).to be_within(0.01).of(50.0)
@@ -62,14 +62,14 @@ RSpec.describe 'Webhooks', type: :request do
         data: {
           reference: transaction_ref,
           status: 'success',
-          amount: 6000000, # ~42 USD
+          amount: 6_000_000, # ~42 USD
           currency: 'NGN'
         }
       }.to_json
       underpaid_signature = OpenSSL::HMAC.hexdigest('SHA512', paystack_secret, underpaid_payload)
 
       post '/webhooks/paystack', params: underpaid_payload, headers: { 'X-Paystack-Signature' => underpaid_signature, 'Content-Type' => 'application/json' }
-      
+
       expect(response).to have_http_status(:ok) # Webhook returns OK but logic should skip
       expect(deposit.reload.status).to eq('pending')
       expect(wallet.reload.balance).to eq(0.0)

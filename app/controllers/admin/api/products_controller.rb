@@ -10,11 +10,11 @@ module Admin
 
         products = products.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
         if params[:product_type].present?
-          if params[:product_type] == 'proxy'
-            products = products.where(product_type: Product::PROXY_TYPES)
-          else
-            products = products.where(product_type: params[:product_type])
-          end
+          products = if params[:product_type] == 'proxy'
+                       products.where(product_type: Product::PROXY_TYPES)
+                     else
+                       products.where(product_type: params[:product_type])
+                     end
         end
         products = products.where(provider: params[:provider]) if params[:provider].present?
         products = products.where(active: params[:active]) if params[:active].present?
@@ -80,7 +80,7 @@ module Admin
         ProductSyncService.new.sync_all_products
         # Sync EsimAccess
         EsimSyncService.new.sync_packages!
-        
+
         render json: { message: 'External products synced successfully' }
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity

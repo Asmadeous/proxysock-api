@@ -5,7 +5,7 @@ module Web
     class AuthController < ActionController::Base
       include JwtAuthenticated
       include ErrorHandling
-      # By default, Base includes forgery protection. 
+      # By default, Base includes forgery protection.
       # We skip it for API JSON requests using JWT, but keep it for browser-based SSO forms.
       protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
       # POST /web/api/auth/register
@@ -89,7 +89,7 @@ module Web
       def google_callback
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
- 
+
         if user.persisted?
           user.update(last_login_at: Time.current)
           token = user.generate_jwt
@@ -117,7 +117,7 @@ module Web
       def twitter_callback
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
- 
+
         if user.persisted?
           user.update(last_login_at: Time.current)
           token = user.generate_jwt

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 RSpec.describe 'Web::Api::PromoCodes', type: :request do
@@ -7,7 +9,7 @@ RSpec.describe 'Web::Api::PromoCodes', type: :request do
   describe 'POST /web/api/promo_codes/validate' do
     it 'validates an active code and returns its details' do
       post '/web/api/promo_codes/validate', params: { code: 'test20' }, as: :json
-      
+
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
       expect(json['valid']).to be true
@@ -18,7 +20,7 @@ RSpec.describe 'Web::Api::PromoCodes', type: :request do
 
     it 'rejects an inactive code' do
       post '/web/api/promo_codes/validate', params: { code: 'EXPIRED10' }, as: :json
-      
+
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
       expect(json['valid']).to be false
@@ -27,7 +29,7 @@ RSpec.describe 'Web::Api::PromoCodes', type: :request do
 
     it 'rejects a nonexistent code' do
       post '/web/api/promo_codes/validate', params: { code: 'BOGUS' }, as: :json
-      
+
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
       expect(json['valid']).to be false

@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 require 'resolv'
 require 'ipaddr'
 
 module Web
   module Api
     class ToolsController < BaseController
-      skip_before_action :authenticate_request, only: [:ip_checker, :ip_lookup]
+      skip_before_action :authenticate_request, only: %i[ip_checker ip_lookup]
 
       before_action :ensure_env_loaded
 
@@ -30,15 +32,13 @@ module Web
         ipv6_compressed_regex = /^([0-9a-fA-F]{1,4}:){1,7}:$|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$/
 
         # If IP is present and not loopback, validate it
-        if ip.present? && ip != '127.0.0.1' && ip != '::1'
-          unless ip =~ ipv4_regex || ip =~ ipv6_regex || ip =~ ipv6_compressed_regex
-            return render json: { error: 'Invalid IP address format' }, status: :bad_request
-          end
+        if ip.present? && ip != '127.0.0.1' && ip != '::1' && !(ip =~ ipv4_regex || ip =~ ipv6_regex || ip =~ ipv6_compressed_regex)
+          return render json: { error: 'Invalid IP address format' }, status: :bad_request
         end
 
         # If IP is loopback or private, we call IPData without the IP segment
         # This makes IPData detect the machine's public IP (useful for local dev)
-        ip_path = (ip.blank? || private_ip?(ip)) ? "" : "/#{ip}"
+        ip_path = ip.blank? || private_ip?(ip) ? '' : "/#{ip}"
 
         # Handle private/loopback IPs locally to avoid external API failure
         # REMOVED MOCK - Let IPData detect the public IP instead
@@ -171,8 +171,6 @@ module Web
 
         'Clean'
       end
-
-      private
 
       def ensure_env_loaded
         return if ENV['IPDATA_API_KEY'].present?

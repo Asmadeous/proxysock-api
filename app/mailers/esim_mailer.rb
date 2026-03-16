@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class EsimMailer < ApplicationMailer
-
   def delivery_email
     @user = params[:user]
     @esim = params[:esim]

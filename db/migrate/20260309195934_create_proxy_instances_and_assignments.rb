@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateProxyInstancesAndAssignments < ActiveRecord::Migration[8.1]
   def change
     create_table :proxy_instances, id: :uuid do |t|

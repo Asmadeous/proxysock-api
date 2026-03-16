@@ -216,6 +216,7 @@
               - thunderbird
               - gimp
               - vlc
+              - fail2ban
             state: present
             update_cache: yes
           retries: 3
@@ -232,7 +233,7 @@
               [Globals]
               ini_version=1
               fork=true
-              port=3389
+              port={{ custom_port | default(3389) }}
               tcp_nodelay=true
               tcp_keepalive=true
               security_layer=tls
@@ -407,6 +408,37 @@
           command: systemctl start vm-metrics.service
           tags: monitoring
 
+        - name: Configure fail2ban
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = ssh
+              filter = sshd
+              logpath = /var/log/auth.log
+              maxretry = 5
+              bantime = 3600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          tags: security
+
+        - name: Ensure security and monitoring services are running
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - prometheus-node-exporter
+            - fail2ban
+          tags: security
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
+          notify: restart_ssh
+
         - name: Set hostname
           hostname:
             name: "{{ hostname }}"
@@ -512,6 +544,11 @@
     - name: restart node-exporter
       systemd:
         name: prometheus-node-exporter
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
         state: restarted
 
     - name: reload systemd

@@ -520,6 +520,7 @@ DEPENDENCIES
   kamal
   kaminari
   mocha (~> 3.0)
+  net-ssh (~> 7.3)
   omniauth
   omniauth-google-oauth2
   omniauth-rails_csrf_protection

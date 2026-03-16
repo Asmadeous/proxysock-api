@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateGlobalIspTables < ActiveRecord::Migration[8.1]
   def change
     create_table :global_isp_proxies, id: :uuid do |t|

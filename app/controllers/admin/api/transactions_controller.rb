@@ -6,7 +6,7 @@ module Admin
       # GET /admin/api/transactions
       def index
         transactions = Transaction.all.order(created_at: :desc)
-        
+
         # Filtering
         transactions = transactions.where(status: params[:status]) if params[:status].present?
         transactions = transactions.where('id::text ILIKE ?', "%#{params[:q]}%") if params[:q].present?

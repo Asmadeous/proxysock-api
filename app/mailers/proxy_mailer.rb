@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class ProxyMailer < ApplicationMailer
-
   def credentials_email
     @owner = params[:owner]
     @proxy = params[:proxy]

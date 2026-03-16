@@ -36,6 +36,8 @@
               - xrdp
               - xrdp-selinux
               - xorgxrdp
+              - fail2ban
+              - dnf-automatic
             state: present
           retries: 3
           delay: 10
@@ -55,7 +57,7 @@
               [Globals]
               ini_version=1
               fork=true
-              port=3389
+              port={{ custom_port | default(3389) }}
               tcp_nodelay=true
               tcp_keepalive=true
               security_layer=tls
@@ -147,6 +149,15 @@
           loop:
             - xrdp
             - xrdp-sesman
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
+          notify: restart_ssh
+            - fail2ban
+            - dnf-automatic.timer
 
         - name: Set hostname
           hostname:
@@ -255,3 +266,8 @@
       loop:
         - xrdp
         - xrdp-sesman
+
+    - name: restart_ssh
+      systemd:
+        name: sshd
+        state: restarted

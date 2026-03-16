@@ -3,13 +3,14 @@
 puts 'Starting Database Seed Process...'
 
 if Rails.env.production?
-  puts "⚠️  SEEDING ABORTED: Seeding is strictly disabled in production environment."
+  puts '⚠️  SEEDING ABORTED: Seeding is strictly disabled in production environment.'
   return
 end
 
 # Load standard seeds
 Dir[Rails.root.join('db', 'seeds', '*.rb')].sort.each do |file|
   next if file.end_with?('seeds.rb') # Avoid self-require if somehow included
+
   puts "Seeding #{File.basename(file)}..."
   require file
 end
@@ -22,22 +23,22 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
 
   # Import in order to preserve dependencies (simplistic approach)
   # We skip Product and ProductPricing from the massive JSON to use inhouse sync instead
-  ['Department', 'Employee', 'User', 'Reseller', 'Affiliate', 'ProductCategory'].each do |model_name|
+  %w[Department Employee User Reseller Affiliate ProductCategory].each do |model_name|
     next unless data[model_name]
-    
+
     model = model_name.constantize
     puts "  Importing #{data[model_name].size} #{model_name} records..."
-    
+
     data[model_name].each do |attrs|
       # Remove timestamps to let Rails handle them
       attrs.delete('created_at')
       attrs.delete('updated_at')
-      
+
       record = nil
-      
+
       # Step 1: Try finding by ID if present
       record = model.find_by(id: attrs['id']) if attrs['id'].present?
-      
+
       # Step 2: Try finding by unique business keys if not found by ID
       if record.nil?
         case model_name
@@ -65,7 +66,7 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
           # Try finding the owner by email if we can find it in the current scope
           owner_email = data[attrs['affiliatable_type']]&.find { |o| o['id'] == attrs['affiliatable_id'] }&.dig('email')
           owner = attrs['affiliatable_type'].constantize.find_by(email: owner_email) if owner_email
-          
+
           if owner
             attrs['affiliatable_id'] = owner.id
           else
@@ -78,7 +79,7 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
       # Step 4: Create or Update
       begin
         # Ensure passwords for models that need them
-        if ['User', 'Employee', 'Reseller'].include?(model_name) && attrs['password_digest'].blank? && attrs['password'].blank?
+        if %w[User Employee Reseller].include?(model_name) && attrs['password_digest'].blank? && attrs['password'].blank?
           attrs['password'] = 'Password123!'
           attrs['password_confirmation'] = 'Password123!'
         end
@@ -94,11 +95,11 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
       rescue ActiveRecord::RecordInvalid => e
         # If the failure is due to missing associations, skip and log
         if e.message =~ /must exist/i
-           puts "    ⚠️  Skipped #{model_name} (#{attrs['id'] || attrs['email'] || attrs['name']}): Association missing (#{e.message})"
+          puts "    ⚠️  Skipped #{model_name} (#{attrs['id'] || attrs['email'] || attrs['name']}): Association missing (#{e.message})"
         elsif e.message =~ /already been taken/i
-           puts "    ⚠️  Skipped #{model_name} (#{attrs['id'] || attrs['email'] || attrs['name']}): Duplicate entry"
+          puts "    ⚠️  Skipped #{model_name} (#{attrs['id'] || attrs['email'] || attrs['name']}): Duplicate entry"
         else
-           raise e
+          raise e
         end
       end
     end
@@ -107,7 +108,7 @@ end
 
 # Sync In-house products (VPS, RDP, USA eSIM, Proxy)
 if Rails.env.staging? || Rails.env.development?
-  puts "Seeding In-house products..."
+  puts 'Seeding In-house products...'
   InHouseProductSyncService.new.sync
-  puts "✅ Product sync completed."
+  puts '✅ Product sync completed.'
 end

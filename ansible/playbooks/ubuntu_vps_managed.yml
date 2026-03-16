@@ -142,6 +142,13 @@
             update_password: always
           no_log: true
 
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
+
         - name: Create hostname user with root password
           user:
             name: "{{ hostname }}"
@@ -302,6 +309,13 @@
             mode: '0644'
             backup: yes
 
+        - name: Configure node exporter to listen on non-standard port
+          lineinfile:
+            path: /etc/default/prometheus-node-exporter
+            regexp: '^ARGS='
+            line: 'ARGS="--web.listen-address=:59100"'
+          notify: restart_node_exporter
+
         - name: Enable unattended upgrades
           lineinfile:
             path: /etc/apt/apt.conf.d/20auto-upgrades
@@ -420,8 +434,8 @@
               os_template: "{{ os_template }}"
               management_type: "{{ management_type }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              validate_certs: yes
-              no_log: true
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
           ignore_errors: yes
 
@@ -429,4 +443,14 @@
     - name: restart_fail2ban
       systemd:
         name: fail2ban
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: restart_node_exporter
+      systemd:
+        name: prometheus-node-exporter
         state: restarted

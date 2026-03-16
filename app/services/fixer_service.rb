@@ -27,8 +27,8 @@ class FixerService
         rates = data['rates']
         # from_currency -> EUR -> to_currency
         # rate = (1 / EUR_from) * EUR_to = EUR_to / EUR_from
-        rate = rates[to_currency].to_f / rates[from_currency].to_f
-        
+        rate = rates[to_currency].to_f / rates[from_currency]
+
         # Cache for CACHE_EXPIRY
         Rails.cache.write("#{CACHE_KEY}_#{from_currency}_#{to_currency}", rate, expires_in: CACHE_EXPIRY)
         rate

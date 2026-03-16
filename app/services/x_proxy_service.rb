@@ -57,14 +57,14 @@ class XProxyService
   # Provision a proxy for an order
   def provision(order)
     @logger.info("[XProxyService] Provisioning for Order ##{order.id}")
-    
+
     # Requirement: "XProxy Mobile Canadian Proxies"
     # Find ISP mapping from metadata (Bell: 4, Rogers: 5, Telus: 6)
     target_isp_id = order.metadata&.dig('isp_id')
-    
+
     proxy_instance = ProxyInstance.available
-                                 .where("metadata->>'isp_id' = ?", target_isp_id.to_s)
-                                 .first
+                                  .where("metadata->>'isp_id' = ?", target_isp_id.to_s)
+                                  .first
 
     proxy_instance ||= ProxyInstance.available.first unless target_isp_id
 
@@ -82,7 +82,7 @@ class XProxyService
     duration = order.metadata&.dig('period').to_i
     duration = 1 if duration <= 0
     gb_limit = is_usage_based ? duration : nil
-    
+
     expiry_date = calculate_expiry(order)
 
     # Create Assignment
@@ -223,7 +223,7 @@ class XProxyService
     isp_id = provider_to_isp_id[provider_name] || device_info['provider_id'] || '0'
 
     metadata = {
-      protocols: ['http', 'socks5'],
+      protocols: %w[http socks5],
       isp: provider_name.downcase,
       isp_id: isp_id,
       device_type: data['device_manufacture'] || 'residential',
@@ -252,9 +252,9 @@ class XProxyService
 
   def handle_provisioning_failure(order, isp_id)
     log_system_event('no_available_proxies', 'error', "No available proxies found for order #{order.id}", {
-      order_id: order.id, isp_id: isp_id
-    })
-    
+                       order_id: order.id, isp_id: isp_id
+                     })
+
     # Notify support via email logic from Supabase snippet
     # AdminMailer.proxy_provisioning_failure(order, isp_id).deliver_later rescue nil
   end

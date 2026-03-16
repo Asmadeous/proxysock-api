@@ -38,7 +38,7 @@ class PromoCode < ApplicationRecord
                end
 
     # Cap discount at max_discount_amount if set
-    discount = [discount, max_discount_amount].min if max_discount_amount.present? && max_discount_amount > 0
+    discount = [discount, max_discount_amount].min if max_discount_amount.present? && max_discount_amount.positive?
 
     # Never discount more than the order total
     [discount, order_amount].min.round(2)

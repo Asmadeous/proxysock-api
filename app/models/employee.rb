@@ -72,8 +72,8 @@ class Employee < ApplicationRecord
     end
 
     acceptable_types = %w[image/jpeg image/png image/gif image/webp]
-    unless acceptable_types.include?(avatar.content_type)
-      errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
-    end
+    return if acceptable_types.include?(avatar.content_type)
+
+    errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
   end
 end

@@ -24,11 +24,11 @@ module Web
 
           if params[:product_type].present?
             # If 'proxy' is requested, include all granular proxy types
-            if params[:product_type] == 'proxy'
-              scope = scope.where(product_type: Product::PROXY_TYPES)
-            else
-              scope = scope.where(product_type: params[:product_type])
-            end
+            scope = if params[:product_type] == 'proxy'
+                      scope.where(product_type: Product::PROXY_TYPES)
+                    else
+                      scope.where(product_type: params[:product_type])
+                    end
           end
 
           if params[:per_page] == 'all'

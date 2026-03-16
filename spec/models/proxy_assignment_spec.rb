@@ -15,7 +15,7 @@ RSpec.describe ProxyAssignment, type: :model do
   end
 
   let!(:category) { ProductCategory.create!(name: 'Mobile Proxy', slug: "mobile-proxy-#{SecureRandom.hex(4)}", available_to: 'both') }
-  
+
   let!(:product) do
     Product.create!(
       name: 'XProxy Mobile',
@@ -37,7 +37,7 @@ RSpec.describe ProxyAssignment, type: :model do
   end
 
   let!(:proxy_instance) { ProxyInstance.create!(proxy_address: "1.2.3.4:#{rand(1000..9999)}", status: 'available') }
-  
+
   let!(:order) do
     Order.create!(
       orderable: user,
@@ -47,7 +47,7 @@ RSpec.describe ProxyAssignment, type: :model do
       status: 'active'
     )
   end
-  
+
   subject(:assignment) do
     described_class.create!(
       order: order,
@@ -83,7 +83,7 @@ RSpec.describe ProxyAssignment, type: :model do
     it 'increments gb_used and returns true when limit is crossed' do
       expect(assignment.record_usage!(0.5)).to be false
       expect(assignment.gb_used).to eq(0.5)
-      
+
       expect(assignment.record_usage!(0.5)).to be true
       expect(assignment.gb_used).to eq(1.0)
       expect(assignment.expired?).to be true
@@ -93,9 +93,9 @@ RSpec.describe ProxyAssignment, type: :model do
   describe '#disconnect!' do
     it 'marks as expired and frees the proxy if last active' do
       allow(ProxyMailer).to receive(:with).and_return(double(expiry_email: double(deliver_later: true)))
-      
+
       assignment.disconnect!(reason: :time_expired)
-      
+
       expect(assignment.status).to eq('expired')
       expect(assignment.metadata['disconnect_reason']).to eq('time_expired')
       expect(proxy_instance.reload.status).to eq('available')
@@ -103,7 +103,7 @@ RSpec.describe ProxyAssignment, type: :model do
 
     it 'does not free the proxy if other active assignments exist' do
       allow(ProxyMailer).to receive(:with).and_return(double(expiry_email: double(deliver_later: true)))
-      
+
       # Create another active assignment on same instance
       ProxyAssignment.create!(
         order: order,
@@ -112,11 +112,11 @@ RSpec.describe ProxyAssignment, type: :model do
         password: 'pass',
         status: 'active'
       )
-      
+
       proxy_instance.update!(status: 'assigned')
-      
+
       assignment.disconnect!(reason: :time_expired)
-      
+
       expect(assignment.status).to eq('expired')
       expect(proxy_instance.reload.status).to eq('assigned')
     end

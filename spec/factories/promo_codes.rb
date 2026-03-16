@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 FactoryBot.define do
   factory :promo_code do
     sequence(:code) { |n| "PROMO#{n}" }

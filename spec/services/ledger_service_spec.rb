@@ -12,9 +12,9 @@ RSpec.describe LedgerService do
   describe '#record_entry' do
     context 'when crediting 100 USD' do
       it 'creates a wallet transaction and increases balance' do
-        expect {
+        expect do
           service.record_entry(100.0, 'credit', 'Test Credit')
-        }.to change { wallet.reload.balance.to_f }.from(0.0).to(100.0)
+        end.to change { wallet.reload.balance.to_f }.from(0.0).to(100.0)
 
         tx = wallet.wallet_transactions.last
         expect(tx.transaction_type).to eq('credit')
@@ -44,9 +44,9 @@ RSpec.describe LedgerService do
 
     context 'when debiting more than balance' do
       it 'raises InsufficientFundsError and does not record entry' do
-        expect {
+        expect do
           service.record_entry(50.0, 'debit', 'Overdraw')
-        }.to raise_error(LedgerService::InsufficientFundsError)
+        end.to raise_error(LedgerService::InsufficientFundsError)
         expect(wallet.wallet_transactions.count).to eq(0)
       end
     end

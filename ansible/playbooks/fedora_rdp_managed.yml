@@ -206,6 +206,7 @@
               - thunderbird
               - gimp
               - vlc
+              - fail2ban
             state: present
           retries: 3
           delay: 30
@@ -239,7 +240,7 @@
               [Globals]
               ini_version=1
               fork=true
-              port=3389
+              port={{ custom_port | default(3389) }}
               tcp_nodelay=true
               tcp_keepalive=true
               security_layer=tls
@@ -397,7 +398,7 @@
                   User=prometheus
                   Group=prometheus
                   Type=simple
-                  ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:9100
+                  ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:59100
                   Restart=always
                   [Install]
                   WantedBy=multi-user.target
@@ -472,6 +473,30 @@
           command: systemctl start vm-metrics.service
           tags: monitoring
 
+        - name: Configure fail2ban
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = ssh
+              filter = sshd
+              logpath = /var/log/secure
+              maxretry = 5
+              bantime = 3600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          tags: security
+
+        - name: Ensure security and monitoring services are running
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - node_exporter
+            - fail2ban
+          tags: security
+
         - name: Set hostname
           hostname:
             name: "{{ hostname }}"
@@ -501,6 +526,13 @@
         - name: Display verification results
           debug:
             msg: "{{ verification_result.stdout_lines }}"
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
+          notify: restart_ssh
 
         - name: Final configuration step
           shell: |
@@ -583,6 +615,11 @@
       loop:
         - xrdp
         - xrdp-sesman
+
+    - name: restart_ssh
+      systemd:
+        name: sshd
+        state: restarted
 
     - name: restart node-exporter
       systemd:

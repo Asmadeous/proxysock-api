@@ -37,7 +37,7 @@ RSpec.describe 'api/v1/products', type: :request do
         before do
           category = ProductCategory.create!(name: 'Proxies')
           product = Product.create!(name: 'Test Proxy', product_type: 'proxy', provider_type: 'xproxy',
-                                     product_category: category)
+                                    product_category: category)
           ProductPricing.create!(product: product, selling_price: 10.0, active: true, currency: 'USD')
         end
 
