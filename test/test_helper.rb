@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 ENV['RAILS_ENV'] ||= 'test'
+
+# Mock Proxmox credentials for test environment to avoid initialization errors
+ENV['PROXMOX_API_URL'] ||= 'https://localhost:8006'
+ENV['PROXMOX_API_TOKEN_ID'] ||= 'dummy@pam!dummy'
+ENV['PROXMOX_API_TOKEN_SECRET'] ||= 'dummy-secret'
+ENV['PROXMOX_NODE'] ||= 'pve'
+
 require_relative '../config/environment'
 require 'rails/test_help'
 require 'mocha/minitest'
