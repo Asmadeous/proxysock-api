@@ -111,13 +111,13 @@ jobs:
                         web-staging bin/rails db:prepare
 
                       # Restart all staging services
-                      IMAGE_TAG=staging docker compose --profile staging up -d --no-deps \
+                      IMAGE_TAG=staging docker compose --profile staging up -d --no-deps --remove-orphans \
                         web-staging sidekiq-staging frontend-staging
 
                       # Health check (API)
                       echo "Waiting for API health check..."
                       for i in $(seq 1 30); do
-                        if curl -sf --max-time 5 http://localhost/up > /dev/null 2>&1; then
+                        if curl -sfkL --max-time 5 -H "Host: apitest.proxysock.net" http://localhost/up > /dev/null 2>&1; then
                           echo "✅ API healthy!"
                           break
                         fi
