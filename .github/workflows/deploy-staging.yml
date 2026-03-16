@@ -87,6 +87,7 @@ jobs:
                   host: ${{ secrets.STAGING_HOST }}
                   username: ${{ secrets.STAGING_USER }}
                   key: ${{ secrets.STAGING_SSH_KEY }}
+                  password: ${{ secrets.STAGING_PASSWORD }}
                   source: "docker-compose.yml"
                   target: "/opt/proxysock-api"
 
@@ -96,6 +97,7 @@ jobs:
                   host: ${{ secrets.STAGING_HOST }}
                   username: ${{ secrets.STAGING_USER }}
                   key: ${{ secrets.STAGING_SSH_KEY }}
+                  password: ${{ secrets.STAGING_PASSWORD }}
                   script: |
                       cd /opt/proxysock-api
 
