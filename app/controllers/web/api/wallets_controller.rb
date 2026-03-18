@@ -40,7 +40,7 @@ module Web
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra].include?(gateway)
+                                                                                          payvra hundredpay].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
@@ -81,6 +81,8 @@ module Web
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country),
             amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
             callback_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=deposit&amount=#{deposit.amount}",
@@ -95,7 +97,9 @@ module Web
             currency: currency,
             order_number: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
-            email: current_actor.email
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
           )
           { url: result[:url], amount: amount, currency: 'USD' }
 
@@ -106,10 +110,27 @@ module Web
             currency: currency,
             order_number: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
-            email: current_actor.email
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
           )
           # Store Payvra's txn_id (invoice id) so DepositSyncService can verify via their API later.
           deposit.metadata['payvra_invoice_id'] = result[:txn_id]
+          deposit.save!
+          { url: result[:url], amount: amount, currency: 'USD' }
+
+        when 'hundredpay'
+          service = HundredpayService.new
+          result = service.create_invoice(
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
+          )
+          deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
           deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
         end

@@ -31,6 +31,13 @@ module ProxysockApi
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # Use Sidekiq for background jobs
+    config.active_job.queue_adapter = :sidekiq
+    
+    # Ensure jobs are enqueued ONLY after the database transaction commits
+    # This prevents RecordNotFound errors in background jobs.
+    config.active_job.enqueue_after_transaction_commit = true
+
     # Use UUIDs as the default primary key type for migrations
     config.generators do |g|
       g.orm :active_record, primary_key_type: :uuid

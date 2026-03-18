@@ -108,22 +108,24 @@ export default function NotificationBell({ notifications: propNotifications, unr
                                         You have no notifications.
                                     </div>
                                 ) : (
-                                    notifications.map((n) => (
-                                        <div key={n.id} className={`p-4 border-b border-border hover:bg-muted/50 transition-colors ${!n.read_at ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    {!n.read_at && (
-                                                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                                                    )}
-                                                    <p className="text-sm font-medium text-foreground">{n.title}</p>
+                                    notifications
+                                        .filter(n => n && n.id && n.created_at) // Extra safety check
+                                        .map((n) => (
+                                            <div key={n.id} className={`p-4 border-b border-border hover:bg-muted/50 transition-colors ${!n.read_at ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {!n.read_at && (
+                                                            <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                                                        )}
+                                                        <p className="text-sm font-medium text-foreground">{n.title}</p>
+                                                    </div>
+                                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
+                                                        {n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                                                    </span>
                                                 </div>
-                                                <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
-                                                    {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
+                                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
                                             </div>
-                                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
-                                        </div>
-                                    ))
+                                        ))
                                 )}
                             </div>
                         </motion.div>

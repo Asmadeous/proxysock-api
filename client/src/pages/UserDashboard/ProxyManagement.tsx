@@ -32,7 +32,7 @@ interface ProxyOrder {
   id: string;
   order_id: string;
   product_name: string;
-  product_type: 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile';
+  product_type: 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp';
   status: 'active' | 'expired' | 'pending' | 'cancelled';
   period: number;
   protocol: 'http' | 'socks5';
@@ -72,7 +72,7 @@ export default function ProxyManagement() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'datacenter' | 'residential' | 'mobile'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp'>('all');
 
   useEffect(() => {
     fetchProxyData();
@@ -128,10 +128,7 @@ export default function ProxyManagement() {
 
   const filteredOrders = proxyOrders.filter(order => {
     const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-    const typeMatch = typeFilter === 'all' ||
-      (typeFilter === 'datacenter' && ['datacenter', 'isp', 'premium-isp'].includes(order.product_type)) ||
-      (typeFilter === 'residential' && ['static-residential', 'residential-rotating'].includes(order.product_type)) ||
-      (typeFilter === 'mobile' && order.product_type === 'mobile');
+    const typeMatch = typeFilter === 'all' || order.product_type === typeFilter;
 
     return statusMatch && typeMatch;
   });
@@ -179,7 +176,8 @@ export default function ProxyManagement() {
       'premium-isp': { color: 'bg-primary/10 text-primary', text: 'Premium ISP' },
       'static-residential': { color: 'bg-primary/10 text-primary', text: 'Static Residential' },
       'residential-rotating': { color: 'bg-primary/10 text-primary', text: 'Residential Rotating' },
-      'mobile': { color: 'bg-primary/10 text-primary', text: 'Mobile' }
+      'mobile': { color: 'bg-primary/10 text-primary', text: 'Mobile' },
+      'global-isp': { color: 'bg-primary/10 text-primary', text: 'Global ISP' }
     };
 
     const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.datacenter;
@@ -1153,9 +1151,13 @@ export default function ProxyManagement() {
                 className="bg-background border rounded-lg px-3 py-2 text-sm"
               >
                 <option value="all">All Types</option>
-                <option value="datacenter">Datacenter</option>
-                <option value="residential">Residential</option>
+                <option value="residential-rotating">Residential Rotating</option>
+                <option value="static-residential">Static Residential</option>
                 <option value="mobile">Mobile</option>
+                <option value="datacenter">Datacenter</option>
+                <option value="isp">ISP</option>
+                <option value="premium-isp">Premium ISP</option>
+                <option value="global-isp">Global ISP</option>
               </select>
             </div>
           </div>

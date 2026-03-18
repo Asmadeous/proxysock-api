@@ -43,15 +43,29 @@ class Order < ApplicationRecord
   has_one :vpn_account, through: :vpn_order, source: :vpn
   has_one :global_isp_proxy_order, dependent: :destroy
   has_one :global_isp_proxy, through: :global_isp_proxy_order
+ 
+  def all_provisioned_resources
+    case product.product_type
+    when 'vps', 'rdp', 'vm' then [vm].compact
+    when 'proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
+      resources = []
+      resources << MobileProxy.where(order_id: id).to_a
+      resources << StaticDatacenterProxy.where(order_id: id).to_a
+      resources << StaticIspProxy.where(order_id: id).to_a
+      resources << PremiumIspProxy.joins(:premium_isp_proxy_order).where(premium_isp_proxy_orders: { order_id: id }).to_a
+      resources << StaticResidentialProxy.joins(:static_residential_proxy_order).where(static_residential_proxy_orders: { order_id: id }).to_a
+      resources << ResidentialRotatingProxy.where(order_id: id).to_a
+      resources << GlobalIspProxy.joins(:global_isp_proxy_order).where(global_isp_proxy_orders: { order_id: id }).to_a
+      resources.flatten.compact
+    when 'esim' then [esim_order].compact
+    when 'usa_esim' then [usa_esim_order].compact
+    when 'vpn' then [vpn_account].compact
+    else []
+    end
+  end
 
   def provisioned_resource
-    case product.product_type
-    when 'vps', 'rdp', 'vm' then vm
-    when 'proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp' then proxy
-    when 'esim' then esim_order
-    when 'usa_esim' then usa_esim_order
-    when 'vpn' then vpn_account
-    end
+    all_provisioned_resources.first
   end
 
   def proxy
@@ -129,6 +143,7 @@ class Order < ApplicationRecord
   def trigger_reseller_webhook
     return unless reseller
 
+    resources = all_provisioned_resources
     payload = {
       order_id: id,
       order_number: order_number,
@@ -136,7 +151,9 @@ class Order < ApplicationRecord
       status: status,
       total_amount: total_amount,
       metadata: metadata,
-      resource: provisioned_resource&.as_json
+      resource: resources.first&.as_json,
+      resources: resources.map(&:as_json),
+      credentials: metadata&.dig('my_proxy_api_response') || metadata&.dig('proxy_credentials')
     }
 
     WebhookDispatchWorker.perform_later(reseller.id, 'order.completed', payload)

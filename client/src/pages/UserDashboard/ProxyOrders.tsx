@@ -20,6 +20,7 @@ import {
   Sparkles,
   MapPin,
   Server,
+  Filter,
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -68,6 +69,7 @@ const ProxyOrdersPage: FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<ProxyOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "failed">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
   const { user, accessToken } = useAuth();
@@ -93,7 +95,7 @@ const ProxyOrdersPage: FC = () => {
   useEffect(() => {
     filterOrders();
     calculateStats();
-  }, [orders, activeTab, searchTerm]);
+  }, [orders, activeTab, searchTerm, categoryFilter]);
 
   const fetchProxyOrders = async () => {
     try {
@@ -134,6 +136,11 @@ const ProxyOrdersPage: FC = () => {
   const filterOrders = () => {
     let filtered = [...orders];
 
+    // Filter by category
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((o) => o.proxy_type === categoryFilter);
+    }
+
     // Filter by tab
     if (activeTab !== "all") {
       if (activeTab === "active") {
@@ -151,7 +158,8 @@ const ProxyOrdersPage: FC = () => {
         (o) =>
           o.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           o.plan_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.country?.toLowerCase().includes(searchTerm.toLowerCase())
+          o.country?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          o.proxy_type?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -460,44 +468,82 @@ IPs Included: ${order.ips_included || 0}
       {/* Filters and Search */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Tabs */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              {[
-                { id: "all", label: "All", count: stats.total },
-                { id: "active", label: "Active", count: stats.active },
-                { id: "pending", label: "Pending", count: stats.pending },
-                { id: "failed", label: "Failed", count: stats.failed },
-              ].map((tab) => (
-                <Button
-                  key={tab.id}
-                  onClick={() =>
-                    setActiveTab(tab.id as "all" | "active" | "pending" | "failed")
-                  }
-                  variant={activeTab === tab.id ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {tab.count}
-                    </Badge>
-                  )}
-                </Button>
-              ))}
+          <div className="flex flex-col gap-4">
+            {/* Category Filter */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Category:</span>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-wrap">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "residential-rotating", label: "Residential Rotating" },
+                  { id: "static-residential", label: "Static Residential" },
+                  { id: "mobile", label: "Mobile" },
+                  { id: "datacenter", label: "Datacenter" },
+                  { id: "isp", label: "ISP" },
+                  { id: "premium-isp", label: "Premium ISP" },
+                  { id: "global-isp", label: "Global ISP" },
+                ].map((cat) => {
+                  const count = cat.id === "all" ? orders.length : orders.filter((o) => o.proxy_type === cat.id).length;
+                  return (
+                    <Button
+                      key={cat.id}
+                      onClick={() => setCategoryFilter(cat.id)}
+                      variant={categoryFilter === cat.id ? "default" : "ghost"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      {cat.label}
+                      {count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {count}
+                        </Badge>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by order ID, plan name, or country..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                {[
+                  { id: "all", label: "All", count: stats.total },
+                  { id: "active", label: "Active", count: stats.active },
+                  { id: "pending", label: "Pending", count: stats.pending },
+                  { id: "failed", label: "Failed", count: stats.failed },
+                ].map((tab) => (
+                  <Button
+                    key={tab.id}
+                    onClick={() =>
+                      setActiveTab(tab.id as "all" | "active" | "pending" | "failed")
+                    }
+                    variant={activeTab === tab.id ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {tab.count}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by order ID, plan name, country, or type..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -548,15 +594,22 @@ IPs Included: ${order.ips_included || 0}
                           <CardDescription>#{order.order_number}</CardDescription>
                         </div>
                       </div>
-                      <Badge
-                        variant={
-                          isExpired ? "destructive" : getStatusBadgeVariant(order.status)
-                        }
-                        className="gap-1"
-                      >
-                        <StatusIcon className="h-3 w-3" />
-                        {isExpired ? "Expired" : order.status}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant={
+                            isExpired ? "destructive" : getStatusBadgeVariant(order.status)
+                          }
+                          className="gap-1"
+                        >
+                          <StatusIcon className="h-3 w-3" />
+                          {isExpired ? "Expired" : order.status}
+                        </Badge>
+                        {order.proxy_type && (
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {order.proxy_type.replace(/-/g, ' ')}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
 

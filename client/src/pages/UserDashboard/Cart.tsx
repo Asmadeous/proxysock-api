@@ -44,14 +44,14 @@ export default function Cart() {
     const updatedItem: CartItem = {
       ...item,
       productType,
-      protocol: (productType === "proxy" || productType === "global-isp") ? item.protocol || "http" : undefined,
+      protocol: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.protocol || "http" : undefined,
       quantity: (productType === "esim" || productType === "usa-esim") ? (Number(item.quantity) || 1) : (item.quantity),
       plan: (productType === "proxy" || productType === "residential" || productType === "global-isp") ? (item.plan ?? null) : null,
       esimPackage: productType === "esim" ? (item.esimPackage ?? null) : null,
       vpsPlan: productType === "vps" ? (item.vpsPlan ?? null) : null,
       rdpPlan: productType === "rdp" ? (item.rdpPlan ?? null) : null,
       vpnPlan: productType === "vpn" ? (item.vpnPlan ?? null) : null,
-      period: (productType === "proxy" || productType === "global-isp") ? item.period || 1 : undefined,
+      period: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.period || 1 : undefined,
       locations: (productType === "proxy" || productType === "vpn" || productType === "global-isp") ? (item.locations || { city: null, isp: null }) : undefined,
       duration: (productType === "vps" || productType === "rdp") ? item.duration || 1 : undefined,
       managementType: (productType === "vps" || productType === "rdp") ? item.managementType || "unmanaged" : undefined,
@@ -60,6 +60,8 @@ export default function Cart() {
       rdpUsername: productType === "rdp" ? item.rdpUsername || "Administrator" : undefined,
       effective_base_price: effectiveBasePrice,
       locationId: item.locationId || item.locations?.city?.id || item.locations?.isp?.id,
+      // Preserve residential rotating config if present
+      residentalRotatingConfig: productType === "residential" ? item.residentalRotatingConfig : undefined,
     };
 
     // ONLY recalculate if totalPrice is missing, NaN, or null

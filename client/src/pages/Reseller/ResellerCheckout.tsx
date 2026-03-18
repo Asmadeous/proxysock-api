@@ -148,9 +148,11 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         setIsLoadingHundredpay,
         clearCart: () => {
             localStorage.removeItem("cartItems");
+            localStorage.removeItem("enterprise_customer_email");
             setCartItems([]);
             globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: 0 } }));
         },
+
         usaEsimInCart,
         onSuccess,
         promoCode: promoApplied?.code,

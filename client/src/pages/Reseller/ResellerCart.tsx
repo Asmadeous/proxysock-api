@@ -47,14 +47,14 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
     const updatedItem: CartItem = {
       ...item,
       productType,
-      protocol: (productType === "proxy" || productType === "global-isp") ? item.protocol || "http" : undefined,
+      protocol: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.protocol || "http" : undefined,
       quantity: (productType === "esim" || productType === "usa-esim") ? item.quantity || 1 : (productType === "proxy" || productType === "global-isp") ? item.quantity || 1 : undefined,
       plan: (productType === "proxy" || productType === "residential" || productType === "global-isp") ? (item.plan ?? null) : null,
       esimPackage: productType === "esim" ? (item.esimPackage ?? null) : null,
       vpsPlan: productType === "vps" ? (item.vpsPlan ?? null) : null,
       rdpPlan: productType === "rdp" ? (item.rdpPlan ?? null) : null,
       vpnPlan: productType === "vpn" ? (item.vpnPlan ?? null) : null,
-      period: (productType === "proxy" || productType === "global-isp") ? item.period || 1 : undefined,
+      period: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.period || 1 : undefined,
       locations: (productType === "proxy" || productType === "vpn" || productType === "global-isp") ? (item.locations || { city: null, isp: null }) : undefined,
       duration: (productType === "vps" || productType === "rdp") ? item.duration || 1 : undefined,
       managementType: (productType === "vps" || productType === "rdp") ? item.managementType || "unmanaged" : undefined,
@@ -64,6 +64,8 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
       effective_base_price: effectiveBasePrice,
       totalPrice: undefined,
       locationId: item.locationId || item.locations?.city?.id,
+      // Preserve residential rotating config if present
+      residentalRotatingConfig: productType === "residential" ? item.residentalRotatingConfig : undefined,
     };
 
     updatedItem.totalPrice = calculateItemTotalSync(updatedItem);

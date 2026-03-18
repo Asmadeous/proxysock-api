@@ -1,3 +1,9 @@
+---
+- name: Configure Ubuntu Desktop RDP UNMANAGED
+  hosts: linux
+  become: yes
+  gather_facts: no
+
   pre_tasks:
     - name: Ensure rdp_password is defined
       fail:
@@ -5,8 +11,8 @@
       when: rdp_password is not defined
 
   vars:
-    # Administrator credentials
-    admin_username: "administrator"
+    # User credentials
+    admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
     
     # API configuration

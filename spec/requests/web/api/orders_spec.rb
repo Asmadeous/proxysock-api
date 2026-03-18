@@ -37,6 +37,7 @@ RSpec.describe 'Web::Api::Orders', type: :request do
           post '/web/api/orders', params: params, headers: headers
         end.to change(Order, :count).by(1)
 
+        puts response.body
         expect(response).to have_http_status(:created)
         expect(wallet.reload.balance.to_f).to eq(90.0) # 100 - 10
       end

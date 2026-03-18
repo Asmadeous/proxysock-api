@@ -5,7 +5,7 @@ import {
     createResellerWebhook,
     updateResellerWebhook,
     deleteResellerWebhook,
-    testResellerWebhook
+    verifyResellerWebhook
 } from "../../../services/resellerApi";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
     PlusIcon,
     TrashIcon,
     PencilIcon,
-    BeakerIcon,
+    ArrowPathIcon,
     CheckCircleIcon,
     GlobeAltIcon,
     ShieldCheckIcon
@@ -48,7 +48,7 @@ export default function ResWebhookConfig() {
     const [formDesc, setFormDesc] = useState("");
     const [formEvents, setFormEvents] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    const [testingId, setTestingId] = useState<string | null>(null);
+    const [verifyingId, setVerifyingId] = useState<string | null>(null);
     const [showSecret, setShowSecret] = useState<string | null>(null);
 
     const fetchAll = async () => {
@@ -113,19 +113,19 @@ export default function ResWebhookConfig() {
         }
     };
 
-    const handleTest = async (id: string) => {
-        setTestingId(id);
+    const handleVerifyPulse = async (id: string) => {
+        setVerifyingId(id);
         try {
-            const r = await testResellerWebhook(id);
+            const r = await verifyResellerWebhook(id);
             if (r.data.success) {
-                toast.success(`Test passed — HTTP ${r.data.status_code}`);
+                toast.success(`Pulse verified — HTTP ${r.data.status_code}`);
             } else {
-                toast.error(r.data.message || "Test failed");
+                toast.error(r.data.message || "Verification failed");
             }
         } catch {
-            toast.error("Test request failed");
+            toast.error("Verification request failed");
         } finally {
-            setTestingId(null);
+            setVerifyingId(null);
         }
     };
 
@@ -221,12 +221,12 @@ export default function ResWebhookConfig() {
                                     <div className="flex gap-2 ml-4">
                                         <Button
                                             size="sm" variant="outline"
-                                            onClick={() => handleTest(wh.id)}
-                                            disabled={testingId === wh.id}
+                                            onClick={() => handleVerifyPulse(wh.id)}
+                                            disabled={verifyingId === wh.id}
                                             className="gap-1 h-8"
                                         >
-                                            {testingId === wh.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <BeakerIcon className="w-3 h-3" />}
-                                            Test
+                                            {verifyingId === wh.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowPathIcon className="w-3 h-3" />}
+                                            Verify Pulse
                                         </Button>
                                         <Button size="sm" variant="outline" onClick={() => openEdit(wh)} className="gap-1 h-8">
                                             <PencilIcon className="w-3 h-3" /> Edit

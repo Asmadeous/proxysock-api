@@ -281,7 +281,8 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
         } : undefined),
         qty_min: qtyMin || undefined,
         qty_max: qtyMax || undefined,
-        resi: p.resi
+        resi: p.resi,
+        residential_rotating_config: p.residential_rotating_config
       };
 
       mappedPlan.display_name = standardizePlanName(mappedPlan);
@@ -330,6 +331,18 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
   } catch (err) {
     console.error(`Error fetching proxy category ${categorySlug}:`, err);
     return null;
+  }
+};
+
+export const fetchResidentialRotatingCountries = async (): Promise<
+  { id: string; name: string; isps?: { id: string; name: string }[] }[]
+> => {
+  try {
+    const { data } = await api.get('/web/api/residential-rotating/countries');
+    return data.countries || data || [];
+  } catch (err) {
+    console.error('Error fetching residential rotating countries:', err);
+    return [];
   }
 };
 

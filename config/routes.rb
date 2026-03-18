@@ -25,6 +25,7 @@ Rails.application.routes.draw do
       resources :resellers, only: %i[index show update] do
         member do
           post :deposit # Keep existing deposit action
+          post :rotate_dedicated_api_key
         end
       end
 
@@ -37,11 +38,14 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :cancel
+          post :reorder
         end
       end
 
+      resources :product_categories, only: [:index]
+
       resources :webhook_endpoints, only: %i[index create update destroy] do
-        post :test, on: :member
+        post :verify, on: :member
       end
 
       resources :products, only: %i[index show]
@@ -104,7 +108,7 @@ Rails.application.routes.draw do
       get 'auth/failure', to: 'auth#failure'
 
       resources :webhooks, only: %i[index create destroy] do
-        post :test, on: :member
+        post :verify, on: :member
       end
 
       get 'billing/balance', to: 'billing#balance'
@@ -112,6 +116,7 @@ Rails.application.routes.draw do
       get 'billing/history', to: 'billing#history'
       post 'billing/verify_and_sync', to: 'billing#verify_and_sync'
 
+      get 'residential-rotating/countries', to: 'products#residential_rotating_countries'
       resources :products, only: %i[index show]
       resource :cart, only: [:show] do
         post :add_item
@@ -334,6 +339,12 @@ Rails.application.routes.draw do
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
     post 'hundredpay', to: 'webhooks#hundredpay'
+
+    # Handle accidental browser GET redirects from payment gateways by sending them to frontend
+    get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
   end
 
   post 'esim', to: 'webhooks/esim_access#webhook'

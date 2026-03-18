@@ -5,9 +5,6 @@
   vars:
     new_root_password: "{{ root_password }}"
     new_user: "{{ hostname | default('vps-user') }}"
-    # Sudo password for odin user
-    ansible_become_password: "{{ root_password }}"
-    ansible_ssh_pass: "{{ ansible_become_password }}"
     
     # Improved SSH settings
     ansible_ssh_common_args: >
@@ -86,7 +83,7 @@
             state: present
             groups: sudo
             append: yes
-            no_log: true
+          no_log: true
           retries: 3
           delay: 10
         
@@ -105,7 +102,7 @@
             name: root
             password: "{{ password_hash }}"
             update_password: always
-            no_log: true
+          no_log: true
           register: root_password_result
         
         - name: Configure SSH to use custom port
@@ -188,11 +185,24 @@
             msg: "Configuration complete: {{ validation.stdout }}"
         
         - name: Notify API - Success
-          delegate_to: localhost
-          register: api_success
           uri:
-            validate_certs: yes
-            no_log: true
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              vm_id: "{{ vm_id }}"
+              status: "provisioned"
+              os_template: "{{ os_template | default('unknown') }}"
+              management_type: "{{ management_type }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+          delegate_to: localhost
+          become: no
+          register: api_success
+          no_log: true
+          ignore_errors: yes
       
       rescue:
         - name: Capture failure details
@@ -219,11 +229,18 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template }}"
+              os_template: "{{ os_template | default('unknown') }}"
               management_type: "{{ management_type }}"
               failed_task: "{{ failure_task }}"
               error_message: "{{ failure_msg }}"
               error_module: "{{ failure_module }}"
               timestamp: "{{ ansible_date_time.iso8601 }}"
           delegate_to: localhost
+          become: no
           ignore_errors: yes
+
+  handlers:
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted

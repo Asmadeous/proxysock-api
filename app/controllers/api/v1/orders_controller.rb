@@ -17,6 +17,14 @@ module Api
           scope = scope.joins(:product).where(products: { product_type: types })
         end
 
+        if params[:category_slug].present?
+          scope = scope.joins(product: :product_category).where(product_categories: { slug: params[:category_slug] })
+        end
+
+        if params[:category_id].present?
+          scope = scope.joins(:product).where(products: { product_category_id: params[:category_id] })
+        end
+
         orders = scope.order(created_at: :desc)
                       .page(params[:page])
                       .per(20)
@@ -121,7 +129,8 @@ module Api
       # - api_only resellers: deducts from balance, provisions immediately, returns credentials JSON
       # - infrastructure resellers: creates checkout session, returns gateway payment link
       def create
-        product = Product.for_resellers.find(params[:product_id])
+        product_scope = current_reseller.infrastructure? ? Product.all : Product.for_resellers
+        product = product_scope.find(params[:product_id])
 
         pricing = product.product_pricings.find_by(active: true)
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
@@ -370,9 +379,7 @@ module Api
           # Refund to reseller balance
           refund_amount = order.total_amount.to_f
           if refund_amount.positive? && current_reseller.main_wallet
-            current_reseller.main_wallet.update!(
-              balance: current_reseller.main_wallet.balance + refund_amount
-            )
+            current_reseller.main_wallet.credit!(refund_amount, "Refund for cancelled order ##{order.order_number}")
           end
 
           order.update!(status: 'cancelled')
@@ -390,6 +397,27 @@ module Api
           order: serialize_order(order.reload),
           refunded_amount: order.total_amount.to_f
         }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/orders/:id/reorder
+      def reorder
+        original_order = current_reseller.orders.find(params[:id])
+        product = original_order.product
+        pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
+
+        return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
+
+        if current_reseller.api_only?
+          # Re-create the order with original metadata (removing IDs)
+          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
+          create_api_only_order(product, pricing, metadata)
+        else
+          # infrastructure: Return a checkout link for the same product
+          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
+          create_infrastructure_order(product, pricing, metadata)
+        end
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
@@ -423,13 +451,13 @@ module Api
 
       # ── api_only: Balance-based order ──
       # Deducts from main_wallet, provisions immediately, returns credentials in JSON.
-      def create_api_only_order(product, pricing)
+      def create_api_only_order(product, pricing, custom_metadata = nil)
         @order = Order.new(
           orderable: current_reseller,
           product_id: product.id,
           product_pricing_id: pricing.id,
           quantity: params[:quantity] || 1,
-          metadata: (params[:metadata] || {}).merge(
+          metadata: (custom_metadata || params[:metadata] || {}).merge(
             'client_ip' => request.remote_ip,
             'payment_debug' => 'reseller_balance',
             'target_section_id' => params[:target_section_id],
@@ -464,9 +492,9 @@ module Api
 
       # ── infrastructure: Gateway-based order ──
       # Creates a CheckoutSession, returns payment link. Customer email receives credentials after payment.
-      def create_infrastructure_order(product, pricing)
+      def create_infrastructure_order(product, pricing, custom_metadata = nil)
         gateway = params[:gateway] || 'paystack'
-        customer_email = params[:customer_email]
+        customer_email = params[:customer_email] || (custom_metadata ? custom_metadata['customer_email'] : nil)
 
         return render json: { error: 'customer_email is required for infrastructure orders' }, status: :bad_request if customer_email.blank?
 
@@ -477,7 +505,7 @@ module Api
           product_id: product.id,
           product_pricing_id: pricing.id,
           quantity: params[:quantity] || 1,
-          metadata: (params[:metadata] || {}).merge(
+          metadata: (custom_metadata || params[:metadata] || {}).merge(
             'client_ip' => request.remote_ip,
             'payment_debug' => payment_debug,
             'customer_email' => customer_email,
@@ -573,10 +601,10 @@ module Api
       end
 
       def generate_reseller_payment_link(gateway, session, amount, customer_email = nil)
-        callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
         reference = session.gateway_reference
         # Use customer email for infrastructure, fall back to reseller email
         email = customer_email.presence || current_reseller.email
+        frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{gateway}&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
 
         case gateway
         when 'paystack'
@@ -600,7 +628,7 @@ module Api
               order_number: reference,
               amount: amount,
               currency: 'USD',
-              callback_url: callback_url,
+              callback_url: frontend_callback_url,
               email: email
             )[:url],
             amount: amount,
@@ -612,7 +640,7 @@ module Api
               order_number: reference,
               amount: amount,
               currency: 'USD',
-              callback_url: callback_url,
+              callback_url: frontend_callback_url,
               email: email
             )[:url],
             amount: amount,
@@ -624,8 +652,10 @@ module Api
               amount: amount,
               currency: 'USD',
               order_number: reference,
-              callback_url: callback_url,
-              email: email
+              callback_url: frontend_callback_url,
+              email: email,
+              phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+              country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
             )[:url],
             amount: amount,
             currency: 'USD'

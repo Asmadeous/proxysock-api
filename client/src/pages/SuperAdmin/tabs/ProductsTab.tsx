@@ -241,10 +241,10 @@ export default function ProductsTab() {
                             <option value="proxy">General Proxy</option>
                             <option value="datacenter">Datacenter Proxy</option>
                             <option value="isp">ISP Proxy</option>
-                            <option value="premium_isp">Premium ISP Proxy</option>
-                            <option value="global_isp">Global ISP Proxy</option>
-                            <option value="static_residential">Static Residential Proxy</option>
-                            <option value="residential_rotating">Residential Rotating Proxy</option>
+                            <option value="premium-isp">Premium ISP Proxy</option>
+                            <option value="global-isp">Global ISP Proxy</option>
+                            <option value="static-residential">Static Residential Proxy</option>
+                            <option value="residential-rotating">Residential Rotating Proxy</option>
                             <option value="mobile">Mobile Proxy</option>
                             <option value="vps">VPS</option>
                             <option value="rdp">RDP</option>

@@ -125,7 +125,7 @@ class EsimSyncService
     reseller_price = (api_price * 1.15).round(2)
     user_price     = (api_price * 1.30).round(2)
 
-    pricing.selling_price = user_price
+    pricing.selling_price = reseller_price
     pricing.user_selling_price = user_price
     pricing.reseller_selling_price = reseller_price
 

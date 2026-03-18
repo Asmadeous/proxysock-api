@@ -69,16 +69,20 @@ class CartCheckoutService
 
       wallet.debit!(grand_total, 'Cart Checkout', { cart_id: @cart.id }, transaction)
 
-      # Create and provision orders
+      # Create orders
       @cart.cart_items.each do |item|
         item.quantity.times do
           order = create_order_from_item(item)
           created_orders << order
-          OrderProvisioningService.new(order, @actor).process_without_deduction!
         end
       end
 
       @cart.cart_items.destroy_all
+    end
+
+    # Provision outside the transaction to avoid race conditions
+    created_orders.each do |order|
+      OrderProvisioningService.new(order, @actor).process_without_deduction!
     end
 
     { success: true, orders: created_orders, payment_method: 'wallet' }

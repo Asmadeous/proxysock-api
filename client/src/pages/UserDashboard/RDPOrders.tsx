@@ -465,7 +465,7 @@ Payment Method: ${order.payment_method || 'N/A'}
                 <div>
                   <p className="text-muted-foreground text-sm">Total Spent</p>
                   <p className="text-3xl font-bold mt-1">
-                    ${stats.totalSpent}
+                    ${stats.totalSpent.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-primary/10 rounded-lg">

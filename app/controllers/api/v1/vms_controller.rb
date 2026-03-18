@@ -110,35 +110,38 @@ module Api
       end
 
       def create_vm_order
-        # Create Order -> VmOrder chain
         product = Product.find_by!(product_type: %w[vps rdp vm], slug: vm_params[:os_template])
-        pricing = product.product_pricings.active.first!
+        pricing = product.product_pricings.where(active: true).first!
 
-        reseller_order = @current_reseller.reseller_orders.create!(
-          product: product,
-          product_pricing: pricing,
-          orderable_type: 'VmOrder',
-          orderable_id: 0 # Will be updated
-        )
+        order = nil
+        ActiveRecord::Base.transaction do
+          order = Order.new(
+            orderable: @current_reseller,
+            product: product,
+            product_pricing: pricing,
+            status: 'processing'
+          )
 
-        order = Order.create!(
-          orderable: reseller_order,
-          product: product,
-          product_pricing: pricing,
-          status: 'processing'
-        )
+          vm_order = VmOrder.new(
+            order: order,
+            os_type: vm_params[:os_template],
+            vm_type: vm_params[:vm_type],
+            cpu_cores: vm_params[:cpu_cores] || 2,
+            ram_gb: vm_params[:ram_gb] || 4,
+            disk_gb: vm_params[:storage_gb] || 60,
+            status: 'pending'
+          )
 
-        vm_order = VmOrder.create!(
-          order: order,
-          os_type: vm_params[:os_template],
-          vm_type: vm_params[:vm_type],
-          cpu_cores: vm_params[:cpu_cores] || 2,
-          ram_gb: vm_params[:ram_gb] || 4,
-          disk_gb: vm_params[:storage_gb] || 60,
-          status: 'pending'
-        )
+          order.save!
+          vm_order.save!
 
-        reseller_order.update!(orderable: vm_order)
+          ResellerOrder.create!(
+            reseller: @current_reseller,
+            order: order,
+            orderable: vm_order
+          )
+        end
+        
         order
       end
 

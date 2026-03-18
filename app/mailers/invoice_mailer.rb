@@ -5,11 +5,11 @@ class InvoiceMailer < ApplicationMailer
   def invoice_email
     @order = params[:order]
     @owner = @order.orderable
-    @title = "Invoice for Order ##{@order.order_number}"
+    @title = "Receipt and Invoice for Order ##{@order.order_number}"
 
     mail(
       to: @owner.email,
-      subject: "Invoice for Order ##{@order.order_number}"
+      subject: "Receipt and Invoice for Order ##{@order.order_number}"
     )
   end
 
@@ -34,8 +34,13 @@ class InvoiceMailer < ApplicationMailer
     @api_response = params[:api_response]
     @title        = "Your Access Credentials - Order ##{@order.order_number}"
 
+    if @order.respond_to?(:ovpn_config) && @order.ovpn_config.attached?
+      provider_id = @order.metadata['provider_order_id'] || @order.id
+      attachments["vpn-#{provider_id}.ovpn"] = @order.ovpn_config.download
+    end
+
     mail(
-      to: @owner.email,
+      to: params[:target_email].presence || @owner.email,
       subject: "Your #{@order.product.name} Credentials are Ready - Order ##{@order.order_number}"
     )
   end

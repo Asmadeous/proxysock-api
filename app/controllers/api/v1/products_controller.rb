@@ -10,7 +10,11 @@ module Api
         cache_key = "products/reseller/index/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
-          scope = Product.for_resellers.includes(:product_pricings, :product_category)
+          scope = if current_reseller.infrastructure?
+                    Product.all.includes(:product_pricings, :product_category)
+                  else
+                    Product.for_resellers.includes(:product_pricings, :product_category)
+                  end
           scope = scope.where(product_category_id: params[:category_id]) if params[:category_id].present?
 
           if params[:product_type].present?
@@ -61,7 +65,7 @@ module Api
           id: product.id,
           name: product.name,
           category: product.product_category&.name,
-          base_price: pricing&.selling_price.to_f,
+          base_price: (pricing&.reseller_selling_price || pricing&.selling_price).to_f,
           currency: pricing&.currency || 'USD',
           provider_type: product.provider,
           product_type: product.product_type

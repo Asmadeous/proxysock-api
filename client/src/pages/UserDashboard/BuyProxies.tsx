@@ -3,6 +3,7 @@ import {
   fetchProductCategories,
   fetchProxiesByCategorySlug,
   fetchMobileProxiesByLocation,
+  fetchResidentialRotatingCountries,
 } from "../../services/myProxyService";
 import {
   CartItem,
@@ -44,6 +45,15 @@ export default function BuyProxies() {
   const [selectedGlobalTargetSection, setSelectedGlobalTargetSection] = useState<number | null>(null);
   const [selectedGlobalPeriod, setSelectedGlobalPeriod] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  // Residential Rotating V2 config state
+  const [rrCountry, setRrCountry]     = useState<string>('');
+  const [rrState, setRrState]         = useState<string>('');
+  const [rrCity, setRrCity]           = useState<string>('');
+  const [rrISP, setRrISP]             = useState<string>('');
+  const [rrRotation, setRrRotation]   = useState<string>('0');
+  const [rrRegion, setRrRegion]       = useState<string>('ip-na.myproxyapi.com');
+  const [rrQuantity, setRrQuantity]   = useState<number>(1);
+  const [rrCountries, setRrCountries] = useState<{ id: string; name: string; isps?: { id: string; name: string }[]; states?: any[] }[]>([]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -92,6 +102,18 @@ export default function BuyProxies() {
         setSelectedGlobalTargetSection(null);
         setSelectedGlobalPeriod(null);
         setQuantity(1);
+        // Reset rr config when category changes
+        setRrCountry('');
+        setRrISP('');
+        setRrRotation('0');
+        setRrRegion('ip-na.myproxyapi.com');
+        setRrQuantity(1);
+        // Load countries for residential-rotating
+        if (selectedCategory === 'residential-rotating') {
+          fetchResidentialRotatingCountries().then(setRrCountries).catch(() => setRrCountries([]));
+        } else {
+          setRrCountries([]);
+        }
       } catch (err) {
         console.error("Error loading category data:", err);
         setError(
@@ -533,6 +555,18 @@ export default function BuyProxies() {
       globalTargetSectionId: selectedCategory === "global-isp" ? selectedGlobalTargetSection || undefined : undefined,
       period: (selectedCategory === "global-isp" && selectedGlobalPeriod) ? (selectedGlobalPeriod as any) : (period as any),
       quantity: selectedCategory === "global-isp" ? quantity : 1,
+      ...(selectedCategory === 'residential-rotating' && (selectedCategoryData?.proxy_plans?.find(p => String(p.id) === String(selectedPlan))?.resi === 1) && {
+        residentalRotatingConfig: {
+          country:           rrCountry   || undefined,
+          state:             rrState     || undefined,
+          city:              rrCity      || undefined,
+          isp:               rrISP       || undefined,
+          rotationStrategy:  rrRotation,
+          proxyRegion:       rrRegion,
+          quantity:          rrQuantity,
+          protocol,
+        },
+      }),
     };
     try {
       const existingCart = JSON.parse(
@@ -668,7 +702,7 @@ export default function BuyProxies() {
             (showMobilePlans || selectedCategory !== "mobile") ? (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">Configuration</h2>
-              {renderISPOptionsWithCountries({
+              {              renderISPOptionsWithCountries({
                 selectedCategory,
                 showMobilePlans,
                 mobileProxyPlans,
@@ -690,6 +724,21 @@ export default function BuyProxies() {
                 handleGlobalPeriodSelection,
                 quantity,
                 setQuantity,
+                rrCountry,
+                setRrCountry,
+                rrState,
+                setRrState,
+                rrCity,
+                setRrCity,
+                rrISP,
+                setRrISP,
+                rrRotation,
+                setRrRotation,
+                rrRegion,
+                setRrRegion,
+                rrQuantity,
+                setRrQuantity,
+                rrCountries,
               })}
 
               {/* Add to Cart Card */}

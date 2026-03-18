@@ -21,6 +21,19 @@ module Api
         end
       end
 
+      def rotate_dedicated_api_key
+        unless current_reseller.infrastructure?
+          return render json: { error: 'Dedicated API key rotation is only available for Enterprise resellers' }, status: :forbidden
+        end
+
+        current_reseller.generate_dedicated_api_key
+        if current_reseller.save
+          render json: { dedicated_api_key: current_reseller.dedicated_api_key }
+        else
+          render json: { errors: current_reseller.errors }, status: :unprocessable_entity
+        end
+      end
+
       def deposit
         amount = params[:amount].to_f
         gateway = params[:gateway]
@@ -55,7 +68,7 @@ module Api
       private
 
       def generate_payment_link(gateway, deposit, amount, currency)
-        callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
+        frontend_callback_url = "#{ENV['FRONTEND_URL']}/reseller/wallet"
 
         case gateway
         when 'paystack'
@@ -64,9 +77,11 @@ module Api
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_reseller.email,
+            phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+            country: current_reseller.try(:country) || current_reseller.metadata.to_h['country'],
             amount: (amount_ngn * 100).to_i,
             reference: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
+            callback_url: "#{ENV['FRONTEND_URL']}/reseller/wallet",
             metadata: { deposit_id: deposit.id, reseller_id: current_reseller.id }
           )
           { url: result[:authorization_url], amount: amount_ngn, currency: 'NGN' }
@@ -76,8 +91,10 @@ module Api
             amount: amount,
             currency: currency,
             order_number: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
-            email: current_reseller.email
+            callback_url: frontend_callback_url,
+            email: current_reseller.email,
+            phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+            country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
           )
           { url: result[:url], amount: amount, currency: 'USD' }
         when 'payvra'
@@ -86,8 +103,10 @@ module Api
             amount: amount,
             currency: currency,
             order_number: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
-            email: current_reseller.email
+            callback_url: frontend_callback_url,
+            email: current_reseller.email,
+            phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+            country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
           )
           # Store Payvra's txn_id so DepositSyncService can verify it later.
           deposit.metadata['payvra_invoice_id'] = result[:txn_id]
@@ -99,9 +118,13 @@ module Api
             amount: amount,
             currency: currency,
             order_number: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
-            email: current_reseller.email
+            callback_url: frontend_callback_url,
+            email: current_reseller.email,
+            phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+            country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
           )
+          deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
+          deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
         end
       end
