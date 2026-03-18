@@ -6,6 +6,7 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
+    ActiveJob::Base.queue_adapter = :test
     @user = create_user_with_balance(100.0)
     @user_wallet = @user.wallet
 
