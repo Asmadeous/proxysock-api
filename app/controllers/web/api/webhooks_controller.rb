@@ -69,7 +69,12 @@ module Web
         deposit.depositable.wallet.credit!(amount, "Deposit via #{gateway}", { gateway_ref: reference })
 
         # Send deposit receipt invoice
-        InvoiceMailer.with(deposit: deposit, gateway: gateway, amount: amount).deposit_receipt_email.deliver_later
+        saved_deposit = deposit
+        saved_gateway = gateway
+        saved_amount = amount
+        ActiveRecord.after_all_transactions_commit do
+          InvoiceMailer.with(deposit: saved_deposit, gateway: saved_gateway, amount: saved_amount).deposit_receipt_email.deliver_later
+        end
       end
 
       def handle_checkout_session(session, data, gateway)
@@ -105,11 +110,12 @@ module Web
             description: "Cart Checkout (#{session.orders.count} items)"
           )
           wallet.debit!(session.total_amount, 'Cart Checkout Payment', { session_id: session.id }, transaction_out)
+        end
 
-          # Provision all orders
-          session.orders.each do |order|
-            OrderProvisioningService.new(order, actor).process_without_deduction!
-          end
+        actor = session.orderable
+        # Provision all orders OUTSIDE the transaction
+        session.orders.each do |order|
+          OrderProvisioningService.new(order, actor).process_without_deduction!
         end
       rescue StandardError => e
         Rails.logger.error("Checkout Session Webhook Failed: #{e.message}")

@@ -239,16 +239,24 @@ module Webhooks
 
       # Send email for each eSIM profile
       esim_order.esims.reload.each do |esim|
-        EsimMailer.with(
-          user: owner,
-          esim: esim
-        ).delivery_email.deliver_later
+        saved_esim = esim
+        saved_owner = owner
+        ActiveRecord.after_all_transactions_commit do
+          EsimMailer.with(
+            user: saved_owner,
+            esim: saved_esim
+          ).delivery_email.deliver_later
+        end
       end
 
       # If the owner is a reseller, also dispatch via their webhook endpoints
       if owner.is_a?(Reseller)
         credentials_payload = build_credentials_payload(esim_order)
-        WebhookDispatchWorker.perform_later(owner.id, 'credentials.ready', credentials_payload)
+        saved_owner_id = owner.id
+        saved_payload = credentials_payload
+        ActiveRecord.after_all_transactions_commit do
+          WebhookDispatchWorker.perform_later(saved_owner_id, 'credentials.ready', saved_payload)
+        end
       end
 
       # Create in-app notification

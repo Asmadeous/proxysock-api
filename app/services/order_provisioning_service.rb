@@ -31,10 +31,11 @@ class OrderProvisioningService
 
       # 3. Transition to processing
       @order.process!
-
-      # 3a. Send Invoice (New)
-      InvoiceMailer.with(order: @order).invoice_email.deliver_later
     end
+
+    # 3a. Send Invoice — MUST be outside the transaction so the Order
+    #     is committed and visible to Sidekiq when the mailer job runs.
+    InvoiceMailer.with(order: @order).invoice_email.deliver_later
 
     # 4. Provision based on product type
     provision_product!
@@ -252,7 +253,13 @@ class OrderProvisioningService
       end
     end
 
-    VmProvisioningJob.perform_later(vm.id, job_params)
+    # Enqueue AFTER the implicit transaction commits so the VM record is
+    # visible to Sidekiq on its own DB connection.
+    enqueued_vm_id = vm.id
+    enqueued_job_params = job_params.dup
+    ActiveRecord.after_all_transactions_commit do
+      VmProvisioningJob.perform_later(enqueued_vm_id, enqueued_job_params)
+    end
 
     # Order stays in processing until job completes
   end
@@ -413,15 +420,19 @@ class OrderProvisioningService
       # Save to specialized models after activation
       save_specialized_proxy_records(category_slug, provider_order_id, response)
 
-      # Send credentials email using the API response data
+      # Send credentials email using the API response data — deferred to
+      # after the implicit transaction commits.
       target_email = @order.metadata&.dig('credentials_email').presence
       owner = @actor || @order.orderable
-      InvoiceMailer.with(
-        order: @order,
-        owner: owner,
-        api_response: response,
-        target_email: target_email
-      ).api_proxy_credentials_email.deliver_later
+      saved_order = @order
+      ActiveRecord.after_all_transactions_commit do
+        InvoiceMailer.with(
+          order: saved_order,
+          owner: owner,
+          api_response: response,
+          target_email: target_email
+        ).api_proxy_credentials_email.deliver_later
+      end
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
       proxy = assign_proxy_from_inventory(@product.provider_type)
@@ -491,12 +502,15 @@ class OrderProvisioningService
   def send_proxy_credentials(proxy)
     target_email = @order.metadata&.dig('credentials_email').presence
     owner = @actor || @order.orderable
-    ProxyMailer.with(
-      owner: owner,
-      proxy: proxy,
-      order: @order,
-      target_email: target_email
-    ).credentials_email.deliver_later
+    saved_order = @order
+    ActiveRecord.after_all_transactions_commit do
+      ProxyMailer.with(
+        owner: owner,
+        proxy: proxy,
+        order: saved_order,
+        target_email: target_email
+      ).credentials_email.deliver_later
+    end
   end
 
   # ========== eSIM Provisioning ==========
@@ -528,19 +542,23 @@ class OrderProvisioningService
           total_amount: @order.total_amount || 0.0
         )
 
-        # Notify user about the manual process and 24-48hr delay
-        UsaEsimMailer.with(
-          owner: @actor,
-          order: @order
-        ).manual_order_notification.deliver_later
-
-        # Alert admin about the new manual order
-        UsaEsimMailer.with(
-          order: @order
-        ).admin_manual_order_alert.deliver_later
       end
 
       @order.update!(status: 'processing')
+
+      # Notify user and admin AFTER the transaction commits
+      saved_order = @order
+      saved_actor = @actor
+      ActiveRecord.after_all_transactions_commit do
+        UsaEsimMailer.with(
+          owner: saved_actor,
+          order: saved_order
+        ).manual_order_notification.deliver_later
+
+        UsaEsimMailer.with(
+          order: saved_order
+        ).admin_manual_order_alert.deliver_later
+      end
       return
     end
 
@@ -571,16 +589,21 @@ class OrderProvisioningService
         )
       end
 
-      # Send credentials email
-      target_email = @order.metadata&.dig('credentials_email').presence
-      UsaEsimMailer.with(
-        owner: @actor,
-        credentials: creds,
-        order: @order,
-        target_email: target_email
-      ).credentials_email.deliver_later
-
       @order.update!(status: 'active')
+
+      # Send credentials email AFTER transaction commits
+      target_email = @order.metadata&.dig('credentials_email').presence
+      saved_order = @order
+      saved_actor = @actor
+      saved_creds = creds.dup
+      ActiveRecord.after_all_transactions_commit do
+        UsaEsimMailer.with(
+          owner: saved_actor,
+          credentials: saved_creds,
+          order: saved_order,
+          target_email: target_email
+        ).credentials_email.deliver_later
+      end
     end
   end
 
@@ -668,9 +691,12 @@ class OrderProvisioningService
         end
       end
 
-      # Send credentials email
+      # Send credentials email — deferred to after commit
       owner = @actor || @order.orderable
-      InvoiceMailer.with(order: @order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+      saved_order = @order
+      ActiveRecord.after_all_transactions_commit do
+        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+      end
       return
     end
 
@@ -699,11 +725,14 @@ class OrderProvisioningService
 
     target_email = @order.metadata&.dig('credentials_email').presence
     owner = @actor || @order.orderable
-    VpnMailer.with(
-      owner: owner,
-      vpn_account: vpn_account,
-      target_email: target_email
-    ).credentials_email.deliver_later
+    saved_vpn_account = vpn_account
+    ActiveRecord.after_all_transactions_commit do
+      VpnMailer.with(
+        owner: owner,
+        vpn_account: saved_vpn_account,
+        target_email: target_email
+      ).credentials_email.deliver_later
+    end
 
     @order.activate!
   end
