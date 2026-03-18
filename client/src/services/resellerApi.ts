@@ -40,9 +40,13 @@ export const fetchResellerOrderStats = () =>
     resellerApi.get("/orders/stats");
 
 export const fetchResellerOrders = (params: Record<string, string> = {}) =>
-    resellerApi.get("/reseller/orders", { params });
+    resellerApi.get("/orders", { params });
 export const fetchResellerVms = (params: Record<string, string> = {}) =>
-    resellerApi.get("/reseller/vms", { params });
+    resellerApi.get("/vms", { params });
+export const reorderResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/reorder`);
+export const renewResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/renew`);
 export const createResellerOrder = (data: Record<string, unknown>) =>
     resellerApi.post("/orders", data);
 export const fetchResellerOrder = (id: number) =>
@@ -51,6 +55,8 @@ export const fetchResellerOrder = (id: number) =>
 // ── Products ──────────────────────────────────────
 export const fetchResellerProducts = (params?: Record<string, string>) =>
     resellerApi.get("/products", { params });
+export const fetchResellerProductCategories = () =>
+    resellerApi.get("/product_categories");
 
 // ── Tickets ───────────────────────────────────────
 export const fetchResellerTickets = () =>
@@ -87,6 +93,8 @@ export const updateResellerProfile = (id: number, data: Record<string, unknown> 
     }
     return resellerApi.patch(`/resellers/${id}`, data);
 };
+export const rotateResellerApiKey = (id: number) =>
+    resellerApi.post(`/resellers/${id}/rotate_dedicated_api_key`);
 
 
 // ---- Notifications ----
@@ -114,7 +122,7 @@ export const updateResellerWebhook = (id: string, data: { url?: string; descript
     resellerApi.patch(`/webhook_endpoints/${id}`, { webhook_endpoint: data });
 export const deleteResellerWebhook = (id: string) =>
     resellerApi.delete(`/webhook_endpoints/${id}`);
-export const testResellerWebhook = (id: string) =>
-    resellerApi.post(`/webhook_endpoints/${id}/test`);
+export const verifyResellerWebhook = (id: string) =>
+    resellerApi.post(`/webhook_endpoints/${id}/verify`);
 
 export default resellerApi;

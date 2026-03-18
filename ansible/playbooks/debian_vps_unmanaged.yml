@@ -14,7 +14,6 @@
     new_root_password: "{{ root_password }}"
     new_user: "{{ hostname | default('vps-user') }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
-    ansible_become_password: "{{ root_password }}"
 
   tasks:
     - block:

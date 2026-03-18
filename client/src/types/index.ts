@@ -55,6 +55,7 @@ export interface ProxyPlan {
   qty_min?: number; // Minimum proxy quantity for Global ISP range tiers
   qty_max?: number; // Maximum proxy quantity for Global ISP range tiers
   resi?: number;
+  residential_rotating_config?: any; // Config for residential rotating options
 }
 
 
@@ -100,6 +101,17 @@ export interface GlobalISPConfig {
   countries: GlobalISPCountry[];
   targets: GlobalISPTargetSection[];
   periods: { id: string; name: string }[];
+}
+
+export interface ResidentalRotatingConfig {
+  country?: string;
+  state?: string;
+  city?: string;
+  isp?: string;
+  rotationStrategy?: string;
+  proxyRegion?: string;
+  quantity?: number;
+  protocol?: "http" | "socks5";
 }
 
 export interface Order {
@@ -157,6 +169,7 @@ export interface CartItem {
   managementType?: "unmanaged" | "managed";
   location?: { country: string; countryCode: string };
   effective_base_price?: number;
+  residentalRotatingConfig?: ResidentalRotatingConfig;
 }
 
 export interface Transaction {

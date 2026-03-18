@@ -4,7 +4,7 @@ module Web
   module Api
     class ProductsController < BaseController
       # Products are a public catalog — no auth required
-      skip_before_action :authenticate_request, only: %i[index show]
+      skip_before_action :authenticate_request, only: %i[index show residential_rotating_countries]
 
       # GET /web/api/products
       def index
@@ -67,6 +67,16 @@ module Web
         render json: { error: 'Product not found' }, status: :not_found
       end
 
+      # GET /web/api/residential-rotating/countries
+      def residential_rotating_countries
+        # Use our rich, synced data from the database instead of raw provider API calls.
+        # This ensures the frontend receives the correct 'id' and 'name' mapping and nested data.
+        category = ProductCategory.find_by(slug: 'residential-rotating')
+        countries = category&.metadata&.dig('residential_rotating_config', 'countries') || []
+
+        render json: { countries: countries }
+      end
+
       private
 
       def serialize_product(product)
@@ -98,6 +108,11 @@ module Web
           base_data[:gb_min] ||= 0
           base_data[:gb_max] ||= 0
           base_data[:billing_type] ||= 'monthly'
+          
+          if product.product_category&.slug == 'residential-rotating'
+            config = product.product_category.metadata&.dig('residential_rotating_config') || product.product_category.metadata&.dig(:residential_rotating_config)
+            base_data[:residential_rotating_config] = config if config.present?
+          end
         end
 
         base_data

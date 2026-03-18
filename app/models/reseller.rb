@@ -3,6 +3,11 @@
 class Reseller < ApplicationRecord
   has_secure_password
 
+  # Reseller table has no metadata column, but some controllers reference it
+  def metadata
+    {}
+  end
+
   has_one_attached :avatar
   validate :avatar_security_checks
 
@@ -21,6 +26,7 @@ class Reseller < ApplicationRecord
 
   def initialize_wallet
     wallet
+    earnings_wallet || create_earnings_wallet!(wallet_type: 'earnings')
   end
 
   has_many :api_tokens, dependent: :destroy
@@ -106,6 +112,14 @@ class Reseller < ApplicationRecord
         type: 'dedicated',
         note: 'This is your persistent API key for all requests.'
       }
+    elsif api_only?
+      {
+        reseller_id: id,
+        username: username,
+        permanent_api_key: permanent_api_key,
+        type: 'rotational_base',
+        note: 'Use your username and permanent_api_key to generate rotational tokens via /api/v1/auth/token'
+      }
     else
       {
         reseller_id: id,
@@ -122,7 +136,7 @@ class Reseller < ApplicationRecord
                            balance: balance,
                            earnings_balance: earnings_balance,
                            price_multiplier: price_multiplier,
-                           profile_picture_url: avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(avatar, only_path: true) : profile_picture_url
+                           profile_picture_url: avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(avatar, only_path: true) : nil
                          })
   end
 
@@ -130,10 +144,16 @@ class Reseller < ApplicationRecord
     self.dedicated_api_key = "ps_live_#{SecureRandom.hex(24)}"
   end
 
+  def authenticate_api_key(key)
+    return false if permanent_api_key.blank? || key.blank?
+    ActiveSupport::SecurityUtils.secure_compare(permanent_api_key, key)
+  end
+
   private
 
   def generate_api_key
     token = SecureRandom.hex(32)
+    self.permanent_api_key = token
     self.api_key_hash = Digest::SHA256.hexdigest(token)
   end
 

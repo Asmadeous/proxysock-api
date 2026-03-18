@@ -154,7 +154,7 @@ class OrderProvisioningService
     # Create VM Order first
     vm_order = VmOrder.create!(
       order: @order,
-      os_type: @product.metadata&.dig('os_template') || 'ubuntu-22-04',
+      os_type: @order.metadata&.dig('os_template').presence || @product.metadata&.dig('os_template') || 'ubuntu-22-04',
       vm_type: vm_type,
       cpu_cores: @product.metadata&.dig('cpu_cores') || 1,
       ram_gb: @product.metadata&.dig('ram_gb') || 1,
@@ -334,9 +334,7 @@ class OrderProvisioningService
       if provider_order_id.present?
         begin
           # Use the appropriate view endpoint based on product category
-          full_details = if category_slug == 'global-isp'
-                           client.view_global_isp_order(provider_order_id)
-                         elsif category_slug == 'mobile'
+          full_details = if category_slug == 'mobile'
                            client.view_mobile_order(provider_order_id)
                          elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
                            client.fetch_v2_residential_rotating_order(provider_order_id)
@@ -349,6 +347,62 @@ class OrderProvisioningService
           Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
         end
       end
+
+      # ========== RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
+      if category_slug == 'residential-rotating' && provisioning_params[:resi] == 1 && provider_order_id.present?
+        begin
+          proxy_rotation = @order.metadata['residentalRotatingConfig']&.dig('rotationStrategy') || '0'
+          proxy_hostname = @order.metadata['residentalRotatingConfig']&.dig('proxyRegion') || 'ip-na.myproxyapi.com'
+          quantity       = (@order.metadata['residentalRotatingConfig']&.dig('quantity') || 1).to_i
+          auto_generate  = @order.metadata['residentalRotatingConfig']&.dig('autoGenerate') != false
+
+          all_credentials = []
+          quantity.times do
+            if auto_generate
+              proxy_username = "user_#{SecureRandom.hex(4)}"
+              proxy_password = SecureRandom.hex(12)
+            else
+              proxy_username = @order.metadata['residentalRotatingConfig']&.dig('customUsername') || "user_#{SecureRandom.hex(4)}"
+              proxy_password = @order.metadata['residentalRotatingConfig']&.dig('customPassword') || SecureRandom.hex(12)
+            end
+
+            # Determine targeting type based on provided filters
+            targeting = if @order.metadata['residentalRotatingConfig']&.dig('isp').present?
+                          'isp'
+                        else
+                          'state_city'
+                        end
+
+            proxy_creds = client.generate_v2_res_rot_proxy(
+              user_id:        user_id,
+              hostname:       proxy_hostname,
+              username:       proxy_username,
+              password:       proxy_password,
+              proxy_rotation: proxy_rotation.to_s,
+              protocol:       protocol,
+              quantity:       1,
+              format:         'hostname:port:username:password',
+              country:        @order.metadata['residentalRotatingConfig']&.dig('country'),
+              state:          @order.metadata['residentalRotatingConfig']&.dig('state'),
+              city:           @order.metadata['residentalRotatingConfig']&.dig('city'),
+              isp:            @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              targeting:      targeting
+            )
+            all_credentials << proxy_creds
+          end
+
+          @order.metadata['proxy_credentials']    = all_credentials
+          @order.metadata['rotation_strategy']    = proxy_rotation
+          @order.metadata['proxy_region']         = proxy_hostname
+          @order.metadata['quantity_generated']   = quantity
+
+          Rails.logger.info("Generated #{quantity} residential rotating proxy credential(s) for order #{provider_order_id}")
+        rescue StandardError => e
+          Rails.logger.warn("Failed to generate residential rotating credentials: #{e.message}")
+          raise ProvisioningError, "Failed to generate proxy credentials: #{e.message}"
+        end
+      end
+      # ========== END RESIDENTIAL ROTATING CREDENTIAL GENERATION ==========
 
       @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response
@@ -463,6 +517,33 @@ class OrderProvisioningService
             "Minimum order quantity for USA eSIM #{provider} is #{moq} line(s). Requested: #{quantity}."
     end
 
+    if provider == 'colt'
+      # Colt requires manual fulfillment
+      UsaEsimOrder.transaction do
+        usa_esim_order = UsaEsimOrder.create!(
+          order: @order,
+          status: 'pending', # Manual fulfillment starts as pending
+          provider: provider,
+          quantity: quantity,
+          total_amount: @order.total_amount || 0.0
+        )
+
+        # Notify user about the manual process and 24-48hr delay
+        UsaEsimMailer.with(
+          owner: @actor,
+          order: @order
+        ).manual_order_notification.deliver_later
+
+        # Alert admin about the new manual order
+        UsaEsimMailer.with(
+          order: @order
+        ).admin_manual_order_alert.deliver_later
+      end
+
+      @order.update!(status: 'processing')
+      return
+    end
+
     UsaEsimCredential.transaction do
       creds = UsaEsimCredential.lock('FOR UPDATE SKIP LOCKED').where(provider: provider,
                                                                      status: 'available').limit(quantity).to_a
@@ -549,16 +630,21 @@ class OrderProvisioningService
 
       # Create VpnOrder and Vpn records for system visibility
       if provider_order_id.present? && response.present?
+        vpn_info = response['vpn_info']&.first || {}
+        creds    = response.dig('config', 'auth_credentials') || {}
+
         vpn_order = VpnOrder.find_or_create_by!(order: @order) do |vo|
           vo.myproxyapi_order_id = provider_order_id
-          vo.country_code = response['country_code'] || response['country'] || @order.metadata['country_code'] || 'US'
+          vo.country_code = response['country_code'] || response['country'] ||
+                            vpn_info['ip_info']&.match(/,\s*([A-Z]{2})\z/)&.[](1) ||
+                            @order.metadata['country_code'] || 'US'
           vo.status = 'active'
         end
 
         Vpn.find_or_create_by!(vpn_order: vpn_order) do |v|
           v.myproxyapi_order_id = provider_order_id
-          v.vpn_username = response['username'] || response['vpn_username']
-          v.vpn_password = response['password'] || response['vpn_password']
+          v.vpn_username = creds['username'] || response['username'] || response['vpn_username']
+          v.vpn_password = creds['password'] || response['password'] || response['vpn_password']
           v.country_code = vpn_order.country_code
           v.status = 'active'
           v.metadata = response
@@ -633,81 +719,178 @@ class OrderProvisioningService
         o.target_id         = @order.metadata['target_id'] || @order.metadata['targetId'] || @product.metadata&.dig('target_id')
       end
 
-      # Handle both single proxy and multiple proxies (array)
-      proxies_data = response.is_a?(Array) ? response : [response]
-      proxies_data.each do |p_data|
-        GlobalIspProxy.create!(
-          order: @order,
-          myproxyapi_order_id: provider_order_id,
-          ip_address: p_data['ip'] || p_data['ip_address'],
-          port: p_data['port'],
-          username: p_data['username'],
-          password: p_data['password'],
-          country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
-          city: p_data['city'],
-          isp_name: p_data['isp'] || p_data['isp_name'],
-          expires_at: p_data['expires_at'],
-          metadata: p_data
-        )
+      if response['ips'].is_a?(Array)
+        response['ips'].each_with_index do |cred_string, idx|
+          parts = cred_string.split(':')
+          GlobalIspProxy.create!(
+            order: @order,
+            myproxyapi_order_id: provider_order_id,
+            ip_address: parts[0],
+            port: parts[1],
+            username: parts[2],
+            password: parts[3],
+            country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
+            city: response.dig('ips_info', idx)&.split(',')&.last&.strip,
+            isp_name: response.dig('ips_info', idx)&.split(',')&.first&.strip,
+            status: 'active',
+            metadata: {
+              original_cred: cred_string,
+              info: response.dig('ips_info', idx),
+              config: response['config']
+            }
+          )
+        end
+      else
+        # Handle both single proxy and multiple proxies (array)
+        proxies_data = response.is_a?(Array) ? response : [response]
+        proxies_data.each do |p_data|
+          GlobalIspProxy.create!(
+            order: @order,
+            myproxyapi_order_id: provider_order_id,
+            ip_address: p_data['ip'] || p_data['ip_address'],
+            port: p_data['port'],
+            username: p_data['username'],
+            password: p_data['password'],
+            country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
+            city: p_data['city'],
+            isp_name: p_data['isp'] || p_data['isp_name'],
+            expires_at: p_data['expires_at'],
+            metadata: p_data
+          )
+        end
       end
     when 'mobile'
-      proxies_data = response.is_a?(Array) ? response : [response]
-      proxies_data.each do |p_data|
-        # MobileProxyOrder needs to be created once per order
+      if response['ips'].is_a?(Array)
         m_order = MobileProxyOrder.find_or_create_by!(order: @order) do |mo|
           mo.myproxyapi_order_id = provider_order_id
-          mo.quantity = proxies_data.size
+          mo.quantity = response['ips'].size
           mo.status = 'active'
         end
+        response['ips'].each_with_index do |cred_string, idx|
+          parts = cred_string.split(':')
+          MobileProxy.create!(
+            order: @order,
+            mobile_proxy_order: m_order,
+            myproxyapi_order_id: provider_order_id,
+            ip_address: parts[0],
+            port: parts[1],
+            username: parts[2],
+            password: parts[3],
+            status: 'active',
+            metadata: {
+              original_cred: cred_string,
+              info: response.dig('ips_info', idx),
+              config: response['config']
+            }
+          )
+        end
+      else
+        proxies_data = response.is_a?(Array) ? response : [response]
+        proxies_data.each do |p_data|
+          # MobileProxyOrder needs to be created once per order
+          m_order = MobileProxyOrder.find_or_create_by!(order: @order) do |mo|
+            mo.myproxyapi_order_id = provider_order_id
+            mo.quantity = proxies_data.size
+            mo.status = 'active'
+          end
 
-        MobileProxy.create!(
-          order: @order,
-          mobile_proxy_order: m_order,
-          myproxyapi_order_id: provider_order_id,
-          ip_address: p_data['ip'] || p_data['ip_address'],
-          username: p_data['username'],
-          password: p_data['password'],
-          port: p_data['port'],
-          status: 'active',
-          metadata: p_data
-        )
+          MobileProxy.create!(
+            order: @order,
+            mobile_proxy_order: m_order,
+            myproxyapi_order_id: provider_order_id,
+            ip_address: p_data['ip'] || p_data['ip_address'],
+            username: p_data['username'],
+            password: p_data['password'],
+            port: p_data['port'],
+            status: 'active',
+            metadata: p_data
+          )
+        end
       end
-    when 'isp', 'datacenter', 'premium-isp', 'static-residential'
-      proxies_data = response.is_a?(Array) ? response : [response]
-      proxies_data.each do |p_data|
-        StaticIspProxy.create!(
-          order: @order,
-          ip_address: p_data['ip'] || p_data['ip_address'],
-          port: p_data['port'] || p_data['http_port'] || p_data['socks5_port'],
-          username: p_data['username'],
-          password: p_data['password'],
-          status: 'active',
-          metadata: p_data
-        )
+    when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential'
+      if response['ips'].is_a?(Array)
+        # Handle new Static IP format: ["ip:port:user:pass", ...]
+        response['ips'].each_with_index do |cred_string, idx|
+          parts = cred_string.split(':')
+          StaticIspProxy.create!(
+            order: @order,
+            ip_address: parts[0],
+            port: parts[1],
+            username: parts[2],
+            password: parts[3],
+            status: 'active',
+            metadata: {
+              original_cred: cred_string,
+              info: response.dig('ips_info', idx),
+              config: response['config']
+            }
+          )
+        end
+      else
+        # Fallback to old format
+        proxies_data = response.is_a?(Array) ? response : [response]
+        proxies_data.each do |p_data|
+          StaticIspProxy.create!(
+            order: @order,
+            ip_address: p_data['ip'] || p_data['ip_address'],
+            port: p_data['port'] || p_data['http_port'] || p_data['socks5_port'],
+            username: p_data['username'],
+            password: p_data['password'],
+            status: 'active',
+            metadata: p_data
+          )
+        end
       end
     when 'residential-rotating', 'residential'
-      # For residential rotating, we usually get a traffic allocation, not a list of IPs.
-      # The response for V2 order details might contain traffic info.
       order_data = response['order'] || response
 
       ro = ResidentialRotatingProxyOrder.find_or_create_by!(order: @order) do |o|
         o.myproxyapi_order_id = provider_order_id
-        o.traffic_gb_total = order_data['traffic_total_gb'] || (order_data['traffic_total'].to_f / (1024**3)).round(2)
-        o.traffic_gb_used = 0
-        o.status = 'active'
-        o.traffic_expires_at = order_data['end_time'] || order_data['expires_at']
+        o.traffic_gb_total    = order_data['traffic_total_gb'] || (order_data['traffic_total'].to_f / (1024**3)).round(2)
+        o.traffic_gb_used     = 0
+        o.status              = 'active'
+        o.traffic_expires_at  = order_data['end_time'] || order_data['expires_at']
       end
 
-      # Create a placeholder proxy record representing the pool access
-      ResidentialRotatingProxy.create!(
-        order: @order,
-        residential_rotating_proxy_order: ro,
-        myproxyapi_order_id: provider_order_id,
-        traffic_gb_total: ro.traffic_gb_total,
-        traffic_gb_used: 0,
-        status: 'active',
-        metadata: order_data
-      )
+      # Use credentials generated by generate_v2_res_rot_proxy (v2 flow),
+      # falling back to a single placeholder record for v1 orders.
+      creds_array = @order.metadata&.dig('proxy_credentials') || []
+
+      if creds_array.any?
+        creds_array.each_with_index do |creds, idx|
+          ResidentialRotatingProxy.create!(
+            order:                            @order,
+            residential_rotating_proxy_order: ro,
+            myproxyapi_order_id:              provider_order_id,
+            main_username:                    creds['username'],
+            main_password:                    creds['password'],
+            hostname:                         creds['hostname'],
+            port:                             creds['port'],
+            traffic_gb_total:                 ro.traffic_gb_total,
+            traffic_gb_used:                  0,
+            status:                           'active',
+            metadata: {
+              credential_set:    idx + 1,
+              rotation_strategy: @order.metadata&.dig('rotation_strategy'),
+              proxy_region:      @order.metadata&.dig('proxy_region'),
+              isp:               @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              country:           @order.metadata['residentalRotatingConfig']&.dig('country'),
+              original_response: creds
+            }
+          )
+        end
+      else
+        # v1 / non-v2 fallback: single placeholder representing pool access
+        ResidentialRotatingProxy.create!(
+          order:                            @order,
+          residential_rotating_proxy_order: ro,
+          myproxyapi_order_id:              provider_order_id,
+          traffic_gb_total:                 ro.traffic_gb_total,
+          traffic_gb_used:                  0,
+          status:                           'active',
+          metadata:                         order_data
+        )
+      end
     end
   end
 end

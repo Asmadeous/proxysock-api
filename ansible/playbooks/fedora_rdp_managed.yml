@@ -11,7 +11,7 @@
       when: rdp_password is not defined
 
   vars:
-    ciuser: "administrator"
+    ciuser: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
 
     # Kept only for API/status text; no firewall use

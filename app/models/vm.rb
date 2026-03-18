@@ -58,9 +58,8 @@ class Vm < ApplicationRecord
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
-      'hostname' => "vm-#{id}",
       'management_type' => management_type,
-      'root_password' => SecureRandom.hex(12) # Generate a secure password
+      'root_password' => service.generate_secure_password
     }
 
     begin
@@ -96,8 +95,8 @@ class Vm < ApplicationRecord
     service.cleanup_vm(proxmox_vm_id, ip_address, "vm-#{id}")
 
     # Cleanup DNS
-    dns_service = CloudflareDnsService.new
-    dns_service.delete_vm_record(id)
+    # dns_service = CloudflareDnsService.new
+    # dns_service.delete_vm_record(id)
 
     terminate
   end

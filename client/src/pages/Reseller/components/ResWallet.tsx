@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
-import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2 } from "lucide-react";
+import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2, Bitcoin } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -59,8 +59,8 @@ export default function ResWallet() {
         setIsProcessing(true);
         try {
             const res = await createResellerDeposit({ amount, gateway: paymentGateway });
-            if (res.data.checkout_url) {
-                window.location.href = res.data.checkout_url;
+            if (res.data.payment_url || res.data.checkout_url) {
+                window.location.href = res.data.payment_url || res.data.checkout_url;
             } else {
                 toast.success("Deposit initiated! Please follow the instructions.");
             }
@@ -300,7 +300,7 @@ export default function ResWallet() {
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-sm font-bold ml-1">Secure Gateway</Label>
-                                <div className="grid gap-3">
+                                <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                     {/* Paystack Option */}
                                     <div 
                                         onClick={() => setPaymentGateway("paystack")}
@@ -329,6 +329,36 @@ export default function ResWallet() {
                                             </div>
                                         </div>
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "hundredpay" ? "border-purple-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
+                                    {/* Plisio Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("plisio")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "plisio" ? "border-orange-500 bg-orange-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "plisio" ? "bg-orange-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "plisio" ? "text-orange-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Plisio Crypto</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "plisio" ? "border-orange-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
+                                    {/* Payvra Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("payvra")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "payvra" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "payvra" ? "bg-blue-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "payvra" ? "text-blue-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Payvra Crypto</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "payvra" ? "border-blue-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
                                 </div>
                             </div>

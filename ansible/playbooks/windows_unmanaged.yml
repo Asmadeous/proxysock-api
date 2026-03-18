@@ -1,3 +1,8 @@
+---
+- name: Configure Windows RDP UNMANAGED
+  hosts: windows
+  gather_facts: no
+
   pre_tasks:
     - name: Ensure rdp_password is defined
       fail:

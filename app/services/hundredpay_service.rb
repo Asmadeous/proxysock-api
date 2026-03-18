@@ -5,34 +5,36 @@ class HundredpayService
 
   def initialize
     @api_key = ENV['HUNDREDPAY_API_KEY']
-    @secret_key = ENV['HUNDREDPAY_SECRET_KEY']
     @user_id = ENV['HUNDREDPAY_USER_ID']
   end
 
   # Create a payment charge (supports both card and crypto via hosted checkout).
   # Returns { url: hosted_payment_url, txn_id: charge_id }
-  def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil, description: nil)
+  def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil, phone: nil, country: nil, description: nil)
+    # Requirement 3, Section 10: Unique transaction reference ID (UUID)
+    # Using SecureRandom.uuid as the ref_id is mandatory for successful card processing.
+    internal_ref = SecureRandom.uuid
+
     response = request(:post, '/pay/charge', {
-                         ref_id: order_number,
+                         ref_id: internal_ref,
                          customer: {
-                           user_id: order_number,
+                           user_id: order_number, # Section 4: Unique ID of the customer
                            name: email || 'Customer',
                            email: email || '',
-                           phone: ''
+                           phone: phone.presence || '+11111111111'
                          },
                          billing: {
-                           amount: amount.to_s,
+                           amount: amount.to_f, # Section 5: amount (number)
                            currency: currency || 'USD',
-                           country: 'US',
-                           description: description || "Payment #{order_number}",
-                           pricing_type: 'fixed_price'
+                           country: country.presence || 'US',
+                           description: description || "Payment for Order #{order_number}",
+                           pricing_type: 'fixed' # Section 4: 'fixed' or 'variable'
                          },
                          metadata: {
                            order_id: order_number,
-                           charge_ref: order_number
+                           charge_ref: internal_ref
                          },
                          call_back_url: callback_url,
-                         userId: @user_id,
                          charge_source: 'api'
                        })
 
@@ -93,6 +95,7 @@ class HundredpayService
 
     Rails.logger.info("100Pay API Request: #{method.to_s.upcase} #{uri}")
     Rails.logger.info("100Pay API Response Code: #{response.code}")
+    Rails.logger.info("100Pay API Response Body: #{response.body}")
 
     begin
       JSON.parse(response.body)

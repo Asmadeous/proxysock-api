@@ -221,7 +221,7 @@ export default function App() {
 
               {/* Reseller */}
               <Route path="/reseller/login" element={<ResellerLoginPage />} />
-              <Route path="/reseller" element={<ResellerDashboard />} />
+              <Route path="/reseller/*" element={<ResellerDashboard />} />
 
               {/* Payment Results */}
               <Route

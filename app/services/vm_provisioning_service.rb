@@ -16,14 +16,14 @@ class VmProvisioningService
     'ubuntu-22-04' => {
       id: ENV.fetch('TEMPLATE_UBUNTU_22_04', 2001).to_i,
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-vps' => {
       id: ENV.fetch('TEMPLATE_UBUNTU_VPS', 2001).to_i,
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
@@ -32,7 +32,7 @@ class VmProvisioningService
     'alma-vps' => {
       id: ENV.fetch('TEMPLATE_ALMA_VPS', 2005).to_i,
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
@@ -41,23 +41,16 @@ class VmProvisioningService
     'fedora-rdp' => {
       id: ENV.fetch('TEMPLATE_FEDORA_RDP', 10_044).to_i,
       bridge: 'vmbr0',
-      credentials: { user: 'odin', pass: ENV['VM_LINUX_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'fedora'
     },
 
-    # ── Windows ───────────────────────────────────────────────────
+    # ── Windows (single template for both RDP and VPS) ────────────
     'windows-rdp' => {
       id: ENV.fetch('TEMPLATE_WINDOWS_RDP', 1001).to_i,
       bridge: 'vmbr0',
-      credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
-      connection: { type: 'winrm' },
-      os_family: 'windows'
-    },
-    'windows-template' => {
-      id: ENV.fetch('TEMPLATE_WINDOWS_BASE', 1006).to_i,
-      bridge: 'vmbr0',
-      credentials: { user: 'Administrator', pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_WINDOWS_ADMIN_USER', 'Administrator'), pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     }
@@ -106,11 +99,30 @@ class VmProvisioningService
   def initialize(order = nil, logger = Rails.logger)
     @order = order
     @logger = logger || Rails.logger
-    @dns_service = CloudflareDnsService.new
+    # @dns_service = CloudflareDnsService.new
     FileUtils.mkdir_p(INVENTORY_DIR) unless Dir.exist?(INVENTORY_DIR)
     FileUtils.mkdir_p(TARGETS_DIR) unless Dir.exist?(TARGETS_DIR)
 
     validate_config!
+  end
+
+  def generate_secure_password(length = 24)
+    lowercase = ('a'..'z').to_a
+    uppercase = ('A'..'Z').to_a
+    numbers = ('0'..'9').to_a
+    symbols = ['!', '@', '#', '$', '%', '^', '&', '*', '-', '_', '+', '=']
+    
+    password = [
+      lowercase.sample,
+      uppercase.sample,
+      numbers.sample,
+      symbols.sample
+    ]
+    
+    all_chars = lowercase + uppercase + numbers + symbols
+    password += Array.new(length - 4) { all_chars.sample }
+    
+    password.shuffle.join
   end
 
   def provision(params)
@@ -121,12 +133,12 @@ class VmProvisioningService
     begin
       @logger.info("Starting provisioning for params: #{params}")
 
-      os_template = params['os_template']
+      os_template = normalize_template_name(params['os_template'])
       vm_type = params['vm_type']
       cpu_cores = params['cpu_cores'] || 2
       ram_gb = params['ram_gb'] || 4
       storage_gb = params['storage_gb'] || 60
-      hostname = params['hostname'] || "vm-#{Time.now.to_i}"
+      hostname = params['hostname'].presence
       management_type = params['management_type'] || 'unmanaged'
       client_whitelist_ip = params['whitelist_ip']
       country_code = params['country_code'].to_s.upcase
@@ -134,10 +146,10 @@ class VmProvisioningService
         @logger.info('Country is Canada, skipping whitelist_ip for VM')
         client_whitelist_ip = nil
       end
-      root_password = params['root_password'] || SecureRandom.hex(12)
+      root_password = params['root_password'] || generate_secure_password
 
       template_config = TEMPLATES[os_template]
-      raise "Unsupported OS template: #{os_template}" unless template_config
+      raise "Unsupported OS template: #{os_template} (Original: #{params['os_template']})" unless template_config
 
       template_id = template_config[:id]
       bridge = template_config[:bridge]
@@ -146,8 +158,7 @@ class VmProvisioningService
       # Allocation
       pve_vmid = get_next_vm_id(vm_type)
 
-      # Short hostname using the correct prefix
-      hostname = "#{vm_type}-#{pve_vmid}"
+      hostname ||= "#{vm_type}-#{Array.new(6) { ('a'..'z').to_a.sample }.join}"
 
       @logger.info("Allocated — PVE VMID: #{pve_vmid}, Hostname: #{hostname}, Type: #{vm_type}")
 
@@ -166,13 +177,14 @@ class VmProvisioningService
       rdp_access = is_windows || vm_type.to_s.include?('rdp')
       protocol = rdp_access ? 'rdp' : 'ssh'
 
-      # Security: Use non-standard high ports based on VM ID
-      # Range: SSH (10000-19999), RDP (30000-39999)
-      custom_port = rdp_access ? (30_000 + pve_vmid.to_i) : (10_000 + pve_vmid.to_i)
+      # Security: Random high port to prevent bot scanning
+      # Range: 10000-59999 (avoids well-known ports and ephemeral range)
+      custom_port = generate_random_port
 
       # DNS Setup (Optional Cloudflare integration with SRV)
-      dns_name = @dns_service.create_vm_record(pve_vmid, actual_ip, custom_port, protocol)
-      @logger.info("DNS records created: #{dns_name}") if dns_name
+      # dns_name = @dns_service.create_vm_record(pve_vmid, actual_ip, custom_port, protocol)
+      # @logger.info("DNS records created: #{dns_name}") if dns_name
+      dns_name = nil
 
       # Ansible Setup
       if ansible_available?
@@ -197,7 +209,7 @@ class VmProvisioningService
         dns_name: dns_name,
         protocol: protocol,
         port: custom_port,
-        username: rdp_access ? 'administrator' : 'root',
+        username: protocol == 'rdp' ? 'Administrator' : hostname,
         password: root_password,
         root_password: root_password
       }
@@ -337,6 +349,50 @@ class VmProvisioningService
     ensure
       File.delete(inventory_path) if File.exist?(inventory_path)
     end
+  end
+
+  def normalize_template_name(name)
+    name = name.to_s.downcase.strip
+    
+    # Direct mappings for common frontend strings
+    return 'ubuntu-22-04' if name.include?('ubuntu') && (name.include?('22') || name.include?('server'))
+    return 'ubuntu-vps'   if name == 'ubuntu-vps'
+    return 'alma-vps'     if name.include?('alma')
+    return 'fedora-rdp'   if name.include?('fedora')
+    
+    # Windows: single template handles both RDP and VPS
+    return 'windows-rdp' if name.include?('windows')
+    
+    # Fallback to key if it exists in TEMPLATES
+    return name if TEMPLATES.key?(name)
+    
+    # Final fallbacks for generic OS names
+    return 'ubuntu-22-04' if name.include?('ubuntu')
+    
+    name # Return as is if no match, validation will catch it
+  end
+
+  # Generate a random port in 10000-59999 that isn't already used by another VM
+  RANDOM_PORT_MIN = 10_000
+  RANDOM_PORT_MAX = 59_999
+  RESERVED_PORTS = [11211, 27017, 28017, 33060].freeze # memcached, mongo, mysql-x
+
+  def generate_random_port(max_attempts = 50)
+    used_ports = Vm.where.not(ssh_port: nil).pluck(:ssh_port) +
+                 Vm.where.not(rdp_port: nil).pluck(:rdp_port)
+    used_ports_set = Set.new(used_ports.compact + RESERVED_PORTS)
+
+    max_attempts.times do
+      port = rand(RANDOM_PORT_MIN..RANDOM_PORT_MAX)
+      return port unless used_ports_set.include?(port)
+    end
+
+    # Extremely unlikely fallback: sequential scan for a free port
+    (RANDOM_PORT_MIN..RANDOM_PORT_MAX).each do |port|
+      return port unless used_ports_set.include?(port)
+    end
+
+    raise "No available ports in range #{RANDOM_PORT_MIN}-#{RANDOM_PORT_MAX}"
   end
 
   private
@@ -609,11 +665,7 @@ class VmProvisioningService
   def run_ansible_step(vm_id, actual_ip, template_config, root_password, params, hostname, management_type, os_template, client_whitelist_ip)
     vm_type = params['vm_type']
     ansible_username = template_config[:credentials][:user]
-    ansible_password = if template_config[:connection][:type] == 'winrm' || template_config[:os_family] == 'windows'
-                         template_config[:credentials][:pass]
-                       else
-                         root_password.presence || template_config[:credentials][:pass]
-                       end
+    ansible_password = template_config[:credentials][:pass]
 
     inventory_path = create_inventory(vm_id, actual_ip, template_config, ansible_username, ansible_password)
 
@@ -642,23 +694,22 @@ class VmProvisioningService
   end
 
   def create_inventory(vm_id, ip_address, template_config, username, password)
-    is_windows = (template_config[:connection][:type] == 'winrm')
-    inventory_path = File.join(INVENTORY_DIR, "vm_#{vm_id}.ini")
+  is_windows = (template_config[:connection][:type] == 'winrm')
+  inventory_path = File.join(INVENTORY_DIR, "vm_#{vm_id}.ini")
 
-    escaped_user = Shellwords.escape(username)
-    escaped_pass = Shellwords.escape(password)
+  escaped_user = Shellwords.escape(username)
+  escaped_pass = Shellwords.escape(password)
 
-    if is_windows
-      inventory_content = "[windows]\n#{ip_address} ansible_user=#{escaped_user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore ansible_port=5985 ansible_winrm_read_timeout_sec=60 ansible_winrm_operation_timeout_sec=30\n"
-    else
-      inventory_content = "[linux]\n#{ip_address} ansible_user=#{escaped_user} ansible_ssh_pass=#{escaped_pass} ansible_connection=ssh ansible_port=22 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'\n"
-    end
-
-    File.write(inventory_path, inventory_content)
-    File.chmod(0o644, inventory_path)
-    inventory_path
+  if is_windows
+    inventory_content = "[windows]\n#{ip_address} ansible_user=#{escaped_user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore ansible_port=5985 ansible_winrm_read_timeout_sec=60 ansible_winrm_operation_timeout_sec=30\n"
+  else
+    inventory_content = "[linux]\n#{ip_address} ansible_user=#{escaped_user} ansible_ssh_pass=#{escaped_pass} ansible_become_password=#{escaped_pass} ansible_connection=ssh ansible_port=22 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password'\n"
   end
 
+  File.write(inventory_path, inventory_content)
+  File.chmod(0o644, inventory_path)
+  inventory_path
+  end
   # Build extra_vars hash for the Ansible playbook, including proxy_config if proxy params exist
   def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:, whitelist_ip:,
                        ip_address: nil, proxy_params: {})

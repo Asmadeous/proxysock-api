@@ -237,6 +237,25 @@ const ResidentialItemDetails = ({
   exchangeRate,
 }: ItemDetailsProps) => {
   if (!item.plan) return null;
+  const cfg = item.residentalRotatingConfig;
+  const rotationLabel = (v?: string) => {
+    const map: Record<string, string> = {
+      '0': 'Always Rotate',
+      '3': 'Sticky 3 min',
+      '30': 'Sticky 30 min',
+      '60': 'Sticky 1 hr',
+      '1440': 'Sticky 24 hr',
+    };
+    return v ? (map[v] ?? v) : 'Always Rotate';
+  };
+  const regionLabel = (v?: string) => {
+    const map: Record<string, string> = {
+      'ip-na.myproxyapi.com': 'North America',
+      'ip-eu.myproxyapi.com': 'Europe',
+      'ip-asia.myproxyapi.com': 'Asia',
+    };
+    return v ? (map[v] ?? v) : 'North America';
+  };
   return (
     <Card className="border-t-4 border-t-emerald-500 hover:border-emerald-500/50 hover:shadow-lg transition-all">
       <CardContent className="p-5">
@@ -262,18 +281,45 @@ const ResidentialItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
+          {/* Coverage / Country */}
           <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Coverage</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">Global Residential Pool</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
+              {cfg?.country ? cfg.country : 'Global Residential Pool'}
+            </span>
           </div>
+          {/* ISP (only when set) */}
+          {cfg?.isp && (
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">ISP</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">{cfg.isp}</span>
+            </div>
+          )}
           <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Data Amount</span>
             <span className="font-medium truncate text-right flex-1 min-w-0">{item.period || 1} GB</span>
           </div>
-          <div className="flex justify-between gap-4 items-center min-w-0">
+          {/* V2-specific fields */}
+          {cfg && (
+            <>
+              <div className="flex justify-between gap-4 items-center min-w-0">
+                <span className="text-muted-foreground shrink-0">Rotation</span>
+                <span className="font-medium truncate text-right flex-1 min-w-0">{rotationLabel(cfg.rotationStrategy)}</span>
+              </div>
+              <div className="flex justify-between gap-4 items-center min-w-0">
+                <span className="text-muted-foreground shrink-0">Region</span>
+                <span className="font-medium truncate text-right flex-1 min-w-0">{regionLabel(cfg.proxyRegion)}</span>
+              </div>
+              <div className="flex justify-between gap-4 items-center min-w-0">
+                <span className="text-muted-foreground shrink-0">Credentials</span>
+                <span className="font-medium truncate text-right flex-1 min-w-0">{cfg.quantity ?? 1}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between gap-2">
             <span className="text-muted-foreground shrink-0">Protocol</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">
-              {item.protocol?.toUpperCase() || "HTTP"}
+            <span className="font-medium truncate text-right">
+              {(cfg?.protocol ?? item.protocol)?.toUpperCase() || "HTTP"}
             </span>
           </div>
         </div>

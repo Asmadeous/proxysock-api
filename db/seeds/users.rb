@@ -5,7 +5,7 @@ puts '🌱 Seeding Users, Employees, Resellers, and Affiliates...'
 # ─── Regular Users ───────────────────────────────────────────────────────────
 
 users = [
-  { first_name: 'Demo',    last_name: 'User',      email: 'demo@proxysock.com',       username: 'demo' },
+  { first_name: 'Demo',    last_name: 'User',      email: 'ndegwaian001@gmail.com',   username: 'demo' },
   { first_name: 'Alice',   last_name: 'Johnson',   email: 'alice@proxysock.com',      username: 'alice_j' },
   { first_name: 'Bob',     last_name: 'Smith',     email: 'bob@proxysock.com',        username: 'bob_smith' },
   { first_name: 'Carol',   last_name: 'Williams',  email: 'carol@proxysock.com',      username: 'carol_w' },

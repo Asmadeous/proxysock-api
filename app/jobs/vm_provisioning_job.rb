@@ -3,30 +3,34 @@
 class VmProvisioningJob < ApplicationJob
   queue_as :default
 
-  retry_on StandardError, wait: 5.seconds, attempts: 3
 
   def perform(vm_id, params = {})
-    vm = Vm.find(vm_id)
+    vm = Vm.find_by(id: vm_id)
+    unless vm
+      logger.error "[VmProvisioningJob] VM #{vm_id} not found. Safe retry may be handled by adapter."
+      return
+    end
 
     logger.info "[VmProvisioningJob] Starting provisioning for VM #{vm_id}"
 
     vm.start_provisioning! if vm.may_start_provisioning?
 
     service = VmProvisioningService.new(nil, logger)
-
-    # Merge VM order data with params (including proxy details for Ansible)
+    
+    # Merge existing metadata with any overrides from params
+    # Ensure nested keys like proxy_config are preserved if not provided in params
     provision_params = {
-      'db_vm_id' => vm_id,
-      'job_id' => "vm-#{vm_id}-#{Time.now.to_i}",
-      'os_template' => vm.vm_order.os_type,
+      'db_vm_id' => vm.id,
+      'os_template' => vm.vm_order&.os_type,
       'vm_type' => vm.vm_type,
-      'cpu_cores' => vm.vm_order.cpu_cores,
-      'ram_gb' => vm.vm_order.ram_gb,
-      'storage_gb' => vm.vm_order.disk_gb,
-      'hostname' => params['hostname'].presence || "vm-#{vm_id}",
-      'management_type' => params['management_type'] || 'unmanaged',
-      'root_password' => params['root_password'] || SecureRandom.hex(12),
-      # Proxy params are passed through from OrderProvisioningService
+      'cpu_cores' => vm.vm_order&.cpu_cores,
+      'ram_gb' => vm.vm_order&.ram_gb,
+      'storage_gb' => vm.vm_order&.disk_gb,
+      'hostname' => vm.hostname,
+      'management_type' => vm.vm_type.to_s.include?('managed') ? 'managed' : 'unmanaged',
+      'country_code' => vm.vm_order&.order&.metadata&.dig('country_code'),
+      'whitelist_ip' => params['whitelist_ip'],
+      'root_password' => params['root_password'] || vm.root_password,
       'proxy_ip' => params['proxy_ip'],
       'proxy_port' => params['proxy_port'],
       'proxy_username' => params['proxy_username'],
@@ -34,24 +38,28 @@ class VmProvisioningJob < ApplicationJob
       'proxy_protocol' => params['proxy_protocol'] || 'http'
     }.merge(params.stringify_keys)
 
+    logger.info "[VmProvisioningJob] Executing VmProvisioningService for VM #{vm_id} with hostname: #{provision_params['hostname']}"
     result = service.provision(provision_params)
+    
+    logger.info "[VmProvisioningJob] Provisioning service returned: #{result[:status]} (IP: #{result[:ip_address]})"
 
     # Update VM with results including credentials
     vm.update!(
-      ip_address: result[:ip_address],
       proxmox_vm_id: result[:pve_vmid].to_s,
       proxmox_node: VmProvisioningService::PROXMOX_NODE,
+      ip_address: result[:ip_address],
       rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
       ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
-      ssh_username: result[:username] || 'root',
+      ssh_username: result[:username] || vm.hostname,
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],
+      hostname: result[:hostname],
       api_response: result.to_json
     )
 
     vm.mark_active!
 
-    # Invalidate cache
+    # Clear status cache
     Rails.cache.delete("vm_status_#{vm_id}")
 
     # Send credentials email
@@ -77,12 +85,12 @@ class VmProvisioningJob < ApplicationJob
         }
         WebhookDispatchWorker.perform_later(owner.id, 'credentials.ready', payload)
       end
-
+      
       NotificationService.notify(
         recipient: owner,
         category: 'success',
         title: 'VM Provisioned',
-        message: "VM #{vm.ip_address} is ready.",
+        message: "Your VM ##{vm.proxmox_vm_id || vm.hostname} is ready.",
         metadata: { vm_id: vm.id, ip_address: vm.ip_address }
       )
     end
@@ -95,19 +103,16 @@ class VmProvisioningJob < ApplicationJob
     vm.fail! if vm.may_fail?
 
     # Notify failure
-    owner = vm.vm_order&.order&.orderable
+    owner = vm&.vm_order&.order&.orderable
     if owner
       id_label = vm.proxmox_vm_id.presence || vm.hostname.presence || vm.id # Fallback to UUID only as last resort
       NotificationService.notify(
         recipient: owner,
         category: 'error',
         title: 'VM Provisioning Failed',
-        message: "VM ##{id_label} provisioning failed. Retrying...",
+        message: "VM ##{id_label} provisioning failed. Manual retry required.",
         metadata: { vm_id: vm.id, pve_vmid: vm.proxmox_vm_id, error: e.message }
       )
     end
-
-    # Re-raise to trigger retry
-    raise e
   end
 end

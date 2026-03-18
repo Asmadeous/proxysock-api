@@ -96,7 +96,6 @@ export const usePaymentCheckoutHandlers = ({
         }
         break;
       case "proxy":
-      case "residential":
       case "global-isp":
         meta.country_code = item.locationId || (item.locations?.city as any)?.country_id || (item.locations?.isp as any)?.country_code || (item.plan as any)?.country_code;
         meta.protocol = item.protocol;
@@ -109,8 +108,17 @@ export const usePaymentCheckoutHandlers = ({
         if ((item as any).globalTarget?.id) meta.target_id = (item as any).globalTarget.id;
         if ((item as any).globalTargetSectionId) meta.target_section_id = (item as any).globalTargetSectionId;
         if ((item as any).globalCountry?.id) meta.selected_country_id = (item as any).globalCountry.id;
-        // Residential Rotating V2
-        if ((item as any).resi) meta.resi = (item as any).resi;
+        break;
+      case "residential":
+        // period = GB amount (NOT multiplied by 30)
+        meta.protocol = item.protocol;
+        meta.duration_days = Number(item.period) || 1; // GB amount passed as the period for residential
+        // Detect resi v2 flag from the plan
+        if (item.plan?.resi) meta.resi = item.plan.resi;
+        // Pass the full residential rotating config so the backend reads residentalRotatingConfig
+        if (item.residentalRotatingConfig) {
+          meta.residentalRotatingConfig = item.residentalRotatingConfig;
+        }
         break;
       case "esim":
       case "usa-esim":
@@ -154,10 +162,12 @@ export const usePaymentCheckoutHandlers = ({
         );
       }
 
+      const customerEmail = localStorage.getItem("enterprise_customer_email");
       const payload = {
         items: buildCartPayload(),
         payment_method: 'wallet',
         ...(promoCode ? { promo_code: promoCode } : {}),
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
       };
 
       const { data: checkoutData } = await api.post("/web/api/orders/checkout_cart", payload);
@@ -200,11 +210,13 @@ export const usePaymentCheckoutHandlers = ({
       if (!cartItems.length) throw new Error("Your cart is empty");
       const totalUsd = calculateOrderTotalSync();
 
+      const customerEmail = localStorage.getItem("enterprise_customer_email");
       const payload = {
         items: buildCartPayload(),
         payment_method: 'gateway',
         gateway: gatewayName,
         ...(promoCode ? { promo_code: promoCode } : {}),
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
       };
 
       const { data } = await api.post("/web/api/orders/checkout_cart", payload);

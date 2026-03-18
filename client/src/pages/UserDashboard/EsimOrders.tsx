@@ -19,7 +19,8 @@ import {
   Sparkles,
   Wifi,
   MapPin,
-
+  Phone,
+  Filter,
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -55,12 +56,16 @@ interface ESIMOrder {
   unit_price: number;
   total_amount: number;
   currency_code: string;
-  status: "pending" | "allocated" | "delivered" | "failed" | "cancelled";
+  status: "pending" | "allocated" | "delivered" | "failed" | "cancelled" | "completed" | "active";
   payment_method: string;
   created_at: string;
   updated_at: string;
   api_order_id: string;
   reorderable?: boolean;
+  product_type?: string;
+  product_name?: string;
+  amount?: number;
+  credentials_list?: any[];
   // Related profile data
   profiles?: {
     iccid: string;
@@ -78,6 +83,7 @@ const ESIMOrdersPage = () => {
   const [filteredOrders, setFilteredOrders] = useState<ESIMOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "delivered" | "pending" | "failed">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "esim" | "usa_esim">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<ESIMOrder | null>(null);
   const { accessToken } = useAuth();
@@ -91,6 +97,8 @@ const ESIMOrdersPage = () => {
     totalSpent: 0,
     totalData: 0,
     totalEsims: 0,
+    esimAccessCount: 0,
+    usaEsimCount: 0,
   });
 
   useEffect(() => {
@@ -102,16 +110,42 @@ const ESIMOrdersPage = () => {
   useEffect(() => {
     filterOrders();
     calculateStats();
-  }, [orders, activeTab, searchTerm]);
+  }, [orders, activeTab, searchTerm, categoryFilter]);
 
   const fetchESIMOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/web/api/orders?product_type=esim');
+      // Fetch both esim and usa_esim product types
+      const [esimResponse, usaEsimResponse] = await Promise.allSettled([
+        api.get('/web/api/orders?product_type=esim&per_page=100'),
+        api.get('/web/api/orders?product_type=usa_esim&per_page=100'),
+      ]);
 
-      if (response.data && response.data.orders) {
-        setOrders(response.data.orders);
+      const allOrders: ESIMOrder[] = [];
+
+      // Add eSIM Access orders
+      if (esimResponse.status === 'fulfilled' && esimResponse.value.data?.orders) {
+        esimResponse.value.data.orders.forEach((o: any) => {
+          allOrders.push({ ...o, product_type: 'esim' });
+        });
       }
+
+      // Add USA eSIM orders
+      if (usaEsimResponse.status === 'fulfilled' && usaEsimResponse.value.data?.orders) {
+        usaEsimResponse.value.data.orders.forEach((o: any) => {
+          allOrders.push({
+            ...o,
+            product_type: 'usa_esim',
+            package_name: o.product_name || `USA eSIM`,
+            total_amount: Number(o.amount) || Number(o.total_amount) || 0,
+            currency_code: o.currency || 'USD',
+          });
+        });
+      }
+
+      // Sort by date descending
+      allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setOrders(allOrders);
     } catch (error) {
       console.error("Failed to fetch eSIM orders:", error);
     } finally {
@@ -122,10 +156,15 @@ const ESIMOrdersPage = () => {
   const filterOrders = () => {
     let filtered = [...orders];
 
+    // Filter by category
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((o) => o.product_type === categoryFilter);
+    }
+
     // Filter by tab
     if (activeTab !== "all") {
       filtered = filtered.filter((o) => {
-        if (activeTab === "delivered") return o.status === "delivered" || o.status === "allocated";
+        if (activeTab === "delivered") return o.status === "delivered" || o.status === "allocated" || o.status === "completed" || o.status === "active";
         if (activeTab === "pending") return o.status === "pending";
         if (activeTab === "failed") return o.status === "failed" || o.status === "cancelled";
         return true;
@@ -137,7 +176,8 @@ const ESIMOrdersPage = () => {
       filtered = filtered.filter((o) =>
         o.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.package_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.esim_order_no?.toLowerCase().includes(searchTerm.toLowerCase())
+        o.esim_order_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -145,14 +185,16 @@ const ESIMOrdersPage = () => {
   };
 
   const calculateStats = () => {
-    const delivered = orders.filter((o) => o.status === "delivered" || o.status === "allocated").length;
+    const delivered = orders.filter((o) => o.status === "delivered" || o.status === "allocated" || o.status === "completed" || o.status === "active").length;
     const pending = orders.filter((o) => o.status === "pending").length;
     const failed = orders.filter((o) => o.status === "failed" || o.status === "cancelled").length;
-    const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+    const totalSpent = orders.reduce((sum, o) => sum + (Number(o.total_amount) || Number(o.amount) || 0), 0);
     const totalEsims = orders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+    const esimAccessCount = orders.filter((o) => o.product_type === 'esim').length;
+    const usaEsimCount = orders.filter((o) => o.product_type === 'usa_esim').length;
 
-    // Calculate total data from profiles
-    const totalData = orders.reduce((sum, o) => {
+    // Calculate total data from profiles (eSIM Access only)
+    const totalData = orders.filter((o) => o.product_type === 'esim').reduce((sum, o) => {
       const profileData = o.profiles?.reduce((pSum, p) => pSum + (p.total_volume || 0), 0) || 0;
       return sum + profileData;
     }, 0);
@@ -165,6 +207,8 @@ const ESIMOrdersPage = () => {
       totalSpent,
       totalData: Math.round(totalData / 1024), // Convert MB to GB
       totalEsims,
+      esimAccessCount,
+      usaEsimCount,
     });
   };
 
@@ -450,7 +494,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                 <div>
                   <p className="text-muted-foreground text-sm">Total Spent</p>
                   <p className="text-3xl font-bold mt-1">
-                    ${stats.totalSpent}
+                    ${stats.totalSpent.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-primary/10 rounded-lg">
@@ -482,42 +526,74 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
       {/* Filters and Search */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Tabs */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              {[
-                { id: "all", label: "All", count: stats.total },
-                { id: "delivered", label: "Delivered", count: stats.delivered },
-                { id: "pending", label: "Pending", count: stats.pending },
-                { id: "failed", label: "Failed", count: stats.failed },
-              ].map((tab) => (
-                <Button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  variant={activeTab === tab.id ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {tab.count}
-                    </Badge>
-                  )}
-                </Button>
-              ))}
+          <div className="flex flex-col gap-4">
+            {/* Category Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Category:</span>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                {[
+                  { id: "all", label: "All eSIMs", count: stats.total },
+                  { id: "esim", label: "eSIM Access", count: stats.esimAccessCount },
+                  { id: "usa_esim", label: "USA eSIM", count: stats.usaEsimCount },
+                ].map((cat) => (
+                  <Button
+                    key={cat.id}
+                    onClick={() => setCategoryFilter(cat.id as any)}
+                    variant={categoryFilter === cat.id ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {cat.id === "usa_esim" && <Phone className="h-3 w-3" />}
+                    {cat.id === "esim" && <Smartphone className="h-3 w-3" />}
+                    {cat.label}
+                    {cat.count > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {cat.count}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
             </div>
 
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by order ID, package name, or eSIM order number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                {[
+                  { id: "all", label: "All", count: stats.total },
+                  { id: "delivered", label: "Delivered", count: stats.delivered },
+                  { id: "pending", label: "Pending", count: stats.pending },
+                  { id: "failed", label: "Failed", count: stats.failed },
+                ].map((tab) => (
+                  <Button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    variant={activeTab === tab.id ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {tab.count}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by order ID, package name, or provider..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -557,23 +633,32 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Smartphone className="h-6 w-6 text-primary" />
+                        <div className={`p-2 rounded-lg ${order.product_type === 'usa_esim' ? 'bg-blue-500/10' : 'bg-primary/10'}`}>
+                          {order.product_type === 'usa_esim' ? (
+                            <Phone className="h-6 w-6 text-blue-500" />
+                          ) : (
+                            <Smartphone className="h-6 w-6 text-primary" />
+                          )}
                         </div>
                         <div>
                           <CardTitle className="text-lg">
-                            {order.package_name}
+                            {order.package_name || order.product_name}
                           </CardTitle>
                           <CardDescription>#{order.order_number}</CardDescription>
                         </div>
                       </div>
-                      <Badge
-                        variant={getStatusBadgeVariant(order.status)}
-                        className="gap-1"
-                      >
-                        <StatusIcon className="h-3 w-3" />
-                        {order.status}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant={getStatusBadgeVariant(order.status)}
+                          className="gap-1"
+                        >
+                          <StatusIcon className="h-3 w-3" />
+                          {order.status}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {order.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -622,8 +707,8 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                     <div className="flex items-center justify-between pt-4 border-t">
                       <span className="text-muted-foreground">Total Paid</span>
                       <span className="text-xl font-bold">
-                        {order.currency_code === "USD" ? "$" : order.currency_code}{" "}
-                        {order.total_amount}
+                        {(order.currency_code || 'USD') === "USD" ? "$" : order.currency_code}{" "}
+                        {Number(order.total_amount || order.amount || 0).toFixed(2)}
                       </span>
                     </div>
 

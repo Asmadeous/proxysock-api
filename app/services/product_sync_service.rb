@@ -6,7 +6,6 @@ class ProductSyncService
     @logger = logger
   end
 
-  # Map common country names/slugs to 2-letter ISO codes
   COUNTRY_MAP = {
     'usa' => 'US',
     'united states' => 'US',
@@ -29,18 +28,38 @@ class ProductSyncService
     'nigeria' => 'NG'
   }.freeze
 
+  # Hardcoded rotation options for residential rotating
+  ROTATION_OPTIONS = [
+    { value: '0', label: 'Always Rotate (New IP per request)', minutes: 0 },
+    { value: '3', label: 'Sticky 3 Minutes', minutes: 3 },
+    { value: '5', label: 'Sticky 5 Minutes', minutes: 5 },
+    { value: '30', label: 'Sticky 30 Minutes', minutes: 30 },
+    { value: '60', label: 'Sticky 1 Hour', minutes: 60 },
+    { value: '240', label: 'Sticky 4 Hours', minutes: 240 },
+    { value: '1440', label: 'Sticky 24 Hours', minutes: 1440 }
+  ].freeze
+
+  HOSTNAME_OPTIONS = [
+    { value: 'ip-na.myproxyapi.com', label: 'North America', region: 'NA' },
+    { value: 'ip-eu.myproxyapi.com', label: 'Europe', region: 'EU' },
+    { value: 'ip-asia.myproxyapi.com', label: 'Asia', region: 'ASIA' }
+  ].freeze
+
   def sync_all_products
     @logger.info('[ProductSyncService] Starting sync...')
 
     # 1. Cleanup: Remove products with no orders, deactivate others
     cleanup_previous_plans
 
-    # 2. Sync ONLY Proxy and VPN categories
+    # 2. Sync ONLY Proxy categories
     categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp mobile global-isp]
 
     categories.each do |cat_slug|
       sync_category(cat_slug)
     end
+
+    # 3. Sync Residential Rotating configuration (countries, states, cities, isps)
+    sync_residential_rotating_config
 
     @logger.info('[ProductSyncService] Sync completed.')
   end
@@ -67,8 +86,118 @@ class ProductSyncService
     end
   end
 
+  # NEW: Sync Residential Rotating configuration
+  def sync_residential_rotating_config
+    @logger.info('[ProductSyncService] Syncing Residential Rotating configuration...')
+
+    category = ProductCategory.find_by(slug: 'residential-rotating')
+    return unless category
+
+    begin
+      # Fetch configuration from MyProxyApi
+      countries = fetch_residential_rotating_countries
+      
+      # Build complete config with countries, states, cities, isps
+      config = {
+        countries: countries,
+        rotation_options: ROTATION_OPTIONS,
+        hostname_options: HOSTNAME_OPTIONS,
+        synced_at: Time.current.iso8601
+      }
+
+      # Store in ProductCategory metadata
+      category.update!(metadata: category.metadata.merge(residential_rotating_config: config))
+      
+      @logger.info('[ProductSyncService] Residential Rotating config synced successfully')
+    rescue StandardError => e
+      @logger.error("[ProductSyncService] Failed to sync Residential Rotating config: #{e.message}")
+      @logger.error(e.backtrace&.first(10)&.join("\n"))
+    end
+  end
+
+  # Fetch countries and their states/cities/isps from MyProxyApi
+  def fetch_residential_rotating_countries
+    countries_data = @client.fetch_residential_rotating_countries
+    
+    countries = (countries_data || []).map do |country|
+      country_code = country['country_code'] || country['code'] || country['id']
+      
+      {
+        id: country_code,
+        name: country['country_name'] || country['name'],
+        code: country['country_code'] || country['code'] || country_code,
+        alpha2: country['alpha2'] || country_code,
+        alpha3: country['alpha3'] || country_code,
+        states: fetch_residential_rotating_states(country_code),
+        isps: fetch_residential_rotating_isps(country_code)
+      }
+    end
+
+    countries
+  end
+
+  # Fetch states for a specific country
+  # Fetch states for a specific country
+  def fetch_residential_rotating_states(country_code)
+    states_data = @client.fetch_residential_rotating_states(country_code)
+    
+    (states_data || []).map do |state|
+      state_slug = state['code'] || state['id'] || state['slug']
+      
+      # If cities are already nested in the state response, use them. 
+      # Otherwise, fetch them separately.
+      cities = if state['cities'].is_a?(Array) && state['cities'].any?
+                 state['cities'].map do |city|
+                   {
+                     id: city['code'] || city['id'] || city['slug'],
+                     name: city['name'],
+                     state: state_slug,
+                     country_code: country_code
+                   }
+                 end
+               else
+                 fetch_residential_rotating_cities(country_code, state_slug)
+               end
+
+      {
+        id: state_slug,
+        name: state['name'],
+        code: state['code'] || state_slug,
+        country_code: country_code,
+        cities: cities
+      }
+    end
+  end
+
+  # Fetch cities for a specific state
+  def fetch_residential_rotating_cities(country_code, state_slug)
+    cities_data = @client.fetch_residential_rotating_cities(country_code, state_slug)
+    
+    (cities_data || []).map do |city|
+      {
+        id: city['code'] || city['id'] || city['slug'],
+        name: city['name'],
+        state: state_slug,
+        country_code: country_code
+      }
+    end
+  end
+
+  # Fetch ISPs for a specific country
+  def fetch_residential_rotating_isps(country_code)
+    isps_data = @client.fetch_residential_rotating_isps(country_code)
+    
+    (isps_data || []).map do |isp|
+      {
+        id: isp['id'] || isp['code'],
+        name: isp['name'],
+        code: isp['code'] || isp['id'],
+        country_code: country_code
+      }
+    end
+  end
+
   def sync_category(category_slug)
-    # Map category slugs to normalized product types
     type_mapping = {
       'residential-vpn' => 'vpn',
       'static-residential' => 'static_residential',
@@ -88,7 +217,6 @@ class ProductSyncService
     begin
       data = @client.fetch_category_data(category_slug)
 
-      # For global-isp, we also need to fetch configuration details to get countries/locations
       global_isp_config = nil
       if category_slug == 'global-isp'
         begin
@@ -98,7 +226,6 @@ class ProductSyncService
         end
       end
 
-      # Handle if data is directly an array (some endpoints might do this)
       if data.is_a?(Array)
         plans = data.flat_map { |item| item['proxy_plans'] || (item['id'] ? [item] : []) }
         isps = data.flat_map { |item| item['isp'] || [] }.uniq
@@ -110,9 +237,12 @@ class ProductSyncService
       @logger.info("Category #{category_slug} returned #{plans.size} plans and #{isps.size} ISPs")
 
       plans.each do |plan|
-        # Enrich plan with global_isp_config if available
         if global_isp_config && category_slug == 'global-isp'
           plan['global_isp_config'] = global_isp_config
+        end
+        # Force resi = 1 for all residential-rotating plans (provider API doesn't send it)
+        if category_slug == 'residential-rotating'
+          plan['resi'] = 1
         end
         sync_product(category, plan, isps, product_type)
       end
@@ -153,28 +283,15 @@ class ProductSyncService
     meta['price_info'] = plan['price_info'] if plan['price_info']
     meta['billing_type'] = plan['gb_min'] ? 'usage_gb' : 'monthly'
 
-    # Filter/Attach ISPs to the plan
     plan_isps = plan['isp'] || category_isps
     meta['isp'] = plan_isps
 
-    # Extract Country Code from Name or metadata
     plan_name = plan['name'].to_s
     plan_name_lower = plan_name.downcase
 
-    # Try to find a country in the name
     matched_country = COUNTRY_MAP.keys.find { |country| plan_name_lower.include?(country) }
     meta['country_code'] = COUNTRY_MAP[matched_country] if matched_country
 
-    # If not found in name, check if locations exist and try to derive from there
-    if meta['country_code'].blank? && plan['locations'].present?
-      # If locations is a hash or array, we might be able to extract it
-      # In many cases, it's just an ID string, but sometimes names appear.
-    end
-
-    # Parse Global ISP quantity ranges from product name.
-    # Examples: "1 x Global ISP" → qty_min=1, qty_max=1
-    #           "10-19 x Global ISP" → qty_min=10, qty_max=19
-    #           "2000 x Global ISP" → qty_min=2000, qty_max=999999 (open-ended)
     if plan_name.match?(/\d+.*x\s+Global\s+ISP/i)
       range_match = plan_name.match(/(\d+)-(\d+)\s*x/i)
       single_match = plan_name.match(/(\d+)\s*x/i)
@@ -188,41 +305,36 @@ class ProductSyncService
           meta['qty_min'] = 1
           meta['qty_max'] = 1
         else
-          # Open-ended upper tier (e.g. "2000 x") — no upper bound
           meta['qty_min'] = qty_val
           meta['qty_max'] = 999_999
         end
       end
     end
 
-    # Extract locations if available
     meta['locations'] = plan['locations'] if plan['locations']
-    # If this is Global ISP, extract countries and targets from the config
+    
     if plan['global_isp_config']
-      # plan['global_isp_config'] structure: { "target": [...], "country": [...], "period": [...] }
       config = plan['global_isp_config']
       countries_data = config['country'] || []
       meta['countries'] = countries_data
 
-      # Map the first country as the primary flag/code
       if countries_data.any?
         first_country = countries_data.first
         meta['country_code'] = alpha3_to_alpha2(first_country['alpha3']) || meta['country_code']
       end
-      # Filter periods to only keep 30 days (per user request)
+      
       filtered_periods = (config['period'] || []).select { |p| p['name']&.to_s&.include?('30') }
 
       meta['periods'] = filtered_periods
       meta['targets'] = config['target']
       meta['countries'] = config['country']
 
-      # Build the config specifically for the frontend plural requirements
       meta['global_isp_config'] = {
         'countries' => config['country'] || [],
         'targets' => config['target'] || [],
         'periods' => filtered_periods
       }
-      meta['config'] = meta['global_isp_config'] # Sync legacy key
+      meta['config'] = meta['global_isp_config']
     end
 
     meta['targetSectionId'] = plan['targetSectionId'] if plan['targetSectionId']
@@ -236,7 +348,6 @@ class ProductSyncService
   def alpha3_to_alpha2(alpha3)
     return nil if alpha3.blank?
 
-    # Simple mapping for common countries in the API
     {
       'AUT' => 'AT', 'BRA' => 'BR', 'CAN' => 'CA', 'FRA' => 'FR',
       'DEU' => 'DE', 'HKG' => 'HK', 'IND' => 'IN', 'ISR' => 'IL',
@@ -264,11 +375,10 @@ class ProductSyncService
       margin_percentage: 0
     )
 
-    # Margins: Reseller gets +15%, End-user gets +30%
     reseller_price = (api_price * 1.15).round(2)
     user_price     = (api_price * 1.30).round(2)
 
-    pricing.selling_price = user_price
+    pricing.selling_price = reseller_price
     pricing.reseller_selling_price = reseller_price
     pricing.user_selling_price = user_price
 

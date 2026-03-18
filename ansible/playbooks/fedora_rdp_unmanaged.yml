@@ -1,3 +1,9 @@
+---
+- name: Configure Fedora Desktop RDP UNMANAGED
+  hosts: linux
+  become: yes
+  gather_facts: no
+
   pre_tasks:
     - name: Ensure rdp_password is defined
       fail:
@@ -5,7 +11,7 @@
       when: rdp_password is not defined
 
   vars:
-    admin_username: "administrator"
+    admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
 
     whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"  # unused now
@@ -156,6 +162,13 @@
             regexp: '^#?Port '
             line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
           notify: restart_ssh
+
+        - name: Enable security services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
             - fail2ban
             - dnf-automatic.timer
 

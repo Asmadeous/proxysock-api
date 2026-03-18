@@ -21,7 +21,7 @@ interface BalanceProps {
   variant?: "default" | "sidebar";
 }
 
-type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_payvra';
+type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_payvra' | 'crypto_hundredpay';
 
 const PaymentMethodCard = ({
   title,
@@ -245,6 +245,16 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     isSelected={paymentMethod === 'paystack'}
                     onClick={() => setPaymentMethod('paystack')}
                     colorClass="cyan"
+                    loading={loading}
+                  />
+                  <PaymentMethodCard
+                    id="crypto_hundredpay"
+                    title="100Pay (Card & Crypto)"
+                    description="Global Payment Hub (USD)"
+                    icon={CreditCard}
+                    isSelected={paymentMethod === 'crypto_hundredpay'}
+                    onClick={() => setPaymentMethod('crypto_hundredpay')}
+                    colorClass="purple"
                     loading={loading}
                   />
                   <PaymentMethodCard

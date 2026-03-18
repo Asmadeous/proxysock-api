@@ -269,6 +269,42 @@ class MyProxyApiClient
     request(:post, "#{BASE_URL}/products/place-extend", payload)
   end
 
+  # ==========================================================================
+  # Residential Rotating Configuration Endpoints
+  # ==========================================================================
+
+  def fetch_residential_rotating_countries
+    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")['data']
+    data.is_a?(Hash) ? (data['countries'] || []) : (data || [])
+  rescue StandardError => e
+    Rails.logger.error("Failed to fetch residential rotating countries: #{e.message}")
+    []
+  end
+
+  def fetch_residential_rotating_states(country_code)
+    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")['data']
+    data.is_a?(Hash) ? (data['states'] || []) : (data || [])
+  rescue StandardError => e
+    Rails.logger.error("Failed to fetch states for #{country_code}: #{e.message}")
+    []
+  end
+
+  def fetch_residential_rotating_cities(country_code, state_slug)
+    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")['data']
+    data.is_a?(Hash) ? (data['cities'] || []) : (data || [])
+  rescue StandardError => e
+    Rails.logger.error("Failed to fetch cities for #{country_code}/#{state_slug}: #{e.message}")
+    []
+  end
+
+  def fetch_residential_rotating_isps(country_code)
+    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")['data']
+    data.is_a?(Hash) ? (data['isps'] || data['isp'] || []) : (data || [])
+  rescue StandardError => e
+    Rails.logger.error("Failed to fetch ISPs for #{country_code}: #{e.message}")
+    []
+  end
+
   private
 
   # The per-category endpoints return:

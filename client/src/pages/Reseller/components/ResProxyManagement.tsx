@@ -19,7 +19,7 @@ interface ProxyOrder {
     id: string;
     order_id: string;
     product_name: string;
-    product_type: 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile';
+    product_type: 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp';
     status: 'active' | 'expired' | 'pending' | 'cancelled';
     period: number;
     protocol: 'http' | 'socks5';

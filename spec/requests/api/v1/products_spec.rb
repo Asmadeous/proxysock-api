@@ -29,14 +29,14 @@ RSpec.describe 'api/v1/products', type: :request do
         # Legacy Rswag 2.x approach for run_test! hook logic, or manual data creation
         # We need a reseller and token to pass auth
         let(:reseller) do
-          Reseller.create!(username: 'doc_user', email: 'doc@test.com', password: 'password', company_name: 'test')
+          Reseller.create!(username: 'partner_v1_demo', email: 'partner@example.com', password: 'password', company_name: 'Enterprise Solutions')
         end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
 
         before do
           category = ProductCategory.create!(name: 'Proxies')
-          product = Product.create!(name: 'Test Proxy', product_type: 'proxy', provider_type: 'xproxy',
+          product = Product.create!(name: 'Static Residential Proxy', product_type: 'proxy', provider_type: 'xproxy',
                                     product_category: category)
           ProductPricing.create!(product: product, selling_price: 10.0, active: true, currency: 'USD')
         end
@@ -61,14 +61,14 @@ RSpec.describe 'api/v1/products', type: :request do
 
       response(200, 'successful') do
         let(:reseller) do
-          Reseller.create!(username: 'doc_user_2', email: 'doc2@test.com', password: 'password', company_name: 'test')
+          Reseller.create!(username: 'partner_v1_show', email: 'partner2@example.com', password: 'password', company_name: 'Enterprise Solutions')
         end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
 
         let(:product) do
           category = ProductCategory.create!(name: 'VMs')
-          p = Product.create!(name: 'Test VM', product_type: 'vm', provider_type: 'proxmox', product_category: category)
+          p = Product.create!(name: 'Standard Ubuntu VM', product_type: 'vm', provider_type: 'proxmox', product_category: category)
           ProductPricing.create!(product: p, selling_price: 20.0, active: true)
           p
         end

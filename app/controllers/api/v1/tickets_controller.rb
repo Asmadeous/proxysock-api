@@ -67,7 +67,7 @@ module Api
 
         if message.save
           ticket.update(status: 'open', updated_at: Time.current) # Re-open if closed
-          render json: { message: serialize_message(message) }
+          render json: { message: serialize_message(message) }, status: :created
         else
           render json: { errors: message.errors }, status: :unprocessable_entity
         end

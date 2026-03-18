@@ -317,18 +317,19 @@ module Web
             )
 
             wallet.debit!(final_amount, 'Cart Checkout', {}, transaction)
-            # Provision each
-            orders_to_create.each do |order|
-              OrderProvisioningService.new(order, current_actor).process_without_deduction!
-              created_orders << order
-            end
 
             # Record affiliate commission after successful checkout
             if referral && !AffiliateService.halted?
-              created_orders.each do |order|
+              orders_to_create.each do |order|
                 AffiliateService.record_commission!(order)
               end
             end
+          end
+
+          # Provision each outside the transaction to avoid race conditions with jobs
+          orders_to_create.each do |order|
+            OrderProvisioningService.new(order, current_actor).process_without_deduction!
+            created_orders << order
           end
 
           render json: {
@@ -941,7 +942,9 @@ module Web
               currency: 'USD',
               order_number: "ORD_#{order.id}",
               callback_url: callback_url,
-              email: current_actor.email
+              email: current_actor.email,
+              phone: current_actor.try(:phone),
+              country: current_actor.try(:country)
             )[:url],
             amount: amount,
             currency: 'USD'
@@ -1000,7 +1003,9 @@ module Web
               currency: 'USD',
               order_number: reference,
               callback_url: callback_url,
-              email: current_actor.email
+              email: current_actor.email,
+              phone: current_actor.try(:phone),
+              country: current_actor.try(:country)
             )[:url],
             amount: amount,
             currency: 'USD'

@@ -1,3 +1,8 @@
+---
+- name: Configure Alma Linux VPS UNMANAGED
+  hosts: linux
+  become: yes
+
   pre_tasks:
     - name: Ensure root_password is defined
       fail:
@@ -6,7 +11,6 @@
 
   vars:
     new_user_password: "{{ root_password }}"
-    ansible_become_password: "{{ root_password }}"
   tasks:
     - block:
         - name: Wait for SSH
