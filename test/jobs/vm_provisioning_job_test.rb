@@ -4,6 +4,7 @@ require 'test_helper'
 
 class VmProvisioningJobTest < ActiveJob::TestCase
   setup do
+    ActiveJob::Base.queue_adapter = :test
     @order = Order.create!(
       orderable: resellers(:one),
       product: products(:one),
@@ -22,12 +23,13 @@ class VmProvisioningJobTest < ActiveJob::TestCase
     mock_service = mock
     mock_service.expects(:provision).returns({
                                                ip_address: '10.0.0.5',
-                                               vm_id: '200',
-                                               external_port: 10_022,
+                                               pve_vmid: 200,
+                                               port: 10_022,
                                                protocol: 'ssh',
                                                username: 'root',
                                                password: 'password',
-                                               root_password: 'rootpassword'
+                                               root_password: 'rootpassword',
+                                               hostname: 'test-vm-1'
                                              })
 
     VmProvisioningService.stubs(:new).returns(mock_service)
