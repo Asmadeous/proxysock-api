@@ -99,18 +99,20 @@ class CheckoutSession < ApplicationRecord
           )
         end
       end
-
-      orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
-        actor = if is_reseller
-                  orderable
-                else
-                  order.orderable
-                end
-        OrderProvisioningService.new(order, actor).process_without_deduction!
-      end
-
-      complete!
     end
+
+    # Provision OUTSIDE the transaction so all Order records are committed
+    # and visible to Sidekiq before any background jobs are enqueued.
+    orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
+      actor = if is_reseller
+                orderable
+              else
+                order.orderable
+              end
+      OrderProvisioningService.new(order, actor).process_without_deduction!
+    end
+
+    complete!
     true
   rescue StandardError => e
     Rails.logger.error("[CheckoutSession] Provisioning failed for session #{id}: #{e.message}")

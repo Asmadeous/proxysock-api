@@ -7,8 +7,8 @@ class VmProvisioningJob < ApplicationJob
   def perform(vm_id, params = {})
     vm = Vm.find_by(id: vm_id)
     unless vm
-      logger.error "[VmProvisioningJob] VM #{vm_id} not found. Safe retry may be handled by adapter."
-      return
+      logger.error "[VmProvisioningJob] VM #{vm_id} not found. Raising to allow Sidekiq retry."
+      raise ActiveRecord::RecordNotFound, "VM #{vm_id} not found"
     end
 
     logger.info "[VmProvisioningJob] Starting provisioning for VM #{vm_id}"

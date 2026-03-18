@@ -35,7 +35,10 @@ module Web
           end
 
           # Send confirmation email
-          ::UserMailer.confirmation_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.confirmation_email(saved_user).deliver_later
+          end
 
           token = user.generate_jwt
           render json: {
@@ -247,7 +250,10 @@ module Web
           render json: { message: 'Email is already confirmed.' }
         else
           user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
-          ::UserMailer.confirmation_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.confirmation_email(saved_user).deliver_later
+          end
           render json: { message: 'Verification email resent! Check your inbox.' }
         end
       end
@@ -260,7 +266,10 @@ module Web
             password_reset_token: SecureRandom.urlsafe_base64(32),
             password_reset_sent_at: Time.current
           )
-          ::UserMailer.password_reset_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.password_reset_email(saved_user).deliver_later
+          end
         end
         render json: { message: 'If an account with that email exists, password reset instructions have been sent.' }
       end

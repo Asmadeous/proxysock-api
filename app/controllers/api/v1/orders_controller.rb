@@ -388,7 +388,11 @@ module Api
           is_external_api_product = order.product&.provider_type.to_s.downcase.include?('api') ||
                                     order.product&.proxy?
           if is_external_api_product
-            ResellerMailer.order_cancelled_admin_notification(order, current_reseller).deliver_later
+            saved_order = order
+            saved_reseller = current_reseller
+            ActiveRecord.after_all_transactions_commit do
+              ResellerMailer.order_cancelled_admin_notification(saved_order, saved_reseller).deliver_later
+            end
           end
         end
 
@@ -476,9 +480,9 @@ module Api
             order_id: @order.id,
             orderable: current_reseller
           )
-
-          OrderProvisioningService.new(@order, current_reseller).process!
         end
+
+        OrderProvisioningService.new(@order, current_reseller).process!
 
         @order.reload
         resource = @order.provisioned_resource
