@@ -19,7 +19,7 @@ class VmCallbacksController < ApplicationController
   #   proxy_configured:  (optional) boolean
   #   monitoring_enabled: (optional) boolean
   def status
-    vm = Vm.find_by(id: params[:id])
+    vm = Vm.find_by(proxmox_vm_id: params[:id])
     return render json: { error: 'VM not found' }, status: :not_found unless vm
 
     Rails.logger.info("[VmCallback] Received status '#{params[:status]}' for VM #{vm.id}")

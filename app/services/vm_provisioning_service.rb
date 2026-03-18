@@ -650,10 +650,12 @@ class VmProvisioningService
       # Ensure non-interactive and no host-key checking issues for simplicity in this env
       ssh_options[:append_all_supported_algorithms] = true
       ssh_options[:verify_host_key] = :never
+      ssh_options[:non_interactive] = true
+      ssh_options[:auth_methods] = ["password", "publickey"]
 
       Net::SSH.start(ssh_host, ssh_user, ssh_options) do |ssh|
-        # Use -S to read password from stdin if using password auth
-        actual_cmd = ssh_pass ? "echo #{Shellwords.escape(ssh_pass)} | sudo -S bash -c '#{remote_cmd}'" : "sudo bash -c '#{remote_cmd}'"
+        # Use sudo -n (non-interactive) if possible, or -S if we must pass password
+        actual_cmd = ssh_pass ? "echo #{Shellwords.escape(ssh_pass)} | sudo -S bash -c '#{remote_cmd}'" : "sudo -n bash -c '#{remote_cmd}'"
         output = ssh.exec!(actual_cmd)
         @logger.info("Dnsmasq update output: #{output}")
       end
