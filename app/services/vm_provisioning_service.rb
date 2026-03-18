@@ -162,6 +162,11 @@ class VmProvisioningService
 
       @logger.info("Allocated — PVE VMID: #{pve_vmid}, Hostname: #{hostname}, Type: #{vm_type}")
 
+      # Update VM record immediately so callbacks can find it
+      if db_vm_id
+        Vm.find(db_vm_id).update!(proxmox_vm_id: pve_vmid.to_s)
+      end
+
       # Creation (Clone)
       create_vm(pve_vmid, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge)
 
@@ -528,7 +533,20 @@ class VmProvisioningService
       end
     end
 
-    # 4. Start
+    # 5. Detach any CD-ROMs that might have missing ISOs (common problem with templates)
+    # We detach them to avoid 'volume does not exist' errors on startup
+    detach_params = {}
+    config.each do |key, value|
+      if key.to_s.match(/^(ide|sata|scsi)\d+$/) && value.to_s.include?('media=cdrom')
+        @logger.info("Detaching CD-ROM on #{key} to avoid missing ISO errors")
+        detach_params[key] = 'none,media=cdrom'
+      end
+    end
+    if detach_params.any?
+      proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config", detach_params)
+    end
+
+    # 6. Start
     @logger.info("Starting VM #{vm_id}")
     response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/status/start")
     wait_for_proxmox_task(response['data'])
@@ -659,6 +677,8 @@ class VmProvisioningService
         output = ssh.exec!(actual_cmd)
         @logger.info("Dnsmasq update output: #{output}")
       end
+    rescue Net::SSH::AuthenticationFailed
+      @logger.error("Failed to whitelist IP over SSH: Authentication failed for user #{ssh_user}@#{ssh_host}")
     rescue StandardError => e
       @logger.error("Failed to whitelist IP over SSH: #{e.message}")
     end

@@ -70,6 +70,8 @@
           apt:
             update_cache: yes
             cache_valid_time: 0
+          environment:
+            DEBIAN_FRONTEND: noninteractive
           retries: 5
           delay: 20
           register: apt_update
@@ -138,11 +140,9 @@
             upgrade: dist
             autoremove: yes
             autoclean: yes
-          retries: 3
-          delay: 30
+          environment:
+            DEBIAN_FRONTEND: noninteractive
           register: apt_upgrade
-          until: apt_upgrade is succeeded
-          timeout: 1200
         
         - name: Install basic packages
           apt:
