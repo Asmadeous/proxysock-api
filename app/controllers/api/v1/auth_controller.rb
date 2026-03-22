@@ -108,7 +108,9 @@ module Api
           permanent_api_key: reseller.permanent_api_key,
           subscription_fee: reseller.subscription_fee,
           subscription_expires_at: reseller.subscription_expires_at,
-          customer_email: reseller.customer_email
+          customer_email: reseller.customer_email,
+          allowed_product_category_id: reseller.allowed_product_category_id,
+          allowed_product_category_name: reseller.allowed_product_category&.name
         }
       end
     end

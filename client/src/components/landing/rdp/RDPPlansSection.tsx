@@ -99,8 +99,7 @@ export const RDPPlansSection = ({ trackConversion }: RDPPlansSectionProps) => {
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <GlobeAltIcon className="h-5 w-5 text-primary" />
             <p className="text-primary text-center text-sm font-manrope-semibold">
-              🌍 Available in 5 Locations: USA • UK • Germany • Canada •
-              Australia
+              🌍 Available in 3 Locations: USA • UK • Canada
             </p>
           </div>
         </motion.div>

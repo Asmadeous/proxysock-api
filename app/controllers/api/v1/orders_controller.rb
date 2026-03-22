@@ -130,12 +130,18 @@ module Api
       # - infrastructure resellers: creates checkout session, returns gateway payment link
       def create
         product_scope = current_reseller.infrastructure? ? Product.all : Product.for_resellers
+
+        # Single product resellers can only order from their allowed category
+        if current_reseller.single_product?
+          product_scope = product_scope.where(product_category_id: current_reseller.allowed_product_category_id)
+        end
+
         product = product_scope.find(params[:product_id])
 
         pricing = product.product_pricings.find_by(active: true)
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
 
-        if current_reseller.api_only?
+        if current_reseller.balance_based?
           create_api_only_order(product, pricing)
         else
           create_infrastructure_order(product, pricing)
@@ -413,7 +419,7 @@ module Api
 
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
 
-        if current_reseller.api_only?
+        if current_reseller.balance_based?
           # Re-create the order with original metadata (removing IDs)
           metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
           create_api_only_order(product, pricing, metadata)

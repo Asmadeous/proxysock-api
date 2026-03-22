@@ -141,13 +141,12 @@ export default function RDPPlans() {
         { type: "unmanaged", name: "Unmanaged", description: "Full administrator access, you manage everything", features: ["Complete control", "Admin access", "Custom software installs", "Self-managed updates"], priceMultiplier: 1.0, badge: "Most Popular" },
         { type: "managed", name: "Managed", description: "We handle RDP server management for you", features: ["OS updates & patches", "Security monitoring", "Software installations", "24/7 support"], priceMultiplier: 1.4, badge: "Hassle-Free" }
       ]);
-      setLocations([
+      const countriesFallback: Country[] = [
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
-        { code: "DE", name: "Germany", flag: "🇩🇪" },
-        { code: "CA", name: "Canada", flag: "🇨🇦" },
-        { code: "AU", name: "Australia", flag: "🇦🇺" }
-      ]);
+        { code: "CA", name: "Canada", flag: "🇨🇦" }
+      ];
+      setLocations(countriesFallback);
       setOsOptions([
         { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
         { name: "Windows 11 Pro", icon: "WindowsIcon", description: "Modern Windows desktop experience" },

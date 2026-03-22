@@ -7,7 +7,12 @@ module Api
 
       # GET /api/v1/product_categories
       def index
-        categories = ProductCategory.all.order(name: :asc)
+        categories = if current_reseller.single_product?
+                       ProductCategory.where(id: current_reseller.allowed_product_category_id).order(name: :asc)
+                     else
+                       ProductCategory.all.order(name: :asc)
+                     end
+
         render json: {
           categories: categories.map do |c|
             {

@@ -29,13 +29,8 @@ class VmProvisioningJob < ApplicationJob
       'hostname' => vm.hostname,
       'management_type' => vm.vm_type.to_s.include?('managed') ? 'managed' : 'unmanaged',
       'country_code' => vm.vm_order&.order&.metadata&.dig('country_code'),
-      'whitelist_ip' => params['whitelist_ip'],
       'root_password' => params['root_password'] || vm.root_password,
-      'proxy_ip' => params['proxy_ip'],
-      'proxy_port' => params['proxy_port'],
-      'proxy_username' => params['proxy_username'],
-      'proxy_password' => params['proxy_password'],
-      'proxy_protocol' => params['proxy_protocol'] || 'http'
+      'proxy' => params['proxy'] || {}
     }.merge(params.stringify_keys)
 
     logger.info "[VmProvisioningJob] Executing VmProvisioningService for VM #{vm_id} with hostname: #{provision_params['hostname']}"

@@ -52,6 +52,16 @@ const API_ONLY_TABS = [
     { id: "logout", label: "Logout", icon: LogOut },
 ];
 
+const SINGLE_PRODUCT_TABS = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "store", label: "Products", icon: ShoppingBag },
+    { id: "orders", label: "Orders", icon: ListTodo },
+    { id: "wallet", label: "Wallet", icon: Wallet },
+    { id: "developer", label: "Developer", icon: Code },
+    { id: "settings", label: "Settings", icon: SettingsIcon },
+    { id: "logout", label: "Logout", icon: LogOut },
+];
+
 const ENTERPRISE_TABS = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "store", label: "Store", icon: ShoppingBag },
@@ -129,7 +139,8 @@ export default function ResellerDashboard() {
 
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
-    const tabs = isEnterprise ? ENTERPRISE_TABS : API_ONLY_TABS;
+    const isSingleProduct = resellerUser?.reseller_type === "single_product";
+    const tabs = isEnterprise ? ENTERPRISE_TABS : isSingleProduct ? SINGLE_PRODUCT_TABS : API_ONLY_TABS;
 
     const DEVELOPER_SUBTABS = useMemo(() => [
         { id: "api-docs", label: "Protocol Documentation", icon: BookOpen },
@@ -164,7 +175,7 @@ export default function ResellerDashboard() {
 
         switch (activeTab) {
             case "overview": return <ResOverview />;
-            case "store": return <ResStore onSelectCategory={(cat) => setActiveTab(cat)} />;
+            case "store": return <ResStore onSelectCategory={(cat) => setActiveTab(cat)} resellerType={resellerUser?.reseller_type} allowedCategoryName={resellerUser?.allowed_product_category_name} />;
             case "management": return <ResManagement onNavigate={(tab) => setActiveTab(tab)} />;
             case "orders": return <ResOrders />;
             case "wallet": return <ResWallet />;
@@ -207,9 +218,9 @@ export default function ResellerDashboard() {
                 }))}
                 activeTab={activeTab}
                 onTabChange={handleTab}
-                title={isEnterprise ? "Enterprise" : "API Reseller"}
+                title={isEnterprise ? "Enterprise" : isSingleProduct ? "Product Reseller" : "API Reseller"}
                 userName={resellerUser?.company_name || resellerUser?.username || "Reseller"}
-                userRole={isEnterprise ? "Infrastructure Partner" : "API Partner"}
+                userRole={isEnterprise ? "Infrastructure Partner" : isSingleProduct ? "Single Product Partner" : "API Partner"}
                 profilePictureUrl={formatImageUrl(resellerUser?.profile_picture_url)}
             />
 

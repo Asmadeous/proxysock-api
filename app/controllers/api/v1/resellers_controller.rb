@@ -5,6 +5,14 @@ module Api
     class ResellersController < BaseController
       include JwtAuthenticated
 
+      def index
+        resellers = Reseller.page(params[:page]).per(params[:per] || 25)
+        render json: {
+          resellers: resellers,
+          total: Reseller.count
+        }
+      end
+
       def show
         render json: current_reseller
       end
@@ -39,7 +47,8 @@ module Api
         gateway = params[:gateway]
         currency = params[:currency] || 'USD'
 
-        return render json: { error: 'Minimum deposit for resellers is $1000' }, status: :bad_request if amount < 1000
+        min = current_reseller.min_deposit_amount
+        return render json: { error: "Minimum deposit is $#{min}" }, status: :bad_request if amount < min
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
                                                                                          payvra hundredpay].include?(gateway)
 

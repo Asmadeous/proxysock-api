@@ -35,7 +35,7 @@ class OrderProvisioningService
 
     # 3a. Send Invoice — MUST be outside the transaction so the Order
     #     is committed and visible to Sidekiq when the mailer job runs.
-    InvoiceMailer.with(order: @order).invoice_email.deliver_later
+    InvoiceMailer.with(order: @order).invoice_email.deliver_now
 
     # 4. Provision based on product type
     provision_product!
@@ -177,8 +177,7 @@ class OrderProvisioningService
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
-      'country_code' => vm_order.country_code,
-      'whitelist_ip' => @order.metadata&.dig('client_ip')
+      'country_code' => vm_order.country_code
     }
 
     # Intercept non-Canadian VMs and bundle a localized proxy for Ansible configurations
@@ -240,11 +239,12 @@ class OrderProvisioningService
         @order.save!
 
         # Attach to the Ansible Job params
-        job_params['proxy_ip']       = response['ip']
-        job_params['proxy_port']     = response['port'] || response['http_port'] || response['socks5_port']
-        job_params['proxy_username'] = response['username']
-        job_params['proxy_password'] = response['password']
-        job_params['proxy_protocol'] = 'http'
+        job_params['proxy'] ||= {}
+        job_params['proxy']['ip']       = response['ip']
+        job_params['proxy']['port']     = response['port'] || response['http_port'] || response['socks5_port']
+        job_params['proxy']['username'] = response['username']
+        job_params['proxy']['password'] = response['password']
+        job_params['proxy']['protocol'] = 'http'
 
         Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
       rescue StandardError => e
@@ -431,7 +431,7 @@ class OrderProvisioningService
           owner: owner,
           api_response: response,
           target_email: target_email
-        ).api_proxy_credentials_email.deliver_later
+        ).api_proxy_credentials_email.deliver_now
       end
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
@@ -509,7 +509,7 @@ class OrderProvisioningService
         proxy: proxy,
         order: saved_order,
         target_email: target_email
-      ).credentials_email.deliver_later
+      ).credentials_email.deliver_now
     end
   end
 
@@ -534,14 +534,13 @@ class OrderProvisioningService
     if provider == 'colt'
       # Colt requires manual fulfillment
       UsaEsimOrder.transaction do
-        usa_esim_order = UsaEsimOrder.create!(
+        UsaEsimOrder.create!(
           order: @order,
           status: 'pending', # Manual fulfillment starts as pending
           provider: provider,
           quantity: quantity,
           total_amount: @order.total_amount || 0.0
         )
-
       end
 
       @order.update!(status: 'processing')
@@ -553,11 +552,11 @@ class OrderProvisioningService
         UsaEsimMailer.with(
           owner: saved_actor,
           order: saved_order
-        ).manual_order_notification.deliver_later
+        ).manual_order_notification.deliver_now
 
         UsaEsimMailer.with(
           order: saved_order
-        ).admin_manual_order_alert.deliver_later
+        ).admin_manual_order_alert.deliver_now
       end
       return
     end
@@ -602,7 +601,7 @@ class OrderProvisioningService
           credentials: saved_creds,
           order: saved_order,
           target_email: target_email
-        ).credentials_email.deliver_later
+        ).credentials_email.deliver_now
       end
     end
   end
@@ -695,7 +694,7 @@ class OrderProvisioningService
       owner = @actor || @order.orderable
       saved_order = @order
       ActiveRecord.after_all_transactions_commit do
-        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_now
       end
       return
     end
@@ -731,7 +730,7 @@ class OrderProvisioningService
         owner: owner,
         vpn_account: saved_vpn_account,
         target_email: target_email
-      ).credentials_email.deliver_later
+      ).credentials_email.deliver_now
     end
 
     @order.activate!

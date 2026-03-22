@@ -74,7 +74,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       parameter name: :deposit_data, in: :body, schema: {
         type: :object,
         properties: {
-          amount: { type: :number, example: 1000.0 },
+          amount: { type: :number, example: 1500.0 },
           gateway: { type: :string, example: 'paystack' },
           currency: { type: :string, example: 'USD' }
         },
@@ -86,7 +86,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller.id }
-        let(:deposit_data) { { amount: 1000.0, gateway: 'paystack' } }
+        let(:deposit_data) { { amount: 1500.0, gateway: 'paystack' } }
         run_test!
       end
     end

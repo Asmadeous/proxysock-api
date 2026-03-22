@@ -73,6 +73,17 @@ Rails.application.routes.draw do
         end
       end
 
+      # Infrastructure reseller user management
+      resources :users, only: %i[index create show update destroy] do
+        member do
+          get :orders
+          get :transactions
+        end
+      end
+
+      # Infrastructure reseller payouts (withdrawals)
+      resources :payouts, only: %i[index create show]
+
       # Guest Chat (public, no auth)
       resources :guest_chats, only: %i[create show] do
         post :messages, on: :member, action: :add_message
@@ -237,8 +248,11 @@ Rails.application.routes.draw do
 
       resources :products do
         collection do
-          post :sync_inhouse
-          post :sync_external
+          post :sync_proxies
+          post :sync_esims
+          post :sync_vps
+          post :sync_rdp
+          post :sync_vpn
         end
       end
 
@@ -313,8 +327,34 @@ Rails.application.routes.draw do
         end
       end
 
+      # Admin Settings
+      post 'settings/credit_wallet', to: 'settings#credit_wallet'
+      post 'settings/debit_wallet', to: 'settings#debit_wallet'
+      get  'settings/product_categories', to: 'settings#product_categories'
+      post 'settings/product_categories', to: 'settings#create_product_category'
+      get  'settings/system_info', to: 'settings#system_info'
+
       # System Monitoring
       get 'monitoring', to: 'monitoring#index'
+      get 'monitoring/queues', to: 'monitoring#queues'
+      get 'monitoring/jobs', to: 'monitoring#jobs'
+      get 'monitoring/retries', to: 'monitoring#retries'
+      get 'monitoring/dead_jobs', to: 'monitoring#dead_jobs'
+      get 'monitoring/scheduled_jobs', to: 'monitoring#scheduled_jobs'
+      post 'monitoring/retry_job', to: 'monitoring#retry_job'
+      post 'monitoring/delete_job', to: 'monitoring#delete_job'
+      post 'monitoring/clear_queue', to: 'monitoring#clear_queue'
+      post 'monitoring/clear_retries', to: 'monitoring#clear_retries'
+      post 'monitoring/clear_dead', to: 'monitoring#clear_dead'
+      post 'monitoring/retry_all', to: 'monitoring#retry_all'
+      get 'monitoring/audit_logs', to: 'monitoring#audit_logs'
+      get 'monitoring/system_logs', to: 'monitoring#system_logs'
+      get 'monitoring/error_logs', to: 'monitoring#error_logs'
+      
+      namespace :database do
+        get 'tables'
+        post 'query'
+      end
       resources :transactions, only: %i[index show]
     end
   end

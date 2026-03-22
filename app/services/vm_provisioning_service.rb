@@ -13,44 +13,69 @@ class VmProvisioningService
   # Template configuration — Updated from Proxmox environment screenshot
   TEMPLATES = {
     # ── Ubuntu ────────────────────────────────────────────────────
-    'ubuntu-22-04' => {
-      id: ENV.fetch('TEMPLATE_UBUNTU_22_04', 2001).to_i,
+    'ubuntu-rdp' => {
+      id: ENV.fetch('TEMPLATE_UBUNTU_RDP', 103).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
     'ubuntu-vps' => {
-      id: ENV.fetch('TEMPLATE_UBUNTU_VPS', 2001).to_i,
+      id: ENV.fetch('TEMPLATE_UBUNTU_VPS', 105).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      connection: { type: 'ssh' },
+      os_family: 'ubuntu'
+    },
+    'ubuntu-22-04' => { # Alias for backward compatibility
+      id: ENV.fetch('TEMPLATE_UBUNTU_VPS', 105).to_i,
+      bridge: 'vmbr0',
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
 
+    # ── Debian ────────────────────────────────────────────────────
+    'debian-vps' => {
+      id: ENV.fetch('TEMPLATE_DEBIAN_VPS', 107).to_i,
+      bridge: 'vmbr0',
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      connection: { type: 'ssh' },
+      os_family: 'debian'
+    },
+
     # ── Alma Linux ────────────────────────────────────────────────
     'alma-vps' => {
-      id: ENV.fetch('TEMPLATE_ALMA_VPS', 2005).to_i,
+      id: ENV.fetch('TEMPLATE_ALMA_VPS', 108).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
 
+    # ── Rocky Linux ───────────────────────────────────────────────
+    'rocky-vps' => {
+      id: ENV.fetch('TEMPLATE_ROCKY_VPS', 106).to_i,
+      bridge: 'vmbr0',
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      connection: { type: 'ssh' },
+      os_family: 'rocky'
+    },
+
     # ── Fedora (RDP desktop) ──────────────────────────────────────
     'fedora-rdp' => {
-      id: ENV.fetch('TEMPLATE_FEDORA_RDP', 10_044).to_i,
+      id: ENV.fetch('TEMPLATE_FEDORA_RDP', 104).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'odin'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
+      credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'fedora'
     },
 
     # ── Windows (single template for both RDP and VPS) ────────────
     'windows-rdp' => {
-      id: ENV.fetch('TEMPLATE_WINDOWS_RDP', 1001).to_i,
+      id: ENV.fetch('TEMPLATE_WINDOWS_RDP', 102).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_WINDOWS_ADMIN_USER', 'Administrator'), pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_WINDOWS_ADMIN_USER', 'ansible'), pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     }
@@ -140,11 +165,12 @@ class VmProvisioningService
       storage_gb = params['storage_gb'] || 60
       hostname = params['hostname'].presence
       management_type = params['management_type'] || 'unmanaged'
-      client_whitelist_ip = params['whitelist_ip']
       country_code = params['country_code'].to_s.upcase
+      proxy_config = params['proxy'] || {}
+      
       if %w[CA CANADA].include?(country_code)
-        @logger.info('Country is Canada, skipping whitelist_ip for VM')
-        client_whitelist_ip = nil
+        @logger.info("Country is #{country_code}, skipping proxy config for VM")
+        proxy_config = {}
       end
       root_password = params['root_password'] || generate_secure_password
 
@@ -168,7 +194,7 @@ class VmProvisioningService
       end
 
       # Creation (Clone)
-      create_vm(pve_vmid, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge)
+      create_vm(pve_vmid, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge, os_template)
 
       mac_address = get_vm_mac_address(pve_vmid)
 
@@ -195,7 +221,7 @@ class VmProvisioningService
       if ansible_available?
         # We pass custom_port to ansible so it can configure the guest OS
         params_with_port = params.merge('custom_port' => custom_port)
-        run_ansible_step(pve_vmid, actual_ip, template_config, root_password, params_with_port, hostname, management_type, os_template, client_whitelist_ip)
+        run_ansible_step(pve_vmid, actual_ip, template_config, root_password, params_with_port, hostname, management_type, os_template, proxy_config)
       else
         @logger.warn('[VmProvisioningService] Ansible not found in container! Skipping playbook')
       end
@@ -359,22 +385,22 @@ class VmProvisioningService
   def normalize_template_name(name)
     name = name.to_s.downcase.strip
     
-    # Direct mappings for common frontend strings
-    return 'ubuntu-22-04' if name.include?('ubuntu') && (name.include?('22') || name.include?('server'))
-    return 'ubuntu-vps'   if name == 'ubuntu-vps'
-    return 'alma-vps'     if name.include?('alma')
-    return 'fedora-rdp'   if name.include?('fedora')
+    # RDP Priority
+    return 'ubuntu-rdp'   if name.include?('ubuntu') && name.include?('rdp')
+    return 'fedora-rdp'   if name.include?('fedora') && name.include?('rdp')
+    return 'windows-rdp'  if name.include?('windows')
     
-    # Windows: single template handles both RDP and VPS
-    return 'windows-rdp' if name.include?('windows')
+    # VPS Priority
+    return 'ubuntu-vps'   if name.include?('ubuntu')
+    return 'alma-vps'     if name.include?('alma')
+    return 'rocky-vps'    if name.include?('rocky')
+    return 'debian-vps'   if name.include?('debian')
+    return 'fedora-rdp'   if name.include?('fedora') # Fallback for fedora
     
     # Fallback to key if it exists in TEMPLATES
     return name if TEMPLATES.key?(name)
     
-    # Final fallbacks for generic OS names
-    return 'ubuntu-22-04' if name.include?('ubuntu')
-    
-    name # Return as is if no match, validation will catch it
+    name 
   end
 
   # Generate a random port in 10000-59999 that isn't already used by another VM
@@ -484,7 +510,7 @@ class VmProvisioningService
     raise 'No available VM IDs in range'
   end
 
-  def create_vm(vm_id, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge)
+  def create_vm(vm_id, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge, os_template)
     @logger.info("Creating VM #{vm_id} from template #{template_id} via API")
 
     # 1. Clone
@@ -507,8 +533,19 @@ class VmProvisioningService
       cores: cpu_cores,
       memory: ram_mb,
       net0: "virtio,bridge=#{bridge},firewall=1",
-      agent: 1 # Ensure Guest Agent is enabled for IP discovery
+      agent: 1, # Ensure Guest Agent is enabled for IP discovery
+      machine: "pc-q35-9.0" # Use a more compatible machine type
     }
+
+    # RDP/Windows specific optimizations for performance and stability
+    if os_template.include?('rdp') || os_template.include?('windows')
+      config_params.merge!({
+        scsihw: 'virtio-scsi-pci',
+        cpu: 'host',
+        vga: 'virtio,memory=128',
+        ostype: 'win11' # Default for modern Windows/RDP templates
+      })
+    end
 
     @logger.info("Updating VM config for #{vm_id}: #{config_params}")
     response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config", config_params)
@@ -605,7 +642,7 @@ class VmProvisioningService
 
           interface['ip-addresses'].each do |ip_info|
             next unless ip_info['ip-address-type'] == 'ipv4'
-            next if ip_info['ip-address'].start_with?('127.')
+            next if ip_info['ip-address'].start_with?('127.', '169.254.')
 
             actual_ip = ip_info['ip-address']
             actual_mac = interface['hardware-address']
@@ -684,7 +721,7 @@ class VmProvisioningService
     end
   end
 
-  def run_ansible_step(vm_id, actual_ip, template_config, root_password, params, hostname, management_type, os_template, client_whitelist_ip)
+  def run_ansible_step(vm_id, actual_ip, template_config, root_password, params, hostname, management_type, os_template, proxy_config)
     vm_type = params['vm_type']
     ansible_username = template_config[:credentials][:user]
     ansible_password = template_config[:credentials][:pass]
@@ -703,9 +740,8 @@ class VmProvisioningService
         os_family: template_config[:os_family], # Pass family for logic
         root_password: root_password,
         rdp_password: root_password,
-        whitelist_ip: client_whitelist_ip,
         ip_address: actual_ip,
-        proxy_params: params.slice('proxy_ip', 'proxy_port', 'proxy_username', 'proxy_password', 'proxy_protocol')
+        proxy_params: proxy_config
       )
 
       result = execute_ansible_command(inventory_path, playbook_path, extra_vars)
@@ -733,7 +769,7 @@ class VmProvisioningService
   inventory_path
   end
   # Build extra_vars hash for the Ansible playbook, including proxy_config if proxy params exist
-  def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:, whitelist_ip:,
+  def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:,
                        ip_address: nil, proxy_params: {})
     vars = {
       vm_id: vm_id,
@@ -747,16 +783,14 @@ class VmProvisioningService
       ip_address: ip_address
     }
 
-    vars[:whitelist_ip] = whitelist_ip if whitelist_ip.present?
-
     # Build the proxy_config dict that playbooks expect
-    if proxy_params['proxy_ip'].present?
+    if proxy_params['ip'].present?
       vars[:proxy_config] = {
-        protocol: proxy_params['proxy_protocol'] || 'http',
-        proxy_ip: proxy_params['proxy_ip'],
-        proxy_port: proxy_params['proxy_port'],
-        proxy_username: proxy_params['proxy_username'] || '',
-        proxy_password: proxy_params['proxy_password'] || ''
+        protocol: proxy_params['protocol'] || 'http',
+        proxy_ip: proxy_params['ip'],
+        proxy_port: proxy_params['port'],
+        proxy_username: proxy_params['username'] || '',
+        proxy_password: proxy_params['password'] || ''
       }
     end
 

@@ -14,6 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function ResWallet() {
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
     const isEnterprise = user?.reseller_type === "infrastructure";
+    const isSingleProduct = user?.reseller_type === "single_product";
+    const isBalanceBased = !isEnterprise; // api_only + single_product use balance
+    const minDeposit = isSingleProduct ? 500 : 1500;
 
     const [balance, setBalance] = useState(0);
     const [earningsBalance, setEarningsBalance] = useState(0);
@@ -51,8 +54,8 @@ export default function ResWallet() {
 
     const handleDeposit = async () => {
         const amount = parseFloat(depositAmount);
-        if (isNaN(amount) || amount < 1000) {
-            toast.error("Minimum deposit for API resellers is $1,000.00");
+        if (isNaN(amount) || amount < minDeposit) {
+            toast.error(`Minimum deposit for ${isSingleProduct ? 'Single Product' : 'API'} resellers is $${minDeposit.toLocaleString()}.00`);
             return;
         }
 
@@ -166,7 +169,7 @@ export default function ResWallet() {
                         {isEnterprise ? "Manage your partnership earnings and infrastructure fees." : "Manage your API credits and top-ups."}
                     </p>
                 </div>
-                {!isEnterprise && (
+                {isBalanceBased && (
                     <Button
                         onClick={() => setIsDepositModalOpen(true)}
                         className="bg-primary text-primary-foreground shadow-xl hover:brightness-110 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
@@ -188,7 +191,7 @@ export default function ResWallet() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* Balance Card - API ONLY */}
-                {!isEnterprise && (
+                {isBalanceBased && (
                     <Card className="border-none bg-gradient-to-br from-primary to-indigo-700 text-white shadow-2xl relative overflow-hidden group rounded-3xl p-2">
                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
                             <WalletIcon className="h-40 w-40" />
@@ -200,7 +203,7 @@ export default function ResWallet() {
                             <div className="text-5xl font-black tracking-tighter">${balance.toFixed(2)}</div>
                             <div className="mt-6 flex items-center gap-2 text-[10px] bg-white/10 w-fit px-4 py-1.5 rounded-full border border-white/20 font-bold uppercase tracking-wider backdrop-blur-sm">
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                Minimum Top-up: $1,000.00
+                                Minimum Top-up: ${minDeposit.toLocaleString()}.00
                             </div>
                         </CardContent>
                     </Card>
@@ -274,12 +277,12 @@ export default function ResWallet() {
             </div>
 
             {/* Deposit Dialog - API ONLY */}
-            {!isEnterprise && (
+            {isBalanceBased && (
                 <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
                     <DialogContent className="rounded-3xl border-none shadow-2xl sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-black tracking-tight">Add Credits</DialogTitle>
-                            <DialogDescription className="font-medium text-muted-foreground">Top up your API balance. Minimum requirement is $1,000.00.</DialogDescription>
+                            <DialogDescription className="font-medium text-muted-foreground">Top up your API balance. Minimum requirement is ${minDeposit.toLocaleString()}.00.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-6 py-6">
                             <div className="grid gap-3">
@@ -289,8 +292,8 @@ export default function ResWallet() {
                                     <Input
                                         id="amount"
                                         type="number"
-                                        min="1000"
-                                        placeholder="1000.00"
+                                        min={minDeposit}
+                                        placeholder={`${minDeposit}.00`}
                                         value={depositAmount}
                                         onChange={(e) => setDepositAmount(e.target.value)}
                                         className="text-xl font-black pl-8 py-7 rounded-2xl bg-muted/30 border-none ring-offset-background focus-visible:ring-primary"
@@ -367,7 +370,7 @@ export default function ResWallet() {
                             <Button variant="ghost" onClick={() => setIsDepositModalOpen(false)} className="rounded-2xl font-bold py-6">Cancel</Button>
                             <Button
                                 onClick={handleDeposit}
-                                disabled={isProcessing || !depositAmount || parseFloat(depositAmount) < 1000}
+                                disabled={isProcessing || !depositAmount || parseFloat(depositAmount) < minDeposit}
                                 className="rounded-2xl font-black py-6 px-8 bg-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
                             >
                                 {isProcessing ? "Connecting..." : "Initialize Payment"}

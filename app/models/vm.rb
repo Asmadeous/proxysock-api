@@ -13,6 +13,7 @@ class Vm < ApplicationRecord
     state :provisioning
     state :active
     state :failed
+    state :expired
     state :terminated
 
     event :start_provisioning do
@@ -28,7 +29,11 @@ class Vm < ApplicationRecord
     end
 
     event :terminate do
-      transitions from: %i[active failed provisioning], to: :terminated
+      transitions from: %i[active failed provisioning expired], to: :terminated
+    end
+
+    event :expire do
+      transitions from: :active, to: :expired
     end
   end
 
@@ -88,6 +93,12 @@ class Vm < ApplicationRecord
       fail!
       raise e
     end
+  end
+
+  def expire!
+    service = VmProvisioningService.new(nil, Rails.logger)
+    service.stop_vm(proxmox_vm_id)
+    expire # Transition to expired state
   end
 
   def terminate!

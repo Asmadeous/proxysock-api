@@ -32,6 +32,7 @@ module Admin
             total: Reseller.count,
             api_only: Reseller.where(reseller_type: 'api_only').count,
             enterprise: Reseller.where(reseller_type: 'infrastructure').count,
+            single_product: Reseller.where(reseller_type: 'single_product').count,
             total_balance: WalletTransaction.joins(:wallet)
                            .where(wallets: { owner_type: 'Reseller', wallet_type: 'main' })
                            .sum(:amount).to_f
@@ -100,6 +101,7 @@ module Admin
         end
         updates[:dedicated_api_key] = params[:dedicated_api_key] if params.key?(:dedicated_api_key)
         updates[:customer_email] = params[:customer_email] if params.key?(:customer_email)
+        updates[:allowed_product_category_id] = params[:allowed_product_category_id] if params.key?(:allowed_product_category_id)
         @reseller.update!(updates) if updates.any?
         record_audit_log('reseller.configured', @reseller)
         render json: reseller_json(@reseller)
@@ -134,11 +136,16 @@ module Admin
           subscription_expires_at: r.subscription_expires_at,
           dedicated_api_key: r.dedicated_api_key,
           customer_email: r.customer_email,
+          allowed_product_category_id: r.allowed_product_category_id,
+          allowed_product_category_name: r.allowed_product_category&.name,
           total_orders: r.orders.count,
           has_affiliate: r.affiliate.present?,
           created_at: r.created_at
         }
         if full
+          data[:users] = r.users.select(:id, :email, :first_name, :last_name, :status, :created_at).map do |u|
+            { id: u.id, email: u.email, name: "#{u.first_name} #{u.last_name}".strip, status: u.status, created_at: u.created_at }
+          end
           data[:orders] = r.orders.order(created_at: :desc).limit(20).map do |o|
             { id: o.id, product: o.product&.name, status: o.status, total: o.total_amount, created_at: o.created_at }
           end

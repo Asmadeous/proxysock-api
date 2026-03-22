@@ -326,9 +326,9 @@ class MyProxyApiClient
     end
   end
 
-  # Authenticate and return a JWT token (cached for the lifetime of this object).
+  # Authenticate and return a JWT token (cached until shortly before expiration).
   def fetch_token
-    return @token if @token
+    return @token if @token && @token_expires_at && Time.current < @token_expires_at
 
     endpoint = "#{ROOT_URL}/v1/getToken"
     uri      = URI(endpoint)
@@ -345,6 +345,9 @@ class MyProxyApiClient
     data   = JSON.parse(response.body)
     @token = data.dig('data', 'token') || data['token']
     raise 'MyProxyApi: No token in auth response' if @token.blank?
+
+    # Token lasts 60s, expire cache at 50s just to be safe
+    @token_expires_at = Time.current + 50.seconds
 
     @token
   end

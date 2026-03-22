@@ -8,19 +8,9 @@ class ResellOrder < ApplicationRecord
 
   belongs_to :order # The master order
   belongs_to :reseller
-  belongs_to :orderable, polymorphic: true # VmOrder, etc
+  belongs_to :orderable, polymorphic: true # VmOrder, EsimOrder, VpnOrder, etc.
 
   # Delegations for convenience
   delegate :status, :total_amount, :currency, :order_number, to: :order
-
-  validate :validate_orderable_type
-
-  private
-
-  def validate_orderable_type
-    allowed_types = ['VmOrder']
-    return if allowed_types.include?(orderable_type)
-
-    errors.add(:orderable_type, "is not allowed for resellers. Allowed: #{allowed_types.join(', ')}")
-  end
 end
+

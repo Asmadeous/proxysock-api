@@ -9,7 +9,8 @@ module Admin
 
         # Filtering
         transactions = transactions.where(status: params[:status]) if params[:status].present?
-        transactions = transactions.where('id::text ILIKE ?', "%#{params[:q]}%") if params[:q].present?
+        transactions = transactions.joins(:wallet).where(wallets: { owner_type: params[:entity_type] }) if params[:entity_type].present?
+        transactions = transactions.where('wallet_transactions.id::text ILIKE ?', "%#{params[:q]}%") if params[:q].present?
 
         page_num = (params[:page] || 1).to_i
         per_page = (params[:per] || 50).to_i

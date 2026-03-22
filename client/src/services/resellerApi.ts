@@ -112,6 +112,16 @@ export const cancelResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/cancel`);
 export const fetchOrderCredentials = (id: string) =>
     resellerApi.get(`/orders/${id}/credentials`);
+export const updateProxyCredentials = (id: string, data: { username?: string; password?: string }) =>
+    resellerApi.post(`/orders/${id}/update_credentials`, data);
+export const rotateProxyIp = (id: string) =>
+    resellerApi.post(`/orders/${id}/rotate_ip`);
+export const changeProxyProtocol = (id: string, protocol: string) =>
+    resellerApi.post(`/orders/${id}/change_protocol`, { protocol });
+export const whitelistAdd = (id: string, ip: string, description?: string) =>
+    resellerApi.post(`/orders/${id}/whitelist`, { ip, description });
+export const whitelistDelete = (id: string, ip: string) =>
+    resellerApi.delete(`/orders/${id}/whitelist`, { data: { ip } });
 
 // ── Webhook Endpoints ─────────────────────────────
 export const fetchResellerWebhooks = () =>

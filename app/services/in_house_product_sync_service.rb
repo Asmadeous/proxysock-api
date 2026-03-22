@@ -6,7 +6,7 @@ class InHouseProductSyncService
     @data_path = Rails.root.join('db', 'data', 'inhouse_products.json')
   end
 
-  def sync
+  def sync(type: nil)
     unless File.exist?(@data_path)
       @logger.error("[InHouseProductSyncService] Data file not found at #{@data_path}")
       return
@@ -16,6 +16,9 @@ class InHouseProductSyncService
     @logger.info("[InHouseProductSyncService] Starting sync of #{products_data.size} products...")
 
     products_data.each do |data|
+      # If a specific type is requested, only sync products of that type
+      next if type.present? && data['product_type'] != type.to_s
+
       sync_product(data)
     end
 
