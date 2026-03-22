@@ -20,14 +20,14 @@ class AffiliateService
   # Enrolment
   # ─────────────────────────────────────
 
-  def enrol!
+  def enrol!(commission_rate: nil, discount_rate: nil)
     return if self.class.halted?
     raise AlreadyEnrolledError, "#{@entity.class} is already an affiliate" if @entity.affiliate.present?
 
     Affiliate.create!(
       affiliatable: @entity,
-      commission_rate: default_commission_rate,
-      discount_rate: default_discount_rate
+      commission_rate: commission_rate || default_commission_rate,
+      discount_rate: discount_rate || default_discount_rate
     )
   end
 

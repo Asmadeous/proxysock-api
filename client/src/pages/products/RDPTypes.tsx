@@ -62,9 +62,7 @@ export default function RDPTypes() {
       const countriesFallback: Country[] = [
         { code: "US", name: "United States", flag: "🇺🇸" },
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
-        { code: "DE", name: "Germany", flag: "🇩🇪" },
         { code: "CA", name: "Canada", flag: "🇨🇦" },
-        { code: "AU", name: "Australia", flag: "🇦🇺" },
       ];
 
       setCountries(countriesFallback);

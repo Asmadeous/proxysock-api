@@ -11,16 +11,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 interface ResStoreProps {
     onSelectCategory: (category: string) => void;
+    resellerType?: string;
+    allowedCategoryName?: string;
 }
 
-const CATEGORIES = [
+const ALL_CATEGORIES = [
     {
         id: "proxy",
         name: "Proxies",
         description: "Datacenter, Residential, and Mobile proxies",
         icon: GlobeAltIcon,
         color: "blue",
-        tabId: "buy-proxies"
+        tabId: "buy-proxies",
+        categoryName: "proxies"
     },
     {
         id: "vps",
@@ -28,7 +31,8 @@ const CATEGORIES = [
         description: "High-performance virtual private servers",
         icon: CpuChipIcon,
         color: "purple",
-        tabId: "buy-vps"
+        tabId: "buy-vps",
+        categoryName: "vms"
     },
     {
         id: "rdp",
@@ -36,7 +40,8 @@ const CATEGORIES = [
         description: "Windows instances with full admin access",
         icon: ComputerDesktopIcon,
         color: "orange",
-        tabId: "buy-rdp"
+        tabId: "buy-rdp",
+        categoryName: "vms"
     },
     {
         id: "esim",
@@ -44,7 +49,8 @@ const CATEGORIES = [
         description: "Travel data plans for 190+ countries",
         icon: DevicePhoneMobileIcon,
         color: "green",
-        tabId: "buy-esim"
+        tabId: "buy-esim",
+        categoryName: "esims"
     },
     {
         id: "vpn",
@@ -52,20 +58,44 @@ const CATEGORIES = [
         description: "Secure and private internet access",
         icon: ShieldCheckIcon,
         color: "red",
-        tabId: "buy-vpn"
+        tabId: "buy-vpn",
+        categoryName: "vpn"
     }
 ];
 
-export default function ResStore({ onSelectCategory }: ResStoreProps) {
+// Map allowed_product_category_name to the store category IDs
+const CATEGORY_NAME_MAP: Record<string, string[]> = {
+    "proxies": ["proxy"],
+    "vpn": ["vpn"],
+    "esims": ["esim"],
+    "vms": ["vps", "rdp"],
+};
+
+export default function ResStore({ onSelectCategory, resellerType, allowedCategoryName }: ResStoreProps) {
+    const isSingleProduct = resellerType === "single_product";
+
+    const categories = isSingleProduct && allowedCategoryName
+        ? ALL_CATEGORIES.filter(cat => {
+            const allowed = CATEGORY_NAME_MAP[allowedCategoryName.toLowerCase()] || [];
+            return allowed.includes(cat.id);
+        })
+        : ALL_CATEGORIES;
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-3xl font-bold text-foreground">Service Store</h1>
-                <p className="text-muted-foreground mt-2">Select a category to browse and configure our premium services.</p>
+                <h1 className="text-3xl font-bold text-foreground">
+                    {isSingleProduct ? "Your Products" : "Service Store"}
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                    {isSingleProduct
+                        ? "Browse and configure your assigned product category."
+                        : "Select a category to browse and configure our premium services."}
+                </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                     <motion.div
                         key={cat.id}
                         whileHover={{ y: -5 }}
@@ -94,6 +124,13 @@ export default function ResStore({ onSelectCategory }: ResStoreProps) {
                     </motion.div>
                 ))}
             </div>
+
+            {isSingleProduct && categories.length === 0 && (
+                <div className="text-center py-16">
+                    <p className="text-muted-foreground text-lg">No product category has been assigned to your account yet.</p>
+                    <p className="text-muted-foreground text-sm mt-2">Contact your administrator to configure your allowed product category.</p>
+                </div>
+            )}
         </div>
     );
 }

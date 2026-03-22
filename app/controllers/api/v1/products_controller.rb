@@ -7,11 +7,15 @@ module Api
 
       # GET /api/v1/products
       def index
-        cache_key = "products/reseller/index/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
+        cache_key = "products/reseller/index/#{current_reseller.reseller_type}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = if current_reseller.infrastructure?
                     Product.all.includes(:product_pricings, :product_category)
+                  elsif current_reseller.single_product?
+                    Product.for_resellers
+                           .where(product_category_id: current_reseller.allowed_product_category_id)
+                           .includes(:product_pricings, :product_category)
                   else
                     Product.for_resellers.includes(:product_pricings, :product_category)
                   end
@@ -46,10 +50,15 @@ module Api
 
       # GET /api/v1/products/:id
       def show
-        cache_key = "products/reseller/show/#{params[:id]}"
+        cache_key = "products/reseller/show/#{current_reseller.reseller_type}/#{params[:id]}"
 
         product_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
-          product = Product.for_resellers.find(params[:id])
+          scope = if current_reseller.single_product?
+                    Product.for_resellers.where(product_category_id: current_reseller.allowed_product_category_id)
+                  else
+                    Product.for_resellers
+                  end
+          product = scope.find(params[:id])
           { product: serialize_product(product) }.to_json
         end
 

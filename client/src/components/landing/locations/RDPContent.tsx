@@ -37,7 +37,9 @@ export const RDPContent = ({ filteredInfrastructure, handleCityClick }: { filter
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {region.countries.map((country: any) => (
+            {region.countries
+              .filter((country: any) => ["United States", "United Kingdom", "Canada"].includes(country.country))
+              .map((country: any) => (
               <div
                 key={country.country}
                 className="bg-card border border-border rounded-2xl p-6"

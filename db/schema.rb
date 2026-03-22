@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -584,6 +584,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "payouts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "gateway", null: false
+    t.jsonb "gateway_response", default: {}
+    t.jsonb "payment_details", default: {}
+    t.string "reference"
+    t.uuid "reseller_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reference"], name: "index_payouts_on_reference", unique: true
+    t.index ["reseller_id"], name: "index_payouts_on_reseller_id"
+    t.index ["status"], name: "index_payouts_on_status"
+  end
+
   create_table "premium_isp_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "active"
     t.datetime "created_at", null: false
@@ -769,6 +785,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
   end
 
   create_table "resellers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "allowed_product_category_id"
     t.string "api_key_hash"
     t.string "company_name"
     t.datetime "created_at", null: false
@@ -790,6 +807,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
     t.integer "token_request_count", default: 0
     t.datetime "updated_at", null: false
     t.string "username"
+    t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
     t.index ["referred_by_code"], name: "index_resellers_on_referred_by_code"
@@ -1079,6 +1097,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
     t.string "last_name"
     t.datetime "last_seen_at"
     t.jsonb "metadata"
+    t.string "owner_type", default: "platform", null: false
     t.string "password_digest"
     t.datetime "password_reset_sent_at"
     t.string "password_reset_token"
@@ -1092,6 +1111,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["email"], name: "index_users_on_email"
+    t.index ["owner_type"], name: "index_users_on_owner_type"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
     t.index ["reseller_id"], name: "index_users_on_reseller_id"
@@ -1265,6 +1285,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
   add_foreign_key "orders", "product_pricings"
   add_foreign_key "orders", "products"
   add_foreign_key "payment_gateway_transactions", "transactions"
+  add_foreign_key "payouts", "resellers"
   add_foreign_key "premium_isp_proxies", "premium_isp_proxy_orders"
   add_foreign_key "premium_isp_proxy_orders", "orders"
   add_foreign_key "product_analytics", "products"
@@ -1275,6 +1296,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_18_044319) do
   add_foreign_key "proxy_assignments", "proxy_instances"
   add_foreign_key "reseller_orders", "orders"
   add_foreign_key "reseller_orders", "resellers"
+  add_foreign_key "resellers", "product_categories", column: "allowed_product_category_id"
   add_foreign_key "residential_proxy_accounts", "residential_rotating_proxies"
   add_foreign_key "residential_rotating_proxies", "orders"
   add_foreign_key "residential_rotating_proxies", "residential_rotating_proxy_orders"

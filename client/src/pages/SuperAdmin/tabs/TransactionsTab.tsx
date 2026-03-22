@@ -19,17 +19,21 @@ export default function TransactionsTab() {
     const [transactions, setTransactions] = useState<TxRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("");
+    const [entityTypeFilter, setEntityTypeFilter] = useState("");
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetchAdminTransactions();
+            const params: Record<string, string> = { page: "1", per: "50" };
+            if (entityTypeFilter) params.entity_type = entityTypeFilter;
+
+            const res = await fetchAdminTransactions(params);
             const data = res.data.transactions || [];
             const sorted = (data || []).sort((a: TxRow, b: TxRow) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             setTransactions(sorted as TxRow[]);
         } catch { toast.error("Failed to load transactions"); }
         finally { setLoading(false); }
-    }, []);
+    }, [entityTypeFilter]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -62,19 +66,33 @@ export default function TransactionsTab() {
         <div className="space-y-4">
             <h2 className="text-2xl font-bold text-foreground">Transactions</h2>
 
-            {/* Filter tabs */}
-            <div className="flex flex-wrap gap-2">
-                {tabs.map(({ key, label, count }) => (
-                    <button
-                        key={label}
-                        onClick={() => setStatusFilter(key)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2
-              ${statusFilter === key ? "bg-red-500 text-foreground" : "bg-card text-muted-foreground hover:text-foreground border border-border"}`}
+            {/* Filter controls */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="flex flex-wrap gap-2">
+                    {tabs.map(({ key, label, count }) => (
+                        <button
+                            key={label}
+                            onClick={() => setStatusFilter(key)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2
+                ${statusFilter === key ? "bg-red-500 text-foreground" : "bg-card text-muted-foreground hover:text-foreground border border-border"}`}
+                        >
+                            {label}
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs ${statusFilter === key ? "bg-white/20" : "bg-muted"}`}>{count}</span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="shrink-0 flex items-center">
+                    <select
+                        value={entityTypeFilter}
+                        onChange={(e) => setEntityTypeFilter(e.target.value)}
+                        className="bg-card text-foreground border border-border rounded-lg text-sm px-3 py-2 outline-none hover:border-muted-foreground/30 transition-colors"
                     >
-                        {label}
-                        <span className={`px-1.5 py-0.5 rounded-full text-xs ${statusFilter === key ? "bg-white/20" : "bg-muted"}`}>{count}</span>
-                    </button>
-                ))}
+                        <option value="">All Customers</option>
+                        <option value="User">Users Only</option>
+                        <option value="Reseller">Resellers Only</option>
+                    </select>
+                </div>
             </div>
 
             <DataTable columns={columns} data={filtered} loading={loading} emptyMessage="No transactions found" />

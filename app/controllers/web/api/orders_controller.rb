@@ -408,17 +408,10 @@ module Web
             status: vm&.status
           }
         when 'proxy'
-          if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
-            api_res = order.metadata['my_proxy_api_response']
-            render json: {
-              type: 'proxy',
-              ip: api_res['ip'],
-              port: api_res['port'] || api_res['http_port'] || api_res['socks5_port'],
-              username: api_res['username'],
-              password: api_res['password'],
-              protocol: order.metadata['protocol'] || 'http',
-              provider_order_id: api_res['order_id']
-            }
+          service = ProxyManagementService.new(order)
+          creds = service.credentials
+          if creds
+            render json: creds
           else
             proxy = order.proxy
             render json: {
@@ -594,112 +587,55 @@ module Web
       # POST /web/api/orders/:id/change_protocol
       def change_protocol
         order = current_actor.orders.find(params[:id])
-        return render json: { error: 'Action not supported for this product' }, status: :bad_request unless order.product.provider_type == 'myproxyapi'
-
-        provider_order_id = extract_provider_order_id(order)
-        return render json: { error: 'Provider order ID not found' }, status: :not_found unless provider_order_id.present?
-
         begin
-          client = MyProxyApiClient.new
-          response = client.change_protocol(provider_order_id, params[:protocol])
-
-          order.metadata['protocol'] = params[:protocol]
-          order.save!
-
-          render json: { message: 'Protocol updated successfully', response: response }
+          result = ProxyManagementService.new(order).change_protocol(params[:protocol])
+          render json: result
         rescue StandardError => e
-          render json: { error: "Failed to update protocol: #{e.message}" }, status: :service_unavailable
+          render json: { error: e.message }, status: :unprocessable_entity
         end
       end
 
       # POST /web/api/orders/:id/update_credentials
       def update_credentials
         order = current_actor.orders.find(params[:id])
-        return render json: { error: 'Action not supported for this product' }, status: :bad_request unless order.product.provider_type == 'myproxyapi'
-
-        provider_order_id = extract_provider_order_id(order)
-        return render json: { error: 'Provider order ID not found' }, status: :not_found unless provider_order_id.present?
-
         begin
-          client = MyProxyApiClient.new
-          # VPN orders use a different credential change endpoint
-          if order.product.product_type == 'vpn'
-            response = client.update_vpn_credentials(provider_order_id, params[:username], params[:password])
-            full_details = client.view_vpn_order(provider_order_id)
-          else
-            response = client.update_credentials(provider_order_id, params[:username], params[:password])
-            full_details = client.view_order(provider_order_id)
-          end
-
-          order.metadata['my_proxy_api_response'] = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-          order.save!
-
-          render json: { message: 'Credentials updated successfully', response: response, order: serialize_order(order.reload) }
+          result = ProxyManagementService.new(order).update_credentials(params[:username], params[:password])
+          render json: result.merge(order: serialize_order(order.reload))
         rescue StandardError => e
-          render json: { error: "Failed to update credentials: #{e.message}" }, status: :service_unavailable
+          render json: { error: e.message }, status: :unprocessable_entity
         end
       end
 
       # POST /web/api/orders/:id/rotate_ip
       def rotate_ip
         order = current_actor.orders.find(params[:id])
-        return render json: { error: 'Action not supported for this product' }, status: :bad_request unless order.product.provider_type == 'myproxyapi'
-
-        provider_order_id = extract_provider_order_id(order)
-        return render json: { error: 'Provider order ID not found' }, status: :not_found unless provider_order_id.present?
-
         begin
-          client = MyProxyApiClient.new
-          response = client.rotate_ip(provider_order_id)
-
-          full_details = client.view_order(provider_order_id)
-          order.metadata['my_proxy_api_response'] = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-          order.save!
-
-          render json: { message: 'IP replacement triggered', response: response, order: serialize_order(order.reload) }
+          result = ProxyManagementService.new(order).rotate_ip
+          render json: result.merge(order: serialize_order(order.reload))
         rescue StandardError => e
-          render json: { error: "Failed to replace IP: #{e.message}" }, status: :service_unavailable
+          render json: { error: e.message }, status: :unprocessable_entity
         end
       end
 
       # POST /web/api/orders/:id/whitelist
       def whitelist_add
         order = current_actor.orders.find(params[:id])
-        return render json: { error: 'Action not supported for this product' }, status: :bad_request unless order.product.provider_type == 'myproxyapi'
-
-        provider_order_id = extract_provider_order_id(order)
-        return render json: { error: 'Provider order ID not found' }, status: :not_found unless provider_order_id.present?
-
         begin
-          client = MyProxyApiClient.new
-          # Mobile orders use a different whitelist endpoint
-          response = if order.product.product_category&.slug == 'mobile'
-                       client.mobile_update_whitelisted_ip(provider_order_id, params[:ip])
-                     else
-                       client.whitelist_add(provider_order_id, params[:ip], params[:description])
-                     end
-
-          render json: { message: 'IP added to whitelist', response: response }
+          result = ProxyManagementService.new(order).whitelist_add(params[:ip], params[:description])
+          render json: result
         rescue StandardError => e
-          render json: { error: "Failed to add IP to whitelist: #{e.message}" }, status: :service_unavailable
+          render json: { error: e.message }, status: :unprocessable_entity
         end
       end
 
       # DELETE /web/api/orders/:id/whitelist
       def whitelist_delete
         order = current_actor.orders.find(params[:id])
-        return render json: { error: 'Action not supported for this product' }, status: :bad_request unless order.product.provider_type == 'myproxyapi'
-
-        provider_order_id = extract_provider_order_id(order)
-        return render json: { error: 'Provider order ID not found' }, status: :not_found unless provider_order_id.present?
-
         begin
-          client = MyProxyApiClient.new
-          response = client.whitelist_delete(provider_order_id, params[:ip])
-
-          render json: { message: 'IP removed from whitelist', response: response }
+          result = ProxyManagementService.new(order).whitelist_delete(params[:ip])
+          render json: result
         rescue StandardError => e
-          render json: { error: "Failed to remove IP from whitelist: #{e.message}" }, status: :service_unavailable
+          render json: { error: e.message }, status: :unprocessable_entity
         end
       end
 

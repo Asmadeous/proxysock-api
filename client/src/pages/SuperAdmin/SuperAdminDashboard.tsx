@@ -15,6 +15,8 @@ import {
   ChartBarSquareIcon,
   InboxIcon,
   TicketIcon,
+  AdjustmentsHorizontalIcon,
+  CircleStackIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
 import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
@@ -38,6 +40,8 @@ const GuestChatsTab = lazy(() => import("./tabs/GuestChatsTab"));
 const SupportChatsTab = lazy(() => import("./tabs/SupportChatsTab"));
 const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
 const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
+const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
+const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -55,6 +59,8 @@ const sidebarItems: SidebarItem[] = [
   { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleLeftRightIcon },
   { id: "monitoring", name: "Monitoring", icon: ChartBarSquareIcon },
   { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
+  { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
+  { id: "database", name: "Database", icon: CircleStackIcon },
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
 
@@ -74,6 +80,8 @@ const TAB_COMPONENTS: Record<string, any> = {
   support_chats: SupportChatsTab,
   monitoring: MonitoringTab,
   promo_codes: PromoCodesTab,
+  settings: SettingsTab,
+  database: DatabaseTab,
   logs: SystemLogsTab,
 };
 

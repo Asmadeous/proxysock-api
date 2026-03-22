@@ -68,20 +68,37 @@ module Admin
         head :no_content
       end
 
-      def sync_inhouse
-        InHouseProductSyncService.new.sync
-        render json: { message: 'In-house products synced successfully' }
+      def sync_proxies
+        ProductSyncService.new.sync_all_products
+        render json: { message: 'Proxies synced successfully' }
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
-      def sync_external
-        # Sync MyProxyApi
-        ProductSyncService.new.sync_all_products
-        # Sync EsimAccess
+      def sync_esims
         EsimSyncService.new.sync_packages!
+        render json: { message: 'eSIMs synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
 
-        render json: { message: 'External products synced successfully' }
+      def sync_vps
+        InHouseProductSyncService.new.sync(type: 'vps')
+        render json: { message: 'Cloud VPS products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_rdp
+        InHouseProductSyncService.new.sync(type: 'rdp')
+        render json: { message: 'RDP products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_vpn
+        InHouseProductSyncService.new.sync(type: 'vpn')
+        render json: { message: 'VPN products synced successfully' }
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end

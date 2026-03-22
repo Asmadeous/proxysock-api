@@ -38,7 +38,7 @@ RSpec.describe 'Web::Api::Auth SSO', type: :request do
           get '/web/api/auth/google/callback'
         end.to change(User, :count).by(1)
 
-        user = User.last
+        user = User.find_by!(email: 'testuser@example.com')
         expect(user.email).to eq('testuser@example.com')
         expect(user.username).to eq('testuser')
         expect(user.status).to eq('active')
@@ -87,7 +87,7 @@ RSpec.describe 'Web::Api::Auth SSO', type: :request do
           get '/web/api/auth/google/callback'
         end.to change(User, :count).by(1)
 
-        user = User.last
+        user = User.find_by!(email: 'testuser@example.com')
         expect(user.username).to start_with('testuser_')
       end
     end

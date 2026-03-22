@@ -12,7 +12,6 @@
   vars:
     new_root_password: "{{ root_password }}"
     api_url: "{{ api_url | default('http://localhost:5000') }}"
-    api_key: "{{ api_key | default('your_api_key') }}"
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
     proxy_username: "{{ proxy_config.proxy_username | default('') }}"
@@ -400,7 +399,7 @@
         url: "{{ api_url }}/vm/{{ vm_id }}/status"
         method: POST
         headers:
-          Authorization: "Bearer {{ api_key }}"
+              Authorization: "Bearer {{ api_key }}"
           Content-Type: "application/json"
         body_format: json
         body:
@@ -421,7 +420,6 @@
         no_log: true
       when: 
         - api_url is defined
-        - api_key is defined 
         - vm_id is defined
       register: api_response
       failed_when: false

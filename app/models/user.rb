@@ -27,6 +27,16 @@ class User < ApplicationRecord
 
   belongs_to :reseller, optional: true
 
+  # Owner types for data separation:
+  # platform       = Direct customers of the platform (your own users)
+  # reseller_managed = Users created/managed by infrastructure resellers
+  OWNER_TYPES = %w[platform reseller_managed].freeze
+  validates :owner_type, inclusion: { in: OWNER_TYPES }
+
+  scope :platform_users, -> { where(owner_type: 'platform') }
+  scope :reseller_managed, -> { where(owner_type: 'reseller_managed') }
+
+
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :username, presence: true, uniqueness: { case_sensitive: false },
                        length: { minimum: 3, maximum: 30 },

@@ -101,7 +101,7 @@ export const VPSPlansSection = ({ trackConversion }: VPSPlansSectionProps) => {
             <GlobeAltIcon className="h-5 w-5 text-primary" />
             <p className="text-primary text-center text-sm font-manrope-semibold">
               🌍 Available in 5 Locations: USA • UK • Germany • Canada •
-              Australia
+              Netherlands
             </p>
           </div>
         </motion.div>

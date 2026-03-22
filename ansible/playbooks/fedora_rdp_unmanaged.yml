@@ -14,7 +14,6 @@
     admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
 
-    whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"  # unused now
 
     ansible_become_password: "{{ rdp_password }}"
     ansible_python_interpreter: /usr/bin/python3
@@ -229,7 +228,6 @@
               status: "configured"
               os_template: "{{ os_template | default('fedora') }}"
               management_type: "{{ management_type | default('basic') }}"
-              whitelist_ip: "{{ whitelist_ip }}"
               admin_configured: true
               rdp_configured: true
               configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
@@ -253,7 +251,6 @@
               status: "failed"
               os_template: "{{ os_template | default('fedora') }}"
               management_type: "{{ management_type | default('basic') }}"
-              whitelist_ip: "{{ whitelist_ip | default('') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
               failed_at: "{{ ansible_date_time.iso8601 }}"
             status_code: [200, 201, 202]

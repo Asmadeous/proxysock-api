@@ -10,8 +10,8 @@ class ExpirationCleanupJob < ApplicationJob
     expired_vms = Vm.where(status: 'active').where('expires_at < ?', Time.current)
     Rails.logger.info "Found #{expired_vms.count} expired VMs to terminate"
     expired_vms.find_each do |vm|
-      Rails.logger.info "Processing VM #{vm.id}, responds_to terminate!: #{vm.respond_to?(:terminate!)}, may_terminate: #{vm.may_terminate?}"
-      terminate_resource(vm)
+      Rails.logger.info "Processing VM #{vm.id}, responds_to expire!: #{vm.respond_to?(:expire!)}, may_expire: #{vm.may_expire?}"
+      expire_resource(vm)
     end
 
     # Mobile Proxies

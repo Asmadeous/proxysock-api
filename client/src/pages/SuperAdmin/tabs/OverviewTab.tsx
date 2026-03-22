@@ -68,17 +68,17 @@ export default function OverviewTab() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard title="Total Users" value={stats.users} icon={UsersIcon} loading={loading} change="+8.7%" />
-                <StatsCard title="Total Revenue" value={`$${stats.revenue.toFixed(2)}`} icon={BanknotesIcon} loading={loading} change="+23.1%" />
-                <StatsCard title="Transactions" value={stats.transactions} icon={CurrencyDollarIcon} loading={loading} change="+15.2%" />
-                <StatsCard title="Total Orders" value={stats.orders} icon={ClipboardDocumentListIcon} loading={loading} change="+12.4%" />
+                <StatsCard title="Total Users" value={stats.users} icon={UsersIcon} loading={loading} />
+                <StatsCard title="Total Revenue" value={`$${stats.revenue.toFixed(2)}`} icon={BanknotesIcon} loading={loading} />
+                <StatsCard title="Transactions" value={stats.transactions} icon={CurrencyDollarIcon} loading={loading} />
+                <StatsCard title="Total Orders" value={stats.orders} icon={ClipboardDocumentListIcon} loading={loading} />
             </div>
 
             {/* Secondary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <StatsCard title="Affiliates" value={stats.affiliates} icon={LinkIcon} loading={loading} />
-                <StatsCard title="Failed Orders" value={stats.failedOrders} icon={ShoppingCartIcon} loading={loading} positive={false} change={stats.failedOrders > 0 ? "Needs attention" : "0"} />
-                <StatsCard title="Pending Orders" value={stats.pendingOrders} icon={UserGroupIcon} loading={loading} change="In queue" />
+                <StatsCard title="Failed Orders" value={stats.failedOrders} icon={ShoppingCartIcon} loading={loading} positive={false} change={stats.failedOrders > 0 ? "Needs attention" : "All clear"} />
+                <StatsCard title="Pending Orders" value={stats.pendingOrders} icon={UserGroupIcon} loading={loading} change={stats.pendingOrders > 0 ? "In queue" : "None"} />
             </div>
 
             {/* Recent Orders */}

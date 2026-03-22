@@ -12,7 +12,6 @@
   vars:
     admin_password: "{{ rdp_password }}"
     api_url: "{{ api_url | default('') }}"
-    api_key: "{{ api_key | default('') }}"
     
   tasks:
     - block:

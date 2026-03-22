@@ -52,7 +52,7 @@ export default function PromoCodesTab() {
         try {
             const params: Record<string, string> = {};
             if (search) params.q = search;
-            const res = await adminApi.get("/admin/api/promo_codes", { params });
+            const res = await adminApi.get("/promo_codes", { params });
             setPromoCodes(res.data.promo_codes || []);
             setTotal(res.data.total || 0);
         } catch { toast.error("Failed to load promo codes"); }
@@ -64,7 +64,7 @@ export default function PromoCodesTab() {
     const handleCreate = async () => {
         setActionLoading(true);
         try {
-            await adminApi.post("/admin/api/promo_codes", {
+            await adminApi.post("/promo_codes", {
                 code: form.code,
                 discount_type: form.discount_type,
                 discount_value: parseFloat(form.discount_value),
@@ -88,7 +88,7 @@ export default function PromoCodesTab() {
         if (!editTarget) return;
         setActionLoading(true);
         try {
-            await adminApi.patch(`/admin/api/promo_codes/${editTarget.id}`, {
+            await adminApi.patch(`/promo_codes/${editTarget.id}`, {
                 discount_type: form.discount_type,
                 discount_value: parseFloat(form.discount_value),
                 max_uses: form.max_uses ? parseInt(form.max_uses) : null,
@@ -110,7 +110,7 @@ export default function PromoCodesTab() {
         if (!deleteTarget) return;
         setActionLoading(true);
         try {
-            await adminApi.delete(`/admin/api/promo_codes/${deleteTarget.id}`);
+            await adminApi.delete(`/promo_codes/${deleteTarget.id}`);
             toast.success("Promo code deleted");
             setDeleteTarget(null);
             loadPromoCodes();
