@@ -28,11 +28,11 @@ class Vm < ApplicationRecord
       transitions from: %i[pending provisioning], to: :failed
     end
 
-    event :terminate do
+    event :terminate, after: :cleanup_vm_on_proxmox do
       transitions from: %i[active failed provisioning expired], to: :terminated
     end
 
-    event :expire do
+    event :expire, after: :stop_vm_on_proxmox do
       transitions from: :active, to: :expired
     end
   end
@@ -95,20 +95,15 @@ class Vm < ApplicationRecord
     end
   end
 
-  def expire!
+  private
+
+  def stop_vm_on_proxmox
     service = VmProvisioningService.new(nil, Rails.logger)
     service.stop_vm(proxmox_vm_id)
-    expire # Transition to expired state
   end
 
-  def terminate!
+  def cleanup_vm_on_proxmox
     service = VmProvisioningService.new(nil, Rails.logger)
     service.cleanup_vm(proxmox_vm_id, ip_address, "vm-#{id}")
-
-    # Cleanup DNS
-    # dns_service = CloudflareDnsService.new
-    # dns_service.delete_vm_record(id)
-
-    terminate
   end
 end

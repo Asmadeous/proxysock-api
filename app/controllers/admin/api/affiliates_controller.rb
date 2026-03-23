@@ -20,8 +20,13 @@ module Admin
       # POST /admin/api/affiliates
       def create
         require_admin!
-        klass = params[:affiliatable_type]&.classify&.safe_constantize
-        unless klass && [User, Reseller].include?(klass)
+        klass = case params[:affiliatable_type]&.to_s&.downcase
+                when 'user' then User
+                when 'reseller' then Reseller
+                else nil
+                end
+
+        unless klass
           return render json: { error: 'Invalid entity type. Must be User or Reseller.' }, status: :unprocessable_entity
         end
 
