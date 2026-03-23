@@ -1,5 +1,5 @@
-import { useState, useEffect, Suspense, lazy } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, Suspense, lazy, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
     ShoppingBag,
@@ -15,13 +15,19 @@ import {
     BookOpen,
     DollarSign
 } from "lucide-react";
+
+
 import AdminSidebar from "../SuperAdmin/components/AdminSidebar";
+import { formatImageUrl } from "../../services/api";
 
 // Directly imported components for core tabs
 import ResOverview from "./components/ResOverview";
 import ResOrders from "./components/ResOrders";
 import ResProducts from "./components/ResProducts";
 import ResWallet from "./components/ResWallet";
+import ResellerCheckout from "./ResellerCheckout";
+
+
 
 // Lazy loaded components for less frequent views
 const ResStore = lazy(() => import("./components/ResStore"));
@@ -46,6 +52,16 @@ const API_ONLY_TABS = [
     { id: "logout", label: "Logout", icon: LogOut },
 ];
 
+const SINGLE_PRODUCT_TABS = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "store", label: "Products", icon: ShoppingBag },
+    { id: "orders", label: "Orders", icon: ListTodo },
+    { id: "wallet", label: "Wallet", icon: Wallet },
+    { id: "developer", label: "Developer", icon: Code },
+    { id: "settings", label: "Settings", icon: SettingsIcon },
+    { id: "logout", label: "Logout", icon: LogOut },
+];
+
 const ENTERPRISE_TABS = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "store", label: "Store", icon: ShoppingBag },
@@ -58,10 +74,9 @@ const ENTERPRISE_TABS = [
     { id: "logout", label: "Logout", icon: LogOut },
 ];
 
-const DEVELOPER_SUBTABS = [
-    { id: "api-docs", label: "API Docs", icon: BookOpen },
-    { id: "webhook-config", label: "Webhooks", icon: Webhook },
-];
+
+
+
 
 const TabLoader = () => (
     <div className="flex h-[60vh] w-full items-center justify-center">
@@ -72,19 +87,65 @@ const TabLoader = () => (
 export default function ResellerDashboard() {
     const [activeTab, setActiveTab] = useState("overview");
     const [devSubTab, setDevSubTab] = useState<string | null>(null);
+    const [cartCount, setCartCount] = useState(0);
+    const [resellerUser, setResellerUser] = useState(() => JSON.parse(localStorage.getItem("resellerUser") || "{}"));
     const navigate = useNavigate();
+    const location = useLocation();
 
-    // Read reseller data from localStorage (NOT from AuthContext which is for regular users)
-    const resellerUser = JSON.parse(localStorage.getItem("resellerUser") || "{}");
 
     useEffect(() => {
         if (!localStorage.getItem("resellerToken")) {
             navigate("/reseller/login");
+            return;
         }
-    }, [navigate]);
+
+        const pathParts = location.pathname.split("/").filter(Boolean);
+        // /reseller -> pathParts is ["reseller"]
+        // /reseller/orders -> pathParts is ["reseller", "orders"]
+        // /reseller/documentation -> pathParts is ["reseller", "documentation"]
+        
+        const subPath = pathParts[1] || "overview";
+        
+        if (subPath === "documentation") {
+            setActiveTab("developer");
+            setDevSubTab("api-docs");
+        } else if (subPath === "webhooks") {
+            setActiveTab("developer");
+            setDevSubTab("webhook-config");
+        } else {
+            setActiveTab(subPath);
+            setDevSubTab(null);
+        }
+
+        const handleUpdate = () => {
+            setResellerUser(JSON.parse(localStorage.getItem("resellerUser") || "{}"));
+        };
+
+        window.addEventListener("storage", handleUpdate);
+        window.addEventListener("reseller-user-updated", handleUpdate);
+
+        // Cart Sync
+        const updateCartCount = (e: any) => setCartCount(e.detail?.count || 0);
+        const initialCart = JSON.parse(localStorage.getItem("cartItems") || "[]");
+        setCartCount(Array.isArray(initialCart) ? initialCart.length : 0);
+        window.addEventListener("cart-updated", updateCartCount);
+
+        return () => {
+            window.removeEventListener("storage", handleUpdate);
+            window.removeEventListener("reseller-user-updated", handleUpdate);
+            window.removeEventListener("cart-updated", updateCartCount);
+        };
+    }, [navigate, location.pathname]);
+
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
-    const tabs = isEnterprise ? ENTERPRISE_TABS : API_ONLY_TABS;
+    const isSingleProduct = resellerUser?.reseller_type === "single_product";
+    const tabs = isEnterprise ? ENTERPRISE_TABS : isSingleProduct ? SINGLE_PRODUCT_TABS : API_ONLY_TABS;
+
+    const DEVELOPER_SUBTABS = useMemo(() => [
+        { id: "api-docs", label: "Protocol Documentation", icon: BookOpen },
+        ...(!isEnterprise ? [{ id: "webhook-config", label: "Webhooks", icon: Webhook }] : []),
+    ], [isEnterprise]);
 
     const handleTab = (id: string) => {
         if (id === "logout") {
@@ -93,14 +154,13 @@ export default function ResellerDashboard() {
             navigate("/reseller/login");
             return;
         }
-        // If clicking developer and already on a developer sub-tab, toggle to api-docs
+
         if (id === "developer") {
-            setActiveTab("developer");
-            setDevSubTab("api-docs");
+            navigate("/reseller/documentation");
             return;
         }
-        setDevSubTab(null);
-        setActiveTab(id);
+
+        navigate(`/reseller/${id}`);
     };
 
     const renderContent = () => {
@@ -115,13 +175,21 @@ export default function ResellerDashboard() {
 
         switch (activeTab) {
             case "overview": return <ResOverview />;
-            case "store": return <ResStore onSelectCategory={(cat) => setActiveTab(cat)} />;
+            case "store": return <ResStore onSelectCategory={(cat) => setActiveTab(cat)} resellerType={resellerUser?.reseller_type} allowedCategoryName={resellerUser?.allowed_product_category_name} />;
             case "management": return <ResManagement onNavigate={(tab) => setActiveTab(tab)} />;
             case "orders": return <ResOrders />;
             case "wallet": return <ResWallet />;
             case "earnings": return <ResWallet />;
             case "users": return <ResUserManagement />;
             case "settings": return <ResSettings />;
+            case "checkout": return (
+                <ResellerCheckout
+                    onSuccess={() => setActiveTab("orders")}
+                    onCancel={() => setActiveTab("store")}
+                />
+            );
+
+
 
             // Category Store Views (from ResStore)
             case "buy-proxies": return <ResProducts type="proxy" />;
@@ -143,13 +211,19 @@ export default function ResellerDashboard() {
     return (
         <div className="min-h-screen flex bg-background">
             <AdminSidebar
-                items={tabs.map(t => ({ ...t, name: t.label }))}
+                items={tabs.map(t => ({
+                    ...t,
+                    name: t.label,
+                    count: t.id === "cart" ? cartCount : undefined
+                }))}
                 activeTab={activeTab}
                 onTabChange={handleTab}
-                title={isEnterprise ? "Enterprise" : "API Reseller"}
+                title={isEnterprise ? "Enterprise" : isSingleProduct ? "Product Reseller" : "API Reseller"}
                 userName={resellerUser?.company_name || resellerUser?.username || "Reseller"}
-                userRole={isEnterprise ? "Infrastructure Partner" : "API Partner"}
+                userRole={isEnterprise ? "Infrastructure Partner" : isSingleProduct ? "Single Product Partner" : "API Partner"}
+                profilePictureUrl={formatImageUrl(resellerUser?.profile_picture_url)}
             />
+
 
             <main className="flex-1 overflow-y-auto">
                 {/* Developer Sub-tabs */}
@@ -159,7 +233,7 @@ export default function ResellerDashboard() {
                             {DEVELOPER_SUBTABS.map(st => (
                                 <button
                                     key={st.id}
-                                    onClick={() => setDevSubTab(st.id)}
+                                    onClick={() => navigate(st.id === 'api-docs' ? '/reseller/documentation' : '/reseller/webhooks')}
                                     className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${devSubTab === st.id
                                         ? "bg-white text-primary shadow-sm"
                                         : "text-muted-foreground hover:text-foreground"

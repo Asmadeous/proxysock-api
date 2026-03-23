@@ -48,7 +48,7 @@ export const RDPHeroSection = ({ trackConversion }: RDPHeroSectionProps) => {
               Full Admin Access
             </span>
             <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
-              🇨🇦 Starting CAD $28/mo
+              🇺🇸 Starting at $40 USD/mo
             </span>
           </motion.div>
 
@@ -56,11 +56,10 @@ export const RDPHeroSection = ({ trackConversion }: RDPHeroSectionProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
+            className="text-4xl sm:text-5xl md:text-6xl font-manrope-bold font-bold text-foreground mb-6"
           >
-            Residential RDP Hosting
-            <br />
-            <span className="text-primary">From $28 CAD/month</span>
+            Windows & Linux RDP Hosting <br />
+            <span className="text-primary">From $40 USD/month</span>
           </motion.h1>
 
           <motion.p

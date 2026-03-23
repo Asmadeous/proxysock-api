@@ -25,7 +25,7 @@ class Affiliate < ApplicationRecord
 
   # Full referral link
   def referral_url
-    "#{Rails.application.config.frontend_url}?ref=#{referral_code}"
+    "#{Rails.application.config.frontend_url}/register?ref=#{referral_code}"
   end
 
   private

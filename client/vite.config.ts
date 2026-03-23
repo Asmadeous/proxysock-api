@@ -34,29 +34,18 @@ export default defineConfig({
               id.includes("react") ||
               id.includes("react-dom") ||
               id.includes("react-router-dom") ||
-              id.includes("@headlessui") ||
-              id.includes("@radix-ui") ||
+              id.includes("@tanstack") ||
+              id.includes("zustand") ||
+              id.includes("use-sync-external-store") ||
               id.includes("framer-motion") ||
-              id.includes("use-sidecar") ||
-              id.includes("use-callback-ref") ||
-              id.includes("aria-hidden") ||
-              id.includes("react-remove-scroll") ||
-              id.includes("detect-node-es") ||
-              id.includes("get-nonce")
+              id.includes("@radix-ui") ||
+              id.includes("@headlessui")
             ) {
               return "vendor-core";
             }
-            if (id.includes("@supabase")) {
-              return "supabase-vendor";
-            }
-            if (id.includes("lucide-react") || id.includes("@heroicons")) {
+            if (id.includes("lucide-react") || id.includes("@heroicons") || id.includes("@fortawesome")) {
               return "icons-vendor";
             }
-            return id
-              .toString()
-              .split("node_modules/")[1]
-              .split("/")[0]
-              .replace("@", "");
           }
         },
         entryFileNames: "assets/[name]-[hash].js",
@@ -94,10 +83,10 @@ export default defineConfig({
       'Content-Security-Policy': [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://js.paystack.co https://www.googletagmanager.com https://embed.tawk.to https://*.tawk.to https://js.stripe.com https://www.google-analytics.com https://www.redditstatic.com https://cdn.jsdelivr.net",
-        "connect-src 'self' https://www.google-analytics.com https://va.tawk.to https://*.tawk.to wss://*.tawk.to https://xknakbxmpznclriiauim.supabase.co wss://xknakbxmpznclriiauim.supabase.co https://v6.exchangerate-api.com https://api.stripe.com https://*.datadoghq.com https://r.stripe.com https://www.redditstatic.com",
+        "connect-src 'self' https://www.google-analytics.com https://va.tawk.to https://*.tawk.to wss://*.tawk.to https://v6.exchangerate-api.com https://api.stripe.com https://*.datadoghq.com https://r.stripe.com https://www.redditstatic.com https://*.proxysock.net wss://*.proxysock.net",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://paystack.com https://embed.tawk.to https://*.tawk.to https://js.stripe.com https://cdn.jsdelivr.net",
         "font-src 'self' https://fonts.gstatic.com https://embed.tawk.to https://*.tawk.to data:",
-        "img-src 'self' data: blob: https://www.proxysock.com https://www.proxystore.net https://upload.wikimedia.org https://flagcdn.com https://embed.tawk.to https://*.tawk.to https://www.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net",
+        "img-src 'self' data: blob: https://www.proxysock.com https://www.proxystore.net https://upload.wikimedia.org https://flagcdn.com https://embed.tawk.to https://*.tawk.to https://www.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://apitest.proxysock.net https://api.proxysock.com",
         "frame-src 'self' https://checkout.paystack.com https://js.stripe.com",
         "object-src 'none'",
         "base-uri 'self'",

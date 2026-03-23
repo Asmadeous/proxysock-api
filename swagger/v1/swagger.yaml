@@ -5,6 +5,407 @@ info:
   version: v1
   description: API for Resellers to manage proxies, VMs, and orders.
 paths:
+  "/api/v1/auth/token":
+    post:
+      summary: Generate Rotational Token
+      tags:
+      - Authentication
+      description: API Only resellers use this to exchange their Permanent API Key
+        for a single-use JWT. Enterprise resellers use their Dedicated API Key directly
+        and do not need this.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  reseller:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                      reseller_type:
+                        type: string
+        '401':
+          description: invalid credentials
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: partner_76
+                api_key:
+                  type: string
+                  example: d7ad81d7832f16487eec8fb5ec4315b5...
+              required:
+              - username
+              - api_key
+  "/api/v1/auth/me":
+    get:
+      summary: Current Reseller Profile
+      tags:
+      - Authentication
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/auth/login":
+    post:
+      summary: Standard Dashboard Login
+      tags:
+      - Authentication
+      description: Authenticates a reseller using email and password for dashboard
+        access.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: partner@example.com
+                password:
+                  type: string
+                  example: password
+              required:
+              - email
+              - password
+  "/api/v1/auth/refresh":
+    post:
+      summary: Refresh Session Token
+      tags:
+      - Authentication
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+              required:
+              - refresh_token
+  "/api/v1/auth/zoho_callback":
+    post:
+      summary: Zoho Integration Callback
+      tags:
+      - Authentication
+      description: Internal callback for Zoho CRM synchronization.
+      responses:
+        '200':
+          description: successful
+  "/api/v1/billing/balance":
+    get:
+      summary: Get Balance
+      tags:
+      - Billing
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: number
+                  earnings_balance:
+                    type: number
+                  currency:
+                    type: string
+  "/api/v1/billing/transactions":
+    get:
+      summary: List Transactions
+      tags:
+      - Billing
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/billing/transfer_earnings":
+    post:
+      summary: Transfer Earnings to Balance
+      tags:
+      - Billing
+      security:
+      - Bearer: []
+      description: Moves accumulated referral or sale earnings into the active purchase
+        balance.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 50.0
+              required:
+              - amount
+  "/api/v1/billing/request_payout":
+    post:
+      summary: Request Payout
+      tags:
+      - Billing
+      security:
+      - Bearer: []
+      description: Initiates a withdrawal request for earned commissions.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 100.0
+                payment_method:
+                  type: string
+                  example: bank_transfer
+                payment_details:
+                  type: object
+              required:
+              - amount
+              - payment_method
+              - payment_details
+  "/api/v1/notifications":
+    get:
+      summary: List My Notifications
+      tags:
+      - Notifications
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/notifications/mark_as_read":
+    post:
+      summary: Mark All as Read
+      tags:
+      - Notifications
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/orders":
+    get:
+      summary: List Orders
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      parameters:
+      - name: product_type
+        in: query
+        description: Filter by product type (e.g., vps, proxy, esim)
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        product_name:
+                          type: string
+                        product_type:
+                          type: string
+                        total_amount:
+                          type: number
+                        status:
+                          type: string
+                        created_at:
+                          type: string
+    post:
+      summary: Create Order
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      description: 'API Only resellers: Balance is deducted immediately. Enterprise:
+        Checkout session is created.'
+      parameters: []
+      responses:
+        '201':
+          description: api only order created
+        '202':
+          description: enterprise order initiated
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_id:
+                  type: string
+                  example: uuid-v4
+                quantity:
+                  type: integer
+                  example: 1
+                customer_email:
+                  type: string
+                  example: client@example.com
+                  description: Required for Enterprise partners only.
+                metadata:
+                  type: object
+                  description: Resource-specific configuration. See product documentation
+                    for required fields.
+                  example:
+                    country_code: US
+                    protocol: socks5
+              required:
+              - product_id
+              - quantity
+  "/api/v1/orders/{id}/reorder":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Reorder previous service
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      description: Re-purchases a previous order with identical metadata.
+      responses:
+        '200':
+          description: successful
+        '201':
+          description: created
+  "/api/v1/orders/{id}/credentials":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get Order Credentials
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      description: Returns technical credentials (IP, Port, Username, Password, ICCID,
+        etc.) for the provisioned resource.
+      responses:
+        '200':
+          description: successful
+  "/api/v1/orders/stats":
+    get:
+      summary: Get Order Statistics
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/orders/checkout_cart":
+    post:
+      summary: Enterprise Bulk Checkout
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      description: Enterprise partners use this to finalize a batch of resources.
+        Generates a payment gateway session.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gateway:
+                  type: string
+                  example: paystack
+                currency:
+                  type: string
+                  example: USD
+              required:
+              - gateway
+  "/api/v1/orders/{id}/renew":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Renew Resource Subscription
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/orders/{id}/cancel":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Cancel and Terminate Order
+      tags:
+      - Orders
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
   "/api/v1/products":
     get:
       summary: List Products
@@ -26,13 +427,14 @@ paths:
                       type: object
                       properties:
                         id:
-                          type: integer
+                          type: string
                         name:
                           type: string
                         base_price:
                           type: number
                         currency:
                           type: string
+                          nullable: true
         '401':
           description: unauthorized
   "/api/v1/products/{id}":
@@ -54,6 +456,472 @@ paths:
           description: successful
         '404':
           description: not found
+  "/api/v1/product_categories":
+    get:
+      summary: List Product Categories
+      tags:
+      - Products
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                        description:
+                          type: string
+                      example:
+                        id: 1
+                        name: Residential Proxies
+                        slug: residential-proxies
+                        description: Premium rotating residential IPs
+  "/api/v1/resellers/me":
+    get:
+      summary: Get My Profile
+      tags:
+      - Reseller Profile
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    patch:
+      summary: Update My Profile
+      tags:
+      - Reseller Profile
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_name:
+                  type: string
+                  example: Updated Partner Corp
+                phone_number:
+                  type: string
+                  example: "+15550123"
+  "/api/v1/resellers":
+    get:
+      summary: List Resellers
+      tags:
+      - Reseller Profile
+      security:
+      - Bearer: []
+      description: Returns a paginated list of authorized partners.
+      responses:
+        '200':
+          description: successful
+  "/api/v1/resellers/{id}/deposit":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Add Balance / Deposit
+      tags:
+      - Reseller Profile
+      security:
+      - Bearer: []
+      description: Initiates a wallet top-up through supported payment gateways.
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 500.0
+                gateway:
+                  type: string
+                  example: paystack
+                currency:
+                  type: string
+                  example: USD
+              required:
+              - amount
+              - gateway
+  "/api/v1/resellers/{id}/rotate_dedicated_api_key":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Rotate Dedicated API Key
+      tags:
+      - Reseller Profile
+      security:
+      - Bearer: []
+      description: Infrastructure partners use this to cycle their static ps_live_...
+        key for security audits.
+      responses:
+        '200':
+          description: successful
+  "/api/v1/support_chats":
+    get:
+      summary: List Active Support Chats
+      tags:
+      - Support Chat
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/support_chats/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Show Chat History
+      tags:
+      - Support Chat
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/support_chats/messages":
+    post:
+      summary: Send Message to Support
+      tags:
+      - Support Chat
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '201':
+          description: message sent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: I need assistance with my new VPS instance.
+              required:
+              - message
+  "/api/v1/tickets":
+    get:
+      summary: List My Tickets
+      tags:
+      - Support Tickets
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    post:
+      summary: Create Support Ticket
+      tags:
+      - Support Tickets
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '201':
+          description: created
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject:
+                  type: string
+                  example: Resource provisioning delay
+                priority:
+                  type: string
+                  enum:
+                  - low
+                  - medium
+                  - high
+                  example: medium
+                message:
+                  type: string
+                  example: My VPS order ORD-1234 is stuck in processing.
+              required:
+              - subject
+              - priority
+              - message
+  "/api/v1/tickets/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Show Ticket Details
+      tags:
+      - Support Tickets
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    post:
+      summary: Reply to Ticket
+      tags:
+      - Support Tickets
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '201':
+          description: reply added
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Understood, checking the logs now.
+              required:
+              - message
+  "/api/v1/vms":
+    get:
+      summary: List VMs
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    post:
+      summary: Create VM Instance
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '201':
+          description: created
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_id:
+                  type: string
+                os_template:
+                  type: string
+                  example: ubuntu-22.04
+                hostname:
+                  type: string
+                  example: srv-01
+              required:
+              - product_id
+              - os_template
+              - hostname
+  "/api/v1/vms/{id}/status":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get VM Status
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/vms/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Show VM Details
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    delete:
+      summary: Terminate VM Instance
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      description: Permanently deletes the VM instance and deprovisions resources.
+      responses:
+        '200':
+          description: successful
+  "/api/v1/vms/{id}/start":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Start VM
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/vms/{id}/stop":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Stop VM
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/vms/{id}/restart":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Restart VM
+      tags:
+      - Virtual Machines
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+  "/api/v1/webhook_endpoints":
+    get:
+      summary: List Webhook Endpoints
+      tags:
+      - Webhooks
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
+    post:
+      summary: Create Webhook Endpoint
+      tags:
+      - Webhooks
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '201':
+          description: created
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  example: https://api.partner.com/webhooks/proxysock
+                description:
+                  type: string
+                  example: Main production listener
+                events:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                  - order.completed
+                  - vm.provisioned
+              required:
+              - url
+              - events
+  "/api/v1/webhook_endpoints/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    put:
+      summary: Update Webhook Endpoint
+      tags:
+      - Webhooks
+      security:
+      - Bearer: []
+      parameters: []
+      responses:
+        '200':
+          description: successful
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+    delete:
+      summary: Delete Webhook Endpoint
+      tags:
+      - Webhooks
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: successful
 servers:
 - url: https://{defaultHost}
   variables:

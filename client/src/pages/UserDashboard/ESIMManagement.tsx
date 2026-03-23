@@ -24,6 +24,7 @@ import { toast } from "react-hot-toast";
 interface ESIMProfile {
   id: string;
   esim_order_id: string;
+  product_type: string;
   user_id: string;
   esim_tran_no: string
   order_no: string;
@@ -58,6 +59,7 @@ interface ESIMProfile {
 
 const ESIMManagement = () => {
   const [esimProfiles, setEsimProfiles] = useState<ESIMProfile[]>([]);
+  const [productTypeFilter, setProductTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<ESIMProfile | null>(null);
   // NOTE: In-house eSIM credentials (e.g., SM-DP+ address and activation code) 
@@ -81,6 +83,7 @@ const ESIMManagement = () => {
             return credentials.filter(Boolean).map((cred: any, index: number) => ({
               id: `${order.id}-${cred.id || index}`,
               esim_order_id: String(order.id),
+              product_type: order.product_type || 'esim',
               order_no: order.order_number, // Keep order_no
               plan_name: order.product_name,
               package_name: order.product_name, // Keep package_name for compatibility
@@ -110,7 +113,7 @@ const ESIMManagement = () => {
               puk2: cred.puk2 || '',
               zip_code: cred.zip_code || '',
               is_expired: order.status === 'expired',
-              order_total: order.amount || order.total_amount,
+              order_total: Number(order.amount || order.total_amount || 0),
               order_status: order.status,
               days_remaining: order.expires_at ? Math.max(0, Math.ceil((new Date(order.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null,
             }));
@@ -123,6 +126,11 @@ const ESIMManagement = () => {
       setLoading(false);
     }
   };
+
+  const filteredProfiles = esimProfiles.filter(profile => {
+    if (productTypeFilter === 'all') return true;
+    return profile.product_type === productTypeFilter;
+  });
 
   const copyToClipboard = (text: string) => {
     if (!text) return;
@@ -317,8 +325,21 @@ const ESIMManagement = () => {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex gap-4">
+        <select
+          value={productTypeFilter}
+          onChange={(e) => setProductTypeFilter(e.target.value)}
+          className="px-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+        >
+          <option value="all">All eSIMs</option>
+          <option value="esim">eSIM Access</option>
+          <option value="usa_esim">USA eSIM</option>
+        </select>
+      </div>
+
       {/* eSIM Profiles Grid */}
-      {esimProfiles.length === 0 ? (
+      {filteredProfiles.length === 0 ? (
         <div className="text-center py-12">
           <DevicePhoneMobileIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">No eSIM Profiles</h3>
@@ -326,7 +347,7 @@ const ESIMManagement = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {esimProfiles.map((profile) => {
+          {filteredProfiles.map((profile) => {
             const StatusIcon = getStatusIcon(profile.esim_status, profile.is_expired);
             const displayStatus = profile.is_expired ? 'Expired' : profile.esim_status;
 
@@ -351,9 +372,14 @@ const ESIMManagement = () => {
                       </p>
                     </div>
                   </div>
-                  <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus, profile.is_expired)}`}>
-                    <StatusIcon className="h-4 w-4 mr-1" />
-                    {displayStatus}
+                  <div className="flex items-center space-x-2">
+                    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${profile.product_type === 'usa_esim' ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
+                      {profile.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
+                    </div>
+                    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus, profile.is_expired)}`}>
+                      <StatusIcon className="h-4 w-4 mr-1" />
+                      {displayStatus}
+                    </div>
                   </div>
                 </div>
 

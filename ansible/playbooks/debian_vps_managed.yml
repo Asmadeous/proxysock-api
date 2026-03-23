@@ -1,3 +1,8 @@
+---
+- name: Configure Debian VPS MANAGED
+  hosts: linux
+  become: yes
+
   pre_tasks:
     - name: Ensure root_password is defined
       fail:
@@ -7,8 +12,6 @@
   vars:
     new_root_password: "{{ root_password }}"
     api_url: "{{ api_url | default('http://localhost:5000') }}"
-    api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "{{ root_password }}"
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
     proxy_username: "{{ proxy_config.proxy_username | default('') }}"
@@ -91,6 +94,13 @@
             update_password: always
           no_log: true
 
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
+
         - name: Create hostname user with root password
           user:
             name: "{{ hostname }}"
@@ -99,7 +109,7 @@
             shell: /bin/bash
             create_home: yes
             state: present
-            no_log: true
+          no_log: true
           when: hostname is defined
 
         - name: Set hostname if provided
@@ -238,7 +248,6 @@
             timeout: 30
           when: 
             - api_url is defined
-            - api_key is defined 
             - vm_id is defined
           register: api_response
           failed_when: false
@@ -291,7 +300,6 @@
             timeout: 30
           when:
             - api_url is defined
-            - api_key is defined
             - vm_id is defined
           delegate_to: localhost
           ignore_errors: yes
@@ -308,4 +316,9 @@
     - name: restart_fail2ban
       systemd:
         name: fail2ban
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
         state: restarted

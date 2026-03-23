@@ -18,9 +18,10 @@ interface EmployeeRow {
     active: boolean;
     last_login: string | null;
     created_at: string;
+    profile_picture_url?: string;
 }
 
-const EMPTY_FORM = { first_name: "", last_name: "", email: "", password: "", role: "support", department: "General" };
+const EMPTY_FORM = { first_name: "", last_name: "", email: "", password: "", role: "support", department: "General", avatar: null as File | null };
 
 export default function EmployeesTab() {
     const [employees, setEmployees] = useState<EmployeeRow[]>([]);
@@ -67,8 +68,28 @@ export default function EmployeesTab() {
         if (!editTarget) return;
         setActionLoading(true);
         try {
-            await updateEmployee(editTarget.id, { first_name: form.first_name, last_name: form.last_name, email: form.email, role: form.role, department: form.department });
+            let payload: any;
+            if (form.avatar) {
+                payload = new FormData();
+                payload.append("first_name", form.first_name);
+                payload.append("last_name", form.last_name);
+                payload.append("email", form.email);
+                payload.append("role", form.role);
+                payload.append("department", form.department);
+                payload.append("avatar", form.avatar);
+            } else {
+                payload = { first_name: form.first_name, last_name: form.last_name, email: form.email, role: form.role, department: form.department };
+            }
+            const response = await updateEmployee(editTarget.id, payload);
             toast.success("Employee updated");
+            
+            // If the updated employee is the one currently logged in, update localStorage
+            const currentAdmin = JSON.parse(localStorage.getItem("adminUser") || "{}");
+            if (currentAdmin.id === editTarget.id) {
+                localStorage.setItem("adminUser", JSON.stringify(response.data));
+                window.dispatchEvent(new Event("admin-user-updated"));
+            }
+            
             setEditTarget(null);
             load();
         } catch { toast.error("Failed to update"); }
@@ -102,7 +123,7 @@ export default function EmployeesTab() {
 
     const openEdit = (e: EmployeeRow) => {
         setEditTarget(e);
-        setForm({ first_name: e.first_name, last_name: e.last_name, email: e.email, password: "", role: e.role, department: e.department || "General" });
+        setForm({ first_name: e.first_name, last_name: e.last_name, email: e.email, password: "", role: e.role, department: e.department || "General", avatar: null });
     };
 
     const columns = [
@@ -110,9 +131,13 @@ export default function EmployeesTab() {
             key: "full_name", label: "Employee", sortable: true,
             render: (row: EmployeeRow) => (
                 <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-purple-400 text-xs font-medium">{row.first_name?.[0]?.toUpperCase()}</span>
-                    </div>
+                    {row.profile_picture_url ? (
+                        <img src={row.profile_picture_url} alt={row.first_name} className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                        <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-purple-400 text-xs font-medium">{row.first_name?.[0]?.toUpperCase()}</span>
+                        </div>
+                    )}
                     <div>
                         <p className="text-sm font-medium text-foreground">{row.full_name}</p>
                         <p className="text-xs text-muted-foreground">{row.email}</p>
@@ -190,6 +215,14 @@ export default function EmployeesTab() {
                     </select>
                 </Field>
                 <Field label="Department"><input className={inputClasses} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} /></Field>
+                <Field label="Profile Picture (Optional)">
+                    <input 
+                        className={inputClasses} 
+                        type="file" 
+                        accept="image/jpeg, image/png, image/gif, image/webp" 
+                        onChange={(e) => setForm({ ...form, avatar: e.target.files ? e.target.files[0] : null })} 
+                    />
+                </Field>
             </FormModal>
 
             {/* Assign Modal */}

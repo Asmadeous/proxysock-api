@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -396,6 +396,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.string "webhook_type"
   end
 
+  create_table "global_isp_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "city"
+    t.string "country_code"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.string "ip_address"
+    t.string "isp_name"
+    t.jsonb "metadata", default: {}
+    t.string "myproxyapi_order_id"
+    t.uuid "order_id"
+    t.string "password"
+    t.integer "port"
+    t.datetime "updated_at", null: false
+    t.string "username"
+    t.index ["myproxyapi_order_id"], name: "index_global_isp_proxies_on_myproxyapi_order_id"
+    t.index ["order_id"], name: "index_global_isp_proxies_on_order_id"
+  end
+
+  create_table "global_isp_proxy_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "global_isp_proxy_id"
+    t.string "myproxyapi_order_id"
+    t.uuid "order_id", null: false
+    t.string "target_id"
+    t.string "target_section_id"
+    t.datetime "updated_at", null: false
+    t.index ["global_isp_proxy_id"], name: "index_global_isp_proxy_orders_on_global_isp_proxy_id"
+    t.index ["order_id"], name: "index_global_isp_proxy_orders_on_order_id"
+  end
+
   create_table "guest_chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.text "body", null: false
     t.datetime "created_at", null: false
@@ -417,6 +447,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.datetime "updated_at", null: false
     t.index ["session_token"], name: "index_guest_chats_on_session_token", unique: true
     t.index ["status"], name: "index_guest_chats_on_status"
+  end
+
+  create_table "ip_addresses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "address"
+    t.datetime "assigned_at"
+    t.datetime "created_at", null: false
+    t.string "gateway"
+    t.string "netmask"
+    t.string "status"
+    t.datetime "updated_at", null: false
+    t.uuid "vm_id"
+    t.index ["vm_id"], name: "index_ip_addresses_on_vm_id"
   end
 
   create_table "mobile_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -479,6 +521,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   create_table "orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "checkout_session_id"
     t.datetime "created_at", null: false
+    t.jsonb "credentials", default: []
     t.string "currency"
     t.datetime "expires_at"
     t.jsonb "metadata"
@@ -539,6 +582,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.uuid "owner_id"
     t.string "owner_type", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "payouts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "gateway", null: false
+    t.jsonb "gateway_response", default: {}
+    t.jsonb "payment_details", default: {}
+    t.string "reference"
+    t.uuid "reseller_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reference"], name: "index_payouts_on_reference", unique: true
+    t.index ["reseller_id"], name: "index_payouts_on_reseller_id"
+    t.index ["status"], name: "index_payouts_on_status"
   end
 
   create_table "premium_isp_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -626,6 +685,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.index ["slug"], name: "index_products_on_slug"
   end
 
+  create_table "promo_codes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "active", default: true
+    t.string "code"
+    t.datetime "created_at", null: false
+    t.uuid "created_by_id"
+    t.integer "current_uses", default: 0
+    t.string "description"
+    t.string "discount_type"
+    t.decimal "discount_value"
+    t.datetime "expires_at"
+    t.decimal "max_discount_amount"
+    t.integer "max_uses"
+    t.decimal "min_order_amount"
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_promo_codes_on_code", unique: true
+  end
+
   create_table "provider_inventory_syncs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.jsonb "data_snapshot"
@@ -651,6 +727,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.uuid "vm_id"
   end
 
+  create_table "proxy_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.decimal "gb_limit"
+    t.decimal "gb_used", default: "0.0"
+    t.boolean "is_owned_proxy", default: true
+    t.jsonb "metadata"
+    t.uuid "order_id", null: false
+    t.uuid "owned_proxy_billing_plan_id"
+    t.string "password", null: false
+    t.uuid "proxy_instance_id", null: false
+    t.string "status", default: "active"
+    t.datetime "updated_at", null: false
+    t.uuid "user_id"
+    t.string "username", null: false
+    t.index ["expires_at"], name: "index_proxy_assignments_on_expires_at"
+    t.index ["order_id"], name: "index_proxy_assignments_on_order_id"
+    t.index ["proxy_instance_id"], name: "index_proxy_assignments_on_proxy_instance_id"
+    t.index ["status"], name: "index_proxy_assignments_on_status"
+    t.index ["user_id"], name: "index_proxy_assignments_on_user_id"
+  end
+
+  create_table "proxy_instances", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "device_type"
+    t.decimal "health_score", default: "1.0"
+    t.datetime "last_health_check"
+    t.jsonb "metadata", default: {}
+    t.string "proxy_address", null: false
+    t.string "status", default: "available"
+    t.decimal "success_rate", default: "1.0"
+    t.datetime "updated_at", null: false
+    t.index ["proxy_address"], name: "index_proxy_instances_on_proxy_address", unique: true
+    t.index ["status"], name: "index_proxy_instances_on_status"
+  end
+
   create_table "rate_limits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "endpoint"
@@ -673,6 +785,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   end
 
   create_table "resellers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "allowed_product_category_id"
     t.string "api_key_hash"
     t.string "company_name"
     t.datetime "created_at", null: false
@@ -684,6 +797,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
     t.datetime "last_seen_at"
     t.string "password_digest"
+    t.string "permanent_api_key"
     t.string "referred_by_code"
     t.string "reseller_type", default: "api_only"
     t.string "status"
@@ -693,6 +807,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.integer "token_request_count", default: 0
     t.datetime "updated_at", null: false
     t.string "username"
+    t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
     t.index ["referred_by_code"], name: "index_resellers_on_referred_by_code"
@@ -873,7 +988,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   create_table "tickets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "assigned_to_id"
     t.datetime "created_at", null: false
-    t.uuid "deposit_id", null: false
+    t.uuid "deposit_id"
     t.uuid "order_id"
     t.string "priority", default: "normal"
     t.string "status", default: "open", null: false
@@ -982,6 +1097,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.string "last_name"
     t.datetime "last_seen_at"
     t.jsonb "metadata"
+    t.string "owner_type", default: "platform", null: false
     t.string "password_digest"
     t.datetime "password_reset_sent_at"
     t.string "password_reset_token"
@@ -995,6 +1111,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["email"], name: "index_users_on_email"
+    t.index ["owner_type"], name: "index_users_on_owner_type"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
     t.index ["reseller_id"], name: "index_users_on_reseller_id"
@@ -1019,7 +1136,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
     t.jsonb "api_response", default: {}
     t.string "country_code"
     t.datetime "created_at", null: false
+    t.string "dns_name"
     t.datetime "expires_at"
+    t.string "hostname"
     t.string "ip_address"
     t.jsonb "metadata"
     t.string "proxmox_node"
@@ -1166,14 +1285,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_08_151828) do
   add_foreign_key "orders", "product_pricings"
   add_foreign_key "orders", "products"
   add_foreign_key "payment_gateway_transactions", "transactions"
+  add_foreign_key "payouts", "resellers"
   add_foreign_key "premium_isp_proxies", "premium_isp_proxy_orders"
   add_foreign_key "premium_isp_proxy_orders", "orders"
   add_foreign_key "product_analytics", "products"
   add_foreign_key "product_pricings", "products"
   add_foreign_key "products", "product_categories"
   add_foreign_key "proxmox_operations", "vms"
+  add_foreign_key "proxy_assignments", "orders"
+  add_foreign_key "proxy_assignments", "proxy_instances"
   add_foreign_key "reseller_orders", "orders"
   add_foreign_key "reseller_orders", "resellers"
+  add_foreign_key "resellers", "product_categories", column: "allowed_product_category_id"
   add_foreign_key "residential_proxy_accounts", "residential_rotating_proxies"
   add_foreign_key "residential_rotating_proxies", "orders"
   add_foreign_key "residential_rotating_proxies", "residential_rotating_proxy_orders"

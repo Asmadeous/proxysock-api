@@ -34,7 +34,7 @@ module Web
         if params[:range].present? && params[:range] != 'all'
           days = params[:range].to_i
           days = 30 if days.zero? # fallback
-          orders = orders.where('created_at >= ?', days.days.ago)
+          orders = orders.where('orders.created_at >= ?', days.days.ago)
         end
 
         # Normalize status names for frontend
@@ -100,10 +100,10 @@ module Web
         last_month = 1.month.ago.beginning_of_month
 
         total_spent = orders.sum(:total_amount).to_f
-        monthly_spending = orders.where('created_at >= ?', current_month).sum(:total_amount).to_f
-        last_month_spending = orders.where(created_at: last_month...current_month).sum(:total_amount).to_f
+        monthly_spending = orders.where('orders.created_at >= ?', current_month).sum(:total_amount).to_f
+        last_month_spending = orders.where(orders: { created_at: last_month...current_month }).sum(:total_amount).to_f
 
-        recent_orders = orders.includes(:product).order(created_at: :desc).limit(10).map do |o|
+        recent_orders = orders.includes(:product).order('orders.created_at' => :desc).limit(10).map do |o|
           {
             id: o.id,
             status: o.status,
@@ -144,7 +144,12 @@ module Web
         meta[:period] = params[:period] if params[:period].present?
         meta[:locationsString] = params[:locationsString] if params[:locationsString].present?
         meta[:protocol] = params[:protocol] if params[:protocol].present?
+        meta[:target_section_id] = params[:target_section_id] if params[:target_section_id].present?
+        meta[:target_id] = params[:target_id] if params[:target_id].present?
+        meta[:resi] = params[:resi] if params[:resi].present?
+        meta[:selected_country_id] = params[:selected_country_id] if params[:selected_country_id].present?
         meta[:client_ip] = request.remote_ip # Capture client IP for MyProxyAPI whitelist_ip requirement
+        meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'paystack')
 
         # Create order
         order = Order.new(
@@ -184,11 +189,13 @@ module Web
         else
           # Redirect to payment gateway
           gateway = params[:gateway] || 'paystack'
-          payment_url = generate_order_payment_link(gateway, order, total)
+          payment_data = generate_order_payment_link(gateway, order, total)
 
           render json: {
             order: serialize_order(order),
-            payment_url: payment_url,
+            payment_url: payment_data[:url],
+            payment_amount: payment_data[:amount],
+            payment_currency: payment_data[:currency],
             message: 'Complete payment to activate order'
           }, status: :accepted
         end
@@ -199,6 +206,7 @@ module Web
         items = params[:items] || []
         payment_method = params[:payment_method] || 'wallet'
         gateway = params[:gateway] || 'paystack'
+        promo_code_input = params[:promo_code]&.strip&.upcase
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
 
@@ -213,12 +221,22 @@ module Web
           # Use active pricing or default to unit price logic if dynamic
           pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
 
+          # Determine debug label: wallet = 'balance', gateway = gateway name
+          payment_debug = payment_method == 'wallet' ? 'balance' : gateway
+
           order = Order.new(
             orderable: current_actor,
             product: product,
             product_pricing: pricing,
             quantity: item[:quantity] || item['quantity'] || 1,
-            metadata: item[:metadata] || item['metadata'] || {},
+            metadata: (item[:metadata] || item['metadata'] || {}).merge(
+              'client_ip' => request.remote_ip,
+              'payment_debug' => payment_debug,
+              'target_section_id' => item[:target_section_id] || item['target_section_id'],
+              'target_id' => item[:target_id] || item['target_id'],
+              'resi' => item[:resi] || item['resi'],
+              'selected_country_id' => item[:selected_country_id] || item['selected_country_id']
+            ).compact,
             status: 'pending'
           )
 
@@ -232,10 +250,37 @@ module Web
                         status: :unprocessable_entity
         end
 
+        # ── Apply Promo Code discount ──────────────────────────────
+        promo_discount = 0
+        promo_code_record = nil
+        if promo_code_input.present?
+          promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
+          if promo_code_record.nil?
+            return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity
+          elsif !promo_code_record.usable?
+            return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity
+          else
+            promo_discount = promo_code_record.calculate_discount(total_amount)
+          end
+        end
+
+        # ── Apply Affiliate Referral discount ──────────────────────
+        affiliate_discount = 0
+        referral = current_actor.affiliate_referrals.pending.first if current_actor.respond_to?(:affiliate_referrals)
+        if referral && !AffiliateService.halted?
+          affiliate = referral.affiliate
+          discount_pct = affiliate.discount_rate / 100.0
+          affiliate_discount = (total_amount * discount_pct).round(2)
+        end
+
+        # Calculate final amount
+        total_discount = promo_discount + affiliate_discount
+        final_amount = [total_amount - total_discount, 0].max.round(2)
+
         if payment_method == 'wallet'
           wallet = current_actor.wallet
-          if wallet.nil? || wallet.balance < total_amount
-            return render json: { error: "Insufficient balance. Required: #{total_amount}, Available: #{wallet&.balance || 0}" },
+          if wallet.nil? || wallet.balance < final_amount
+            return render json: { error: "Insufficient balance. Required: $#{final_amount}, Available: $#{wallet&.balance || 0}" },
                           status: :payment_required
           end
 
@@ -243,57 +288,101 @@ module Web
           ActiveRecord::Base.transaction do
             # Create all orders
             orders_to_create.each(&:save!)
+
+            # Record promo code usage
+            if promo_code_record && promo_discount.positive?
+              promo_code_record.record_use!
+              # Store promo info on orders
+              orders_to_create.each do |order|
+                order.update_columns(metadata: order.metadata.merge(
+                  'promo_code' => promo_code_record.code,
+                  'promo_discount' => promo_discount
+                ))
+              end
+            end
+
+            # Record affiliate referral conversion
+            if referral && affiliate_discount.positive?
+              referral.update!(referee_discount_applied: affiliate_discount)
+            end
+
             transaction = Transaction.create!(
               transactable: current_actor,
               reference: current_actor, # Virtual cart, self-reference
-              amount: total_amount,
+              amount: final_amount,
               transaction_type: 'debit',
               status: 'success',
               currency: 'USD',
-              description: "Virtual Cart Checkout (#{orders_to_create.count} items)"
+              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount.positive? ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount.positive? ? " | Referral: -$#{affiliate_discount}" : ''}"
             )
 
-            wallet.debit!(total_amount, 'Cart Checkout', {}, transaction)
-            # Provision each
-            orders_to_create.each do |order|
-              OrderProvisioningService.new(order, current_actor).process_without_deduction!
-              created_orders << order
+            wallet.debit!(final_amount, 'Cart Checkout', {}, transaction)
+
+            # Record affiliate commission after successful checkout
+            if referral && !AffiliateService.halted?
+              orders_to_create.each do |order|
+                AffiliateService.record_commission!(order)
+              end
             end
+          end
+
+          # Provision each outside the transaction to avoid race conditions with jobs
+          orders_to_create.each do |order|
+            OrderProvisioningService.new(order, current_actor).process_without_deduction!
+            created_orders << order
           end
 
           render json: {
             message: 'Checkout successful',
             orders: created_orders.map { |o| serialize_order(o.reload) },
-            available_balance: current_actor.wallet&.balance.to_f
+            available_balance: current_actor.wallet&.balance.to_f,
+            promo_discount: promo_discount.positive? ? promo_discount : nil,
+            affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
+            total_discount: total_discount.positive? ? total_discount : nil
           }, status: :created
         else
           # Gateway
           checkout_session = nil
-          created_orders = []
 
           ActiveRecord::Base.transaction do
             checkout_session = CheckoutSession.create!(
               orderable: current_actor,
-              total_amount: total_amount,
+              total_amount: final_amount,
               payment_method: gateway,
               status: 'pending',
-              metadata: { item_count: orders_to_create.count, items: items }
+              metadata: {
+                item_count: orders_to_create.count,
+                items: items,
+                promo_code: promo_code_record&.code,
+                promo_discount: promo_discount.positive? ? promo_discount : nil,
+                affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
+                original_total: total_amount,
+                final_total: final_amount
+              }
             )
 
             checkout_session.generate_reference!
+
+            # Record promo code usage upfront for gateway payments
+            promo_code_record&.record_use! if promo_discount.positive?
           end
 
-          payment_url = generate_session_payment_link(gateway, checkout_session, total_amount)
+          payment_data = generate_session_payment_link(gateway, checkout_session, final_amount)
 
-          unless payment_url
+          unless payment_data && payment_data[:url]
             raise StandardError, "Failed to generate payment link from #{gateway}. Check gateway credentials or logs."
           end
 
           render json: {
             message: 'Complete payment to activate orders',
-            payment_url: payment_url,
+            payment_url: payment_data[:url],
+            payment_amount: payment_data[:amount],
+            payment_currency: payment_data[:currency],
             reference: checkout_session.gateway_reference,
-            checkout_session_id: checkout_session.id
+            checkout_session_id: checkout_session.id,
+            promo_discount: promo_discount.positive? ? promo_discount : nil,
+            affiliate_discount: affiliate_discount.positive? ? affiliate_discount : nil,
+            total_discount: total_discount.positive? ? total_discount : nil
           }, status: :accepted
         end
       rescue StandardError => e
@@ -319,17 +408,10 @@ module Web
             status: vm&.status
           }
         when 'proxy'
-          if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
-            api_res = order.metadata['my_proxy_api_response']
-            render json: {
-              type: 'proxy',
-              ip: api_res['ip'],
-              port: api_res['port'] || api_res['http_port'] || api_res['socks5_port'],
-              username: api_res['username'],
-              password: api_res['password'],
-              protocol: order.metadata['protocol'] || 'http',
-              provider_order_id: api_res['order_id']
-            }
+          service = ProxyManagementService.new(order)
+          creds = service.credentials
+          if creds
+            render json: creds
           else
             proxy = order.proxy
             render json: {
@@ -502,6 +584,61 @@ module Web
         end
       end
 
+      # POST /web/api/orders/:id/change_protocol
+      def change_protocol
+        order = current_actor.orders.find(params[:id])
+        begin
+          result = ProxyManagementService.new(order).change_protocol(params[:protocol])
+          render json: result
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /web/api/orders/:id/update_credentials
+      def update_credentials
+        order = current_actor.orders.find(params[:id])
+        begin
+          result = ProxyManagementService.new(order).update_credentials(params[:username], params[:password])
+          render json: result.merge(order: serialize_order(order.reload))
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /web/api/orders/:id/rotate_ip
+      def rotate_ip
+        order = current_actor.orders.find(params[:id])
+        begin
+          result = ProxyManagementService.new(order).rotate_ip
+          render json: result.merge(order: serialize_order(order.reload))
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /web/api/orders/:id/whitelist
+      def whitelist_add
+        order = current_actor.orders.find(params[:id])
+        begin
+          result = ProxyManagementService.new(order).whitelist_add(params[:ip], params[:description])
+          render json: result
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # DELETE /web/api/orders/:id/whitelist
+      def whitelist_delete
+        order = current_actor.orders.find(params[:id])
+        begin
+          result = ProxyManagementService.new(order).whitelist_delete(params[:ip])
+          render json: result
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       # GET /web/api/orders/:id/download_rdp_config
       def download_rdp_config
         order = current_actor.orders.find(params[:id])
@@ -538,6 +675,16 @@ module Web
 
       private
 
+      # Extract the provider's order ID from stored metadata.
+      # Prefers the directly-stored provider_order_id (set during provisioning),
+      # then falls back to digging into the API response.
+      def extract_provider_order_id(order)
+        order.metadata&.dig('provider_order_id') ||
+          order.metadata&.dig('my_proxy_api_response', 'order', 'order_id') ||
+          order.metadata&.dig('my_proxy_api_response', 'order_id') ||
+          order.metadata&.dig('my_proxy_api_response', 'data', 'order_id')
+      end
+
       def serialize_order(order)
         resource = order.provisioned_resource
 
@@ -557,6 +704,7 @@ module Web
           status: order.status == 'active' ? 'completed' : order.status,
           created_at: order.created_at,
           expires_at: resource.try(:expires_at),
+          reorderable: order.reorderable?(current_actor),
           payment_method: 'wallet'
         }
 
@@ -566,19 +714,32 @@ module Web
           if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
             api_res = order.metadata['my_proxy_api_response']
             base[:proxy_details] = api_res
-            # Extract from nested view-order structure: { order: {}, ips: [...], config: { auth_user_pass: {} } }
-            auth = api_res.dig('config', 'auth_user_pass') || {}
-            ips = api_res['ips'] || []
-            ips_info = api_res['ips_info'] || []
+
+            # Handle both single record and multiple records (array)
+            records = api_res.is_a?(Array) ? api_res : [api_res]
+            first_rec = records.first || {}
+
+            # Extract from nested view-order structure if present
+            # { order: {}, ips: [...], config: { auth_user_pass: {} } }
+            auth = first_rec.dig('config', 'auth_user_pass') || {}
+
+            all_ips = records.flat_map do |rec|
+              rec['ips'] || [rec['ip']].compact
+            end.uniq
+
+            all_ips_info = records.flat_map do |rec|
+              rec['ips_info'] || []
+            end
+
             base[:credentials] = {
-              username: auth['username'] || api_res['username'],
-              password: auth['password'] || api_res['password'],
-              endpoints: ips.presence || [api_res['ip']].compact
+              username: auth['username'] || first_rec['username'],
+              password: auth['password'] || first_rec['password'],
+              endpoints: all_ips
             }
-            base[:ips_info] = ips_info
+            base[:ips_info] = all_ips_info
             # Extract expiry from nested order details
-            base[:expires_at] ||= api_res.dig('order', 'end_time')
-            base[:provider_order_id] = api_res.dig('order', 'order_id') || api_res.dig('data', 'order_id')
+            base[:expires_at] ||= first_rec.dig('order', 'end_time') || first_rec['expires_at']
+            base[:provider_order_id] = first_rec.dig('order', 'order_id') || first_rec.dig('data', 'order_id') || first_rec['order_id']
           else
             base[:proxy_details] = resource&.as_json || {}
             base[:credentials] = {
@@ -672,31 +833,58 @@ module Web
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
-          amount_ngn = amount * exchange_rate
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}"
-          PaystackService.new.initialize_transaction(
-            email: current_actor.email,
-            amount: (amount_ngn * 100).to_i, # in kobo
-            reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
-            callback_url: frontend_callback_url,
-            metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
-          )[:authorization_url]
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
+          {
+            url: PaystackService.new.initialize_transaction(
+              email: current_actor.email,
+              amount: (amount_ngn * 100).to_i, # in kobo
+              reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
+              callback_url: frontend_callback_url,
+              metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
+            )[:authorization_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'plisio'
-          PlisioService.new.create_invoice(
-            order_number: "ORD_#{order.id}",
+          {
+            url: PlisioService.new.create_invoice(
+              order_number: "ORD_#{order.id}",
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
-            currency: 'USD',
-            callback_url: callback_url,
-            email: current_actor.email
-          )[:invoice_url]
+            currency: 'USD'
+          }
         when 'payvra'
-          PayvraService.new.create_payment(
+          {
+            url: PayvraService.new.create_invoice(
+              order_number: "ORD_#{order.id}",
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
-            currency: 'USD',
-            reference: "ORD_#{order.id}",
-            callback_url: callback_url
-          )[:payment_url]
+            currency: 'USD'
+          }
+        when 'hundredpay'
+          {
+            url: HundredpayService.new.create_invoice(
+              amount: amount,
+              currency: 'USD',
+              order_number: "ORD_#{order.id}",
+              callback_url: callback_url,
+              email: current_actor.email,
+              phone: current_actor.try(:phone),
+              country: current_actor.try(:country)
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
         end
       end
 
@@ -706,31 +894,58 @@ module Web
 
         case gateway
         when 'paystack'
-          exchange_rate = 1500 # NGN/USD
-          amount_ngn = amount * exchange_rate
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
-          PaystackService.new.initialize_transaction(
-            email: current_actor.email,
-            amount: (amount_ngn * 100).to_i, # in kobo
-            reference: reference,
-            callback_url: frontend_callback_url,
-            metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
-          )[:authorization_url]
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
+          {
+            url: PaystackService.new.initialize_transaction(
+              email: current_actor.email,
+              amount: (amount_ngn * 100).to_i, # in kobo
+              reference: reference,
+              callback_url: frontend_callback_url,
+              metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
+            )[:authorization_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'plisio'
-          PlisioService.new.create_invoice(
-            order_number: reference,
+          {
+            url: PlisioService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
-            currency: 'USD',
-            callback_url: callback_url,
-            email: current_actor.email
-          )[:invoice_url]
+            currency: 'USD'
+          }
         when 'payvra'
-          PayvraService.new.create_payment(
+          {
+            url: PayvraService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
             amount: amount,
-            currency: 'USD',
-            reference: reference,
-            callback_url: callback_url
-          )[:payment_url]
+            currency: 'USD'
+          }
+        when 'hundredpay'
+          {
+            url: HundredpayService.new.create_invoice(
+              amount: amount,
+              currency: 'USD',
+              order_number: reference,
+              callback_url: callback_url,
+              email: current_actor.email,
+              phone: current_actor.try(:phone),
+              country: current_actor.try(:country)
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
         end
       end
     end

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
+import api, { formatImageUrl } from "../../services/api";
 import { toast } from "sonner";
 import {
   User,
@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,9 +30,23 @@ export default function Profile() {
     last_name: user?.last_name || "",
     country: user?.country || "",
     city: user?.city || "",
-    profile_picture_url: user?.profile_picture_url || "",
   });
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(formatImageUrl(user?.profile_picture_url) || null);
   const [errors, setErrors] = useState<{ username?: string; country?: string; city?: string }>({});
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        username: user.username || "",
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        country: user.country || "",
+        city: user.city || "",
+      });
+      setPreviewUrl(formatImageUrl(user.profile_picture_url) || null);
+    }
+  }, [user]);
 
   const validateField = (name: string, value: string) => {
     switch (name) {
@@ -57,8 +71,10 @@ export default function Profile() {
 
     const validationErrors = Object.entries(formData).reduce(
       (acc: { [key: string]: string }, [key, value]) => {
-        const error = validateField(key, value);
-        if (error) acc[key] = error;
+        if (key !== "profile_picture_url") {
+          const error = validateField(key, value as string);
+          if (error) acc[key] = error;
+        }
         return acc;
       },
       {}
@@ -72,7 +88,34 @@ export default function Profile() {
 
     setIsLoading(true);
     try {
-      const { data } = await api.patch("/web/api/auth/update_profile", formData);
+      let payload: any;
+      if (profilePicture) {
+        payload = new FormData();
+        payload.append("username", formData.username);
+        payload.append("first_name", formData.first_name);
+        payload.append("last_name", formData.last_name);
+        payload.append("country", formData.country);
+        payload.append("city", formData.city);
+        payload.append("avatar", profilePicture);
+      } else {
+        payload = formData;
+      }
+
+      const { data } = await api.patch("/web/api/auth/update_profile", payload, {
+        headers: profilePicture ? { "Content-Type": "multipart/form-data" } : {}
+      });
+      if (data.user) {
+        setUser(data.user);
+        setFormData({
+          username: data.user.username || "",
+          first_name: data.user.first_name || "",
+          last_name: data.user.last_name || "",
+          country: data.user.country || "",
+          city: data.user.city || "",
+        });
+        setPreviewUrl(formatImageUrl(data.user.profile_picture_url) || null);
+        setProfilePicture(null);
+      }
       toast.success(data.message || "Profile updated successfully!");
       setIsEditing(false);
     } catch (error: any) {
@@ -91,9 +134,9 @@ export default function Profile() {
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="shrink-0">
               <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-primary/20 bg-primary/10 flex items-center justify-center">
-                {formData.profile_picture_url ? (
+                {previewUrl ? (
                   <img
-                    src={formData.profile_picture_url}
+                    src={previewUrl}
                     alt={formData.username}
                     className="h-full w-full object-cover"
                   />
@@ -244,24 +287,36 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* Profile Picture URL */}
+                {/* Profile Picture */}
                 <div className="space-y-2">
-                  <Label htmlFor="profile_picture_url">Profile Picture URL</Label>
+                  <Label htmlFor="avatar">Profile Picture</Label>
                   <div className="relative">
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="profile_picture_url"
-                      name="profile_picture_url"
-                      type="url"
-                      value={formData.profile_picture_url}
-                      onChange={handleChange}
+                      id="avatar"
+                      name="avatar"
+                      type="file"
+                      accept="image/jpeg, image/png, image/gif, image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files ? e.target.files[0] : null;
+                        setProfilePicture(file);
+                        if (file) {
+                          setPreviewUrl(URL.createObjectURL(file));
+                        } else {
+                          setPreviewUrl(user?.profile_picture_url || null);
+                        }
+                      }}
                       disabled={!isEditing}
-                      placeholder="https://example.com/avatar.jpg"
-                      className="pl-9"
+                      className="pl-9 file:mr-4 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 text-xs"
                     />
                   </div>
+                  {profilePicture && profilePicture.size > 5 * 1024 * 1024 && (
+                    <p className="text-xs text-destructive">
+                      File must be less than 5MB
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Link to a JPEG, PNG, or WEBP image.
+                    Upload a JPEG, PNG, or WEBP image maximum 5MB.
                   </p>
                 </div>
 

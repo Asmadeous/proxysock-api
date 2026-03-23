@@ -17,6 +17,36 @@ module Admin
         }
       end
 
+      # POST /admin/api/affiliates
+      def create
+        require_admin!
+        klass = case params[:affiliatable_type]&.to_s&.downcase
+                when 'user' then User
+                when 'reseller' then Reseller
+                else nil
+                end
+
+        unless klass
+          return render json: { error: 'Invalid entity type. Must be User or Reseller.' }, status: :unprocessable_entity
+        end
+
+        entity = klass.find_by(id: params[:affiliatable_id]) || klass.find_by(email: params[:email])
+        return render json: { error: "#{params[:affiliatable_type]} not found" }, status: :not_found unless entity
+
+        if entity.affiliate.present?
+          return render json: { error: 'This entity is already enrolled as an affiliate' }, status: :unprocessable_entity
+        end
+
+        affiliate = AffiliateService.new(entity).enrol!(
+          commission_rate: params[:commission_rate]&.to_d,
+          discount_rate: params[:discount_rate]&.to_d
+        )
+        record_audit_log('affiliate.created', affiliate)
+        render json: affiliate_json(affiliate), status: :created
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
       # GET /admin/api/affiliates/:id
       def show
         render json: affiliate_json(@affiliate)

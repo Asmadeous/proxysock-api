@@ -9,7 +9,13 @@ module Admin
         products = Product.all
 
         products = products.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
-        products = products.where(product_type: params[:product_type]) if params[:product_type].present?
+        if params[:product_type].present?
+          products = if params[:product_type] == 'proxy'
+                       products.where(product_type: Product::PROXY_TYPES)
+                     else
+                       products.where(product_type: params[:product_type])
+                     end
+        end
         products = products.where(provider: params[:provider]) if params[:provider].present?
         products = products.where(active: params[:active]) if params[:active].present?
 
@@ -60,6 +66,41 @@ module Admin
           nil
         end
         head :no_content
+      end
+
+      def sync_proxies
+        ProductSyncService.new.sync_all_products
+        render json: { message: 'Proxies synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_esims
+        EsimSyncService.new.sync_packages!
+        render json: { message: 'eSIMs synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_vps
+        InHouseProductSyncService.new.sync(type: 'vps')
+        render json: { message: 'Cloud VPS products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_rdp
+        InHouseProductSyncService.new.sync(type: 'rdp')
+        render json: { message: 'RDP products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      def sync_vpn
+        InHouseProductSyncService.new.sync(type: 'vpn')
+        render json: { message: 'VPN products synced successfully' }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       private

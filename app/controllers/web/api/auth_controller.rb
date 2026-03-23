@@ -2,7 +2,12 @@
 
 module Web
   module Api
-    class AuthController < BaseController
+    class AuthController < ActionController::Base
+      include JwtAuthenticated
+      include ErrorHandling
+      # By default, Base includes forgery protection.
+      # We skip it for API JSON requests using JWT, but keep it for browser-based SSO forms.
+      protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
       # POST /web/api/auth/register
       skip_before_action :authenticate_request,
                          only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter
@@ -15,8 +20,25 @@ module Web
         user.email_confirmation_token = SecureRandom.urlsafe_base64(32)
 
         if user.save
+          # Track affiliate referral if a referral code was provided
+          if params[:user][:referral_code].present?
+            begin
+              AffiliateService.track_signup!(user, params[:user][:referral_code])
+            rescue StandardError => e
+              Rails.logger.warn "Referral tracking failed for code '#{params[:user][:referral_code]}': #{e.message}"
+            end
+          end
+
+          if user.avatar.attached?
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(user.avatar, only_path: true)
+            user.update_column(:profile_picture_url, proxy_path)
+          end
+
           # Send confirmation email
-          UserMailer.confirmation_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.confirmation_email(saved_user).deliver_later
+          end
 
           token = user.generate_jwt
           render json: {
@@ -25,6 +47,7 @@ module Web
             token: token
           }, status: :created
         else
+          Rails.logger.warn "Registration failed for #{user.email}: #{user.errors.full_messages.join(', ')}"
           render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
         end
       end
@@ -55,9 +78,14 @@ module Web
         end
       end
 
-      # GET /web/api/auth/google (redirect to OAuth)
+      # GET /web/api/auth/google (redirect to OAuth via POST form)
       def google
-        redirect_to '/auth/google_oauth2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/google_oauth2" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /web/api/auth/google/callback
@@ -65,21 +93,27 @@ module Web
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
 
-        user.update(last_login_at: Time.current)
-        token = user.generate_jwt
-
-        render json: {
-          message: 'Google login successful',
-          user: serialize_user(user),
-          token: token
-        }
+        if user.persisted?
+          user.update(last_login_at: Time.current)
+          token = user.generate_jwt
+          redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        else
+          Rails.logger.error "Google OAuth Persistence Error: #{user.errors.full_messages.join(', ')}"
+          redirect_to_frontend "/login?error=registration_failed&message=#{CGI.escape(user.errors.full_messages.first)}"
+        end
       rescue StandardError => e
-        render json: { error: "OAuth failed: #{e.message}" }, status: :unprocessable_entity
+        Rails.logger.error "Google OAuth Callback Error: #{e.message}"
+        redirect_to_frontend '/login?error=oauth_failed'
       end
 
-      # GET /web/api/auth/twitter (redirect to OAuth)
+      # GET /web/api/auth/twitter (redirect to OAuth via POST form)
       def twitter
-        redirect_to '/auth/twitter2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/twitter2" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /web/api/auth/twitter/callback
@@ -87,16 +121,17 @@ module Web
         auth = request.env['omniauth.auth']
         user = User.find_for_oauth(auth)
 
-        user.update(last_login_at: Time.current)
-        token = user.generate_jwt
-
-        render json: {
-          message: 'Twitter login successful',
-          user: serialize_user(user),
-          token: token
-        }
+        if user.persisted?
+          user.update(last_login_at: Time.current)
+          token = user.generate_jwt
+          redirect_to_frontend "/auth/callback?auth_token=#{token}"
+        else
+          Rails.logger.error "Twitter OAuth Persistence Error: #{user.errors.full_messages.join(', ')}"
+          redirect_to_frontend "/login?error=registration_failed&message=#{CGI.escape(user.errors.full_messages.first)}"
+        end
       rescue StandardError => e
-        render json: { error: "OAuth failed: #{e.message}" }, status: :unprocessable_entity
+        Rails.logger.error "Twitter OAuth Callback Error: #{e.message}"
+        redirect_to_frontend '/login?error=oauth_failed'
       end
 
       # GET /web/api/auth/me - Get current user
@@ -120,7 +155,7 @@ module Web
 
       # PATCH /web/api/auth/update_profile
       def update_profile
-        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url)
+        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url, :avatar)
 
         # Check username uniqueness if changed
         if permitted[:username].present? && permitted[:username] != current_user.username && User.where(
@@ -130,6 +165,11 @@ module Web
         end
 
         if current_user.update(permitted)
+          if current_user.avatar.attached?
+            # Store the stable proxy path directly in the database
+            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(current_user.avatar, only_path: true)
+            current_user.update_column(:profile_picture_url, proxy_path)
+          end
           render json: { message: 'Profile updated successfully', user: serialize_user(current_user) }
         else
           render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
@@ -190,14 +230,14 @@ module Web
       def confirm_email
         user = User.find_by(email_confirmation_token: params[:token])
         if user.nil?
-          render json: { error: 'Invalid or expired confirmation token' }, status: :unprocessable_entity
+          redirect_to_frontend '/login?error=invalid_token'
         elsif user.email_verified_at.present?
           token = user.generate_jwt
-          render json: { message: 'Email already confirmed', user: serialize_user(user), token: token }
+          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=already_confirmed"
         else
           user.update!(email_verified_at: Time.current, email_confirmation_token: nil)
           token = user.generate_jwt
-          render json: { message: 'Email confirmed successfully', user: serialize_user(user), token: token }
+          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=confirmed"
         end
       end
 
@@ -210,7 +250,10 @@ module Web
           render json: { message: 'Email is already confirmed.' }
         else
           user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
-          UserMailer.confirmation_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.confirmation_email(saved_user).deliver_later
+          end
           render json: { message: 'Verification email resent! Check your inbox.' }
         end
       end
@@ -223,7 +266,10 @@ module Web
             password_reset_token: SecureRandom.urlsafe_base64(32),
             password_reset_sent_at: Time.current
           )
-          UserMailer.password_reset_email(user).deliver_later
+          saved_user = user
+          ActiveRecord.after_all_transactions_commit do
+            ::UserMailer.password_reset_email(saved_user).deliver_later
+          end
         end
         render json: { message: 'If an account with that email exists, password reset instructions have been sent.' }
       end
@@ -254,7 +300,7 @@ module Web
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
-                                     :country, :city, :username, :profile_picture_url)
+                                     :country, :city, :username, :profile_picture_url, :referral_code, :avatar)
       end
 
       def login_params
@@ -272,7 +318,7 @@ module Web
           status: user.status,
           country: user.country,
           city: user.city,
-          profile_picture_url: user.profile_picture_url,
+          profile_picture_url: user.avatar.attached? ? rails_storage_proxy_url(user.avatar) : user.profile_picture_url,
           balance: wallet&.balance.to_f || 0.0,
           currency: wallet&.currency || 'USD'
         }

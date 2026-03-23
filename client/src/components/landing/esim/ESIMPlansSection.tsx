@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Wifi,
   Globe,
+  Check,
 } from "lucide-react";
 
 interface ESIMPlansSectionProps {
@@ -40,24 +41,51 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
         ]);
 
         const formatPlans = (products: any[], isGlobal: boolean) => {
-          return products.map((p: any) => ({
-            id: p.id.toString(),
-            provider: p.provider_type === 'colt' ? 'colt' : 'lyca',
-            name: p.name,
-            price: (p.price || 0) * 100, // Frontend expects cents
-            currency_code: p.currency || 'USD',
-            voice_minutes: p.calling_minutes === null ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
-            sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
-            data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
-            duration: p.duration_days || 30,
-            duration_unit: "days",
-            features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-            phone_number_included: p.esim_type === 'voice_data_sms',
-            region: isGlobal ? 'Global' : 'USA',
-            coverage: isGlobal ? '200+ countries worldwide' : 'Nationwide US Coverage',
-            icon: Globe,
-            color: 'primary'
-          }));
+          if (!isGlobal) {
+            return products.map((p: any) => ({
+              id: p.id.toString(),
+              provider: p.provider_type === 'colt' ? 'colt' : 'lyca',
+              name: p.name,
+              price: (p.price || 0) * 100, // Frontend expects cents
+              currency_code: p.currency || 'USD',
+              voice_minutes: p.calling_minutes === null ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
+              sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
+              data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
+              duration: p.duration_days || 30,
+              duration_unit: "days",
+              features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
+              phone_number_included: p.esim_type === 'voice_data_sms',
+              region: 'USA',
+              coverage: 'Nationwide US Coverage',
+              icon: Globe,
+              color: 'primary'
+            }));
+          }
+
+          // Group Global Plans by Location
+          const groups: Record<string, any> = {};
+          products.forEach((p: any) => {
+            const locName = p.metadata?.location_name || 'Global';
+            const price = (p.price || 0) * 100;
+
+            if (!groups[locName] || price < groups[locName].price) {
+              groups[locName] = {
+                id: p.id.toString(),
+                name: locName,
+                price: price,
+                currency_code: p.currency || 'USD',
+                data_amount: p.data_gb ? `${p.data_gb} GB` : "High-speed Data",
+                duration: p.duration_days || 7,
+                duration_unit: "days",
+                coverage: p.metadata?.location_name || 'Global coverage',
+                region: 'Global',
+                icon: Globe,
+                startsFrom: true
+              };
+            }
+          });
+
+          return Object.values(groups);
         };
 
         setUsaPlans(formatPlans(usaRes.data.products || [], false));
@@ -286,48 +314,42 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                           {plan.name}
                         </h3>
                       </div>
-                      {plan.region === "Global" && (
-                        <div className="mb-2">
-                          <span className="bg-primary/20 text-primary text-xs px-2 py-1 rounded font-manrope-semibold">
-                            MOST POPULAR
-                          </span>
-                        </div>
-                      )}
+
                       <p className="text-muted-foreground text-sm mb-4">
                         {plan.coverage}
                       </p>
                       <div className="space-y-2 mb-4">
-                        <div className="bg-muted/50 p-2 rounded">
-                          <p className="text-sm text-foreground">
-                            {plan.data_amount}:{" "}
-                            <span className="text-primary font-manrope-bold">
+                        <div className="bg-muted/50 p-3 rounded-xl border border-border/50">
+                          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">
+                            Pricing
+                          </p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xs text-muted-foreground font-medium">Starts from</span>
+                            <span className="text-2xl font-black text-primary">
                               {formatPrice(plan.price)}
                             </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">
                             Valid for {plan.duration} {plan.duration_unit}
                           </p>
                         </div>
                       </div>
-                      <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                        <li>
-                          ✓{" "}
-                          {plan.region === "Global"
-                            ? "200+ countries coverage"
-                            : plan.region === "Europe"
-                              ? "40+ European countries"
-                              : plan.region === "USA Data"
-                                ? "T-Mobile 5G network"
-                                : plan.region === "Asia Pacific"
-                                  ? "30+ Asian countries"
-                                  : plan.region === "Latin America"
-                                    ? "20+ Latin countries"
-                                    : "Gulf countries included"}
-                        </li>
-                        <li>✓ 5G/4G LTE speeds</li>
-                        <li>✓ Instant QR activation</li>
-                        <li>✓ Keep your number</li>
-                      </ul>
+
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Check className="w-4 h-4 text-primary" />
+                          <span>Unlimited Incoming SMS</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Check className="w-4 h-4 text-primary" />
+                          <span>4G/5G High-speed Data</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Check className="w-4 h-4 text-primary" />
+                          <span>Instant QR Delivery</span>
+                        </div>
+                      </div>
+
                       <Link
                         to="/dashboard/esim"
                         onClick={() =>
@@ -337,9 +359,9 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                             "/dashboard/esim"
                           )
                         }
-                        className="w-full block text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-manrope-semibold"
+                        className="w-full block text-center px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 text-sm font-black uppercase tracking-widest"
                       >
-                        Buy Now
+                        Explore Plans
                       </Link>
                     </motion.div>
                   );

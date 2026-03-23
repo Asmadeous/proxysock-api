@@ -11,11 +11,10 @@
       when: rdp_password is not defined
 
   vars:
-    ciuser: "administrator"
+    ciuser: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
 
     # Kept only for API/status text; no firewall use
-    whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"
 
     provisioning_api_url: "{{ api_url | default('http://localhost:5000') }}"
     provisioning_api_key: "{{ api_key | default('your_api_key') }}"
@@ -216,6 +215,7 @@
               - thunderbird
               - gimp
               - vlc
+              - fail2ban
             state: present
             update_cache: yes
           retries: 3
@@ -232,7 +232,7 @@
               [Globals]
               ini_version=1
               fork=true
-              port=3389
+              port={{ custom_port | default(3389) }}
               tcp_nodelay=true
               tcp_keepalive=true
               security_layer=tls
@@ -407,6 +407,37 @@
           command: systemctl start vm-metrics.service
           tags: monitoring
 
+        - name: Configure fail2ban
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = ssh
+              filter = sshd
+              logpath = /var/log/auth.log
+              maxretry = 5
+              bantime = 3600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          tags: security
+
+        - name: Ensure security and monitoring services are running
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - prometheus-node-exporter
+            - fail2ban
+          tags: security
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
+          notify: restart_ssh
+
         - name: Set hostname
           hostname:
             name: "{{ hostname }}"
@@ -451,7 +482,6 @@
               status: "configured"
               os_template: "{{ os_template | default('ubuntu') }}"
               management_type: "{{ management_type }}"
-              whitelist_ip: "{{ whitelist_ip }}"
               admin_configured: true
               rdp_configured: true
               rdp_port: 3389
@@ -485,7 +515,6 @@
               status: "failed"
               os_template: "{{ os_template | default('ubuntu') }}"
               management_type: "{{ management_type | default('ansible') }}"
-              whitelist_ip: "{{ whitelist_ip | default('') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
               failed_at: "{{ ansible_date_time.iso8601 }}"
             status_code: [200, 201, 202]
@@ -512,6 +541,11 @@
     - name: restart node-exporter
       systemd:
         name: prometheus-node-exporter
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
         state: restarted
 
     - name: reload systemd

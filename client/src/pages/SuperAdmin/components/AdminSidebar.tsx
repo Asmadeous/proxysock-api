@@ -6,6 +6,7 @@ import { Home, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "@/store/notificationStore";
+import { formatImageUrl } from "../../../services/api";
 
 const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
     if (!show) return <>{children}</>;
@@ -35,6 +36,7 @@ interface AdminSidebarProps {
     title: string;
     userName: string;
     userRole: string;
+    profilePictureUrl?: string;
     accentColor?: string;
     fetchNotifications?: () => Promise<any>;
     markNotificationsAsRead?: () => Promise<any>;
@@ -47,6 +49,7 @@ export default function AdminSidebar({
     title,
     userName,
     userRole,
+    profilePictureUrl,
     fetchNotifications,
     markNotificationsAsRead,
 }: AdminSidebarProps) {
@@ -240,10 +243,14 @@ export default function AdminSidebar({
                 </SidebarTooltip>
 
                 {/* User Profile Info */}
-                <div className={`flex items-center bg-muted/80 rounded-xl mt-2 ${isCollapsed ? "justify-center p-2" : "space-x-3 p-3"}`}>
+                <div className={`flex items-center bg-muted/80 rounded-xl mt-2 ${isCollapsed ? "justify-center p-2" : "space-x-3 p-3 overflow-hidden"}`}>
                     <SidebarTooltip content={`${userName} (${userRole})`} show={!isMobile && isCollapsed}>
-                        <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 cursor-default">
-                            <span className="text-primary-foreground font-medium text-sm">{userName?.charAt(0)?.toUpperCase() || "?"}</span>
+                        <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 cursor-default overflow-hidden">
+                            {profilePictureUrl ? (
+                                <img src={formatImageUrl(profilePictureUrl)} alt={userName} className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="text-primary-foreground font-medium text-sm">{userName?.charAt(0)?.toUpperCase() || "?"}</span>
+                            )}
                         </div>
                     </SidebarTooltip>
                     {!isCollapsed && (

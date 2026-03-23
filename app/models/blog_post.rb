@@ -16,6 +16,7 @@ class BlogPost < ApplicationRecord
   scope :by_category,  ->(c) { where(category: c) }
 
   before_validation :generate_slug, on: :create, if: -> { slug.blank? }
+  before_validation :generate_excerpt, if: -> { excerpt.blank? && content.present? }
   before_create     :set_published_at
 
   def increment_views!
@@ -55,5 +56,11 @@ class BlogPost < ApplicationRecord
 
   def set_published_at
     self.published_at ||= Time.current if published?
+  end
+
+  def generate_excerpt
+    # Clean up HTML if present and take first 160 chars
+    plain_text = content.to_s.gsub(/<[^>]*>/, ' ')
+    self.excerpt = plain_text.truncate(160, separator: /\s/)
   end
 end

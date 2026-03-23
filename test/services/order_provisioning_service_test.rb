@@ -6,6 +6,7 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
+    ActiveJob::Base.queue_adapter = :test
     @user = create_user_with_balance(100.0)
     @user_wallet = @user.wallet
 
@@ -72,8 +73,7 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
       status: 'pending'
     )
 
-    # Mock ProxySyncService
-    ProxySyncService.any_instance.stubs(:sync_all)
+    # Proxy provisioning test
 
     # We need to stub provision_proxy! or the internal helpers if they make external calls
     # But for this test, we just want to ensure it runs without error if mocked

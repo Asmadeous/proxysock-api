@@ -40,9 +40,13 @@ export const fetchResellerOrderStats = () =>
     resellerApi.get("/orders/stats");
 
 export const fetchResellerOrders = (params: Record<string, string> = {}) =>
-    resellerApi.get("/reseller/orders", { params });
+    resellerApi.get("/orders", { params });
 export const fetchResellerVms = (params: Record<string, string> = {}) =>
-    resellerApi.get("/reseller/vms", { params });
+    resellerApi.get("/vms", { params });
+export const reorderResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/reorder`);
+export const renewResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/renew`);
 export const createResellerOrder = (data: Record<string, unknown>) =>
     resellerApi.post("/orders", data);
 export const fetchResellerOrder = (id: number) =>
@@ -51,6 +55,8 @@ export const fetchResellerOrder = (id: number) =>
 // ── Products ──────────────────────────────────────
 export const fetchResellerProducts = (params?: Record<string, string>) =>
     resellerApi.get("/products", { params });
+export const fetchResellerProductCategories = () =>
+    resellerApi.get("/product_categories");
 
 // ── Tickets ───────────────────────────────────────
 export const fetchResellerTickets = () =>
@@ -79,8 +85,17 @@ export const createResellerDeposit = (data: { amount: number, gateway: string, c
 // ── Reseller Profile ──────────────────────────────
 export const fetchResellerProfile = () =>
     resellerApi.get("/resellers");
-export const updateResellerProfile = (id: number, data: Record<string, unknown>) =>
-    resellerApi.patch(`/resellers/${id}`, data);
+export const updateResellerProfile = (id: number, data: Record<string, unknown> | FormData) => {
+    if (data instanceof FormData) {
+        return resellerApi.patch(`/resellers/${id}`, data, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+    }
+    return resellerApi.patch(`/resellers/${id}`, data);
+};
+export const rotateResellerApiKey = (id: number) =>
+    resellerApi.post(`/resellers/${id}/rotate_dedicated_api_key`);
+
 
 // ---- Notifications ----
 export const fetchResellerNotifications = () => resellerApi.get("/notifications");
@@ -97,6 +112,16 @@ export const cancelResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/cancel`);
 export const fetchOrderCredentials = (id: string) =>
     resellerApi.get(`/orders/${id}/credentials`);
+export const updateProxyCredentials = (id: string, data: { username?: string; password?: string }) =>
+    resellerApi.post(`/orders/${id}/update_credentials`, data);
+export const rotateProxyIp = (id: string) =>
+    resellerApi.post(`/orders/${id}/rotate_ip`);
+export const changeProxyProtocol = (id: string, protocol: string) =>
+    resellerApi.post(`/orders/${id}/change_protocol`, { protocol });
+export const whitelistAdd = (id: string, ip: string, description?: string) =>
+    resellerApi.post(`/orders/${id}/whitelist`, { ip, description });
+export const whitelistDelete = (id: string, ip: string) =>
+    resellerApi.delete(`/orders/${id}/whitelist`, { data: { ip } });
 
 // ── Webhook Endpoints ─────────────────────────────
 export const fetchResellerWebhooks = () =>
@@ -107,7 +132,7 @@ export const updateResellerWebhook = (id: string, data: { url?: string; descript
     resellerApi.patch(`/webhook_endpoints/${id}`, { webhook_endpoint: data });
 export const deleteResellerWebhook = (id: string) =>
     resellerApi.delete(`/webhook_endpoints/${id}`);
-export const testResellerWebhook = (id: string) =>
-    resellerApi.post(`/webhook_endpoints/${id}/test`);
+export const verifyResellerWebhook = (id: string) =>
+    resellerApi.post(`/webhook_endpoints/${id}/verify`);
 
 export default resellerApi;

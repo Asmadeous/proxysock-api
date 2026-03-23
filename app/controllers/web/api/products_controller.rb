@@ -4,7 +4,7 @@ module Web
   module Api
     class ProductsController < BaseController
       # Products are a public catalog — no auth required
-      skip_before_action :authenticate_request, only: %i[index show]
+      skip_before_action :authenticate_request, only: %i[index show residential_rotating_countries]
 
       # GET /web/api/products
       def index
@@ -23,8 +23,12 @@ module Web
           end
 
           if params[:product_type].present?
-            # Strict mapping to vps, rdp, proxy, etc.
-            scope = scope.where(product_type: params[:product_type])
+            # If 'proxy' is requested, include all granular proxy types
+            scope = if params[:product_type] == 'proxy'
+                      scope.where(product_type: Product::PROXY_TYPES)
+                    else
+                      scope.where(product_type: params[:product_type])
+                    end
           end
 
           if params[:per_page] == 'all'
@@ -63,10 +67,21 @@ module Web
         render json: { error: 'Product not found' }, status: :not_found
       end
 
+      # GET /web/api/residential-rotating/countries
+      def residential_rotating_countries
+        # Use our rich, synced data from the database instead of raw provider API calls.
+        # This ensures the frontend receives the correct 'id' and 'name' mapping and nested data.
+        category = ProductCategory.find_by(slug: 'residential-rotating')
+        countries = category&.metadata&.dig('residential_rotating_config', 'countries') || []
+
+        render json: { countries: countries }
+      end
+
       private
 
       def serialize_product(product)
-        pricing = product.product_pricings.find_by(active: true)
+        pricings = product.product_pricings.select(&:active)
+        default_pricing = pricings.first
 
         base_data = {
           id: product.id,
@@ -76,24 +91,44 @@ module Web
           product_type: product.product_type,
           category: product.product_category&.name,
           category_slug: product.product_category&.slug,
-          price: pricing&.selling_price,
-          currency: pricing&.currency,
+          price: default_pricing&.user_selling_price || default_pricing&.selling_price,
+          api_price: default_pricing&.api_price,
+          currency: default_pricing&.currency,
           provider_type: product.provider_type,
-          provider: product.provider
+          provider: product.provider,
+          pricings: pricings.map { |p| serialize_pricing(p) }
         }
 
         # Merge metadata (which contains cpu, ram, storage specs for VMs, or data/days for eSIMs)
         base_data.merge!(product.metadata.symbolize_keys) if product.metadata.is_a?(Hash)
 
         # Proxy-specific metadata defaults if missing
-        if product.product_type == 'proxy'
+        if product.proxy?
           base_data[:ips_included] ||= 0
           base_data[:gb_min] ||= 0
           base_data[:gb_max] ||= 0
           base_data[:billing_type] ||= 'monthly'
+          
+          if product.product_category&.slug == 'residential-rotating'
+            config = product.product_category.metadata&.dig('residential_rotating_config') || product.product_category.metadata&.dig(:residential_rotating_config)
+            base_data[:residential_rotating_config] = config if config.present?
+          end
         end
 
         base_data
+      end
+
+      def serialize_pricing(pricing)
+        {
+          id: pricing.id,
+          duration_type: pricing.duration_type,
+          duration_value: pricing.duration_value,
+          api_price: pricing.api_price.to_f,
+          selling_price: pricing.selling_price.to_f,
+          user_selling_price: pricing.user_selling_price.to_f,
+          reseller_selling_price: pricing.reseller_selling_price.to_f,
+          currency: pricing.currency
+        }
       end
     end
   end

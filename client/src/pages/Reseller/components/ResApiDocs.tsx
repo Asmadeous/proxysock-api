@@ -1,185 +1,366 @@
-import { useState } from "react";
-import {
-    CodeBracketIcon,
-    CommandLineIcon,
-    ClipboardDocumentIcon,
-    ArrowPathIcon,
-    ShieldCheckIcon,
-    BookOpenIcon,
-    KeyIcon
-} from "@heroicons/react/24/outline";
+import { useState, useMemo } from "react";
+import { 
+    ShieldCheck, 
+    Package, 
+    ShoppingCart, 
+    Bell, 
+    Wallet, 
+    Code2, 
+    ChevronRight, 
+    Copy, 
+    Terminal, 
+    PlayCircle,
+    CheckCircle2,
+    Info,
+    RefreshCw,
+    Database
+} from "lucide-react";
 import { toast } from "react-hot-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { generateSnippet } from "../../../utils/snippetGenerator";
 
 export default function ResApiDocs() {
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
     const isEnterprise = user?.reseller_type === "infrastructure";
-    const apiKey = isEnterprise ? (user?.dedicated_api_key || "ps_live_••••••••••••••••") : "ROTATIONAL_TOKEN_ACTIVE";
+    const [activeCategory, setActiveCategory] = useState("authentication");
+    const [selectedEndpoint, setSelectedEndpoint] = useState<any>(null);
+    const [simulating, setSimulating] = useState(false);
+    const [mockResponse, setMockResponse] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<"access" | "docs">("access");
+    const categories = [
+        { id: "authentication", name: "Authentication", icon: ShieldCheck },
+        { id: "products", name: "Products", icon: Package },
+        { id: "orders", name: "Orders", icon: ShoppingCart },
+        { id: "billing", name: "Billing", icon: Wallet },
+        ...(!isEnterprise ? [{ id: "webhooks", name: "Webhooks", icon: Bell }] : []),
+    ];
 
-    const copyToClipboard = (text: string) => {
+    const endpoints = useMemo(() => [
+        {
+            id: "auth-token",
+            category: "authentication",
+            method: "POST",
+            path: "/api/v1/auth/token",
+            name: "Generate Token",
+            description: "Exchange your Permanent API Key for a single-use rotational JWT.",
+            visible: !isEnterprise,
+            body: { username: user?.username || "partner_123", api_key: "ps_permanent_..." },
+            response: { token: "eyJhbGciOiJIUzI1NiIsInR5...", expires_in: 3600 }
+        },
+        {
+            id: "auth-me",
+            category: "authentication",
+            method: "GET",
+            path: "/api/v1/auth/me",
+            name: "Get Profile",
+            description: "Retrieve your reseller account configuration and status.",
+            visible: true,
+            response: { id: user?.id, username: user?.username, reseller_type: user?.reseller_type }
+        },
+        {
+            id: "prod-list",
+            category: "products",
+            method: "GET",
+            path: "/api/v1/products",
+            name: "List Products",
+            description: "Browse the full catalog of available inventory (Proxies, VPS, eSIM).",
+            visible: true,
+            response: { products: [{ id: "uuid", name: "USA Residential", base_price: 5.0, type: "proxy" }] }
+        },
+        {
+            id: "prod-cats",
+            category: "products",
+            method: "GET",
+            path: "/api/v1/product_categories",
+            name: "List Categories",
+            description: "Retrieve all product categories for storefront organization.",
+            visible: true,
+            response: { categories: [{ id: 1, name: "Residential Proxies", slug: "residential" }] }
+        },
+        {
+            id: "order-create",
+            category: "orders",
+            method: "POST",
+            path: "/api/v1/orders",
+            name: "Create Order",
+            description: "Provision a new resource. API-only uses balance; Enterprise initiates checkout.",
+            visible: true,
+            body: { product_id: "uuid", quantity: 1, metadata: { country: "US" } },
+            response: isEnterprise ? { payment_url: "https://checkout.proxysock..." } : { order_id: "ord_123", status: "provisioning" }
+        },
+        {
+            id: "order-reorder",
+            category: "orders",
+            method: "POST",
+            path: "/api/v1/orders/:id/reorder",
+            name: "Reorder Service",
+            description: "Quickly duplicate a previous order with identical settings.",
+            visible: true,
+            response: { message: "Order initiated", order_id: "new_ord_456" }
+        },
+        {
+            id: "balance-get",
+            category: "billing",
+            method: "GET",
+            path: "/api/v1/billing/balance",
+            name: "Check Balance",
+            description: "Monitor your real-time wallet and referral earnings.",
+            visible: true,
+            response: { balance: 450.00, earnings: 25.50, currency: "USD" }
+        }
+    ].filter(e => e.visible), [isEnterprise, user]);
+
+    const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard!");
+        toast.success("Copied to clipboard");
     };
 
+    const runSimulation = (endpoint: any) => {
+        setSimulating(true);
+        setSelectedEndpoint(endpoint);
+        setMockResponse(null);
+        setTimeout(() => {
+            setMockResponse(JSON.stringify(endpoint.response, null, 2));
+            setSimulating(false);
+            toast.success("Simulation complete", { icon: "✨" });
+        }, 800);
+    };
+
+    const authLabel = isEnterprise ? "Dedicated API Key" : "Bearer Token";
+    const authValue = isEnterprise ? (user?.dedicated_api_key || "ps_live_...") : "YOUR_ROTATIONAL_TOKEN";
+
     return (
-        <div className="space-y-8 max-w-5xl mx-auto py-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tight">Developer Portal</h1>
-                    <p className="text-muted-foreground mt-1 font-medium italic">
-                        {isEnterprise
-                            ? "Dedicated Enterprise API architecture."
-                            : "Rotational JWT-based Partner integration."}
+        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card p-8 rounded-[2.5rem] border border-border/50 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />
+                <div className="relative z-10 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                            Protocol v1.4
+                        </Badge>
+                        <div className="h-1 w-1 rounded-full bg-border" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Technical Hub</span>
+                    </div>
+                    <h1 className="text-4xl font-black tracking-tight text-foreground">API Documentation</h1>
+                    <p className="text-muted-foreground font-medium max-w-xl">
+                        Reference and simulated responses for the ProxySock {isEnterprise ? "Enterprise Layer" : "Reseller API"}.
                     </p>
                 </div>
-                <div className="flex p-1.5 bg-muted/50 rounded-2xl border border-border/50 shadow-inner w-fit">
-                    <button
-                        onClick={() => setActiveTab("access")}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === "access" ? "bg-white text-primary shadow-lg ring-1 ring-border/5" : "text-muted-foreground hover:text-foreground"}`}
-                    >
-                        <KeyIcon className="w-4 h-4" />
-                        API ACCESS
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("docs")}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === "docs" ? "bg-white text-primary shadow-lg ring-1 ring-border/5" : "text-muted-foreground hover:text-foreground"}`}
-                    >
-                        <BookOpenIcon className="w-4 h-4" />
-                        DOCUMENTATION
-                    </button>
+                <div className="flex gap-4 min-w-fit">
+                    <div className="p-4 bg-muted/30 rounded-2xl border border-border/50 transition-all hover:bg-muted/50">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Status</p>
+                        <div className="flex items-center gap-2 font-black text-sm text-foreground">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Operational
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {activeTab === "access" ? (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-card border-none shadow-2xl rounded-3xl p-8 space-y-6 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                                <CodeBracketIcon className="w-32 h-32" />
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-inner"><KeyIcon className="w-8 h-8" /></div>
-                                <h3 className="text-2xl font-black tracking-tight">
-                                    {isEnterprise ? "Static API Key" : "Partner Access Token"}
-                                </h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                                {isEnterprise
-                                    ? "Your dedicated production key. This key is static and valid for all Enterprise endpoints. Never share this key."
-                                    : "Your initial entry token. Secure communication starts here with our rotational security protocol."}
-                            </p>
-                            <div className="bg-muted/30 p-6 rounded-2xl flex justify-between items-center font-mono text-sm border border-border/50 group/key shadow-inner">
-                                <span className="truncate mr-4 text-primary font-bold tracking-tight">{apiKey}</span>
-                                <button
-                                    onClick={() => copyToClipboard(apiKey)}
-                                    className="p-3 hover:bg-primary/10 rounded-xl transition-all text-primary hover:scale-[1.1] active:scale-[0.9]"
-                                >
-                                    <ClipboardDocumentIcon className="w-6 h-6" />
-                                </button>
-                            </div>
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Sidebar Navigation */}
+                <aside className="lg:col-span-3 space-y-6">
+                    <nav className="space-y-1">
+                        {categories.map((cat) => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${
+                                    activeCategory === cat.id 
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                            >
+                                <cat.icon className="w-4 h-4" />
+                                {cat.name}
+                                {activeCategory === cat.id && <ChevronRight className="w-4 h-4 ml-auto opacity-50" />}
+                            </button>
+                        ))}
+                    </nav>
 
-                        <div className="bg-muted/20 border border-dashed border-border/50 rounded-3xl p-8 flex flex-col justify-center items-center text-center space-y-4">
-                            <div className="p-4 bg-white/50 rounded-full shadow-inner"><ShieldCheckIcon className="w-10 h-10 text-emerald-500" /></div>
-                            <h4 className="text-lg font-black uppercase tracking-widest text-emerald-600">Security Audit</h4>
-                            <p className="text-xs text-muted-foreground font-medium max-w-[200px]">All API requests are logged and monitored for infrastructure compliance.</p>
-                            <div className="px-4 py-1.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest">PCI_DSS Compliant</div>
-                        </div>
-                    </div>
-
-                    {!isEnterprise && (
-                        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-3xl p-8 space-y-6">
-                            <div className="flex items-center gap-4 text-emerald-600">
-                                <div className="p-3 bg-emerald-500/10 rounded-2xl"><ArrowPathIcon className="w-8 h-8" /></div>
-                                <div>
-                                    <h3 className="text-xl font-black uppercase tracking-widest">Rotational Protocol</h3>
-                                    <p className="text-[10px] font-black opacity-60">EXCLUSIVE TO API-ONLY TIER</p>
-                                </div>
+                    <Card className="rounded-3xl border-border/50 bg-muted/30 shadow-none">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Quick Tips</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 text-xs font-medium text-muted-foreground">
+                            <div className="flex gap-3">
+                                <Info className="w-4 h-4 text-primary shrink-0" />
+                                <p>Use the <strong>Simulate</strong> button to see example response formats.</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {[
-                                    { step: "01", title: "AUTH_HEADER", desc: "Pass token in Authorization Bearer header." },
-                                    { step: "02", title: "X_NEXT_TOKEN", desc: "Extract new key from response headers." },
-                                    { step: "03", title: "RECYCLE", desc: "Old key is burned. Use new key instantly." }
-                                ].map((item) => (
-                                    <div key={item.step} className="bg-white/50 p-6 rounded-2xl border border-emerald-500/10 space-y-2 group hover:bg-emerald-500/10 transition-colors">
-                                        <div className="text-emerald-500 font-black text-xs tracking-widest">{item.step}</div>
-                                        <h5 className="font-black text-sm uppercase tracking-tighter">{item.title}</h5>
-                                        <p className="text-xs text-muted-foreground font-medium leading-relaxed">{item.desc}</p>
+                            <div className="flex gap-3">
+                                <Code2 className="w-4 h-4 text-primary shrink-0" />
+                                <p>Authorization requires the <code>{authLabel}</code> header.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </aside>
+
+                {/* Main Content */}
+                <main className="lg:col-span-9 space-y-6 pb-20">
+                    {endpoints
+                        .filter(e => e.category === activeCategory)
+                        .map((endpoint) => (
+                            <Card key={endpoint.id} className="rounded-3xl border-border/50 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                                <div className="p-6 md:p-8 space-y-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Badge className={`rounded-lg font-black text-[10px] uppercase ${
+                                                    endpoint.method === 'GET' ? 'bg-blue-500/10 text-blue-600' : 'bg-emerald-500/10 text-emerald-600'
+                                                }`}>
+                                                    {endpoint.method}
+                                                </Badge>
+                                                <code className="text-xs font-bold text-foreground font-mono">{endpoint.path}</code>
+                                            </div>
+                                            <h3 className="text-xl font-bold tracking-tight">{endpoint.name}</h3>
+                                            <p className="text-sm text-muted-foreground font-medium">{endpoint.description}</p>
+                                        </div>
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="rounded-xl border-primary/20 text-primary font-bold px-4 hover:bg-primary/5 gap-2"
+                                            onClick={() => runSimulation(endpoint)}
+                                            disabled={simulating}
+                                        >
+                                            <PlayCircle className="w-4 h-4" />
+                                            Simulate
+                                        </Button>
                                     </div>
-                                ))}
+
+                                    <Tabs defaultValue="curl" className="w-full">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <TabsList className="bg-muted/50 p-1 rounded-xl h-9">
+                                                <TabsTrigger value="curl" className="text-[10px] font-black uppercase tracking-widest">cURL</TabsTrigger>
+                                                <TabsTrigger value="node" className="text-[10px] font-black uppercase tracking-widest">Node</TabsTrigger>
+                                                <TabsTrigger value="python" className="text-[10px] font-black uppercase tracking-widest">Python</TabsTrigger>
+                                                <TabsTrigger value="go" className="text-[10px] font-black uppercase tracking-widest">Go</TabsTrigger>
+                                                <TabsTrigger value="php" className="text-[10px] font-black uppercase tracking-widest">PHP</TabsTrigger>
+                                                <TabsTrigger value="java" className="text-[10px] font-black uppercase tracking-widest">Java</TabsTrigger>
+                                                <TabsTrigger value="csharp" className="text-[10px] font-black uppercase tracking-widest">C#</TabsTrigger>
+                                            </TabsList>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleCopy(generateSnippet("curl", endpoint.method, endpoint.path, authValue, endpoint.body))}>
+                                                <Copy className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+
+                                        {["curl", "node", "python", "go", "php", "java", "csharp"].map(lang => (
+                                            <TabsContent key={lang} value={lang}>
+                                                <div className="relative group">
+                                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    <pre className="relative p-6 bg-zinc-950 rounded-2xl text-[11px] font-mono text-emerald-400 overflow-x-auto leading-relaxed border border-white/5">
+                                                        {generateSnippet(lang, endpoint.method, endpoint.path, authValue, endpoint.body)}
+                                                    </pre>
+                                                </div>
+                                            </TabsContent>
+                                        ))}
+                                    </Tabs>
+
+                                    {/* Simulation Result */}
+                                    {mockResponse && selectedEndpoint?.id === endpoint.id && (
+                                        <div className="animate-in slide-in-from-top-4 duration-300">
+                                            <div className="flex items-center gap-2 mb-3 px-1">
+                                                <Terminal className="w-3.5 h-3.5 text-primary" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Simulated Response</span>
+                                                <Badge variant="outline" className="ml-auto rounded-full border-primary/20 bg-primary/5 text-primary text-[8px] font-black uppercase tracking-tighter">Mock Data</Badge>
+                                            </div>
+                                            <pre className="p-6 bg-muted/40 rounded-2xl text-[11px] font-mono text-foreground border border-border/50 overflow-x-auto">
+                                                {mockResponse}
+                                            </pre>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Simulation wrapper logic fix below */}
+                                    <SimulationDisplay endpoint={endpoint} selectedEndpoint={selectedEndpoint} mockResponse={mockResponse} setMockResponse={setMockResponse} />
+                                </div>
+                            </Card>
+                        ))}
+
+                    {/* Authentication Deep-Dive for specific category */}
+                    {activeCategory === "authentication" && (
+                        <div className="space-y-6 pt-6">
+                            <div className="flex items-center gap-3 px-2">
+                                <ShieldCheck className="w-5 h-5 text-primary" />
+                                <h4 className="text-lg font-black tracking-tight">Access Protocol</h4>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <Card className="rounded-3xl border-border/50 bg-primary/5 border-dashed">
+                                    <CardHeader>
+                                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                            <RefreshCw className="w-4 h-4" />
+                                            {isEnterprise ? "Persistent Key" : "Rotational JWT"}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="text-xs text-muted-foreground leading-relaxed">
+                                        {isEnterprise 
+                                            ? "Your dedicated key is static. For security, we recommend rotating it every 90 days via the API Management tab."
+                                            : "Tokens are valid for single operations. Every response includes a new 'X-Next-Token' for your subsequent call."}
+                                    </CardContent>
+                                </Card>
+                                <Card className="rounded-3xl border-border/50 bg-muted/10">
+                                    <CardHeader>
+                                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                            <Database className="w-4 h-4" />
+                                            Data Retention
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="text-xs text-muted-foreground leading-relaxed">
+                                        Resources and credentials remain accessible via the <code>/credentials</code> endpoint for up to 72 hours after provision.
+                                    </CardContent>
+                                </Card>
                             </div>
                         </div>
                     )}
+                </main>
+            </div>
+        </div>
+    );
+}
 
-                    <div className="bg-zinc-950 p-8 rounded-3xl border border-white/5 shadow-2xl relative group overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><CommandLineIcon className="w-20 h-20 text-blue-500" /></div>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-3 h-3 rounded-full bg-red-500" />
-                            <div className="w-3 h-3 rounded-full bg-amber-500" />
-                            <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                            <span className="ml-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Request Playground</span>
-                        </div>
-                        <pre className="text-emerald-400 font-mono text-sm leading-relaxed overflow-x-auto selection:bg-emerald-500/30">
-                            {`curl -X GET "https://api.proxysock.com/v1/pools" \\
-     -H "Authorization: Bearer ${isEnterprise ? 'YOUR_DEDICATED_KEY' : 'YOUR_ROTATIONAL_TOKEN'}" \\
-     -H "Content-Type: application/json"`}
-                        </pre>
-                    </div>
-                </div>
-            ) : (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-card border-none shadow-2xl rounded-3xl p-10 relative overflow-hidden">
-                        <div className="flex items-start justify-between">
-                            <div className="space-y-4 max-w-xl">
-                                <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500 w-fit shadow-inner">
-                                    <BookOpenIcon className="w-10 h-10" />
-                                </div>
-                                <h3 className="text-3xl font-black tracking-tighter">API SPECIFICATION V4</h3>
-                                <p className="text-muted-foreground font-medium leading-relaxed">
-                                    Explore our comprehensive OpenAPI/Swagger documentation. Find detailed schemas for {isEnterprise ? "Infrastructure nodes, Cluster management, and Billing." : "Retail node pools, Order management, and Partner balances."}
-                                </p>
-                                <div className="flex gap-4 pt-4">
-                                    <a
-                                        href="https://docs.proxysock.com"
-                                        target="_blank"
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-[0.98]"
-                                    >
-                                        READ FULL DOCS
-                                    </a>
-                                    <button className="bg-muted hover:bg-muted/80 text-foreground font-black px-8 py-4 rounded-2xl transition-all border border-border/50">
-                                        POSTMAN COLL.
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="hidden lg:block">
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[1, 2, 3, 4].map((i) => (
-                                        <div key={i} className="w-20 h-2 bg-muted/50 rounded-full overflow-hidden">
-                                            <div className="h-full bg-blue-500/20 w-1/2" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+// Internal helper for simulation display
+function SimulationDisplay({ endpoint, selectedEndpoint, mockResponse, setMockResponse }: any) {
+    const [localResponse, setLocalResponse] = useState<string | null>(null);
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {[
-                            { title: "Authentication", desc: "Detailed guide on JWT and Signature security headers.", icon: ShieldCheckIcon },
-                            { title: "Endpoints", desc: "Path references for all proxy and node actions.", icon: CommandLineIcon },
-                            { title: "Webhooks", desc: "Event-driven feedback for automated deployments.", icon: ArrowPathIcon }
-                        ].map((card) => (
-                            <div key={card.title} className="bg-white/50 p-8 rounded-3xl border border-border/50 hover:border-primary/50 transition-all group">
-                                <card.icon className="w-8 h-8 text-primary mb-4 group-hover:scale-110 transition-transform" />
-                                <h5 className="font-black text-lg tracking-tight mb-2">{card.title}</h5>
-                                <p className="text-xs text-muted-foreground font-medium leading-relaxed">{card.desc}</p>
-                            </div>
-                        ))}
-                    </div>
+    // Synchronize local state with global trigger
+    useMemo(() => {
+        if (mockResponse && selectedEndpoint?.id === endpoint.id) {
+            setLocalResponse(mockResponse);
+        }
+    }, [mockResponse, selectedEndpoint, endpoint.id]);
+
+    if (!localResponse) return null;
+
+    return (
+        <div className="animate-in slide-in-from-top-4 duration-500 pt-4 border-t border-border/50 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Simulation Output</span>
+                <span className="text-[10px] font-bold text-muted-foreground font-mono ml-auto">Status: 200 OK</span>
+            </div>
+            <pre className="p-6 bg-[#0B0E14] rounded-2xl text-[11px] font-mono text-zinc-300 border border-white/5 overflow-x-auto shadow-inner relative">
+                <div className="absolute top-2 right-2 flex gap-1">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500/20" />
+                     <div className="w-2 h-2 rounded-full bg-amber-500/20" />
+                     <div className="w-2 h-2 rounded-full bg-red-500/20" />
                 </div>
-            )}
+                {localResponse}
+            </pre>
+            <div className="flex gap-2 mt-2">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                        setLocalResponse(null);
+                        setMockResponse(null);
+                    }}
+                    className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
+                >
+                    Clear Simulation
+                </Button>
+            </div>
         </div>
     );
 }

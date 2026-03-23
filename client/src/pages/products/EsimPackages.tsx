@@ -20,6 +20,7 @@ import {
   formatDuration,
   type ESIMPackage,
   type PackageScope,
+  getLocationDisplayName,
 } from "../../hooks/useESIMPackages";
 import { useDebounce } from "use-debounce";
 import { ErrorBoundary } from "react-error-boundary";
@@ -775,8 +776,16 @@ function ESIMPackagesPageContent() {
                   <CardHeader className="border-b">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
+                        {pkg.packageType === "topup" && (
+                          <Badge
+                            variant="destructive"
+                            className="bg-red-600 hover:bg-red-700 mb-2 animate-pulse"
+                          >
+                            TOP-UP PLAN
+                          </Badge>
+                        )}
                         <CardTitle className="text-xl mb-2">
-                          {pkg.location_name || "Global eSIM"}
+                          {getLocationDisplayName(pkg.location_code, pkg.location_name)}
                         </CardTitle>
                         <Badge variant="default" className="gap-1">
                           <Smartphone className="h-3 w-3" />

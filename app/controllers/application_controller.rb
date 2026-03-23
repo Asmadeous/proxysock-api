@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::API
-  # Order matters: standard error is catch-all
-  rescue_from StandardError, with: :handle_standard_error
-  rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
-  rescue_from ActionController::ParameterMissing, with: :handle_bad_request
+  include ErrorHandling
 
   before_action :update_last_seen_at
 
@@ -51,30 +48,5 @@ class ApplicationController < ActionController::API
     )
   rescue StandardError => e
     Rails.logger.error "Audit Log Failed: #{e.message}"
-  end
-
-  def handle_standard_error(exception)
-    # Report to Sentry
-    Sentry.capture_exception(exception)
-
-    # Generic response
-    render json: {
-      error: 'Internal Server Error',
-      request_id: request.request_id
-    }, status: :internal_server_error
-  end
-
-  def handle_not_found(exception)
-    render json: {
-      error: 'Not Found',
-      message: exception.message # Safe to expose "Couldn't find X with id=Y" usually, or obscure it.
-    }, status: :not_found
-  end
-
-  def handle_bad_request(exception)
-    render json: {
-      error: 'Bad Request',
-      message: exception.message
-    }, status: :bad_request
   end
 end

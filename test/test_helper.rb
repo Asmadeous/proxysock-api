@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 ENV['RAILS_ENV'] ||= 'test'
+
+# Mock Proxmox credentials for test environment to avoid initialization errors
+ENV['PROXMOX_API_URL'] ||= 'https://localhost:8006'
+ENV['PROXMOX_API_TOKEN_ID'] ||= 'dummy@pam!dummy'
+ENV['PROXMOX_API_TOKEN_SECRET'] ||= 'dummy-secret'
+ENV['PROXMOX_NODE'] ||= 'pve'
+
 require_relative '../config/environment'
 require 'rails/test_help'
 require 'mocha/minitest'
@@ -17,6 +24,12 @@ module ActiveSupport
       # Global stub for PaystackService to prevent network calls
       PaystackService.any_instance.stubs(:initialize_transaction).returns({ authorization_url: 'http://mock-paystack.com' })
       PaystackService.any_instance.stubs(:generate_payment_link).returns('http://mock-paystack.com')
+
+      # Global stub for MyProxyApiClient to prevent network calls and test failures
+      MyProxyApiClient.any_instance.stubs(:place_order).returns({ 'data' => { 'order_id' => 'mock_123' },
+                                                                  'order_id' => 'mock_123' })
+      MyProxyApiClient.any_instance.stubs(:view_order).returns({ 'data' => { 'ip' => '1.2.3.4', 'port' => 8080,
+                                                                             'username' => 'test_user', 'password' => 'test_pass' } })
     end
 
     # Helper to create JWT token for testing

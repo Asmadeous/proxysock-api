@@ -8,7 +8,7 @@ class PlisioService
   end
 
   def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil)
-    # Convert local currency to crypto or use Plisio's fiat conversion
+    # Plisio uses GET for everything by default, which is unusual for invoice creation but documented.
     response = request(:get, '/invoices/new', {
                          source_currency: currency || 'USD',
                          source_amount: amount,
@@ -20,12 +20,12 @@ class PlisioService
 
     if response['status'] == 'success'
       return {
-        invoice_url: response['data']['invoice_url'],
+        url: response['data']['invoice_url'],
         txn_id: response['data']['txn_id']
       }
     end
 
-    raise "Plisio Error: #{response['data']['message']}"
+    raise "Plisio Error: #{response['data'].is_a?(Hash) ? response['data']['message'] : response['data']}"
   end
 
   def verify_transaction(order_number)
@@ -38,8 +38,8 @@ class PlisioService
       if op && %w[completed mismatch].include?(op['status'])
         return {
           status: 'success',
-          amount: op['amount'],
-          currency: op['currency']
+          amount: op['source_amount'], # Use fiat amount for wallet credit
+          currency: op['source_currency']
         }
       end
     end

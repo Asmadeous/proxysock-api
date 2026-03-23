@@ -25,19 +25,19 @@ class WebhooksController < ApplicationController
       # Build the data hash excluding verify_hash and Rails internal params
       callback_data = params.to_unsafe_h.except('verify_hash', 'controller', 'action', 'format')
 
-      # Sort by key alphabetically and JSON-encode
-      sorted_data = callback_data.sort.to_h.to_json
+      # Sort by key alphabetically and JSON-encode (must be compact JSON, no spaces)
+      sorted_data = JSON.generate(callback_data.sort.to_h)
 
       # HMAC-SHA1 with secret key
       expected = OpenSSL::HMAC.hexdigest('SHA1', ENV['PLISIO_SECRET_KEY'], sorted_data)
 
       unless Rack::Utils.secure_compare(expected, received_hash.to_s)
-        Rails.logger.warn('[Webhook] Plisio verify_hash mismatch — rejecting')
+        Rails.logger.warn("[Webhook] Plisio verify_hash mismatch — rejecting. Expected: #{expected}, Got: #{received_hash}")
         return head :bad_request
       end
     end
 
-    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id)
+    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id, :source_amount, :source_currency)
     handle_payment(webhook_params, 'plisio') if webhook_params[:status] == 'completed'
     head :ok
   end
@@ -79,6 +79,39 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
+  def hundredpay
+    # 100Pay sends a POST with charge data.
+    # We'll use the chargeId to verify the transaction status server-side for security.
+    data = params.to_unsafe_h
+    charge_id = data['chargeId'] || data['id'] || data.dig('data', 'chargeId')
+
+    unless charge_id
+      Rails.logger.warn('[Webhook] 100Pay: Missing chargeId in payload')
+      return head :bad_request
+    end
+
+    # Server-side verification to confirm status
+    verification = HundredpayService.new.verify_transaction(charge_id)
+
+    if verification[:status] == 'success'
+      # 100Pay metadata may contain order_number/reference or we use ref_id
+      reference = data['ref_id'] || data.dig('data', 'charge', 'ref_id') || charge_id
+
+      # Prepare data for handle_payment
+      payment_data = {
+        'reference' => reference,
+        'amount' => verification[:amount],
+        'currency' => verification[:currency],
+        'metadata' => data['metadata'] || data.dig('data', 'charge', 'metadata') || {}
+      }
+
+      handle_payment(payment_data, 'hundredpay')
+    else
+      Rails.logger.info("[Webhook] 100Pay: Payment not success yet (status: #{verification[:internal_status]})")
+    end
+    head :ok
+  end
+
   private
 
   def handle_payment(data, gateway)
@@ -106,13 +139,20 @@ class WebhooksController < ApplicationController
     # Paystack amounts are in kobo (NGN × 100).  We stored deposit.amount in USD,
     # so we must convert: kobo → NGN → USD.
     paid_amount_usd =
-      if gateway == 'paystack'
-        paid_ngn       = data['amount'].to_f / 100.0           # kobo → NGN
-        exchange_rate  = deposit.metadata['exchange_rate'].to_f # stored at deposit creation time
-        exchange_rate  = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f if exchange_rate.zero?
-        paid_ngn / exchange_rate                                # NGN → USD
+      case gateway
+      when 'paystack'
+        paid_ngn       = data['amount'].to_f / 100.0 # kobo → NGN
+        exchange_rate  = deposit.metadata['exchange_rate'].to_f
+        exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
+        paid_ngn / exchange_rate # NGN → USD
+      when 'plisio'
+        # Plisio: 'source_amount' is the fiat amount (USD)
+        data['source_amount'].to_f
+      when 'hundredpay'
+        # 100Pay billing amounts are in USD (unless specified otherwise, but we use USD)
+        data['amount'].to_f
       else
-        data['amount'].to_f  # Plisio, Payvra — amounts already in USD
+        data['amount'].to_f # Payvra — amounts already in USD
       end
 
     # Allow a small tolerance (±1%) for floating-point / FX rounding
@@ -127,14 +167,20 @@ class WebhooksController < ApplicationController
     ActiveRecord::Base.transaction do
       deposit.update!(status: 'completed', completed_at: Time.current)
 
-      deposit.depositable&.wallet&.credit!(paid_amount_usd, "Deposit via #{gateway}", {
-                                             gateway: gateway,
-                                             gateway_ref: reference,
-                                             paid_amount_usd: paid_amount_usd
-                                           })
+      wallet = deposit.depositable.wallet
+      raise "Wallet missing for #{deposit.depositable_type} #{deposit.depositable_id}" if wallet.nil?
+
+      wallet.credit!(
+        paid_amount_usd,
+        "Deposit via #{gateway}",
+        {
+          gateway: gateway,
+          gateway_ref: reference,
+          paid_amount_usd: paid_amount_usd
+        }
+      )
     end
   end
-
 
   def handle_order_payment(reference, _data, _gateway, metadata)
     order_id = metadata['order_id'] || reference.split('_')[1]

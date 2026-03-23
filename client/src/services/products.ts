@@ -14,11 +14,13 @@ export interface Product {
 
 export interface ProductPricing {
     id: number;
-    duration_days: number;
-    base_price: number;
+    duration_type: string;
+    duration_value: number;
+    api_price: number;
     selling_price: number;
+    user_selling_price: number;
+    reseller_selling_price: number;
     currency: string;
-    tier: string;
 }
 
 export interface ProductCategory {

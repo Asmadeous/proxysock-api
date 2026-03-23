@@ -52,9 +52,9 @@ export default function VPNPage() {
     },
     offers: {
       "@type": "AggregateOffer",
-      priceCurrency: "CAD",
-      lowPrice: "9.99",
-      highPrice: "49.99",
+      priceCurrency: "USD",
+      lowPrice: "15.00",
+      highPrice: "55.00",
       offerCount: "4",
     },
   };
@@ -62,10 +62,10 @@ export default function VPNPage() {
   const webPageData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "VPN Services - Secure & Fast Virtual Private Network | ProxySock",
+    name: "Secure VPN Services - ProxySock",
     description:
-      "Get secure VPN services with global server coverage, fast speeds, and military-grade encryption. Protect your privacy and bypass geo-restrictions. Starting from $9.99 CAD.",
-    url: globalThis.location.href,
+      "Get secure VPN services with global server coverage, fast speeds, and military-grade encryption. Starting from $15.00 USD.",
+    url: globalThis.location?.href,
   };
 
   return (
@@ -73,12 +73,11 @@ export default function VPNPage() {
       <Helmet>
         {/* Enhanced SEO meta tags */}
         <title>
-          VPN Services - Secure & Fast Virtual Private Network | ProxySock -
-          99.9% Uptime
+          Secure VPN Services | ProxySock - 99.9% Uptime Guaranteed
         </title>
         <meta
           name="description"
-          content="Get secure VPN services with global server coverage, fast speeds, and military-grade encryption. Protect your privacy and bypass geo-restrictions. Starting from $9.99 CAD."
+          content="Get secure VPN services with global server coverage, fast speeds, and military-grade encryption. Starting from $15.00 USD."
         />
         <meta
           name="keywords"

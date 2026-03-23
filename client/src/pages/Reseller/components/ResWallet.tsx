@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
-import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2 } from "lucide-react";
+import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2, Bitcoin } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function ResWallet() {
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
     const isEnterprise = user?.reseller_type === "infrastructure";
+    const isSingleProduct = user?.reseller_type === "single_product";
+    const isBalanceBased = !isEnterprise; // api_only + single_product use balance
+    const minDeposit = isSingleProduct ? 500 : 1500;
 
     const [balance, setBalance] = useState(0);
     const [earningsBalance, setEarningsBalance] = useState(0);
@@ -25,7 +28,7 @@ export default function ResWallet() {
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
     const [withdrawDetails, setWithdrawDetails] = useState<Record<string, string>>({});
-    const [_paymentGateway, _setPaymentGateway] = useState("paystack"); // Keep paystack as default, Coinbase removed
+    const [paymentGateway, setPaymentGateway] = useState("paystack");
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
@@ -51,17 +54,16 @@ export default function ResWallet() {
 
     const handleDeposit = async () => {
         const amount = parseFloat(depositAmount);
-        if (isNaN(amount) || amount < 1000) {
-            toast.error("Minimum deposit for API resellers is $1,000.00");
+        if (isNaN(amount) || amount < minDeposit) {
+            toast.error(`Minimum deposit for ${isSingleProduct ? 'Single Product' : 'API'} resellers is $${minDeposit.toLocaleString()}.00`);
             return;
         }
 
         setIsProcessing(true);
         try {
-            // Only Paystack supported as per user request (removed Coinbase)
-            const res = await createResellerDeposit({ amount, gateway: 'paystack' });
-            if (res.data.checkout_url) {
-                window.location.href = res.data.checkout_url;
+            const res = await createResellerDeposit({ amount, gateway: paymentGateway });
+            if (res.data.payment_url || res.data.checkout_url) {
+                window.location.href = res.data.payment_url || res.data.checkout_url;
             } else {
                 toast.success("Deposit initiated! Please follow the instructions.");
             }
@@ -167,7 +169,7 @@ export default function ResWallet() {
                         {isEnterprise ? "Manage your partnership earnings and infrastructure fees." : "Manage your API credits and top-ups."}
                     </p>
                 </div>
-                {!isEnterprise && (
+                {isBalanceBased && (
                     <Button
                         onClick={() => setIsDepositModalOpen(true)}
                         className="bg-primary text-primary-foreground shadow-xl hover:brightness-110 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
@@ -189,7 +191,7 @@ export default function ResWallet() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* Balance Card - API ONLY */}
-                {!isEnterprise && (
+                {isBalanceBased && (
                     <Card className="border-none bg-gradient-to-br from-primary to-indigo-700 text-white shadow-2xl relative overflow-hidden group rounded-3xl p-2">
                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
                             <WalletIcon className="h-40 w-40" />
@@ -201,7 +203,7 @@ export default function ResWallet() {
                             <div className="text-5xl font-black tracking-tighter">${balance.toFixed(2)}</div>
                             <div className="mt-6 flex items-center gap-2 text-[10px] bg-white/10 w-fit px-4 py-1.5 rounded-full border border-white/20 font-bold uppercase tracking-wider backdrop-blur-sm">
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                Minimum Top-up: $1,000.00
+                                Minimum Top-up: ${minDeposit.toLocaleString()}.00
                             </div>
                         </CardContent>
                     </Card>
@@ -275,12 +277,12 @@ export default function ResWallet() {
             </div>
 
             {/* Deposit Dialog - API ONLY */}
-            {!isEnterprise && (
+            {isBalanceBased && (
                 <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
                     <DialogContent className="rounded-3xl border-none shadow-2xl sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-black tracking-tight">Add Credits</DialogTitle>
-                            <DialogDescription className="font-medium text-muted-foreground">Top up your API balance. Minimum requirement is $1,000.00.</DialogDescription>
+                            <DialogDescription className="font-medium text-muted-foreground">Top up your API balance. Minimum requirement is ${minDeposit.toLocaleString()}.00.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-6 py-6">
                             <div className="grid gap-3">
@@ -290,8 +292,8 @@ export default function ResWallet() {
                                     <Input
                                         id="amount"
                                         type="number"
-                                        min="1000"
-                                        placeholder="1000.00"
+                                        min={minDeposit}
+                                        placeholder={`${minDeposit}.00`}
                                         value={depositAmount}
                                         onChange={(e) => setDepositAmount(e.target.value)}
                                         className="text-xl font-black pl-8 py-7 rounded-2xl bg-muted/30 border-none ring-offset-background focus-visible:ring-primary"
@@ -301,15 +303,66 @@ export default function ResWallet() {
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-sm font-bold ml-1">Secure Gateway</Label>
-                                <div className="p-4 rounded-2xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between group cursor-pointer">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-primary/10 rounded-xl"><CreditCard className="w-5 h-5 text-primary" /></div>
-                                        <div>
-                                            <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
-                                            <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation</p>
+                                <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {/* Paystack Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("paystack")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "paystack" ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "paystack" ? "bg-primary/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "paystack" ? "text-primary" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (NGN)</p>
+                                            </div>
                                         </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "paystack" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
-                                    <div className="h-5 w-5 rounded-full border-4 border-primary bg-white shadow-inner" />
+
+                                    {/* 100Pay Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("hundredpay")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "hundredpay" ? "border-purple-500 bg-purple-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "hundredpay" ? "bg-purple-500/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "hundredpay" ? "text-purple-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">100Pay (Card & Crypto)</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Global Payment Hub (USD)</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "hundredpay" ? "border-purple-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
+                                    {/* Plisio Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("plisio")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "plisio" ? "border-orange-500 bg-orange-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "plisio" ? "bg-orange-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "plisio" ? "text-orange-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Plisio Crypto</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "plisio" ? "border-orange-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
+                                    {/* Payvra Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("payvra")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "payvra" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "payvra" ? "bg-blue-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "payvra" ? "text-blue-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Payvra Crypto</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "payvra" ? "border-blue-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -317,7 +370,7 @@ export default function ResWallet() {
                             <Button variant="ghost" onClick={() => setIsDepositModalOpen(false)} className="rounded-2xl font-bold py-6">Cancel</Button>
                             <Button
                                 onClick={handleDeposit}
-                                disabled={isProcessing || !depositAmount || parseFloat(depositAmount) < 1000}
+                                disabled={isProcessing || !depositAmount || parseFloat(depositAmount) < minDeposit}
                                 className="rounded-2xl font-black py-6 px-8 bg-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
                             >
                                 {isProcessing ? "Connecting..." : "Initialize Payment"}

@@ -60,7 +60,7 @@ export default function SupportChatsTab() {
         if (selectedChat) {
             const consumer = getCableConsumer();
             sub = consumer.subscriptions.create(
-                { channel: "ChatChannel", chat_id: selectedChat.id },
+                { channel: "ChatChannel", chat_id: selectedChat.id, chat_type: "SupportChat" },
                 {
                     received: (data: any) => {
                         if (data.action === 'message_created') {

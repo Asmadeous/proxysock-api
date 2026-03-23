@@ -1,3 +1,9 @@
+---
+- name: Configure Ubuntu Desktop RDP UNMANAGED
+  hosts: linux
+  become: yes
+  gather_facts: no
+
   pre_tasks:
     - name: Ensure rdp_password is defined
       fail:
@@ -5,13 +11,12 @@
       when: rdp_password is not defined
 
   vars:
-    # Administrator credentials
-    admin_username: "administrator"
+    # User credentials
+    admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
     
     # API configuration
     api_url: "{{ api_url | default('http://localhost:4000') }}"
-    api_key: "{{ api_key | default('your_api_key') }}"
     ansible_become_password: "{{ rdp_password }}"
     ansible_python_interpreter: /usr/bin/python3
     
@@ -147,7 +152,6 @@
             no_log: true
           when:
             - api_url is defined
-            - api_key is defined
             - vm_id is defined
           delegate_to: localhost
 

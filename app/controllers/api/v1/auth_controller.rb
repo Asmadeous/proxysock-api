@@ -3,14 +3,28 @@
 module Api
   module V1
     class AuthController < Api::V1::BaseController
-      skip_before_action :authenticate_request, only: %i[token login]
-      skip_before_action :authenticate_reseller!, only: %i[token login refresh]
+      skip_before_action :authenticate_request, only: %i[token login zoho_callback]
+      skip_before_action :authenticate_reseller!, only: %i[token login refresh zoho_callback]
 
       # POST /api/v1/auth/token — existing token endpoint
       def token
-        reseller = Reseller.find_by(email: params[:email])
+        reseller = if params[:username].present?
+                     Reseller.find_by(username: params[:username])
+                   else
+                     Reseller.find_by(email: params[:email])
+                   end
 
-        unless reseller&.authenticate(params[:password])
+        unless reseller
+          return render json: { error: 'Invalid credentials' }, status: :unauthorized
+        end
+
+        authenticated = if params[:api_key].present?
+                          reseller.authenticate_api_key(params[:api_key])
+                        else
+                          reseller.authenticate(params[:password])
+                        end
+
+        unless authenticated
           return render json: { error: 'Invalid credentials' }, status: :unauthorized
         end
 
@@ -58,6 +72,16 @@ module Api
         }
       end
 
+      # GET /api/v1/auth/me
+      def me
+        render json: { reseller: serialize_reseller(current_reseller) }
+      end
+
+      # POST /api/v1/auth/zoho_callback
+      def zoho_callback
+        render json: { message: 'Success' }
+      end
+
       private
 
       def generate_reseller_jwt(reseller)
@@ -81,9 +105,12 @@ module Api
           balance: reseller.balance,
           earnings_balance: reseller.earnings_balance,
           dedicated_api_key: reseller.dedicated_api_key,
+          permanent_api_key: reseller.permanent_api_key,
           subscription_fee: reseller.subscription_fee,
           subscription_expires_at: reseller.subscription_expires_at,
-          customer_email: reseller.customer_email
+          customer_email: reseller.customer_email,
+          allowed_product_category_id: reseller.allowed_product_category_id,
+          allowed_product_category_name: reseller.allowed_product_category&.name
         }
       end
     end

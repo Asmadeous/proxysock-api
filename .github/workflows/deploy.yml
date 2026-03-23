@@ -7,8 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ${{ github.repository }}
-  CLIENT_IMAGE: ${{ github.repository_owner }}/proxysock-client
+  API_IMAGE: asmadeous/proxysock-api
+  CLIENT_IMAGE: asmadeous/proxysock-client
 
 jobs:
   # Wait for CI to pass before deploying
@@ -91,17 +91,21 @@ jobs:
           labels: ${{ steps.client-meta.outputs.labels }}
           build-args: |
             VITE_PAYSTACK_PUBLIC_KEY=${{ secrets.VITE_PAYSTACK_PUBLIC_KEY }}
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_RAILS_API_URL=${{ secrets.VITE_RAILS_API_URL }}
+            VITE_WS_URL=${{ secrets.VITE_WS_URL }}
+            VITE_HUNDREDPAY_PUBLIC_KEY=${{ secrets.VITE_HUNDREDPAY_PUBLIC_KEY }}
           cache-from: type=gha,scope=client
           cache-to: type=gha,scope=client,mode=max
 
       # ─── Deploy to VM ──────────────────────────────────
-      - name: Copy docker-compose config
+      - name: Copy docker-compose config and monitoring
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          source: "docker-compose.yml"
+          source: "docker-compose.yml,monitoring/"
           target: "/opt/proxysock-api"
 
       - name: Deploy to Production Server

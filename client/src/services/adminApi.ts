@@ -50,8 +50,14 @@ export const fetchEmployee = (id: number) =>
     adminApi.get(`/employees/${id}`);
 export const createEmployee = (data: Record<string, unknown>) =>
     adminApi.post("/employees", data);
-export const updateEmployee = (id: number, data: Record<string, unknown>) =>
-    adminApi.patch(`/employees/${id}`, data);
+export const updateEmployee = (id: number, data: Record<string, unknown> | FormData) => {
+    if (data instanceof FormData) {
+        return adminApi.patch(`/employees/${id}`, data, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+    }
+    return adminApi.patch(`/employees/${id}`, data);
+};
 export const deleteEmployee = (id: number) =>
     adminApi.delete(`/employees/${id}`);
 export const assignTickets = (id: number, ticketIds: number[]) =>
@@ -63,6 +69,11 @@ export const fetchAdminProduct = (id: string | number) => adminApi.get(`/product
 export const createAdminProduct = (data: Record<string, unknown>) => adminApi.post("/products", { product: data });
 export const updateAdminProduct = (id: string | number, data: Record<string, unknown>) => adminApi.patch(`/products/${id}`, { product: data });
 export const deleteAdminProduct = (id: string | number) => adminApi.delete(`/products/${id}`);
+export const syncAdminProxies = () => adminApi.post("/products/sync_proxies");
+export const syncAdminEsims = () => adminApi.post("/products/sync_esims");
+export const syncAdminVPS = () => adminApi.post("/products/sync_vps");
+export const syncAdminVPN = () => adminApi.post("/products/sync_vpn");
+export const syncAdminRDP = () => adminApi.post("/products/sync_rdp");
 
 // ── Resellers ─────────────────────────────────────
 export const fetchResellers = (params?: Record<string, string>) =>
@@ -87,10 +98,26 @@ export const fetchAdminOrders = (params?: Record<string, string>) =>
     adminApi.get("/orders", { params });
 export const fetchAdminOrder = (id: number) =>
     adminApi.get(`/orders/${id}`);
-export const refundOrder = (id: number) =>
-    adminApi.post(`/orders/${id}/refund`);
 export const rescueOrder = (id: number) =>
     adminApi.post(`/orders/${id}/rescue`);
+export const refundOrder = (id: number, data: { refund_method: string }) =>
+    adminApi.post(`/orders/${id}/refund`, data);
+export const renewOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/renew`);
+export const reorderOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/reorder`);
+export const fetchOrderCredentials = (id: number) =>
+    adminApi.get(`/orders/${id}/credentials`);
+export const updateProxyCredentials = (id: number, data: { username?: string; password?: string }) =>
+    adminApi.post(`/orders/${id}/update_credentials`, data);
+export const rotateProxyIp = (id: number) =>
+    adminApi.post(`/orders/${id}/rotate_ip`);
+export const changeProxyProtocol = (id: number, protocol: string) =>
+    adminApi.post(`/orders/${id}/change_protocol`, { protocol });
+export const whitelistAdd = (id: number, ip: string, description?: string) =>
+    adminApi.post(`/orders/${id}/whitelist`, { ip, description });
+export const whitelistDelete = (id: number, ip: string) =>
+    adminApi.delete(`/orders/${id}/whitelist`, { data: { ip } });
 
 // ── Affiliates ────────────────────────────────────
 export const fetchAffiliates = (params?: Record<string, string>) =>
@@ -99,6 +126,8 @@ export const fetchAffiliate = (id: number) =>
     adminApi.get(`/affiliates/${id}`);
 export const deleteAffiliate = (id: number) =>
     adminApi.delete(`/affiliates/${id}`);
+export const createAffiliate = (data: Record<string, unknown>) =>
+    adminApi.post("/affiliates", data);
 export const configureAffiliate = (id: number, data: Record<string, unknown>) =>
     adminApi.patch(`/affiliates/${id}/configure`, data);
 
@@ -179,5 +208,55 @@ export const closeSupportChat = (id: string) =>
 // ── System Monitoring ─────────────────────────────
 export const fetchMonitoringData = () =>
     adminApi.get("/monitoring");
+export const fetchMonitoringQueues = () =>
+    adminApi.get("/monitoring/queues");
+export const fetchMonitoringJobs = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/jobs", { params });
+export const fetchMonitoringRetries = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/retries", { params });
+export const fetchMonitoringDeadJobs = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/dead_jobs", { params });
+export const fetchMonitoringScheduled = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/scheduled_jobs", { params });
+export const retryMonitoringJob = (jid: string) =>
+    adminApi.post("/monitoring/retry_job", { jid });
+export const deleteMonitoringJob = (jid: string) =>
+    adminApi.post("/monitoring/delete_job", { jid });
+export const clearMonitoringQueue = (queue: string) =>
+    adminApi.post("/monitoring/clear_queue", { queue });
+export const clearMonitoringRetries = () =>
+    adminApi.post("/monitoring/clear_retries");
+export const clearMonitoringDead = () =>
+    adminApi.post("/monitoring/clear_dead");
+export const retryAllMonitoring = (set: string) =>
+    adminApi.post("/monitoring/retry_all", { set });
+export const fetchAuditLogs = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/audit_logs", { params });
+export const fetchSystemLogs = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/system_logs", { params });
+export const fetchErrorLogs = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/error_logs", { params });
+
+// ── Transactions (Admin) ──────────────────────────
+export const fetchAdminTransactions = (params?: Record<string, string>) =>
+    adminApi.get("/transactions", { params });
+
+// ── Admin Settings ────────────────────────────────
+export const adminCreditWallet = (data: { entity_type: string; email?: string; entity_id?: number; amount: number; description?: string }) =>
+    adminApi.post("/settings/credit_wallet", data);
+export const adminDebitWallet = (data: { entity_type: string; email?: string; entity_id?: number; amount: number; description?: string }) =>
+    adminApi.post("/settings/debit_wallet", data);
+export const fetchAdminProductCategories = () =>
+    adminApi.get("/settings/product_categories");
+export const createAdminProductCategory = (data: { name: string; slug?: string }) =>
+    adminApi.post("/settings/product_categories", data);
+export const fetchSystemInfo = () =>
+    adminApi.get("/settings/system_info");
+
+// ── Database Explorer ────────────────────────────
+export const fetchDatabaseTables = () =>
+    adminApi.get("/database/tables");
+export const executeDatabaseQuery = (query: string) =>
+    adminApi.post("/database/query", { query });
 
 export default adminApi;

@@ -7,26 +7,20 @@ class PayvraService
     @api_key = ENV['PAYVRA_API_KEY']
   end
 
-  def create_charge(amount, currency)
-    response = request(:post, '/charges', {
-                         amount: amount,
-                         currency: currency,
-                         redirect_url: "#{ENV['APP_URL']}/deposits/complete",
-                         webhook_url: "#{ENV['APP_URL']}/webhooks/payvra/callback"
-                       })
-
-    response['payment_url']
-  end
-
-  def create_payment(amount:, currency:, reference:, callback_url:)
+  def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil)
     response = request(:post, '/merchants/invoice/create', {
                          amount: amount,
-                         amountCurrency: currency,
+                         amountCurrency: currency || 'USD',
                          returnUrl: callback_url,
+                         orderId: order_number,
+                         customerEmail: email,
                          acceptedCoins: %w[BTC ETH USDC USDT]
                        })
 
-    { payment_url: response['paymentUrl'] || response['url'], invoice_id: response['id'] }
+    {
+      url: response['paymentUrl'] || response['url'],
+      txn_id: response['id']
+    }
   end
 
   def verify_transaction(invoice_id)

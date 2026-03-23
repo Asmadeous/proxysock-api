@@ -7,8 +7,8 @@ on:
 
 env:
     REGISTRY: ghcr.io
-    API_IMAGE: ${{ github.repository }}
-    CLIENT_IMAGE: ${{ github.repository_owner }}/proxysock-client
+    API_IMAGE: asmadeous/proxysock-api
+    CLIENT_IMAGE: asmadeous/proxysock-client
 
 jobs:
     deploy-staging:
@@ -73,17 +73,21 @@ jobs:
                   labels: ${{ steps.client-meta.outputs.labels }}
                   build-args: |
                       VITE_PAYSTACK_PUBLIC_KEY=${{ secrets.VITE_PAYSTACK_PUBLIC_KEY }}
+                      VITE_API_URL=${{ secrets.VITE_API_URL }}
+                      VITE_RAILS_API_URL=${{ secrets.VITE_RAILS_API_URL }}
+                      VITE_WS_URL=${{ secrets.VITE_WS_URL }}
+                      VITE_HUNDREDPAY_PUBLIC_KEY=${{ secrets.VITE_HUNDREDPAY_PUBLIC_KEY }}
                   cache-from: type=gha,scope=client
                   cache-to: type=gha,scope=client,mode=max
 
             # ─── Deploy to VM ──────────────────────────────────
-            - name: Copy docker-compose config
+            - name: Copy docker-compose config and monitoring
               uses: appleboy/scp-action@v0.1.7
               with:
                   host: ${{ secrets.STAGING_HOST }}
                   username: ${{ secrets.STAGING_USER }}
-                  key: ${{ secrets.STAGING_SSH_KEY }}
-                  source: "docker-compose.yml"
+                  password: ${{ secrets.STAGING_PASSWORD }}
+                  source: "docker-compose.yml,monitoring/"
                   target: "/opt/proxysock-api"
 
             - name: Deploy to Staging Server
@@ -91,7 +95,7 @@ jobs:
               with:
                   host: ${{ secrets.STAGING_HOST }}
                   username: ${{ secrets.STAGING_USER }}
-                  key: ${{ secrets.STAGING_SSH_KEY }}
+                  password: ${{ secrets.STAGING_PASSWORD }}
                   script: |
                       cd /opt/proxysock-api
 
@@ -107,13 +111,13 @@ jobs:
                         web-staging bin/rails db:prepare
 
                       # Restart all staging services
-                      IMAGE_TAG=staging docker compose --profile staging up -d --no-deps \
+                      IMAGE_TAG=staging docker compose --profile staging up -d --no-deps --remove-orphans \
                         web-staging sidekiq-staging frontend-staging
 
                       # Health check (API)
                       echo "Waiting for API health check..."
                       for i in $(seq 1 30); do
-                        if curl -sf --max-time 5 http://localhost/up > /dev/null 2>&1; then
+                        if curl -sfkL --max-time 5 -H "Host: apitest.proxysock.net" http://localhost/up > /dev/null 2>&1; then
                           echo "✅ API healthy!"
                           break
                         fi

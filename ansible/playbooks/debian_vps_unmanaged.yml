@@ -14,7 +14,6 @@
     new_root_password: "{{ root_password }}"
     new_user: "{{ hostname | default('vps-user') }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
-    ansible_become_password: "{{ root_password }}"
 
   tasks:
     - block:
@@ -39,7 +38,7 @@
             password: "{{ new_root_password | password_hash('sha512') }}"
             shell: /bin/bash
             state: present
-            no_log: true
+          no_log: true
 
         - name: Update packages
           apt:
@@ -49,7 +48,14 @@
           user:
             name: root
             password: "{{ new_root_password | password_hash('sha512') }}"
-            no_log: true
+          no_log: true
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
 
         - name: Set hostname
           hostname:
@@ -60,10 +66,22 @@
             name:
               - curl
               - wget
+              - fail2ban
+              - unattended-upgrades
             state: present
             update_cache: yes
           retries: 3
           delay: 10
+
+        - name: Ensure security services are running
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - fail2ban
+            - unattended-upgrades
+          ignore_errors: yes
 
         - name: Final configuration step
           shell: |
@@ -96,7 +114,6 @@
             no_log: true
           when:
             - api_url is defined
-            - api_key is defined
             - vm_id is defined
           delegate_to: localhost
           ignore_errors: yes
@@ -123,7 +140,6 @@
             no_log: true
           when:
             - api_url is defined
-            - api_key is defined
             - vm_id is defined
           delegate_to: localhost
           ignore_errors: yes
@@ -135,3 +151,9 @@
               - "❌ VM ID: {{ vm_id | default('unknown') }}"
               - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
               - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+  handlers:
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted

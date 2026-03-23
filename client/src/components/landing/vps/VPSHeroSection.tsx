@@ -48,7 +48,7 @@ export const VPSHeroSection = ({ trackConversion }: VPSHeroSectionProps) => {
               99.9% Uptime
             </span>
             <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-manrope-semibold">
-              🇨🇦 Starting CAD $23/mo
+              🇺🇸 Starting at $35 USD/mo
             </span>
           </motion.div>
 
@@ -56,11 +56,11 @@ export const VPSHeroSection = ({ trackConversion }: VPSHeroSectionProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
+            className="text-4xl sm:text-5xl md:text-6xl font-manrope-bold font-bold text-foreground mb-6"
           >
             Residential VPS Hosting
             <br />
-            <span className="text-primary">From $23 CAD/month</span>
+            <span className="text-primary">From $35 USD/month</span>
           </motion.h1>
 
           <motion.p

@@ -10,8 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import StatsCard from "../components/StatsCard";
 import StatusBadge from "../components/StatusBadge";
-import { fetchAdminUsers, fetchAdminOrders, fetchAffiliates } from "../../../services/adminApi";
-import { fetchTransactions } from "../../../services/transaction";
+import { fetchAdminUsers, fetchAdminOrders, fetchAffiliates, fetchAdminTransactions } from "../../../services/adminApi";
 
 export default function OverviewTab() {
     const [loading, setLoading] = useState(true);
@@ -27,17 +26,17 @@ export default function OverviewTab() {
                 const [usersRes, ordersRes, txRes, affRes] = await Promise.allSettled([
                     fetchAdminUsers({ per: "1" }),
                     fetchAdminOrders({ per: "5" }),
-                    fetchTransactions(),
+                    fetchAdminTransactions(),
                     fetchAffiliates({ per: "1" }),
                 ]);
 
                 const usersTotal = usersRes.status === "fulfilled" ? usersRes.value.data.total : 0;
                 const ordersData = ordersRes.status === "fulfilled" ? ordersRes.value.data : { orders: [], stats: {}, total: 0 };
-                const txData = txRes.status === "fulfilled" ? txRes.value : [];
+                const txData = txRes.status === "fulfilled" ? (txRes.value.data.transactions || txRes.value.data || []) : [];
                 const affTotal = affRes.status === "fulfilled" ? affRes.value.data.total : 0;
 
                 const totalRevenue = Array.isArray(txData)
-                    ? txData.filter((t) => t.payment_status === "succeeded")
+                    ? txData.filter((t) => t.status === "success")
                         .reduce((sum: number, t) => sum + Number(t.amount || 0), 0)
                     : 0;
 
@@ -69,17 +68,17 @@ export default function OverviewTab() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard title="Total Users" value={stats.users} icon={UsersIcon} loading={loading} change="+8.7%" />
-                <StatsCard title="Total Revenue" value={`$${stats.revenue.toFixed(2)}`} icon={BanknotesIcon} loading={loading} change="+23.1%" />
-                <StatsCard title="Transactions" value={stats.transactions} icon={CurrencyDollarIcon} loading={loading} change="+15.2%" />
-                <StatsCard title="Total Orders" value={stats.orders} icon={ClipboardDocumentListIcon} loading={loading} change="+12.4%" />
+                <StatsCard title="Total Users" value={stats.users} icon={UsersIcon} loading={loading} />
+                <StatsCard title="Total Revenue" value={`$${stats.revenue.toFixed(2)}`} icon={BanknotesIcon} loading={loading} />
+                <StatsCard title="Transactions" value={stats.transactions} icon={CurrencyDollarIcon} loading={loading} />
+                <StatsCard title="Total Orders" value={stats.orders} icon={ClipboardDocumentListIcon} loading={loading} />
             </div>
 
             {/* Secondary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <StatsCard title="Affiliates" value={stats.affiliates} icon={LinkIcon} loading={loading} />
-                <StatsCard title="Failed Orders" value={stats.failedOrders} icon={ShoppingCartIcon} loading={loading} positive={false} change={stats.failedOrders > 0 ? "Needs attention" : "0"} />
-                <StatsCard title="Pending Orders" value={stats.pendingOrders} icon={UserGroupIcon} loading={loading} change="In queue" />
+                <StatsCard title="Failed Orders" value={stats.failedOrders} icon={ShoppingCartIcon} loading={loading} positive={false} change={stats.failedOrders > 0 ? "Needs attention" : "All clear"} />
+                <StatsCard title="Pending Orders" value={stats.pendingOrders} icon={UserGroupIcon} loading={loading} change={stats.pendingOrders > 0 ? "In queue" : "None"} />
             </div>
 
             {/* Recent Orders */}
