@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'open3'
+
 module Admin
   module Api
     class MonitoringController < Admin::Api::BaseController
@@ -309,8 +311,8 @@ module Admin
           return render json: { lines: [], total: 0, source: source, error: "Log file not found: #{log_file}" }
         end
 
-        # Read last N lines efficiently using tail
-        raw_lines = `tail -n #{lines} #{Shellwords.escape(log_file.to_s)} 2>/dev/null`.split("\n")
+        stdout, _stderr, _status = Open3.capture3("tail", "-n", lines.to_s, log_file.to_s)
+        raw_lines = stdout.split("\n")
 
         # Apply search filter
         if search.present?
@@ -351,7 +353,8 @@ module Admin
         end
 
         # Read last N lines and extract errors
-        raw = `tail -n #{lines} #{Shellwords.escape(log_file.to_s)} 2>/dev/null`.split("\n")
+        stdout, _stderr, _status = Open3.capture3("tail", "-n", lines.to_s, log_file.to_s)
+        raw = stdout.split("\n")
 
         errors = []
         current_error = nil
