@@ -147,17 +147,17 @@ const VPSManagement = () => {
 
   // Get unique values for filter options
   const statusOptions = useMemo(() => {
-    const statuses = [...new Set(vpsInstances.map(instance => instance.status))];
+    const statuses = [...new Set(vpsInstances.map(instance => instance.status).filter(Boolean) as string[])];
     return statuses.sort((a, b) => a.localeCompare(b));
   }, [vpsInstances]);
 
   const osOptions = useMemo(() => {
-    const osTemplates = [...new Set(vpsInstances.map(instance => instance.os_template))];
+    const osTemplates = [...new Set(vpsInstances.map(instance => instance.os_template).filter(Boolean) as string[])];
     return osTemplates.sort((a, b) => a.localeCompare(b));
   }, [vpsInstances]);
 
   const nodeOptions = useMemo(() => {
-    const nodes = [...new Set(vpsInstances.map(instance => instance.node))];
+    const nodes = [...new Set(vpsInstances.map(instance => instance.node).filter(Boolean) as string[])];
     return nodes.sort((a, b) => a.localeCompare(b));
   }, [vpsInstances]);
 

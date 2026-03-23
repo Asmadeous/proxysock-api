@@ -15,7 +15,6 @@ const rdpPlans = [
   {
     name: "Basic",
     price: "$40",
-    cadPrice: "$28",
     vcpu: "1 vCPU",
     ram: "2GB RAM",
     storage: "40GB SSD Storage",
@@ -30,7 +29,6 @@ const rdpPlans = [
   {
     name: "Standard",
     price: "$95",
-    cadPrice: "$83",
     vcpu: "2 vCPU",
     ram: "4GB RAM",
     storage: "80GB SSD Storage",
@@ -46,7 +44,6 @@ const rdpPlans = [
   {
     name: "Premium",
     price: "$150",
-    cadPrice: "$138",
     vcpu: "3 vCPU",
     ram: "6GB RAM",
     storage: "120GB SSD Storage",
@@ -61,7 +58,6 @@ const rdpPlans = [
   {
     name: "Ultra",
     price: "$220",
-    cadPrice: "$208",
     vcpu: "4 vCPU",
     ram: "8GB RAM",
     storage: "160GB SSD Storage",
@@ -103,12 +99,8 @@ export const RDPPlansSection = ({ trackConversion }: RDPPlansSectionProps) => {
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <GlobeAltIcon className="h-5 w-5 text-primary" />
             <p className="text-primary text-center text-sm font-manrope-semibold">
-              🌍 Available in 5 Locations: USA • UK • Germany • Canada •
-              Australia
+              🌍 Available in 3 Locations: USA • UK • Canada
             </p>
-            <span className="bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full font-manrope-bold">
-              🇨🇦 Cheapest in Canada!
-            </span>
           </div>
         </motion.div>
 
@@ -121,11 +113,10 @@ export const RDPPlansSection = ({ trackConversion }: RDPPlansSectionProps) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${
-                plan.popular
+              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${plan.popular
                   ? "border-primary shadow-lg shadow-primary/20"
                   : "border-border"
-              } relative`}
+                } relative`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -149,11 +140,6 @@ export const RDPPlansSection = ({ trackConversion }: RDPPlansSectionProps) => {
                   </span>
                   <span className="text-muted-foreground text-sm">
                     /month USD
-                  </span>
-                </div>
-                <div className="bg-primary/20 border border-primary/50 rounded px-2 py-1 inline-block">
-                  <span className="text-primary text-xs font-manrope-semibold">
-                    🇨🇦 {plan.cadPrice} CAD/mo
                   </span>
                 </div>
               </div>
@@ -188,11 +174,10 @@ export const RDPPlansSection = ({ trackConversion }: RDPPlansSectionProps) => {
                     "/dashboard/rdp"
                   )
                 }
-                className={`w-full block text-center px-4 py-2 rounded-md transition-colors text-sm font-manrope-semibold ${
-                  plan.name === "Ultra"
+                className={`w-full block text-center px-4 py-2 rounded-md transition-colors text-sm font-manrope-semibold ${plan.name === "Ultra"
                     ? "bg-green-600 text-white hover:bg-green-700"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
-                }`}
+                  }`}
               >
                 Configure & Buy →
               </Link>

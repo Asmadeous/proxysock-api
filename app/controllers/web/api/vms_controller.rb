@@ -24,15 +24,19 @@ module Web
       # POST /web/api/vms
       def create
         order = create_vm_order
-        # No need to create VM here if Job does it, but current code does:
         vm = Vm.create!(
           vm_order: order.vm_order,
           status: 'pending',
           vm_type: vm_params[:vm_type]
         )
 
-        # Enqueue async provisioning
-        VmProvisioningJob.perform_later(vm.id, vm_params.to_h)
+        # Enqueue AFTER the DB transaction commits so the VM record is
+        # visible to Sidekiq on its own DB connection.
+        enqueued_vm_id = vm.id
+        enqueued_params = vm_params.to_h
+        ActiveRecord.after_all_transactions_commit do
+          VmProvisioningJob.perform_later(enqueued_vm_id, enqueued_params)
+        end
 
         render json: {
           message: 'VM provisioning started',

@@ -11,7 +11,6 @@
   vars:
     admin_password: "{{ rdp_password }}"
    
-    whitelist_ip: "{{ whitelist_ip | default('0.0.0.0') }}"
    
     provisioning_api_url: "{{ api_url | default('http://localhost:5000') }}"
     provisioning_api_key: "{{ api_key | default('your_api_key') }}"
@@ -174,16 +173,32 @@
                 name: "MinEncryptionLevel"
                 data: 3
                 type: dword
+
+            - name: Configure RDP Port in Registry
+              win_regedit:
+                path: "{{ item }}"
+                name: PortNumber
+                data: "{{ custom_port | default(3389) }}"
+                type: dword
+              loop:
+                - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+                - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server"
             
-            - name: Allow RDP through Windows Firewall
+            - name: Allow Custom RDP Port through Windows Firewall
               win_firewall_rule:
-                name: Remote Desktop - Managed
-                localport: 3389
+                name: "Remote Desktop - Custom ({{ custom_port | default(3389) }})"
+                localport: "{{ custom_port | default(3389) }}"
                 action: allow
                 direction: in
                 protocol: tcp
                 state: present
                 enabled: yes
+
+            - name: Restart Remote Desktop Service to apply port change
+              win_service:
+                name: TermService
+                state: restarted
+              ignore_errors: yes
           tags: rdp
         
         # ========================================

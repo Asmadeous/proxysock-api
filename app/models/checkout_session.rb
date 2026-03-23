@@ -6,7 +6,7 @@ class CheckoutSession < ApplicationRecord
 
   include AASM
 
-  PAYMENT_METHODS = %w[wallet paystack plisio payvra].freeze
+  PAYMENT_METHODS = %w[wallet paystack plisio payvra hundredpay].freeze
 
   validates :total_amount, presence: true, numericality: { greater_than: 0 }
   validates :payment_method, presence: true, inclusion: { in: PAYMENT_METHODS }
@@ -54,33 +54,65 @@ class CheckoutSession < ApplicationRecord
 
     process! if paid?
 
+    is_reseller = orderable.is_a?(Reseller)
+
     ActiveRecord::Base.transaction do
       if orders.empty? && metadata['items'].present?
         metadata['items'].each do |item|
-          product = Product.for_ecommerce.find_by(id: item['product_id'] || item[:product_id])
+          product = if is_reseller
+                      Product.for_resellers.find_by(id: item['product_id'] || item[:product_id])
+                    else
+                      Product.for_ecommerce.find_by(id: item['product_id'] || item[:product_id])
+                    end
           next unless product
 
           pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
 
-          Order.create!(
+          order_metadata = (item['metadata'] || item[:metadata] || {}).merge(
+            'payment_debug' => metadata['payment_debug'] || (is_reseller ? 'reseller_gateway' : 'gateway'),
+            'client_ip' => metadata['client_ip'] || '0.0.0.0'
+          )
+
+          # Propagate customer_email for infrastructure reseller orders
+          if is_reseller && metadata['customer_email'].present?
+            order_metadata['customer_email'] = metadata['customer_email']
+            order_metadata['credentials_email'] = metadata['customer_email']
+          end
+
+          order = Order.create!(
             orderable: orderable,
             product: product,
             product_pricing: pricing,
             quantity: item['quantity'] || item[:quantity] || 1,
-            metadata: item['metadata'] || item[:metadata] || {},
+            metadata: order_metadata,
             status: 'awaiting_payment',
             checkout_session: self
           )
+
+          # Create ResellerOrder link for reseller orders
+          next unless is_reseller
+
+          ResellerOrder.create!(
+            reseller: orderable,
+            order_id: order.id,
+            orderable: orderable
+          )
         end
       end
-
-      orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
-        actor = order.user || order.reseller
-        OrderProvisioningService.new(order, actor).process_without_deduction!
-      end
-
-      complete!
     end
+
+    # Provision OUTSIDE the transaction so all Order records are committed
+    # and visible to Sidekiq before any background jobs are enqueued.
+    orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
+      actor = if is_reseller
+                orderable
+              else
+                order.orderable
+              end
+      OrderProvisioningService.new(order, actor).process_without_deduction!
+    end
+
+    complete!
     true
   rescue StandardError => e
     Rails.logger.error("[CheckoutSession] Provisioning failed for session #{id}: #{e.message}")

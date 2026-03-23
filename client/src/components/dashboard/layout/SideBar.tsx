@@ -165,6 +165,7 @@ interface SidebarProps {
   handleLogout: () => void;
   cartCount: number;
   userName: string;
+  profilePictureUrl?: string;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onLinkClick?: () => void;
@@ -190,6 +191,7 @@ export const Sidebar = ({
   handleLogout,
   cartCount,
   userName,
+  profilePictureUrl,
   isCollapsed,
   setIsCollapsed,
   onLinkClick,
@@ -312,7 +314,7 @@ export const Sidebar = ({
         >
           <div className={`relative rounded-full overflow-hidden bg-primary/10 flex items-center justify-center ring-2 ring-primary/10 transition-all duration-300 ${isCollapsed ? "h-10 w-10" : "h-12 w-12"}`}>
             <img
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
+              src={profilePictureUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
               alt={userName}
               className="h-full w-full object-cover"
               onError={(e) => {

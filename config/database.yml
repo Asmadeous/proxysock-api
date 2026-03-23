@@ -62,3 +62,23 @@ production:
     <<: *primary_production
     database: proxysock_api_production_cable
     migrations_paths: db/cable_migrate
+
+staging:
+  primary: &primary_staging
+    <<: *default
+    host: db-staging
+    database: proxysock_api_staging
+    username: proxysock_api
+    password: <%= ENV["PROXYSOCK_API_DATABASE_PASSWORD"] %>
+  cache:
+    <<: *primary_staging
+    database: proxysock_api_staging_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_staging
+    database: proxysock_api_staging_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_staging
+    database: proxysock_api_staging_cable
+    migrations_paths: db/cable_migrate

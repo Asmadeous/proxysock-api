@@ -13,6 +13,7 @@ class Vm < ApplicationRecord
     state :provisioning
     state :active
     state :failed
+    state :expired
     state :terminated
 
     event :start_provisioning do
@@ -27,8 +28,12 @@ class Vm < ApplicationRecord
       transitions from: %i[pending provisioning], to: :failed
     end
 
-    event :terminate do
-      transitions from: %i[active failed provisioning], to: :terminated
+    event :terminate, after: :cleanup_vm_on_proxmox do
+      transitions from: %i[active failed provisioning expired], to: :terminated
+    end
+
+    event :expire, after: :stop_vm_on_proxmox do
+      transitions from: :active, to: :expired
     end
   end
 
@@ -49,30 +54,40 @@ class Vm < ApplicationRecord
 
     service = VmProvisioningService.new(nil, Rails.logger)
 
-    # Map attributes to service params
+    management_type = vm_type.to_s.include?('managed') ? 'managed' : 'unmanaged'
+
     params = {
-      'job_id' => "vm-#{id}-#{Time.now.to_i}", # Unique job ID
-      'os_template' => vm_order.os_type, # Assuming VmOrder has os_type
-      'vm_type' => vm_type, # Vm has vm_type
+      'job_id' => "vm-#{id}-#{Time.now.to_i}",
+      'os_template' => vm_order.os_type,
+      'vm_type' => vm_type,
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
-      'hostname' => "vm-#{id}",            # Simple hostname strategy
-      'management_type' => 'unmanaged'     # Default or derived
+      'management_type' => management_type,
+      'root_password' => service.generate_secure_password
     }
 
     begin
       result = service.provision(params)
 
+      # Update VM record with successful provisioning details
       update!(
         ip_address: result[:ip_address],
+        hostname: result[:hostname],
+        dns_name: result[:dns_name],
         proxmox_vm_id: result[:vm_id].to_s,
-        rdp_port: result[:protocol] == 'rdp' ? 3389 : nil,
-        ssh_port: result[:protocol] == 'ssh' ? 22 : nil,
-        expires_at: 30.days.from_now # Set initial expiry
+        rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
+        ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
+        ssh_username: result[:username],
+        ssh_password: result[:password],
+        root_password: result[:password],
+        provisioned_at: Time.current,
+        expires_at: Time.current + 30.days
       )
 
       mark_active!
+      # Send welcome email with credentials and custom ports
+      VmMailer.credentials_email(self).deliver_later
     rescue StandardError => e
       Rails.logger.error("VM Provisioning failed: #{e.message}")
       fail!
@@ -80,9 +95,15 @@ class Vm < ApplicationRecord
     end
   end
 
-  def terminate!
+  private
+
+  def stop_vm_on_proxmox
+    service = VmProvisioningService.new(nil, Rails.logger)
+    service.stop_vm(proxmox_vm_id)
+  end
+
+  def cleanup_vm_on_proxmox
     service = VmProvisioningService.new(nil, Rails.logger)
     service.cleanup_vm(proxmox_vm_id, ip_address, "vm-#{id}")
-    terminate
   end
 end

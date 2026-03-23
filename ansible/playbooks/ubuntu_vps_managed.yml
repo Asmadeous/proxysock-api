@@ -1,3 +1,8 @@
+---
+- name: Configure Ubuntu VPS MANAGED
+  hosts: linux
+  become: yes
+
   pre_tasks:
     - name: Ensure root_password is defined
       fail:
@@ -7,8 +12,6 @@
   vars:
     new_root_password: "{{ root_password }}"
     api_url: "{{ api_url | default('http://localhost:5000') }}"
-    api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "{{ root_password }}"
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
     proxy_username: "{{ proxy_config.proxy_username | default('') }}"
@@ -141,6 +144,13 @@
             password: "{{ new_root_password | password_hash('sha512') }}"
             update_password: always
           no_log: true
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
 
         - name: Create hostname user with root password
           user:
@@ -302,6 +312,13 @@
             mode: '0644'
             backup: yes
 
+        - name: Configure node exporter to listen on non-standard port
+          lineinfile:
+            path: /etc/default/prometheus-node-exporter
+            regexp: '^ARGS='
+            line: 'ARGS="--web.listen-address=:59100"'
+          notify: restart_node_exporter
+
         - name: Enable unattended upgrades
           lineinfile:
             path: /etc/apt/apt.conf.d/20auto-upgrades
@@ -383,7 +400,6 @@
             no_log: true
           when: 
             - api_url is defined
-            - api_key is defined 
             - vm_id is defined
           register: api_response
           failed_when: false
@@ -420,8 +436,8 @@
               os_template: "{{ os_template }}"
               management_type: "{{ management_type }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              validate_certs: yes
-              no_log: true
+            validate_certs: yes
+            no_log: true
           delegate_to: localhost
           ignore_errors: yes
 
@@ -429,4 +445,14 @@
     - name: restart_fail2ban
       systemd:
         name: fail2ban
+        state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: restart_node_exporter
+      systemd:
+        name: prometheus-node-exporter
         state: restarted

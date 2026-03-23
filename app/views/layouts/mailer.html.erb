@@ -75,7 +75,13 @@
             <!-- Header -->
             <tr>
                 <td class="header">
-                    <img src="https://proxysock.com/assets/PROXY%20SOCKS%20DARK%20FONT-BmPlaTFU.png" alt="ProxySock" width="160" style="display: block; margin: 0 auto;">
+                    <% if @reseller %>
+                      <% if @reseller.avatar.attached? %>
+                        <%= image_tag url_for(@reseller.avatar), alt: @reseller.company_name, width: "160", style: "display: block; margin: 0 auto;" %>
+                      <% end %>
+                    <% else %>
+                      <img src="https://proxysock.com/assets/PROXY%20SOCKS%20DARK%20FONT-BmPlaTFU.png" alt="ProxySock" width="160" style="display: block; margin: 0 auto;">
+                    <% end %>
                 </td>
             </tr>
             <!-- Body -->
@@ -87,11 +93,16 @@
             <!-- Footer -->
             <tr>
                 <td class="footer">
-                    <p style="margin: 0 0 12px 0; font-weight: 600; font-family: 'Outfit', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;">ProxySock</p>
-                    <p style="margin: 0; opacity: 0.6;">© <%= Time.current.year %> ProxySock. All rights reserved.</p>
-                    <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                        <p style="margin: 0; opacity: 0.4; font-size: 11px;">You received this email because you're a registered user of ProxySock.</p>
-                    </div>
+                    <% if @reseller %>
+                      <p style="margin: 0 0 12px 0; font-weight: 600; font-family: 'Outfit', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;"><%= @reseller.company_name %></p>
+                      <p style="margin: 0; opacity: 0.6;">© <%= Time.current.year %> <%= @reseller.company_name %>. All rights reserved.</p>
+                    <% else %>
+                      <p style="margin: 0 0 12px 0; font-weight: 600; font-family: 'Outfit', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;">ProxySock</p>
+                      <p style="margin: 0; opacity: 0.6;">© <%= Time.current.year %> ProxySock. All rights reserved.</p>
+                      <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                          <p style="margin: 0; opacity: 0.4; font-size: 11px;">You received this email because you're a registered user of ProxySock.</p>
+                      </div>
+                    <% end %>
                 </td>
             </tr>
         </table>

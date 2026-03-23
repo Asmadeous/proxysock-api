@@ -5,6 +5,11 @@ class EsimOrder < ApplicationRecord
 
   has_many :esims, dependent: :destroy
 
+  # Convenience accessor for single-esim orders (used by orders controller)
+  def esim
+    esims.first
+  end
+
   ESIM_TYPES = %w[data_only voice_data_sms].freeze
 
   # Renewal is only supported for API-based data-only eSIMs (esim_access).

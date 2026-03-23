@@ -9,6 +9,9 @@ import {
     AlertCircle,
     Loader2,
     Lock,
+    Tag,
+    Check,
+    X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +20,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlesrs";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
-import { CartItem } from "./ResellerCart";
+import { CartItem } from "@/types";
 import { useRedditTracking } from "@/utils/redditPixel";
+import { Input } from "@/components/ui/input";
+import api from "../../services/api";
 
 import { fetchResellerBalance } from "../../services/resellerApi";
 
@@ -37,8 +42,20 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
     const [isLoadingPayvra, setIsLoadingPayvra] = useState(false);
     const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
+    const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isAnyPaymentProcessing, setIsAnyPaymentProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Promo code state
+    const [promoInput, setPromoInput] = useState("");
+    const [promoValidating, setPromoValidating] = useState(false);
+    const [promoApplied, setPromoApplied] = useState<{
+        code: string;
+        discount_type: string;
+        discount_value: number;
+        description?: string;
+    } | null>(null);
+    const [promoError, setPromoError] = useState<string | null>(null);
 
     const usaEsimInCart = cartItems.some(
         (item) => item.productType === "usa-esim"
@@ -113,6 +130,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const {
         handleBalancePayment,
         handlePaystackCheckout,
+        handleHundredpayCheckout,
         handlePayvraCheckout,
         handlePlisioCheckout,
     } = usePaymentCheckoutHandlers({
@@ -127,27 +145,71 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         setIsLoadingPlisio,
         setIsLoadingPayvra,
         setIsLoadingPaystack,
+        setIsLoadingHundredpay,
         clearCart: () => {
             localStorage.removeItem("cartItems");
+            localStorage.removeItem("enterprise_customer_email");
             setCartItems([]);
             globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: 0 } }));
         },
+
         usaEsimInCart,
         onSuccess,
+        promoCode: promoApplied?.code,
     });
 
     const handleCheckout = () => {
         if (selectedPaymentMethod === "balance") handleBalancePayment();
         else if (selectedPaymentMethod === "paystack") handlePaystackCheckout();
+        else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "payvra") handlePayvraCheckout();
     };
 
     const orderTotal = calculateOrderTotalSync();
 
+    // Calculate promo discount preview
+    const promoDiscount = promoApplied
+        ? promoApplied.discount_type === 'percentage'
+            ? Math.min(orderTotal * (promoApplied.discount_value / 100), orderTotal)
+            : Math.min(promoApplied.discount_value, orderTotal)
+        : 0;
+    const finalTotal = Math.max(orderTotal - promoDiscount, 0);
+
+    const handleApplyPromo = async () => {
+        if (!promoInput.trim()) return;
+        setPromoValidating(true);
+        setPromoError(null);
+        try {
+            const { data } = await api.post('/web/api/promo_codes/validate', { code: promoInput.trim() });
+            if (data.valid) {
+                setPromoApplied({
+                    code: data.code,
+                    discount_type: data.discount_type,
+                    discount_value: data.discount_value,
+                    description: data.description,
+                });
+                setPromoError(null);
+            } else {
+                setPromoError(data.error || 'Invalid promo code');
+                setPromoApplied(null);
+            }
+        } catch {
+            setPromoError('Failed to validate promo code');
+            setPromoApplied(null);
+        } finally {
+            setPromoValidating(false);
+        }
+    };
+
+    const handleRemovePromo = () => {
+        setPromoApplied(null);
+        setPromoInput("");
+        setPromoError(null);
+    };
 
     const isProcessing =
-        isLoadingBalance || isLoadingPaystack || isLoadingPlisio || isLoadingPayvra || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingPayvra || isAnyPaymentProcessing;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -228,6 +290,20 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                     </Label>
                                 </div>
 
+                                {/* 100Pay Option */}
+                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                    <RadioGroupItem value="hundredpay" id="hundredpay" className="sr-only" />
+                                    <Label htmlFor="hundredpay" className="flex items-center gap-4 w-full cursor-pointer">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                            <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold">100Pay (Card & Crypto)</div>
+                                            <div className="text-sm text-muted-foreground">Universal Payment Gateway</div>
+                                        </div>
+                                    </Label>
+                                </div>
+
                                 {/* Payvra Option */}
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "payvra" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="payvra" id="payvra" className="sr-only" />
@@ -244,6 +320,54 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                             </RadioGroup>
                         </CardContent>
                     </Card>
+
+                    {/* Promo Code */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Tag className="w-5 h-5" />
+                                Promo Code
+                            </CardTitle>
+                            <CardDescription>Have a promo code? Apply it for a discount</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {promoApplied ? (
+                                <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <Check className="w-4 h-4 text-emerald-500" />
+                                        <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{promoApplied.code}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            ({promoApplied.discount_type === 'percentage' ? `${promoApplied.discount_value}% off` : `$${promoApplied.discount_value} off`})
+                                        </span>
+                                    </div>
+                                    <Button variant="ghost" size="sm" onClick={handleRemovePromo} className="text-destructive hover:text-destructive">
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Enter promo code"
+                                            value={promoInput}
+                                            onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null); }}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                                            disabled={promoValidating}
+                                            className="font-mono"
+                                        />
+                                        <Button onClick={handleApplyPromo} disabled={promoValidating || !promoInput.trim()} variant="outline">
+                                            {promoValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                                        </Button>
+                                    </div>
+                                    {promoError && (
+                                        <p className="text-xs text-destructive flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" /> {promoError}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
 
                 {/* Right Column: Order Summary */}
@@ -255,14 +379,22 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                         <CardContent className="space-y-4">
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Items ({cartItems.length})</span>
+                                    <span className="text-muted-foreground">Subtotal ({cartItems.length} items)</span>
                                     <span>${orderTotal.toFixed(2)}</span>
                                 </div>
+                                {promoDiscount > 0 && (
+                                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                                        <span className="flex items-center gap-1">
+                                            <Tag className="w-3 h-3" /> Promo ({promoApplied?.code})
+                                        </span>
+                                        <span>-${promoDiscount.toFixed(2)}</span>
+                                    </div>
+                                )}
                                 {/* Show NGN estimate if Paystack selected */}
                                 {selectedPaymentMethod === "paystack" && exchangeRate && (
                                     <div className="flex justify-between text-cyan-600 dark:text-cyan-400 font-medium">
                                         <span>Est. NGN Total</span>
-                                        <span>₦{(orderTotal * exchangeRate).toLocaleString()}</span>
+                                        <span>₦{(finalTotal * exchangeRate).toLocaleString()}</span>
                                     </div>
                                 )}
                             </div>
@@ -270,15 +402,20 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                             <div className="pt-4 border-t">
                                 <div className="flex justify-between items-center text-lg font-bold">
                                     <span>Total</span>
-                                    <span>${orderTotal.toFixed(2)}</span>
+                                    <span>${finalTotal.toFixed(2)}</span>
                                 </div>
+                                {promoDiscount > 0 && (
+                                    <p className="text-xs text-emerald-600 dark:text-emerald-400 text-right mt-1">
+                                        You save ${promoDiscount.toFixed(2)}!
+                                    </p>
+                                )}
                             </div>
 
                             <Button
                                 className="w-full gap-2"
                                 size="lg"
                                 onClick={handleCheckout}
-                                disabled={isProcessing || (selectedPaymentMethod === "balance" && userBalance < orderTotal)}
+                                disabled={isProcessing || (selectedPaymentMethod === "balance" && userBalance < finalTotal)}
                             >
                                 {isProcessing ? (
                                     <>

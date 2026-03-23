@@ -172,6 +172,9 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
   const amountFromQuery = Number.parseFloat(queryParams.get('amount') ?? '0');
   const orderIdFromQuery = queryParams.get('order_id') || `order_${Date.now()}`;
   const currencyFromQuery = queryParams.get('currency') || 'USD';
+  const typeFromQuery = queryParams.get('type') || 'order';
+
+  const isDeposit = typeFromQuery === 'deposit';
 
   const currentDate = new Date();
   const formattedDate = currentDate.toLocaleString('en-US', {
@@ -265,15 +268,27 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
   const displayPaymentMethod = orderData?.paymentMethod || paymentMethodFromQuery;
   const orderItems = orderData?.items || [];
 
+  const isActuallyDeposit = isDeposit && orderItems.length === 0;
+
   // Determine product type display
   const getProductTypeDisplay = () => {
-    if (orderItems.length === 0) return 'Service';
-    if (orderItems.length === 1) return orderItems[0].category.toUpperCase();
+    // Check if we have items from localStorage
+    if (orderItems.length > 0) {
+      if (orderItems.length === 1) return orderItems[0].category.toUpperCase();
 
-    const uniqueCategories = [...new Set(orderItems.map(item => item.category))];
-    if (uniqueCategories.length === 1) return uniqueCategories[0].toUpperCase();
+      const uniqueCategories = [...new Set(orderItems.map(item => item.category))];
+      if (uniqueCategories.length === 1) return uniqueCategories[0].toUpperCase();
 
-    return `MIXED (${uniqueCategories.map(c => c.toUpperCase()).join(', ')})`;
+      return `MIXED (${uniqueCategories.map(c => c.toUpperCase()).join(', ')})`;
+    }
+
+    // Fallback to query parameters
+    const productTypeFromQuery = queryParams.get('product_type');
+    if (productTypeFromQuery) return productTypeFromQuery.toUpperCase();
+
+    // Last resort fallback based on transaction type
+    if (isActuallyDeposit) return 'WALLET DEPOSIT';
+    return typeFromQuery.toUpperCase();
   };
 
   return (
@@ -284,22 +299,32 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
       </Helmet>
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
         <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful</h1>
-        <p className="text-gray-600 mb-6">Thank you for your payment. Your order is being processed.</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          {isActuallyDeposit ? 'Deposit Successful' : 'Payment Successful'}
+        </h1>
+        <p className="text-gray-600 mb-6">
+          {isActuallyDeposit
+            ? 'Your funds have been successfully added to your account.'
+            : 'Thank you for your payment. Your order is being processed.'}
+        </p>
 
         <div className="space-y-2 text-left mb-6">
+          {!isActuallyDeposit && (
+            <p className="text-gray-700">
+              <span className="font-medium">Order ID:</span> {displayOrderId}
+            </p>
+          )}
           <p className="text-gray-700">
-            <span className="font-medium">Order ID:</span> {displayOrderId}
-          </p>
-          <p className="text-gray-700">
-            <span className="font-medium">Amount Paid:</span> ${displayAmount.toFixed(2)} {displayCurrency}
+            <span className="font-medium">{isActuallyDeposit ? 'Amount Deposited:' : 'Amount Paid:'}</span> ${displayAmount.toFixed(2)} {displayCurrency}
           </p>
           <p className="text-gray-700">
             <span className="font-medium">Payment Method:</span> {displayPaymentMethod}
           </p>
-          <p className="text-gray-700">
-            <span className="font-medium">Service Type:</span> {getProductTypeDisplay()}
-          </p>
+          {!isActuallyDeposit && (
+            <p className="text-gray-700">
+              <span className="font-medium">Service Type:</span> {getProductTypeDisplay()}
+            </p>
+          )}
 
           {/* Show order items if available */}
           {orderItems.length > 0 && (
@@ -345,17 +370,19 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
           </Link>
 
           <Link
-            to="/dashboard/orders"
+            to={isActuallyDeposit ? "/dashboard/transactions" : "/dashboard/orders"}
             className="block w-full bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors"
           >
-            View Order History
+            {isActuallyDeposit ? 'View Transaction History' : 'View Order History'}
           </Link>
         </div>
 
         {/* Additional tracking for order confirmation email */}
         <div className="mt-6 pt-4 border-t border-gray-200">
           <p className="text-gray-500 text-sm">
-            A confirmation email has been sent with your order details.
+            {isActuallyDeposit
+              ? 'A confirmation email for your deposit has been sent.'
+              : 'A confirmation email with your order details has been sent.'}
           </p>
         </div>
       </div>

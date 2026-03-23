@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
+  namespace :webhooks do
+    get 'esim_access/webhook'
+  end
+  mount ActionCable.server => '/cable'
   mount Rswag::Ui::Engine => '/api-docs'
   mount Rswag::Api::Engine => '/api-docs'
   # Reseller API
@@ -21,20 +25,27 @@ Rails.application.routes.draw do
       resources :resellers, only: %i[index show update] do
         member do
           post :deposit # Keep existing deposit action
+          post :rotate_dedicated_api_key
         end
       end
 
       resources :orders, only: %i[index create show] do
-        get :stats, on: :collection
+        collection do
+          get :stats
+          post :checkout_cart
+        end
         member do
           get :credentials
           post :renew
           post :cancel
+          post :reorder
         end
       end
 
+      resources :product_categories, only: [:index]
+
       resources :webhook_endpoints, only: %i[index create update destroy] do
-        post :test, on: :member
+        post :verify, on: :member
       end
 
       resources :products, only: %i[index show]
@@ -61,6 +72,17 @@ Rails.application.routes.draw do
           get :status
         end
       end
+
+      # Infrastructure reseller user management
+      resources :users, only: %i[index create show update destroy] do
+        member do
+          get :orders
+          get :transactions
+        end
+      end
+
+      # Infrastructure reseller payouts (withdrawals)
+      resources :payouts, only: %i[index create show]
 
       # Guest Chat (public, no auth)
       resources :guest_chats, only: %i[create show] do
@@ -97,7 +119,7 @@ Rails.application.routes.draw do
       get 'auth/failure', to: 'auth#failure'
 
       resources :webhooks, only: %i[index create destroy] do
-        post :test, on: :member
+        post :verify, on: :member
       end
 
       get 'billing/balance', to: 'billing#balance'
@@ -105,6 +127,7 @@ Rails.application.routes.draw do
       get 'billing/history', to: 'billing#history'
       post 'billing/verify_and_sync', to: 'billing#verify_and_sync'
 
+      get 'residential-rotating/countries', to: 'products#residential_rotating_countries'
       resources :products, only: %i[index show]
       resource :cart, only: [:show] do
         post :add_item
@@ -129,14 +152,15 @@ Rails.application.routes.draw do
           get :download_ovpn
           get :download_invoice
           get :download_rdp_config
+          post :change_protocol
+          post :update_credentials
+          post :rotate_ip
+          post :whitelist, action: :whitelist_add
+          delete :whitelist, action: :whitelist_delete
         end
       end
       resource :wallet, only: [:show] do
         post :deposit
-      end
-
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
       end
 
       # VMs
@@ -179,6 +203,7 @@ Rails.application.routes.draw do
         collection do
           get :unread_count
           put :read_all
+          post :mark_as_read
         end
       end
 
@@ -193,9 +218,17 @@ Rails.application.routes.draw do
       resources :affiliate_referrals, only: [:index]
       resources :affiliate_payouts,   only: [:index]
 
+      # Promo Codes
+      resources :promo_codes, only: [] do
+        collection do
+          post :validate
+        end
+      end
+
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+      post 'monitoring/login', to: 'monitoring#login'
     end
   end
 
@@ -213,7 +246,15 @@ Rails.application.routes.draw do
         post :assign, on: :member
       end
 
-      resources :products
+      resources :products do
+        collection do
+          post :sync_proxies
+          post :sync_esims
+          post :sync_vps
+          post :sync_rdp
+          post :sync_vpn
+        end
+      end
 
       resources :tickets, only: %i[index show update] do
         member do
@@ -268,6 +309,9 @@ Rails.application.routes.draw do
         patch :process_payout, on: :member
       end
 
+      # Promo Codes management
+      resources :promo_codes
+
       # Blog CMS
       resources :blog_posts, param: :slug do
         member do
@@ -283,8 +327,35 @@ Rails.application.routes.draw do
         end
       end
 
+      # Admin Settings
+      post 'settings/credit_wallet', to: 'settings#credit_wallet'
+      post 'settings/debit_wallet', to: 'settings#debit_wallet'
+      get  'settings/product_categories', to: 'settings#product_categories'
+      post 'settings/product_categories', to: 'settings#create_product_category'
+      get  'settings/system_info', to: 'settings#system_info'
+
       # System Monitoring
       get 'monitoring', to: 'monitoring#index'
+      get 'monitoring/queues', to: 'monitoring#queues'
+      get 'monitoring/jobs', to: 'monitoring#jobs'
+      get 'monitoring/retries', to: 'monitoring#retries'
+      get 'monitoring/dead_jobs', to: 'monitoring#dead_jobs'
+      get 'monitoring/scheduled_jobs', to: 'monitoring#scheduled_jobs'
+      post 'monitoring/retry_job', to: 'monitoring#retry_job'
+      post 'monitoring/delete_job', to: 'monitoring#delete_job'
+      post 'monitoring/clear_queue', to: 'monitoring#clear_queue'
+      post 'monitoring/clear_retries', to: 'monitoring#clear_retries'
+      post 'monitoring/clear_dead', to: 'monitoring#clear_dead'
+      post 'monitoring/retry_all', to: 'monitoring#retry_all'
+      get 'monitoring/audit_logs', to: 'monitoring#audit_logs'
+      get 'monitoring/system_logs', to: 'monitoring#system_logs'
+      get 'monitoring/error_logs', to: 'monitoring#error_logs'
+      
+      namespace :database do
+        get 'tables'
+        post 'query'
+      end
+      resources :transactions, only: %i[index show]
     end
   end
 
@@ -307,7 +378,16 @@ Rails.application.routes.draw do
     post 'paystack', to: 'webhooks#paystack'
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
+    post 'hundredpay', to: 'webhooks#hundredpay'
+
+    # Handle accidental browser GET redirects from payment gateways by sending them to frontend
+    get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
   end
+
+  post 'esim', to: 'webhooks/esim_access#webhook'
 
   # VM Status Callback (Ansible playbooks POST here on completion/failure)
   post 'vm/:id/status', to: 'vm_callbacks#status', as: :vm_callback_status

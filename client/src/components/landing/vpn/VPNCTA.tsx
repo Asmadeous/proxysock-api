@@ -59,7 +59,7 @@ export const VPNCTA = ({ trackConversion }: VPNCTAProps) => {
             <ArrowRightIcon className="h-5 w-5 ml-2" />
           </Link>
           <p className="mt-4 text-primary-foreground/80 text-sm">
-            Starting at $9.99 CAD • Instant setup • 50+ locations • Cancel anytime
+            Starting at $15 USD • Instant setup • 50+ locations • Cancel anytime
           </p>
         </motion.div>
       </div>

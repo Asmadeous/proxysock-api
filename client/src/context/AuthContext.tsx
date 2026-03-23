@@ -8,6 +8,7 @@ import api from "../services/api";
 
 interface AuthContextType {
   user: any;
+  setUser: (user: any) => void;
   accessToken: string | null;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
@@ -149,6 +150,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const setUserState = (userData: any) => {
+    setUser(userData);
+    if (userData) {
+      localStorage.setItem("user", JSON.stringify(userData));
+    } else {
+      localStorage.removeItem("user");
+    }
+  };
+
   const logout = async () => {
     try {
       // Backend logout logic placeholder
@@ -156,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Logout failed:', error);
     } finally {
       clearSession();
-      setUser(null);
+      setUserState(null);
       setAccessToken(null);
       setIsAuthenticated(false);
     }
@@ -164,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const authContextValue = useMemo(() => ({
     user,
+    setUser: setUserState,
     accessToken,
     isLoading,
     login,

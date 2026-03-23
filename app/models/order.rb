@@ -41,15 +41,31 @@ class Order < ApplicationRecord
   has_one :usa_esim_order, dependent: :destroy
   has_one :vpn_order, dependent: :destroy
   has_one :vpn_account, through: :vpn_order, source: :vpn
+  has_one :global_isp_proxy_order, dependent: :destroy
+  has_one :global_isp_proxy, through: :global_isp_proxy_order
+ 
+  def all_provisioned_resources
+    case product.product_type
+    when 'vps', 'rdp', 'vm' then [vm].compact
+    when 'proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
+      resources = []
+      resources << MobileProxy.where(order_id: id).to_a
+      resources << StaticDatacenterProxy.where(order_id: id).to_a
+      resources << StaticIspProxy.where(order_id: id).to_a
+      resources << PremiumIspProxy.joins(:premium_isp_proxy_order).where(premium_isp_proxy_orders: { order_id: id }).to_a
+      resources << StaticResidentialProxy.joins(:static_residential_proxy_order).where(static_residential_proxy_orders: { order_id: id }).to_a
+      resources << ResidentialRotatingProxy.where(order_id: id).to_a
+      resources << GlobalIspProxy.joins(:global_isp_proxy_order).where(global_isp_proxy_orders: { order_id: id }).to_a
+      resources.flatten.compact
+    when 'esim' then [esim_order].compact
+    when 'usa_esim' then [usa_esim_order].compact
+    when 'vpn' then [vpn_account].compact
+    else []
+    end
+  end
 
   def provisioned_resource
-    case product.product_type
-    when 'vps', 'rdp', 'vm' then vm
-    when 'proxy' then proxy # delegates to correct proxy association
-    when 'esim' then esim_order
-    when 'usa_esim' then usa_esim_order
-    when 'vpn' then vpn_account
-    end
+    all_provisioned_resources.first
   end
 
   def proxy
@@ -61,7 +77,8 @@ class Order < ApplicationRecord
       StaticIspProxy.find_by(order_id: id) ||
       PremiumIspProxy.joins(:premium_isp_proxy_order).find_by(premium_isp_proxy_orders: { order_id: id }) ||
       StaticResidentialProxy.joins(:static_residential_proxy_order).find_by(static_residential_proxy_orders: { order_id: id }) ||
-      ResidentialRotatingProxy.find_by(order_id: id)
+      ResidentialRotatingProxy.find_by(order_id: id) ||
+      GlobalIspProxy.joins(:global_isp_proxy_order).find_by(global_isp_proxy_orders: { order_id: id })
   end
 
   def reorderable?(actor)
@@ -71,6 +88,10 @@ class Order < ApplicationRecord
     if actor.is_a?(Reseller) && is_proxy_or_vpn && product.provider != 'myproxyapi' && (status == 'expired' || (expires_at.present? && expires_at < Time.current))
       # Resellers cannot reorder expired external proxies/vpn
       return false
+    end
+
+    if product.product_type == 'esim'
+      return product.metadata&.dig('package_type') == 'topup'
     end
 
     true
@@ -119,6 +140,25 @@ class Order < ApplicationRecord
     end
   end
 
+  def trigger_reseller_webhook
+    return unless reseller
+
+    resources = all_provisioned_resources
+    payload = {
+      order_id: id,
+      order_number: order_number,
+      product: product.name,
+      status: status,
+      total_amount: total_amount,
+      metadata: metadata,
+      resource: resources.first&.as_json,
+      resources: resources.map(&:as_json),
+      credentials: metadata&.dig('my_proxy_api_response') || metadata&.dig('proxy_credentials')
+    }
+
+    WebhookDispatchWorker.perform_later(reseller.id, 'order.completed', payload)
+  end
+
   aasm column: :status do
     state :pending, initial: true
     state :awaiting_payment # For gateway checkout
@@ -137,7 +177,7 @@ class Order < ApplicationRecord
     end
 
     event :activate do
-      transitions from: :processing, to: :active
+      transitions from: :processing, to: :active, after: :trigger_reseller_webhook
     end
 
     event :expire do

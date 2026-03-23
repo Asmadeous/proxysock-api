@@ -1,10 +1,10 @@
 import api from "./api";
 import { type ExtendedPost } from "../data/blogPost";
 
-interface BlogListResponse {
+export interface BlogListResponse {
     posts: ExtendedPost[];
     total: number;
-    categories: string[];
+    categories: { name: string; count: number }[];
 }
 
 export const getBlogPosts = async (params: { category?: string; q?: string; featured?: boolean } = {}) => {

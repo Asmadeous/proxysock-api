@@ -2,10 +2,23 @@
 
 module Admin
   module Api
-    class AuthController < ApplicationController
+    class AuthController < ActionController::Base
+      include JwtAuthenticated
+      include ErrorHandling
+      # Skip forgery protection for API requests because of origin mismatch between domains
+      protect_from_forgery with: :null_session, unless: -> { request.format.json? || request.headers['Authorization'].present? }
+      skip_forgery_protection if: -> { request.format.json? }
+
+      skip_before_action :authenticate_request, only: %i[zoho zoho_callback login failure]
       # GET /admin/api/auth/zoho (redirect to OAuth)
+      # GET /admin/api/auth/zoho (redirect to OAuth via POST form)
       def zoho
-        redirect_to '/auth/zoho_oauth2', allow_other_host: true
+        render html: <<~HTML.html_safe, layout: false, content_type: 'text/html'
+          <form id="oauth-form" action="/auth/zoho" method="post">
+            <input type="hidden" name="authenticity_token" value="#{form_authenticity_token}">
+          </form>
+          <script>document.getElementById('oauth-form').submit();</script>
+        HTML
       end
 
       # GET /admin/api/auth/zoho/callback
@@ -15,18 +28,19 @@ module Admin
         begin
           employee = Employee.from_omniauth(auth)
 
-          employee.update(last_login_at: Time.current)
-          token = employee.generate_jwt
-
-          render json: {
-            message: 'Zoho login successful',
-            employee: serialize_employee(employee),
-            token: token
-          }
+          if employee.persisted?
+            employee.update(last_login_at: Time.current)
+            token = employee.generate_jwt
+            redirect_to_frontend "/auth/callback?auth_token=#{token}&target=/admin"
+          else
+            Rails.logger.error "Zoho Auth Persistence Error: #{employee.errors.full_messages.join(', ')}"
+            redirect_to_frontend "/admin/login?error=registration_failed&message=#{CGI.escape(employee.errors.full_messages.first)}"
+          end
         rescue SecurityError => e
-          render json: { error: e.message }, status: :forbidden
+          redirect_to_frontend "/admin/login?error=#{CGI.escape(e.message)}"
         rescue StandardError => e
-          render json: { error: "Zoho Authentication failed: #{e.message}" }, status: :unprocessable_entity
+          Rails.logger.error "Zoho Auth Error: #{e.message}"
+          redirect_to_frontend '/admin/login?error=auth_failed'
         end
       end
 
@@ -66,7 +80,7 @@ module Admin
           last_name: employee.last_name,
           role: employee.role,
           department: employee.department&.name,
-          profile_picture_url: employee.profile_picture_url
+          profile_picture_url: employee.avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(employee.avatar, only_path: true) : employee.profile_picture_url
         }
       end
     end

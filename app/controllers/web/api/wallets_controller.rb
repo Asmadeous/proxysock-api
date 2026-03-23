@@ -40,12 +40,12 @@ module Web
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra].include?(gateway)
+                                                                                          payvra hundredpay].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
         # handler can use the same rate for verification (prevents FX drift).
-        exchange_rate = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
+        exchange_rate = FixerService.get_rate('USD', 'NGN')
         transaction_ref = "DEP_#{SecureRandom.hex(8)}"
         deposit = Deposit.create!(
           depositable: current_actor,
@@ -56,13 +56,15 @@ module Web
         )
 
         # Generate payment link based on gateway
-        payment_url = generate_payment_link(gateway, deposit, amount, currency)
+        payment_data = generate_payment_link(gateway, deposit, amount, currency)
 
         render json: {
           message: 'Deposit initiated',
           deposit_id: deposit.id,
           transaction_ref: deposit.metadata['transaction_ref'],
-          payment_url: payment_url
+          payment_url: payment_data[:url],
+          payment_amount: payment_data[:amount],
+          payment_currency: payment_data[:currency]
         }
       end
 
@@ -73,42 +75,64 @@ module Web
 
         case gateway
         when 'paystack'
-          # Use configurable exchange rate — do NOT hardcode 1500 NGN/USD.
-          exchange_rate = ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
-          amount_ngn = amount * exchange_rate
+          # Use FixerService to fetch current NGN/USD rate
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
           service = PaystackService.new
           result = service.initialize_transaction(
             email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country),
             amount: (amount_ngn * 100).to_i, # Paystack uses kobo
             reference: deposit.metadata['transaction_ref'],
             callback_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=deposit&amount=#{deposit.amount}",
             metadata: { deposit_id: deposit.id, user_id: current_actor.id }
           )
-          result[:authorization_url]
+          { url: result[:authorization_url], amount: amount_ngn, currency: 'NGN' }
 
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(
-            order_number: deposit.metadata['transaction_ref'],
             amount: amount,
             currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
             callback_url: callback_url,
-            email: current_actor.email
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
           )
-          result[:invoice_url]
+          { url: result[:url], amount: amount, currency: 'USD' }
 
         when 'payvra'
           service = PayvraService.new
-          result = service.create_payment(
+          result = service.create_invoice(
             amount: amount,
             currency: currency,
-            reference: deposit.metadata['transaction_ref'],
-            callback_url: callback_url
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
           )
-          # Store Payvra's invoice_id so DepositSyncService can verify via their API later.
-          deposit.metadata['payvra_invoice_id'] = result[:invoice_id]
+          # Store Payvra's txn_id (invoice id) so DepositSyncService can verify via their API later.
+          deposit.metadata['payvra_invoice_id'] = result[:txn_id]
           deposit.save!
-          result[:payment_url]
+          { url: result[:url], amount: amount, currency: 'USD' }
+
+        when 'hundredpay'
+          service = HundredpayService.new
+          result = service.create_invoice(
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_actor.email,
+            phone: current_actor.try(:phone),
+            country: current_actor.try(:country)
+          )
+          deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
+          deposit.save!
+          { url: result[:url], amount: amount, currency: 'USD' }
         end
       end
     end

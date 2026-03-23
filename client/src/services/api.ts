@@ -8,8 +8,15 @@ const api = axios.create({
   baseURL: API_HOST,
   headers: {
     "Content-Type": "application/json",
+    "Accept": "application/json",
   },
 });
+
+export const formatImageUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.startsWith('/')) return `${API_HOST}${url}`;
+  return url;
+};
 
 // Request interceptor for API calls
 api.interceptors.request.use(
@@ -40,7 +47,14 @@ api.interceptors.response.use(
 
 // Auth Service
 export const loginUser = (data: any) => api.post("/web/api/auth/login", { user: data });
-export const registerUser = (data: any) => api.post("/web/api/auth/register", { user: data });
+export const registerUser = (data: any) => {
+  if (data instanceof FormData) {
+    return api.post("/web/api/auth/register", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  }
+  return api.post("/web/api/auth/register", { user: data });
+};
 export const checkUsername = (username: string) => api.get("/web/api/auth/check_username", { params: { username } });
 export const getMe = () => api.get("/api/v1/auth/me");
 
@@ -71,9 +85,18 @@ export const changeVmPassword = (id: string | number, password: string) =>
   api.post(`/web/api/credential_changes/vm/${id}/password`, { password });
 
 export const updateProxyCredentials = (id: string | number, data: { username?: string, password?: string }) =>
-  api.post(`/web/api/credential_changes/proxy/${id}/credentials`, data);
+  api.post(`/web/api/orders/${id}/update_credentials`, data);
 
 export const rotateProxyIp = (id: string | number) =>
-  api.post(`/web/api/credential_changes/proxy/${id}/rotate_ip`);
+  api.post(`/web/api/orders/${id}/rotate_ip`);
+
+export const changeProxyProtocol = (id: string | number, protocol: string) =>
+  api.post(`/web/api/orders/${id}/change_protocol`, { protocol });
+
+export const whitelistAdd = (id: string | number, ip: string, description?: string) =>
+  api.post(`/web/api/orders/${id}/whitelist`, { ip, description });
+
+export const whitelistDelete = (id: string | number, ip: string) =>
+  api.delete(`/web/api/orders/${id}/whitelist`, { data: { ip } });
 
 export default api;

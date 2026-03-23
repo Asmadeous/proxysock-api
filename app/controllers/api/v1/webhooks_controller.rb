@@ -24,17 +24,17 @@ module Api
         head :no_content
       end
 
-      def test
+      def verify
         current_reseller.webhook_endpoints.find(params[:id])
 
-        # Dispatch a test event
+        # Dispatch a verification pulse
         WebhookDispatchWorker.perform_later(
           current_reseller.id,
-          'ping',
-          { message: 'This is a test webhook event', timestamp: Time.now.to_i }
+          'system.ping',
+          { message: 'System pulse verification', timestamp: Time.now.to_i }
         )
 
-        render json: { message: 'Test webhook queued' }
+        render json: { message: 'Pulse verification queued' }
       end
 
       private

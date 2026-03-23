@@ -8,4 +8,5 @@ export { IPCheckerGeolocationCard } from './IPCheckerGeolocationCard';
 export { IPCheckerNetworkCard } from './IPCheckerNetworkCard';
 export { IPCheckerFooter } from './IPCheckerFooter';
 export { IPCheckerInfoCard, IPCheckerTimezoneCard, IPCheckerCurrencyCard, IPCheckerCarrierCard } from './IPCheckerInfoCard';
+export { IPCheckerAdvancedIntelligence } from './IPCheckerAdvancedIntelligence';
 export { IPCheckerAdvancedFeatures } from './IPCheckerAdvancedFeatures';

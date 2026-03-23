@@ -54,7 +54,7 @@ export const EnhancedProductsGrid = ({
             activation, and 24/7 expert support.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
           {/* Proxy Services Card */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -82,7 +82,7 @@ export const EnhancedProductsGrid = ({
                 </div>
                 <div className="flex items-center font-inter-regular">
                   <CheckCircleIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Starting at $2.99/proxy</span>
+                  <span>Starting at $1.00/GB</span>
                 </div>
               </div>
               <Link
@@ -97,7 +97,7 @@ export const EnhancedProductsGrid = ({
                     productId: "proxy-services",
                     productName: "Proxy Services",
                     category: "proxy",
-                    value: 2.99,
+                    value: 1.00,
                   });
                 }}
                 className="w-full block text-center px-6 py-3 font-manrope-semibold bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-all duration-200 font-semibold"
@@ -134,7 +134,7 @@ export const EnhancedProductsGrid = ({
                 </div>
                 <div className="flex items-center">
                   <CheckCircleIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Starting at $28 CAD/month</span>
+                  <span>Starting at $22.99 USD/month</span>
                 </div>
               </div>
               <Link
@@ -149,7 +149,7 @@ export const EnhancedProductsGrid = ({
                     productId: "rdp-hosting",
                     productName: "RDP Hosting",
                     category: "rdp",
-                    value: 18.0,
+                    value: 22.99,
                   });
                 }}
                 className="w-full block text-center px-6 py-3 bg-white text-red-600 rounded-full hover:bg-gray-100 transition-all duration-200 font-semibold"
@@ -186,7 +186,7 @@ export const EnhancedProductsGrid = ({
                 </div>
                 <div className="flex items-center">
                   <CheckCircleIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Starting at $23 CAD/month</span>
+                  <span>Starting at $6.99 USD/month</span>
                 </div>
               </div>
               <Link
@@ -201,7 +201,7 @@ export const EnhancedProductsGrid = ({
                     productId: "vps-hosting",
                     productName: "VPS Hosting",
                     category: "vps",
-                    value: 8.0,
+                    value: 6.99,
                   });
                 }}
                 className="w-full block text-center px-6 py-3 bg-white text-red-600 rounded-full hover:bg-gray-100 transition-all duration-200 font-semibold"
@@ -238,7 +238,7 @@ export const EnhancedProductsGrid = ({
                 </div>
                 <div className="flex items-center">
                   <CheckCircleIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Plans from $6.99</span>
+                  <span>Plans from $1.99</span>
                 </div>
               </div>
               <Link
@@ -253,7 +253,7 @@ export const EnhancedProductsGrid = ({
                     productId: "esim-cards",
                     productName: "eSIM Cards",
                     category: "esim",
-                    value: 6.99,
+                    value: 1.99,
                   });
                 }}
                 className="w-full block text-center px-6 py-3 bg-white text-red-600 rounded-full hover:bg-gray-100 transition-all duration-200 font-semibold"
@@ -289,7 +289,7 @@ export const EnhancedProductsGrid = ({
                 </div>
                 <div className="flex items-center">
                   <CheckCircleIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Starting at $2.50/day</span>
+                  <span>Starting at $2.60/day</span>
                 </div>
               </div>
               <Link
@@ -304,7 +304,7 @@ export const EnhancedProductsGrid = ({
                     productId: "vpn-residential",
                     productName: "Residential VPN",
                     category: "vpn",
-                    value: 2.50,
+                    value: 2.60,
                   });
                 }}
                 className="w-full block text-center px-6 py-3 bg-white text-red-600 rounded-full hover:bg-gray-100 transition-all duration-200 font-semibold"

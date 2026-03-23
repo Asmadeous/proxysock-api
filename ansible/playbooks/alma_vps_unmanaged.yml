@@ -1,3 +1,8 @@
+---
+- name: Configure Alma Linux VPS UNMANAGED
+  hosts: linux
+  become: yes
+
   pre_tasks:
     - name: Ensure root_password is defined
       fail:
@@ -6,7 +11,6 @@
 
   vars:
     new_user_password: "{{ root_password }}"
-    ansible_become_password: "{{ root_password }}"
   tasks:
     - block:
         - name: Wait for SSH
@@ -27,6 +31,13 @@
             state: present
             no_log: true
           when: hostname is defined
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
     
         - name: Set hostname
           hostname:
@@ -40,13 +51,29 @@
             line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
           when: hostname is defined
     
+        - name: Enable EPEL repository
+          dnf:
+            name: epel-release
+            state: present
+
         - name: Install basic packages
           dnf:
             name:
               - curl
               - wget
               - vim
+              - fail2ban
+              - dnf-automatic
             state: present
+
+        - name: Enable security services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - fail2ban
+            - dnf-automatic.timer
 
         - name: Final configuration step
           command: echo "Configuration complete"
@@ -85,3 +112,9 @@
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
           delegate_to: localhost
           ignore_errors: yes
+
+  handlers:
+    - name: restart_ssh
+      systemd:
+        name: sshd
+        state: restarted

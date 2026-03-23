@@ -216,7 +216,7 @@ export const renderProxyPlans = ({
                 "premium-isp",
                 "static-residential",
               ].includes(selectedCategory) &&
-                plan.ips_included && (
+                Number(plan.ips_included) > 0 && (
                   <Badge variant="secondary" className="gap-1">
                     <Server className="w-3 h-3" />
                     {Number(plan.ips_included)} IPs
@@ -237,21 +237,52 @@ export const renderProxyPlans = ({
                     : plan.billing_type}
                 </Badge>
               )}
-              {plan.duration_days && plan.billing_type !== "usage_gb" && (
+               {Number(plan.duration_days) > 0 && plan.billing_type !== "usage_gb" && (
                 <Badge variant="success">{plan.duration_days} days</Badge>
               )}
               {plan.billing_type === "usage_gb" && plan.gb_limit && (
                 <Badge variant="warning">Up to {plan.gb_limit} GB</Badge>
               )}
-              {selectedCategory === "residential" &&
+              {(selectedCategory === "residential" || selectedCategory === "residential-rotating") &&
                 plan.gb_min &&
                 plan.gb_max && (
                   <Badge variant="outline">
                     {plan.gb_min}-{plan.gb_max} GB range
                   </Badge>
                 )}
+              {selectedCategory === "global-isp" &&
+                Number(plan.gb_min) > 0 && (
+                  <Badge variant="outline" className="border-orange-500/50 text-orange-600">
+                    {Number(plan.gb_min) === Number(plan.gb_max) || !plan.gb_max
+                      ? `${plan.gb_min} Proxies`
+                      : `${plan.gb_min}-${plan.gb_max} Proxies`}
+                  </Badge>
+                )}
             </div>
-            {plan.isp && plan.isp.length > 0 && (
+            {selectedCategory === "global-isp" && plan.global_isp_config?.countries && (
+              <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 bg-muted rounded-md px-3 py-1.5 border">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Available Countries</span>
+                  <div className="flex gap-1">
+                    {plan.global_isp_config.countries.map((country: any) => (
+                      <img
+                        key={country.id}
+                        src={`https://flagcdn.com/16x12/${country.code?.toLowerCase()}.png`}
+                        alt={country.name}
+                        title={country.name}
+                        className="w-4 h-3 rounded-sm"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {plan.isp && plan.isp.length > 0 && Number(plan.ips_included) > 0 && (
               <div className="flex flex-wrap gap-2">
                 {plan.isp.map((isp) => (
                   <div
@@ -260,8 +291,7 @@ export const renderProxyPlans = ({
                   >
                     <Globe className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">{isp.name}</span>
-                    {(selectedCategory !== "mobile" ||
-                      selectedLocationCategory === "premium") &&
+                    {selectedCategory !== "mobile" &&
                       isp.locations &&
                       Object.keys(isp.locations).map((countryCode) => (
                         <img

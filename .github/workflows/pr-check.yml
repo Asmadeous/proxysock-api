@@ -150,6 +150,8 @@ jobs:
       - name: Build check
         run: npm run build
         working-directory: client
+        env:
+          VITE_HUNDREDPAY_PUBLIC_KEY: ${{ secrets.VITE_HUNDREDPAY_PUBLIC_KEY }}
 
   frontend-tests:
     name: Frontend Tests

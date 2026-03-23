@@ -1,3 +1,8 @@
+---
+- name: Configure Windows RDP UNMANAGED
+  hosts: windows
+  gather_facts: no
+
   pre_tasks:
     - name: Ensure rdp_password is defined
       fail:
@@ -7,7 +12,6 @@
   vars:
     admin_password: "{{ rdp_password }}"
     api_url: "{{ api_url | default('') }}"
-    api_key: "{{ api_key | default('') }}"
     
   tasks:
     - block:
@@ -18,6 +22,15 @@
 
         - name: Gather facts
           setup:
+
+        - name: Install Critical Security Updates
+          win_updates:
+            category_names:
+              - SecurityUpdates
+              - CriticalUpdates
+            state: installed
+          register: update_result
+          tags: security
 
         - name: Configure Administrator account
           block:
@@ -56,15 +69,31 @@
               name: "UserAuthentication"
               data: 0
 
+        - name: Configure RDP Port in Registry
+          win_regedit:
+            path: "{{ item }}"
+            name: PortNumber
+            data: "{{ custom_port | default(3389) }}"
+            type: dword
+          loop:
+            - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+            - "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server"
+
         - name: Allow RDP through Windows Firewall
           win_firewall_rule:
-            name: Remote Desktop
-            localport: 3389
+            name: "Remote Desktop - Custom ({{ custom_port | default(3389) }})"
+            localport: "{{ custom_port | default(3389) }}"
             action: allow
             direction: in
             protocol: tcp
             state: present
             enabled: yes
+
+        - name: Restart Remote Desktop Service to apply port change
+          win_service:
+            name: TermService
+            state: restarted
+          ignore_errors: yes
 
         - name: Set hostname
           win_hostname:
@@ -72,9 +101,9 @@
           register: hostname_result
           when: hostname is defined
 
-        - name: Reboot if hostname changed
+        - name: Reboot if needed
           win_reboot:
-          when: hostname_result is defined and hostname_result.reboot_required
+          when: (hostname_result is defined and hostname_result.reboot_required) or (update_result is defined and update_result.reboot_required)
 
         - name: Notify API - Success
           uri:

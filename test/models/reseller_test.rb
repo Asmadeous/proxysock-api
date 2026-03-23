@@ -10,7 +10,7 @@ class ResellerTest < ActiveSupport::TestCase
 
   test 'should have valid reseller_type' do
     reseller = resellers(:one)
-    assert_includes %w[api_only hybrid], reseller.reseller_type
+    assert_includes %w[api_only infrastructure single_product], reseller.reseller_type
   end
 
   test 'price_multiplier calculation' do

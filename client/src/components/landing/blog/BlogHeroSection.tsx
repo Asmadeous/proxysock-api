@@ -23,7 +23,7 @@ export function BlogHeroSection({ newsArticlesLength }: BlogHeroSectionProps) {
           </h1>
           <p className="text-xl sm:text-2xl text-muted-foreground leading-relaxed mb-8 max-w-3xl mx-auto">
             Expert guides, tutorials, and insights for proxies, RDP hosting,
-            VPS servers, and eSIM cards. Stay updated with the latest
+            VPS servers, VPN, and eSIM cards. Stay updated with the latest
             technology news.
           </p>
           {newsArticlesLength > 0 && (

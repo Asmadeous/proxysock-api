@@ -54,8 +54,8 @@ export default function VPSTypes() {
         { code: 'US', name: 'United States', flag: '🇺🇸' },
         { code: 'UK', name: 'United Kingdom', flag: '🇬🇧' },
         { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-        { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-        { code: 'AU', name: 'Australia', flag: '🇦🇺' }
+        { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
+        { code: 'CA', name: 'Canada', flag: '🇨🇦' }
       ];
 
       setCountries(countriesFallback);

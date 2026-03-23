@@ -3,9 +3,13 @@
 class Employee < ApplicationRecord
   has_secure_password validations: false
 
+  has_one_attached :avatar
+  validate :avatar_security_checks
+
   belongs_to :department
   has_many :admin_action_logs
   has_many :user_impersonation_logs
+  has_many :notifications, as: :recipient, dependent: :destroy
 
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :first_name, presence: true
@@ -37,7 +41,7 @@ class Employee < ApplicationRecord
       employee.first_name = auth.info.first_name || auth.info.name&.split&.first || 'Employee'
       employee.last_name = auth.info.last_name || auth.info.name&.split&.last || ''
       employee.password = SecureRandom.hex(16)
-      employee.role = 'staff' # Default role
+      employee.role = 'support' # Use valid role from ROLES
       employee.active = true
       employee.department = Department.find_or_create_by(name: 'General')
     end
@@ -56,5 +60,20 @@ class Employee < ApplicationRecord
 
   def full_name
     "#{first_name} #{last_name}"
+  end
+
+  private
+
+  def avatar_security_checks
+    return unless avatar.attached?
+
+    if avatar.blob.byte_size > 5.megabytes
+      errors.add(:avatar, 'size must be less than 5MB')
+    end
+
+    acceptable_types = %w[image/jpeg image/png image/gif image/webp]
+    return if acceptable_types.include?(avatar.content_type)
+
+    errors.add(:avatar, 'must be a JPEG, PNG, GIF, or WebP image')
   end
 end

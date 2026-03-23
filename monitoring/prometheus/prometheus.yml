@@ -12,8 +12,7 @@ scrape_configs:
           env: 'production'
 
   # Node exporter on VMs (Ansible installs node_exporter on managed VMs)
-  # Add VM targets here or use file_sd_configs for dynamic discovery
-  # - job_name: 'vm-node-exporter'
-  #   file_sd_configs:
-  #     - files: ['/etc/prometheus/targets/*.json']
-  #       refresh_interval: 30s
+  - job_name: 'vm-node-exporter'
+    file_sd_configs:
+      - files: ['/etc/prometheus/targets/*.json']
+        refresh_interval: 30s

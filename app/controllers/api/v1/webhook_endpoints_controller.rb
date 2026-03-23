@@ -38,17 +38,17 @@ module Api
         render json: { message: 'Webhook endpoint deleted' }
       end
 
-      # POST /api/v1/webhook_endpoints/:id/test
-      def test
+      # POST /api/v1/webhook_endpoints/:id/verify
+      def verify
         endpoint = current_reseller.webhook_endpoints.find(params[:id])
-
+  
         payload = {
-          event: 'test.ping',
+          event: 'system.ping',
           reseller_id: current_reseller.id,
           timestamp: Time.current.iso8601,
-          data: { message: 'Webhook test from ProxySock' }
+          data: { message: 'Pulse verification from ProxySock' }
         }
-
+  
         begin
           response = Faraday.post(endpoint.url) do |req|
             req.headers['Content-Type'] = 'application/json'
@@ -56,11 +56,11 @@ module Api
             req.body = payload.to_json
             req.options.timeout = 10
           end
-
+  
           render json: {
             success: response.success?,
             status_code: response.status,
-            message: response.success? ? 'Webhook delivered successfully' : 'Webhook delivery failed'
+            message: response.success? ? 'Pulse delivered successfully' : 'Pulse delivery failed'
           }
         rescue Faraday::Error => e
           render json: { success: false, message: "Connection failed: #{e.message}" }, status: :ok
@@ -78,7 +78,6 @@ module Api
           id: endpoint.id,
           url: endpoint.url,
           secret: endpoint.secret,
-          description: endpoint.description,
           events: endpoint.events,
           created_at: endpoint.created_at,
           updated_at: endpoint.updated_at

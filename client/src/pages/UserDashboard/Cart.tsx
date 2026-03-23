@@ -2,16 +2,10 @@
 import { useState, useEffect, useCallback } from "react";
 
 import { Helmet } from "react-helmet-async";
-import type { ProxyPlan, City, ISP } from "../../types";
+
 import { getEffectiveBasePrice } from "@/utils/cart/getEffectiveBasePrice";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
-import {
-  ESIMPackage,
-  RDPPlan,
-  USAESIMPlan,
-  VPNPlan,
-  VPSPlan,
-} from "@/components/dashboard/Cart/types";
+
 import { RenderCartItemDetails } from "@/components/dashboard/Cart/RenderCartItemDetails";
 import { useNavigate } from "react-router-dom";
 
@@ -27,36 +21,7 @@ import { Button } from "@/components/ui/button";
 import api from "../../services/api";
 
 
-export interface CartItem {
-  plan?: ProxyPlan | null;
-  locations?: { isp: ISP | null; city: City | null };
-  period?: number;
-  protocol?: "http" | "socks5";
-  locationsString?: string;
-  esimPackage?: ESIMPackage | null;
-  quantity?: number;
-  vpsPlan?: VPSPlan | null;
-  rdpPlan?: RDPPlan | null;
-  osTemplate?: string;
-  hostname?: string;
-  rdpUsername?: string;
-  duration?: number;
-  managementType?: "unmanaged" | "managed";
-  location?: { country: string; countryCode: string };
-  productType:
-  | "proxy"
-  | "esim"
-  | "vps"
-  | "rdp"
-  | "usa-esim"
-  | "vpn"
-  | "residential";
-  totalPrice?: number;
-  effective_base_price?: number;
-  usaEsimPlan?: USAESIMPlan | null;
-  vpnPlan?: VPNPlan | null;
-  locationId?: number;
-}
+import { CartItem } from "../../types";
 
 export default function Cart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -79,26 +44,31 @@ export default function Cart() {
     const updatedItem: CartItem = {
       ...item,
       productType,
-      protocol: productType === "proxy" ? item.protocol || "http" : undefined,
-      quantity: (productType === "esim" || productType === "usa-esim") ? item.quantity || 1 : undefined,
-      plan: (productType === "proxy" || productType === "residential") ? (item.plan ?? null) : null,
+      protocol: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.protocol || "http" : undefined,
+      quantity: (productType === "esim" || productType === "usa-esim") ? (Number(item.quantity) || 1) : (item.quantity),
+      plan: (productType === "proxy" || productType === "residential" || productType === "global-isp") ? (item.plan ?? null) : null,
       esimPackage: productType === "esim" ? (item.esimPackage ?? null) : null,
       vpsPlan: productType === "vps" ? (item.vpsPlan ?? null) : null,
       rdpPlan: productType === "rdp" ? (item.rdpPlan ?? null) : null,
       vpnPlan: productType === "vpn" ? (item.vpnPlan ?? null) : null,
-      period: productType === "proxy" ? item.period || 1 : undefined,
-      locations: (productType === "proxy" || productType === "vpn") ? (item.locations || { city: null, isp: null }) : undefined,
+      period: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.period || 1 : undefined,
+      locations: (productType === "proxy" || productType === "vpn" || productType === "global-isp") ? (item.locations || { city: null, isp: null }) : undefined,
       duration: (productType === "vps" || productType === "rdp") ? item.duration || 1 : undefined,
       managementType: (productType === "vps" || productType === "rdp") ? item.managementType || "unmanaged" : undefined,
       hostname: item.hostname || (productType === "vps" ? `vps-${Math.random().toString(36).substring(2, 8)}` : (productType === "rdp" ? `rdp-${Math.random().toString(36).substring(2, 8)}` : undefined)),
       osTemplate: item.osTemplate || (productType === "vps" ? "ubuntu-20.04" : (productType === "rdp" ? "windows-2019" : undefined)),
       rdpUsername: productType === "rdp" ? item.rdpUsername || "Administrator" : undefined,
       effective_base_price: effectiveBasePrice,
-      totalPrice: undefined,
-      locationId: item.locationId || item.locations?.city?.id,
+      locationId: item.locationId || item.locations?.city?.id || item.locations?.isp?.id,
+      // Preserve residential rotating config if present
+      residentalRotatingConfig: productType === "residential" ? item.residentalRotatingConfig : undefined,
     };
 
-    updatedItem.totalPrice = calculateItemTotalSync(updatedItem);
+    // ONLY recalculate if totalPrice is missing, NaN, or null
+    if (updatedItem.totalPrice === undefined || updatedItem.totalPrice === null || isNaN(Number(updatedItem.totalPrice))) {
+      updatedItem.totalPrice = calculateItemTotalSync(updatedItem);
+    }
+
     return updatedItem;
   }, [calculateItemTotalSync]);
 
@@ -122,11 +92,12 @@ export default function Cart() {
         const cartWithDefaults = Array.isArray(parsedCart)
           ? parsedCart
             .filter((item: CartItem) => {
-              const validTypes = ["proxy", "esim", "vps", "rdp", "usa-esim", "vpn", "residential"];
+              const validTypes = ["proxy", "esim", "vps", "rdp", "usa-esim", "vpn", "residential", "global-isp"];
               if (!validTypes.includes(item.productType)) return false;
 
               return (
                 (item.productType === "proxy" && item.plan) ||
+                (item.productType === "global-isp" && item.plan) ||
                 (item.productType === "residential" && item.plan) ||
                 (item.productType === "esim" && item.esimPackage) ||
                 (item.productType === "vps" && item.vpsPlan) ||

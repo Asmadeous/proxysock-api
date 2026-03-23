@@ -1,26 +1,47 @@
 # frozen_string_literal: true
 
+require 'resolv'
+require 'ipaddr'
+
 module Web
   module Api
     class ToolsController < BaseController
-      skip_before_action :authenticate_request, only: [:ip_checker]
+      skip_before_action :authenticate_request, only: %i[ip_checker ip_lookup]
 
-      # public endpoint
+      before_action :ensure_env_loaded
+
       def ip_checker
-        ip = params[:ip]
-        if ip.blank?
-          ip = request.headers['X-Forwarded-For']&.split(',')&.first&.strip ||
-               request.headers['X-Real-IP'] ||
-               request.headers['CF-Connecting-IP'] ||
-               request.remote_ip
-        end
+        perform_ip_lookup(params[:ip])
+      end
 
-        return render json: { error: 'Unable to detect IP address' }, status: :bad_request if ip.blank?
+      def ip_lookup
+        perform_ip_lookup(params[:ip])
+      end
 
-        # Determine valid IPv4 or IPv6
-        unless ip =~ Resolv::IPv4::Regex || ip =~ Resolv::IPv6::Regex
+      private
+
+      def perform_ip_lookup(ip_param)
+        # 1. Use user-provided IP if present
+        # 2. Otherwise detect from headers
+        # 3. If detecting local (dev) or missing, let IPData detect the machine's public IP
+        ip = ip_param.presence || get_client_ip
+
+        # Validation Regex
+        ipv4_regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+        ipv6_regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/
+        ipv6_compressed_regex = /^([0-9a-fA-F]{1,4}:){1,7}:$|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$/
+
+        # If IP is present and not loopback, validate it
+        if ip.present? && ip != '127.0.0.1' && ip != '::1' && !(ip =~ ipv4_regex || ip =~ ipv6_regex || ip =~ ipv6_compressed_regex)
           return render json: { error: 'Invalid IP address format' }, status: :bad_request
         end
+
+        # If IP is loopback or private, we call IPData without the IP segment
+        # This makes IPData detect the machine's public IP (useful for local dev)
+        ip_path = ip.blank? || private_ip?(ip) ? '' : "/#{ip}"
+
+        # Handle private/loopback IPs locally to avoid external API failure
+        # REMOVED MOCK - Let IPData detect the public IP instead
 
         api_key = ENV['IPDATA_API_KEY']
         return render json: { error: 'IPDATA_API_KEY not configured' }, status: :internal_server_error if api_key.blank?
@@ -33,7 +54,7 @@ module Web
         ].join(',')
 
         response = HTTParty.get(
-          "https://api.ipdata.co/#{ip}?api-key=#{api_key}&fields=#{requested_fields}",
+          "https://api.ipdata.co#{ip_path}?api-key=#{api_key}&fields=#{requested_fields}",
           headers: {
             'Accept' => 'application/json',
             'User-Agent' => 'Rails-Backend-IP-Intelligence/1.0'
@@ -77,9 +98,9 @@ module Web
           'ip_city' => data['city'],
           'ip_postcode' => data['postal'],
           'ISP_Name' => data.dig('asn', 'name') || data.dig('company', 'name'),
-          'ISP_Fraud_Score' => if data.dig('threat',
-                                           'scores')
-                                 (data['threat']['scores'].values.sum / data['threat']['scores'].length.to_f).floor
+          'ISP_Fraud_Score' => if data.dig('threat', 'scores').present?
+                                 scores = data['threat']['scores'].values
+                                 (scores.sum.to_f / scores.length).floor if scores.any?
                                end,
           'proxy_type' => get_proxy_type(data['threat']),
           'connection_type' => data['usage_type'] || data.dig('asn', 'type') || data.dig('company', 'type')
@@ -88,11 +109,20 @@ module Web
         render json: enhanced_result
       rescue StandardError => e
         Rails.logger.error("IP Checker Error: #{e.message}")
-        render json: { error: 'Internal server error occurred while processing IP data' },
-               status: :internal_server_error
+        render json: { error: "Internal server error: #{e.message}" }, status: :internal_server_error
       end
 
-      private
+      def get_client_ip
+        # In development, prioritize common public-facing headers if they exist
+        # This helps when using ngrok or similar tunnels
+        request.headers['CF-Connecting-IP'] ||
+          request.headers['X-Forwarded-For']&.split(',')&.first&.strip ||
+          request.headers['X-Real-IP'] ||
+          request.headers['X-Client-IP'] ||
+          request.headers['True-Client-IP'] ||
+          request.headers['Fastly-Client-IP'] ||
+          request.remote_ip
+      end
 
       def calculate_risk_score(threat)
         return [0, 'low'] if threat.blank?
@@ -140,6 +170,20 @@ module Web
         return 'Datacenter' if threat['is_datacenter']
 
         'Clean'
+      end
+
+      def ensure_env_loaded
+        return if ENV['IPDATA_API_KEY'].present?
+
+        # Fallback for dev environments where server might have been started before .env was populated
+        Dotenv.load('.env') if defined?(Dotenv)
+      end
+
+      def private_ip?(ip)
+        addr = IPAddr.new(ip)
+        addr.private? || addr.loopback?
+      rescue StandardError
+        false
       end
     end
   end

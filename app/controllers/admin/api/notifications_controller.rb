@@ -10,6 +10,7 @@ module Admin
 
       def mark_as_read
         Notification.where(recipient: current_employee, read_at: nil).update_all(read_at: Time.current)
+        NotificationChannel.broadcast_to(current_employee, action: 'notifications_read_all')
         render json: { success: true }
       end
     end

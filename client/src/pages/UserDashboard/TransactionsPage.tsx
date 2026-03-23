@@ -124,17 +124,24 @@ const TransactionsPage = () => {
       const { data } = await api.get('/web/api/billing/transactions');
       if (data && data.transactions) {
         // Map backend wallet_transactions to the frontend Transaction interface
-        const mappedTransactions: Transaction[] = data.transactions.map((t: any) => ({
-          id: String(t.id),
-          payment_id: t.description || `TXN-${t.id}`,
-          amount: Math.abs(t.amount), // Backend has negative for spent, positive for deposited
-          currency: 'USD',
-          payment_status: t.status || 'completed',
-          payment_method: t.payment_method || 'wallet',
-          transaction_type: t.transaction_type || (t.amount > 0 ? 'deposit' : 'payment'),
-          created_at: t.created_at,
-          updated_at: t.created_at,
-        }));
+        const mappedTransactions: Transaction[] = data.transactions.map((t: any) => {
+          let tType = t.transaction_type;
+          if (tType === 'credit') tType = 'deposit';
+          else if (tType === 'debit') tType = 'payment';
+          else if (!tType) tType = t.amount > 0 ? 'deposit' : 'payment';
+
+          return {
+            id: String(t.id),
+            payment_id: t.description || `TXN-${t.id}`,
+            amount: Math.abs(t.amount), // Backend has negative for spent, positive for deposited
+            currency: 'USD',
+            payment_status: t.status || 'completed',
+            payment_method: t.payment_method || 'wallet',
+            transaction_type: tType as "payment" | "deposit" | "refund",
+            created_at: t.created_at,
+            updated_at: t.created_at,
+          };
+        });
 
         console.log("Mapped transactions data:", mappedTransactions);
         setTransactions(mappedTransactions);

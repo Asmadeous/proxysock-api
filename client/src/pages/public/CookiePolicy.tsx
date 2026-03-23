@@ -185,7 +185,7 @@ export default function CookiePolicy() {
                     </p>
                     <div className="inline-flex items-center px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/20">
                       <span className="text-xs font-medium text-blue-400">
-                        Services: Google Analytics, Supabase Analytics
+                        Services: Google Analytics, Internal Analytics
                       </span>
                     </div>
                   </div>

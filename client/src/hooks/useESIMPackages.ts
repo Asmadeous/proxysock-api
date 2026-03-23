@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
-// Supabase has been removed in favor of the Rails API
+
 
 
 export type PackageScope = 'global' | 'regional' | 'country'
@@ -244,7 +244,7 @@ export function useESIMPackages(filters: PackageFilters = {}) {
         is_active: true,
         created_at: p.created_at || new Date().toISOString(),
         updated_at: p.updated_at || new Date().toISOString(),
-        packageType: 'base' as const,
+        packageType: p.metadata?.package_type || 'base',
         locationNetworkList: p.location_network_list || false
       };
     });

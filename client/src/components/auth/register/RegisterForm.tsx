@@ -13,6 +13,7 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   XCircleIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import { getCountries, getCitiesForCountry } from "../../../data/countryCities";
 import { checkUsername as checkUsernameApi } from "../../../services/api";
@@ -45,8 +46,10 @@ interface RegisterFormProps {
   submitAttempts: number;
   passwordError: string | null;
   passwordStrength: number;
-  profilePictureUrl: string;
-  setProfilePictureUrl: (v: string) => void;
+  profilePicture: File | null;
+  setProfilePicture: (v: File | null) => void;
+  referralCode: string;
+  setReferralCode: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -77,8 +80,10 @@ export default function RegisterForm({
   submitAttempts,
   passwordError,
   passwordStrength,
-  profilePictureUrl,
-  setProfilePictureUrl,
+  profilePicture,
+  setProfilePicture,
+  referralCode,
+  setReferralCode,
   onSubmit,
 }: RegisterFormProps) {
   const passwordStrengthColors = [
@@ -441,21 +446,45 @@ export default function RegisterForm({
           </div>
         </div>
 
-        {/* Profile Picture URL */}
+        {/* Profile Picture */}
         <div>
-          <label htmlFor="profilePictureUrl" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
-            Profile Picture URL (Optional)
+          <label htmlFor="profilePicture" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
+            Profile Picture (Optional)
           </label>
           <div className="relative">
             <GlobeAltIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <input
-              id="profilePictureUrl"
-              name="profilePictureUrl"
-              type="url"
-              value={profilePictureUrl}
-              onChange={(e) => setProfilePictureUrl(e.target.value)}
+              id="profilePicture"
+              name="profilePicture"
+              type="file"
+              accept="image/jpeg, image/png, image/gif, image/webp"
+              onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
               disabled={isLoading || isRateLimited}
-              placeholder="https://example.com/photo.jpg"
+              className="pl-10 pr-3 py-2 w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
+            />
+          </div>
+          {profilePicture && profilePicture.size > 5 * 1024 * 1024 && (
+            <p className="text-xs mt-1 text-destructive font-inter-regular">
+              File must be less than 5MB
+            </p>
+          )}
+        </div>
+
+        {/* Referral Code */}
+        <div>
+          <label htmlFor="referralCode" className="block text-sm font-medium text-foreground mb-2 font-manrope-medium">
+            Referral / Affiliate Code (Optional)
+          </label>
+          <div className="relative">
+            <TagIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <input
+              id="referralCode"
+              name="referralCode"
+              type="text"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value)}
+              disabled={isLoading || isRateLimited}
+              placeholder="e.g. FRIEND20"
               className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50 font-inter-regular"
             />
           </div>

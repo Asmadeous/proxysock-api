@@ -27,7 +27,7 @@ class EsimAccessService
         { packageCode: package_code, count: count, price: price }
       ]
     }
-    response = request(:post, '/order/profiles', body)
+    response = request(:post, '/esim/order', body)
 
     return response['obj'].merge('transactionId' => transaction_id) if response['success'] == true
 
@@ -37,8 +37,25 @@ class EsimAccessService
   # Query eSIM details by ICCID.
   # Endpoint: POST /esim/query
   def fetch_esim_details(iccid)
-    response = request(:post, '/esim/query', { iccid: iccid })
+    response = request(:post, '/esim/query', {
+                         iccid: iccid,
+                         pager: { pageNum: 1, pageSize: 50 }
+                       })
     response['obj']
+  end
+
+  # Fetch all allocated eSIM profiles for a given orderNo.
+  # Returns an array of profile hashes with iccid, ac, qrCodeUrl, etc.
+  # Endpoint: POST /esim/query
+  def fetch_profiles_by_order(order_no)
+    response = request(:post, '/esim/query', {
+                         orderNo: order_no,
+                         pager: { pageNum: 1, pageSize: 50 }
+                       })
+
+    return [] unless response['success'] == true
+
+    response.dig('obj', 'esimList') || []
   end
 
   # Check data usage for up to 10 eSIMs by their transaction numbers.
@@ -51,10 +68,10 @@ class EsimAccessService
   end
 
   # List available packages / products.
-  # Endpoint: GET /packages  (NOT /esim/packages)
-  def list_packages
-    response = request(:get, '/packages', {})
-    return response['obj'] if response['success'] == true
+  # Endpoint: POST /package/list
+  def list_packages(params = { type: 'BASE' })
+    response = request(:post, '/package/list', params)
+    return response.dig('obj', 'packageList') if response['success'] == true
 
     []
   end
@@ -79,16 +96,21 @@ class EsimAccessService
   private
 
   # Build and sign an HTTP request with HMAC-SHA256.
-  # The signature is computed over the raw JSON body using the secret key and
-  # sent as the RT-Signature header.
+  # signData = Timestamp + RequestID + AccessCode + RequestBody
+  # signature = HMACSHA256(signData, SecretCode)
   def request(method, endpoint, body = {})
     uri  = URI("#{BASE_URL}#{endpoint}")
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl     = true
+    http.use_ssl = true
     http.read_timeout = 30
 
-    body_json = body.to_json
-    signature  = OpenSSL::HMAC.hexdigest('SHA256', @secret_key, body_json)
+    timestamp  = Time.now.to_i.to_s
+    request_id = SecureRandom.uuid
+    body_json  = body.to_json
+
+    # Calculate signature as per docs
+    sign_data = "#{timestamp}#{request_id}#{@access_code}#{body_json}"
+    signature = OpenSSL::HMAC.hexdigest('SHA256', @secret_key, sign_data)
 
     req = case method
           when :get  then Net::HTTP::Get.new(uri)
@@ -97,6 +119,8 @@ class EsimAccessService
           end
 
     req['RT-AccessCode'] = @access_code
+    req['RT-RequestID']  = request_id
+    req['RT-Timestamp']  = timestamp
     req['RT-Signature']  = signature
     req['Content-Type']  = 'application/json'
     req['Accept']        = 'application/json'
@@ -104,9 +128,7 @@ class EsimAccessService
 
     response = http.request(req)
 
-    unless response.is_a?(Net::HTTPSuccess)
-      raise "eSIM Access HTTP Error #{response.code}: #{response.body}"
-    end
+    raise "eSIM Access HTTP Error #{response.code}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   end

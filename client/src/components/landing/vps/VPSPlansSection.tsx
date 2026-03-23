@@ -16,7 +16,6 @@ const vpsPlans = [
   {
     name: "Basic",
     price: "$35",
-    cadPrice: "$23",
     vcpu: "1 vCPU",
     ram: "2GB RAM",
     storage: "40GB SSD Storage",
@@ -31,7 +30,6 @@ const vpsPlans = [
   {
     name: "Standard",
     price: "$50",
-    cadPrice: "$38",
     vcpu: "2 vCPU",
     ram: "4GB RAM",
     storage: "80GB SSD Storage",
@@ -47,7 +45,6 @@ const vpsPlans = [
   {
     name: "Premium",
     price: "$65",
-    cadPrice: "$53",
     vcpu: "3 vCPU",
     ram: "6GB RAM",
     storage: "120GB NVMe SSD",
@@ -62,7 +59,6 @@ const vpsPlans = [
   {
     name: "Ultra",
     price: "$100",
-    cadPrice: "$88",
     vcpu: "4 vCPU",
     ram: "8GB RAM",
     storage: "160GB NVMe SSD",
@@ -105,11 +101,8 @@ export const VPSPlansSection = ({ trackConversion }: VPSPlansSectionProps) => {
             <GlobeAltIcon className="h-5 w-5 text-primary" />
             <p className="text-primary text-center text-sm font-manrope-semibold">
               🌍 Available in 5 Locations: USA • UK • Germany • Canada •
-              Australia
+              Netherlands
             </p>
-            <span className="bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full font-manrope-bold">
-              🇨🇦 Cheapest in Canada!
-            </span>
           </div>
         </motion.div>
 
@@ -122,11 +115,10 @@ export const VPSPlansSection = ({ trackConversion }: VPSPlansSectionProps) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${
-                plan.popular
-                  ? "border-primary shadow-lg shadow-primary/20"
-                  : "border-border"
-              } relative`}
+              className={`bg-card/80 backdrop-blur-xl rounded-lg p-6 border ${plan.popular
+                ? "border-primary shadow-lg shadow-primary/20"
+                : "border-border"
+                } relative`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -150,11 +142,6 @@ export const VPSPlansSection = ({ trackConversion }: VPSPlansSectionProps) => {
                   </span>
                   <span className="text-muted-foreground text-sm">
                     /month USD
-                  </span>
-                </div>
-                <div className="bg-primary/20 border border-primary/50 rounded px-2 py-1 inline-block">
-                  <span className="text-primary text-xs font-manrope-semibold">
-                    🇨🇦 {plan.cadPrice} CAD/mo
                   </span>
                 </div>
               </div>

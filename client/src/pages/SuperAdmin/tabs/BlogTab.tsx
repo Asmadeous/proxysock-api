@@ -24,6 +24,7 @@ const EMPTY_FORM = { title: "", slug: "", excerpt: "", content: "", category: "P
 
 export default function BlogTab() {
     const [posts, setPosts] = useState<BlogRow[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
 
@@ -38,6 +39,7 @@ export default function BlogTab() {
         try {
             const res = await fetchAdminBlogPosts(search ? { q: search } : undefined);
             setPosts(res.data.posts || res.data || []);
+            if (res.data.categories) setCategories(res.data.categories);
         } catch { toast.error("Failed to load blog posts"); }
         finally { setLoading(false); }
     }, [search]);
@@ -117,7 +119,7 @@ export default function BlogTab() {
             <Field label="Slug"><input className={inputClasses} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="auto-generated-from-title" /></Field>
             <Field label="Category">
                 <select className={selectClasses} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                    {["Proxies", "RDP", "VPS", "VPN", "eSIM"].map((c) => <option key={c} value={c}>{c}</option>)}
+                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
             </Field>
             <Field label="Author"><input className={inputClasses} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></Field>

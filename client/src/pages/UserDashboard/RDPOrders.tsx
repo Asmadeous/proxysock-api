@@ -118,19 +118,11 @@ const RDPOrdersPage = () => {
   const fetchRDPOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rdp_orders?select=*,rdp_plans(*)&order=created_at.desc`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const transformedOrders = data.map((order: any) => ({
+      const response = await api.get('/web/api/orders?product_type=rdp');
+      if (response.data && response.data.orders) {
+        const transformedOrders = response.data.orders.map((order: any) => ({
           ...order,
-          plan: order.rdp_plans
+          plan: order.metadata?.plan_details || order.metadata
         }));
         setOrders(transformedOrders);
       }
@@ -473,7 +465,7 @@ Payment Method: ${order.payment_method || 'N/A'}
                 <div>
                   <p className="text-muted-foreground text-sm">Total Spent</p>
                   <p className="text-3xl font-bold mt-1">
-                    ${stats.totalSpent}
+                    ${stats.totalSpent.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-primary/10 rounded-lg">

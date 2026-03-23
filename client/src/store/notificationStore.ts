@@ -49,7 +49,11 @@ export const useNotificationStore = create<NotificationStore>()(
                 set({ isLoading: true });
                 try {
                     const response = await getNotifications(page);
-                    set({ notifications: response.notifications, isLoading: false });
+                    // Filter out any malformed notifications from backend
+                    const validNotifications = (response.notifications || []).filter(
+                        (n: any) => n && n.id && n.created_at
+                    );
+                    set({ notifications: validNotifications, isLoading: false });
                 } catch (error) {
                     console.error("Failed to fetch notifications:", error);
                     set({ isLoading: false });
@@ -59,18 +63,27 @@ export const useNotificationStore = create<NotificationStore>()(
             fetchUnreadCount: async () => {
                 try {
                     const count = await getUnreadCount();
-                    set({ unreadCount: count });
+                    set({ unreadCount: typeof count === 'number' ? count : 0 });
                 } catch (error) {
                     console.error("Failed to fetch unread count:", error);
                 }
             },
 
             addNotification: (notification: Notification) => {
+                // Defensive check: ignore malformed notifications
+                if (!notification || !notification.id || !notification.created_at) {
+                    console.warn("[NotificationStore] Ignoring malformed notification:", notification);
+                    return;
+                }
+
                 const { notifications, soundEnabled, playNotificationSound } = get();
+                
+                // Avoid duplicates if broadcast is somehow triggered twice
+                if (notifications.some(n => n.id === notification.id)) return;
 
                 // Add to beginning of list
                 set({
-                    notifications: [notification, ...notifications].slice(0, 50), // Keep max 50
+                    notifications: [notification, ...notifications].slice(0, 50),
                     unreadCount: get().unreadCount + 1,
                 });
 
@@ -97,11 +110,12 @@ export const useNotificationStore = create<NotificationStore>()(
             markAllAsRead: async () => {
                 try {
                     await apiMarkAllAsRead();
+                    // UI will update immediately, but ActionCable might also send an event
                     set((state) => ({
                         notifications: state.notifications.map((n) => ({
                             ...n,
                             read: true,
-                            read_at: new Date().toISOString(),
+                            read_at: n.read_at || new Date().toISOString(),
                         })),
                         unreadCount: 0,
                     }));
@@ -133,19 +147,58 @@ export const useNotificationStore = create<NotificationStore>()(
                 // Already subscribed
                 if (subscription) return;
 
-                const newSubscription = subscribeToNotifications((data) => {
-                    // Transform ActionCable data to Notification format
-                    const notification: Notification = {
-                        id: (data as Record<string, unknown>).id as number,
-                        category: (data as Record<string, unknown>).category as Notification["category"],
-                        title: (data as Record<string, unknown>).title as string,
-                        message: (data as Record<string, unknown>).message as string,
-                        metadata: ((data as Record<string, unknown>).metadata as Record<string, unknown>) || {},
-                        read: false,
-                        read_at: null,
-                        created_at: (data as Record<string, unknown>).created_at as string,
-                    };
-                    addNotification(notification);
+                const newSubscription = subscribeToNotifications((data: any) => {
+                    // Safety check for data
+                    if (!data || typeof data !== 'object') return;
+
+                    const { action, notification: nestedNotification, id: notificationId } = data;
+
+                    switch (action) {
+                        case 'notification_created':
+                            if (nestedNotification && nestedNotification.id) {
+                                // Transform backend data to Notification format
+                                const notification: Notification = {
+                                    id: nestedNotification.id,
+                                    category: nestedNotification.category,
+                                    title: nestedNotification.title,
+                                    message: nestedNotification.message,
+                                    metadata: nestedNotification.metadata || {},
+                                    read: !!nestedNotification.read_at,
+                                    read_at: nestedNotification.read_at,
+                                    created_at: nestedNotification.created_at,
+                                };
+                                addNotification(notification);
+                            }
+                            break;
+
+                        case 'notifications_read_all':
+                            // Handle batch read event
+                            set((state) => ({
+                                notifications: state.notifications.map((n) => ({
+                                    ...n,
+                                    read: true,
+                                    read_at: n.read_at || new Date().toISOString(),
+                                })),
+                                unreadCount: 0,
+                            }));
+                            break;
+
+                        case 'notification_read':
+                            if (notificationId) {
+                                set((state) => ({
+                                    notifications: state.notifications.map((n) =>
+                                        n.id === notificationId ? { ...n, read: true, read_at: n.read_at || new Date().toISOString() } : n
+                                    ),
+                                    unreadCount: Math.max(0, state.unreadCount - 1),
+                                }));
+                            }
+                            break;
+
+                        default:
+                            if (action) {
+                                console.log("[ActionCable] Unhandled notification action:", action);
+                            }
+                    }
                 });
 
                 set({ subscription: newSubscription });

@@ -8,6 +8,7 @@ export const getCategoryIcon = (slug: string) => {
       return <ServerIcon className="w-5 h-5" />;
     case "static-residential":
     case "residential-rotating":
+    case "global-isp":
       return <GlobeAltIcon className="w-5 h-5" />;
     default:
       return <CpuChipIcon className="w-5 h-5" />;

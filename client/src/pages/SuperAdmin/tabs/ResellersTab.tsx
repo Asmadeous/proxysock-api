@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
@@ -25,6 +25,7 @@ interface ResellerRow {
     has_affiliate: boolean;
     created_at: string;
     // Full detail fields
+    users?: { id: string; email: string; name: string; status: string; created_at: string }[];
     orders?: { id: string; product: string; status: string; total: number; created_at: string }[];
     webhooks?: { id: string; url: string; events: string[]; created_at: string }[];
 }
@@ -33,6 +34,7 @@ interface Stats {
     total: number;
     api_only: number;
     enterprise: number;
+    single_product: number;
     total_balance: number;
 }
 
@@ -41,6 +43,7 @@ const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", re
 const TYPE_FILTERS = [
     { label: "All", value: "" },
     { label: "API Only", value: "api_only" },
+    { label: "Single Product", value: "single_product" },
     { label: "Enterprise", value: "infrastructure" },
 ];
 
@@ -48,7 +51,7 @@ export default function ResellersTab() {
     const [resellers, setResellers] = useState<ResellerRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
-    const [stats, setStats] = useState<Stats>({ total: 0, api_only: 0, enterprise: 0, total_balance: 0 });
+    const [stats, setStats] = useState<Stats>({ total: 0, api_only: 0, enterprise: 0, single_product: 0, total_balance: 0 });
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
@@ -68,6 +71,7 @@ export default function ResellersTab() {
         subscription_expires_at: "",
         dedicated_api_key: "",
         customer_email: "",
+        allowed_product_category_id: "",
     });
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -158,6 +162,7 @@ export default function ResellersTab() {
             subscription_expires_at: r.subscription_expires_at ? r.subscription_expires_at.slice(0, 10) : "",
             dedicated_api_key: r.dedicated_api_key || "",
             customer_email: r.customer_email || "",
+            allowed_product_category_id: (r as any).allowed_product_category_id ? String((r as any).allowed_product_category_id) : "",
         });
     };
 
@@ -179,11 +184,13 @@ export default function ResellersTab() {
     const tierLabel = (type: string) => {
         if (type === "infrastructure") return "Enterprise";
         if (type === "api_only") return "API Only";
+        if (type === "single_product") return "Single Product";
         return type;
     };
 
     const tierColor = (type: string) => {
         if (type === "infrastructure") return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+        if (type === "single_product") return "text-purple-400 bg-purple-500/10 border-purple-500/20";
         return "text-blue-400 bg-blue-500/10 border-blue-500/20";
     };
 
@@ -248,8 +255,8 @@ export default function ResellersTab() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
                 <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} change={`${stats.api_only} API resellers`} />
+                <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} change={`${stats.single_product} product resellers`} />
                 <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} change={`${stats.enterprise} infrastructure`} />
-                <StatsCard title="Total Balance" value={`$${stats.total_balance.toFixed(2)}`} icon={WalletIcon} />
             </div>
 
             {/* Header + Filter Chips */}
@@ -306,9 +313,27 @@ export default function ResellersTab() {
                             <ChevronUpIcon className="h-5 w-5" />
                         </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Users */}
+                        <div className="lg:col-span-1">
+                            <h4 className="text-sm font-semibold text-foreground mb-2">Users</h4>
+                            {expandedDetail.users && expandedDetail.users.length > 0 ? (
+                                <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                                    {expandedDetail.users.map((u) => (
+                                        <div key={u.id} className="flex justify-between items-center text-xs bg-muted/50 rounded-lg px-3 py-2">
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-foreground font-medium truncate">{u.name || u.email}</p>
+                                                <p className="text-muted-foreground truncate opacity-80">{u.name ? u.email : ""}</p>
+                                            </div>
+                                            <StatusBadge status={u.status} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-xs text-muted-foreground">No users assigned</p>}
+                        </div>
+
                         {/* Orders */}
-                        <div>
+                        <div className="lg:col-span-1">
                             <h4 className="text-sm font-semibold text-foreground mb-2">Recent Orders</h4>
                             {expandedDetail.orders && expandedDetail.orders.length > 0 ? (
                                 <div className="space-y-1.5">
@@ -325,7 +350,7 @@ export default function ResellersTab() {
                         </div>
 
                         {/* Account Details + Webhooks */}
-                        <div className="space-y-4">
+                        <div className="lg:col-span-1 space-y-4">
                             <div>
                                 <h4 className="text-sm font-semibold text-foreground mb-2">Account Details</h4>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -387,6 +412,7 @@ export default function ResellersTab() {
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>
+                        <option value="single_product">Single Product</option>
                         <option value="infrastructure">Enterprise</option>
                     </select>
                 </Field>
@@ -400,6 +426,7 @@ export default function ResellersTab() {
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>
+                        <option value="single_product">Single Product</option>
                         <option value="infrastructure">Enterprise</option>
                     </select>
                 </Field>
@@ -417,11 +444,16 @@ export default function ResellersTab() {
                 <Field label="Reseller Tier">
                     <select className={selectClasses} value={configForm.reseller_type} onChange={(e) => setConfigForm({ ...configForm, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>
+                        <option value="single_product">Single Product</option>
                         <option value="infrastructure">Enterprise</option>
                     </select>
                 </Field>
                 <Field label="Infrastructure Surcharge (%)">
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
+                </Field>
+
+                <Field label="Dedicated API Key">
+                    <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
                 </Field>
 
                 {/* Enterprise-only fields */}
@@ -436,11 +468,20 @@ export default function ResellersTab() {
                         <Field label="Subscription Expires">
                             <input className={inputClasses} type="date" value={configForm.subscription_expires_at} onChange={(e) => setConfigForm({ ...configForm, subscription_expires_at: e.target.value })} />
                         </Field>
-                        <Field label="Dedicated API Key">
-                            <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
-                        </Field>
                         <Field label="Customer Email (for invoices)">
                             <input className={inputClasses} type="email" value={configForm.customer_email} onChange={(e) => setConfigForm({ ...configForm, customer_email: e.target.value })} placeholder="customer@example.com" />
+                        </Field>
+                    </>
+                )}
+
+                {/* Single Product fields */}
+                {configForm.reseller_type === "single_product" && (
+                    <>
+                        <div className="border-t border-border pt-3 mt-2">
+                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
+                        </div>
+                        <Field label="Allowed Product Category ID">
+                            <input className={inputClasses} type="number" value={configForm.allowed_product_category_id} onChange={(e) => setConfigForm({ ...configForm, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
                         </Field>
                     </>
                 )}

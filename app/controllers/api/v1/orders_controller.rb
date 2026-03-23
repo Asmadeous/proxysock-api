@@ -17,6 +17,14 @@ module Api
           scope = scope.joins(:product).where(products: { product_type: types })
         end
 
+        if params[:category_slug].present?
+          scope = scope.joins(product: :product_category).where(product_categories: { slug: params[:category_slug] })
+        end
+
+        if params[:category_id].present?
+          scope = scope.joins(:product).where(products: { product_category_id: params[:category_id] })
+        end
+
         orders = scope.order(created_at: :desc)
                       .page(params[:page])
                       .per(20)
@@ -118,44 +126,129 @@ module Api
       end
 
       # POST /api/v1/orders
-      # Resellers can order any available product
+      # - api_only resellers: deducts from balance, provisions immediately, returns credentials JSON
+      # - infrastructure resellers: creates checkout session, returns gateway payment link
       def create
-        product = Product.for_resellers.find(params[:product_id])
+        product_scope = current_reseller.infrastructure? ? Product.all : Product.for_resellers
+
+        # Single product resellers can only order from their allowed category
+        if current_reseller.single_product?
+          product_scope = product_scope.where(product_category_id: current_reseller.allowed_product_category_id)
+        end
+
+        product = product_scope.find(params[:product_id])
 
         pricing = product.product_pricings.find_by(active: true)
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
 
-        Order.transaction do
-          @order = Order.new(
+        if current_reseller.balance_based?
+          create_api_only_order(product, pricing)
+        else
+          create_infrastructure_order(product, pricing)
+        end
+      rescue ActiveRecord::RecordNotFound => e
+        raise e
+      rescue StandardError => e
+        Rails.logger.error("Reseller Order Error: #{e.message}")
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/orders/checkout_cart
+      # Infrastructure resellers only — batch-order multiple products via gateway.
+      # api_only resellers should use POST /api/v1/orders individually.
+      def checkout_cart
+        unless current_reseller.infrastructure?
+          return render json: { error: 'Cart checkout is only available for infrastructure resellers. Use POST /api/v1/orders for single orders.' },
+                        status: :forbidden
+        end
+
+        items = params[:items] || []
+        gateway = params[:gateway] || 'paystack'
+        customer_email = params[:customer_email]
+
+        return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
+        return render json: { error: 'customer_email is required for infrastructure orders' }, status: :bad_request if customer_email.blank?
+
+        payment_debug = "reseller_#{gateway}"
+
+        # Build and validate cart items
+        total_amount = 0
+        validated_items = []
+
+        items.each do |item|
+          product = Product.for_resellers.find_by(id: item[:product_id] || item['product_id'])
+          next unless product
+
+          pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
+          next unless pricing
+
+          order = Order.new(
             orderable: current_reseller,
-            product_id: product.id,
-            product_pricing_id: pricing.id,
-            quantity: params[:quantity] || 1,
+            product: product,
+            product_pricing: pricing,
+            quantity: item[:quantity] || item['quantity'] || 1,
+            metadata: (item[:metadata] || item['metadata'] || {}).merge(
+              'client_ip' => request.remote_ip,
+              'payment_debug' => payment_debug,
+              'customer_email' => customer_email,
+              'credentials_email' => customer_email
+            ),
             status: 'pending'
           )
 
-          if @order.save
-            # Create the parallel ResellerOrder linking the purchase
-            ResellerOrder.create!(
-              reseller: current_reseller,
-              order_id: @order.id,
-              orderable: current_reseller # Initially, the reseller owns it
-            )
-
-            begin
-              # Process order (checks balance, deducts, provisions)
-              OrderProvisioningService.new(@order, current_reseller).process!
-              render json: serialize_order(@order.reload), status: :created
-            rescue StandardError => e
-              # Rollback transaction on provisioning failure to prevent orphaned orders
-              raise ActiveRecord::Rollback
-              render json: { error: e.message }, status: :unprocessable_entity
-            end
-          else
-            render json: { errors: @order.errors }, status: :unprocessable_entity
-          end
+          order.calculate_total_amount
+          total_amount += order.total_amount.to_f
+          validated_items << {
+            product_id: product.id,
+            quantity: order.quantity,
+            metadata: order.metadata
+          }
         end
-      rescue ActiveRecord::RecordInvalid => e
+
+        if validated_items.empty?
+          return render json: { error: 'No valid products found in cart' }, status: :unprocessable_entity
+        end
+
+        # Create CheckoutSession for gateway payment
+        checkout_session = nil
+
+        ActiveRecord::Base.transaction do
+          checkout_session = CheckoutSession.create!(
+            orderable: current_reseller,
+            total_amount: total_amount,
+            payment_method: gateway,
+            status: 'pending',
+            metadata: {
+              item_count: validated_items.count,
+              items: validated_items,
+              reseller_id: current_reseller.id,
+              customer_email: customer_email,
+              payment_debug: payment_debug
+            }
+          )
+
+          checkout_session.generate_reference!
+        end
+
+        payment_data = generate_reseller_payment_link(gateway, checkout_session, total_amount, customer_email)
+
+        unless payment_data && payment_data[:url]
+          raise StandardError, "Failed to generate payment link from #{gateway}."
+        end
+
+        render json: {
+          message: 'Complete payment to activate orders',
+          payment_url: payment_data[:url],
+          payment_amount: payment_data[:amount],
+          payment_currency: payment_data[:currency],
+          reference: checkout_session.gateway_reference,
+          checkout_session_id: checkout_session.id,
+          total_items: validated_items.count,
+          total_amount: total_amount,
+          customer_email: customer_email
+        }, status: :accepted
+      rescue StandardError => e
+        Rails.logger.error("Reseller Cart Checkout Error: #{e.message}")
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
@@ -198,20 +291,52 @@ module Api
             server_ip: resource.server_ip,
             status: resource.status
           }
-        when 'proxy'
-          # Dynamic credential mapping mapping for various proxy models
-          # MobileProxy, StaticDatacenterProxy, etc.
+        when 'proxy', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
+          # Dynamic credential mapping for various proxy models
+          # MobileProxy, StaticDatacenterProxy, GlobalIspProxy, etc.
+          proxies = if resource.respond_to?(:proxies)
+                      resource.proxies
+                    elsif resource.respond_to?(:global_isp_proxies)
+                      resource.global_isp_proxies
+                    elsif resource.respond_to?(:static_isp_proxies)
+                      resource.static_isp_proxies
+                    elsif resource.respond_to?(:esims)
+                      resource.esims
+                    else
+                      [resource]
+                    end
+
           render json: {
             type: 'proxy',
             order_id: order.id,
-            proxy_type: resource.class.name,
-            proxy_id: resource.id,
-            ip_address: resource.try(:ip_address),
-            port: resource.try(:port),
-            username: resource.try(:username),
-            password: resource.try(:password),
-            country_code: resource.try(:country_code),
-            status: resource.status
+            proxies: proxies.map do |p|
+              {
+                ip_address: p.try(:ip_address),
+                port: p.try(:port),
+                username: p.try(:username),
+                password: p.try(:password),
+                country_code: p.try(:country_code),
+                status: p.try(:status),
+                # eSIM specific
+                iccid: p.try(:iccid),
+                activation_code: p.try(:activation_code),
+                qr_code_url: p.try(:qr_code_data)
+              }.compact
+            end
+          }
+        when 'esim'
+          render json: {
+            type: 'esim',
+            order_id: order.id,
+            esims: resource.esims.map do |e|
+              {
+                iccid: e.iccid,
+                activation_code: e.activation_code,
+                qr_code_url: e.qr_code_data,
+                status: e.esim_status,
+                expires_at: e.expires_at
+              }
+            end
           }
         else
           render json: { error: 'Credentials not supported for this product type' }, status: :bad_request
@@ -260,18 +385,20 @@ module Api
           # Refund to reseller balance
           refund_amount = order.total_amount.to_f
           if refund_amount.positive? && current_reseller.main_wallet
-            current_reseller.main_wallet.update!(
-              balance: current_reseller.main_wallet.balance + refund_amount
-            )
+            current_reseller.main_wallet.credit!(refund_amount, "Refund for cancelled order ##{order.order_number}")
           end
 
           order.update!(status: 'cancelled')
 
           # For external API products (proxies), alert admin via email
           is_external_api_product = order.product&.provider_type.to_s.downcase.include?('api') ||
-                                    order.product&.product_type == 'proxy'
+                                    order.product&.proxy?
           if is_external_api_product
-            ResellerMailer.order_cancelled_admin_notification(order, current_reseller).deliver_later
+            saved_order = order
+            saved_reseller = current_reseller
+            ActiveRecord.after_all_transactions_commit do
+              ResellerMailer.order_cancelled_admin_notification(saved_order, saved_reseller).deliver_later
+            end
           end
         end
 
@@ -280,6 +407,27 @@ module Api
           order: serialize_order(order.reload),
           refunded_amount: order.total_amount.to_f
         }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/orders/:id/reorder
+      def reorder
+        original_order = current_reseller.orders.find(params[:id])
+        product = original_order.product
+        pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
+
+        return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
+
+        if current_reseller.balance_based?
+          # Re-create the order with original metadata (removing IDs)
+          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
+          create_api_only_order(product, pricing, metadata)
+        else
+          # infrastructure: Return a checkout link for the same product
+          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
+          create_infrastructure_order(product, pricing, metadata)
+        end
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
@@ -309,6 +457,220 @@ module Api
           total_pages: collection.total_pages,
           total_count: collection.total_count
         }
+      end
+
+      # ── api_only: Balance-based order ──
+      # Deducts from main_wallet, provisions immediately, returns credentials in JSON.
+      def create_api_only_order(product, pricing, custom_metadata = nil)
+        @order = Order.new(
+          orderable: current_reseller,
+          product_id: product.id,
+          product_pricing_id: pricing.id,
+          quantity: params[:quantity] || 1,
+          metadata: (custom_metadata || params[:metadata] || {}).merge(
+            'client_ip' => request.remote_ip,
+            'payment_debug' => 'reseller_balance',
+            'target_section_id' => params[:target_section_id],
+            'target_id' => params[:target_id],
+            'resi' => params[:resi],
+            'selected_country_id' => params[:selected_country_id]
+          ).compact,
+          status: 'pending'
+        )
+
+        return render json: { errors: @order.errors }, status: :unprocessable_entity unless @order.save
+
+        Order.transaction do
+          ResellerOrder.create!(
+            reseller: current_reseller,
+            order_id: @order.id,
+            orderable: current_reseller
+          )
+        end
+
+        OrderProvisioningService.new(@order, current_reseller).process!
+
+        @order.reload
+        resource = @order.provisioned_resource
+
+        render json: serialize_order(@order).merge(
+          message: 'Order completed',
+          credentials: resource ? serialize_credentials(@order, resource) : nil,
+          available_balance: current_reseller.main_wallet&.balance.to_f
+        ), status: :created
+      end
+
+      # ── infrastructure: Gateway-based order ──
+      # Creates a CheckoutSession, returns payment link. Customer email receives credentials after payment.
+      def create_infrastructure_order(product, pricing, custom_metadata = nil)
+        gateway = params[:gateway] || 'paystack'
+        customer_email = params[:customer_email] || (custom_metadata ? custom_metadata['customer_email'] : nil)
+
+        return render json: { error: 'customer_email is required for infrastructure orders' }, status: :bad_request if customer_email.blank?
+
+        payment_debug = "reseller_#{gateway}"
+
+        order = Order.new(
+          orderable: current_reseller,
+          product_id: product.id,
+          product_pricing_id: pricing.id,
+          quantity: params[:quantity] || 1,
+          metadata: (custom_metadata || params[:metadata] || {}).merge(
+            'client_ip' => request.remote_ip,
+            'payment_debug' => payment_debug,
+            'customer_email' => customer_email,
+            'credentials_email' => customer_email
+          ),
+          status: 'pending'
+        )
+
+        order.calculate_total_amount
+        total = order.total_amount.to_f
+
+        checkout_session = nil
+        ActiveRecord::Base.transaction do
+          checkout_session = CheckoutSession.create!(
+            orderable: current_reseller,
+            total_amount: total,
+            payment_method: gateway,
+            status: 'pending',
+            metadata: {
+              item_count: 1,
+              items: [{
+                product_id: product.id,
+                quantity: order.quantity,
+                metadata: order.metadata
+              }],
+              reseller_id: current_reseller.id,
+              customer_email: customer_email,
+              payment_debug: payment_debug
+            }
+          )
+
+          checkout_session.generate_reference!
+        end
+
+        payment_data = generate_reseller_payment_link(gateway, checkout_session, total, customer_email)
+
+        unless payment_data && payment_data[:url]
+          raise StandardError, "Failed to generate payment link from #{gateway}."
+        end
+
+        render json: {
+          message: 'Complete payment to activate order',
+          payment_url: payment_data[:url],
+          payment_amount: payment_data[:amount],
+          payment_currency: payment_data[:currency],
+          reference: checkout_session.gateway_reference,
+          checkout_session_id: checkout_session.id,
+          product_name: product.name,
+          total_amount: total,
+          customer_email: customer_email
+        }, status: :accepted
+      end
+
+      # Serialize credentials for JSON response (api_only resellers)
+      def serialize_credentials(order, resource)
+        base = { order_id: order.id, status: resource.status }
+
+        case order.product.product_type
+        when 'proxy'
+          base.merge(
+            type: 'proxy',
+            proxy_type: resource.class.name,
+            ip_address: resource.try(:ip_address),
+            port: resource.try(:port),
+            username: resource.try(:username),
+            password: resource.try(:password),
+            country_code: resource.try(:country_code)
+          )
+        when 'esim'
+          base.merge(
+            type: 'esim',
+            esims: resource.esims.map do |e|
+              {
+                iccid: e.iccid,
+                activation_code: e.activation_code,
+                qr_code_url: e.qr_code_data
+              }
+            end
+          )
+        when 'vpn'
+          base.merge(
+            type: 'vpn',
+            username: resource.try(:username),
+            password: resource.try(:password),
+            server_ip: resource.try(:server_ip)
+          )
+        else
+          base.merge(
+            type: order.product.product_type,
+            ip_address: resource.try(:ip_address) || resource.try(:server_ip)
+          )
+        end
+      end
+
+      def generate_reseller_payment_link(gateway, session, amount, customer_email = nil)
+        reference = session.gateway_reference
+        # Use customer email for infrastructure, fall back to reseller email
+        email = customer_email.presence || current_reseller.email
+        frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{gateway}&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
+
+        case gateway
+        when 'paystack'
+          exchange_rate = FixerService.get_rate('USD', 'NGN')
+          amount_ngn = (amount * exchange_rate).round(2)
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
+          {
+            url: PaystackService.new.initialize_transaction(
+              email: email,
+              amount: (amount_ngn * 100).to_i,
+              reference: reference,
+              callback_url: frontend_callback_url,
+              metadata: { checkout_session_id: session.id, reseller_id: current_reseller.id, type: 'reseller_checkout' }
+            )[:authorization_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
+        when 'plisio'
+          {
+            url: PlisioService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: frontend_callback_url,
+              email: email
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
+        when 'payvra'
+          {
+            url: PayvraService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: frontend_callback_url,
+              email: email
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
+        when 'hundredpay'
+          {
+            url: HundredpayService.new.create_invoice(
+              amount: amount,
+              currency: 'USD',
+              order_number: reference,
+              callback_url: frontend_callback_url,
+              email: email,
+              phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
+              country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
+        end
       end
     end
   end

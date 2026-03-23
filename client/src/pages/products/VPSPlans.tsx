@@ -124,10 +124,7 @@ export default function VPSPlans() {
         { code: "UK", name: "United Kingdom", flag: "🇬🇧" },
         { code: "DE", name: "Germany", flag: "🇩🇪" },
         { code: "NL", name: "Netherlands", flag: "🇳🇱" },
-        { code: "SG", name: "Singapore", flag: "🇸🇬" },
-        { code: "JP", name: "Japan", flag: "🇯🇵" },
-        { code: "CA", name: "Canada", flag: "🇨🇦" },
-        { code: "AU", name: "Australia", flag: "🇦🇺" }
+        { code: "CA", name: "Canada", flag: "🇨🇦" }
       ]);
       setOsOptions([
         { name: "Windows Server 2022", icon: "WindowsIcon", description: "Enterprise-grade Windows server OS" },
@@ -414,7 +411,7 @@ export default function VPSPlans() {
       </div>
 
       <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex items-center justify-between py-6">
+        <CardContent className="pt-6 pb-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/20 rounded-full">
               <Sparkles className="h-6 w-6 text-primary" />
@@ -424,6 +421,10 @@ export default function VPSPlans() {
               <p className="text-sm text-muted-foreground">Get authentic residential IPs that look like real user connections, perfect for high-trust operations.</p>
             </div>
           </div>
+          <p className="text-primary text-center text-sm font-manrope-semibold mt-4">
+              🌍 Available in 5 Locations: USA • UK • Germany • Canada •
+              Netherlands
+            </p>
         </CardContent>
       </Card>
 
