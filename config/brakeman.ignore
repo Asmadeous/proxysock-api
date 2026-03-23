@@ -1,18 +1,106 @@
 {
   "ignored_warnings": [
     {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
       "fingerprint": "6301ee8e24b4ea8818f2c05f74543077a5e9316c344d6b0f78965801ad127e78",
-      "note": "Safe Open3.capture3 array usage"
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/jobs/proxmox_backup_job.rb",
+      "line": 44,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "Open3.capture3(\"vzdump\", fetch_vm_ids(ENV.fetch(\"PROXMOX_NODE\", \"pve\")).join(\",\"), \"--storage\", ENV.fetch(\"PROXMOX_BACKUP_STORAGE\", \"local\"), \"--compress\", ENV.fetch(\"PROXMOX_BACKUP_COMPRESS\", \"zstd\"), \"--mode\", ENV.fetch(\"PROXMOX_BACKUP_MODE\", \"snapshot\"), \"--prune-backups\", \"keep-last=#{ENV.fetch(\"PROXMOX_BACKUP_KEEP_LAST\", \"3\")}\", \"--mailto\", ENV.fetch(\"PROXMOX_BACKUP_MAILTO\", \"root@pam\"), \"--notes-template\", \"auto-backup-{{guestname}}-{{vmid}}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ProxmoxBackupJob",
+        "method": "perform"
+      },
+      "user_input": "ENV.fetch(\"PROXMOX_BACKUP_KEEP_LAST\", \"3\")",
+      "confidence": "Medium",
+      "note": "Infrastructure command with environment variables"
     },
     {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
       "fingerprint": "ab23ea3fe7bf1b8c5ce695ce49793731ffe4fdf38b2e20978ffa9516ae5f26bb",
-      "note": "Safe Open3.capture3 array usage"
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/jobs/proxmox_backup_job.rb",
+      "line": 88,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "Open3.capture3(\"pvesh\", \"get\", \"/nodes/#{node}/qemu\", \"--output-format\", \"json\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "ProxmoxBackupJob",
+        "method": "fetch_vm_ids"
+      },
+      "user_input": "node",
+      "confidence": "Medium",
+      "note": "Infrastructure command with node variable"
     },
     {
-      "fingerprint": "d3dd87281422995e4beca5bd8b9342407b3fd735af8fbf0cdabe37b235c9500e",
-      "note": "Safe Open3.capture3 array usage"
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "381ee693581295a656f7d104e69361aa753a0652cbe72dfb9658a1b548f87987",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/controllers/admin/api/monitoring_controller.rb",
+      "line": 314,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "Open3.capture3(\"tail\", \"-n\", (params[:lines] or 200).to_i.clamp(50, 2000).to_s, (Rails.root.join(\"log\", \"sidekiq.log\") or Rails.root.join(\"log\", \"#{Rails.env}.log\")).to_s)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Admin::Api::MonitoringController",
+        "method": "system_logs"
+      },
+      "user_input": "params[:lines]",
+      "confidence": "High",
+      "note": "Safe usage of Open3.capture3 with clamped integer parameter"
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "ded08583e83b9223be8bf1c575dd96ffbc7d87912e7beacdc4fea054a88f28ed",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/controllers/admin/api/monitoring_controller.rb",
+      "line": 356,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "Open3.capture3(\"tail\", \"-n\", (params[:lines] or 500).to_i.clamp(100, 5000).to_s, Rails.root.join(\"log\", \"#{Rails.env}.log\").to_s)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Admin::Api::MonitoringController",
+        "method": "error_logs"
+      },
+      "user_input": "params[:lines]",
+      "confidence": "High",
+      "note": "Safe usage of Open3.capture3 with clamped integer parameter"
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "49670ed50b46cf2d792b7012daa87505d5db75fe721bbdc3a9ce9e79bd2b8646",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/controllers/admin/api/database_controller.rb",
+      "line": 32,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(params[:query].to_s.strip)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Admin::Api::DatabaseController",
+        "method": "query"
+      },
+      "user_input": "params[:query].to_s.strip",
+      "confidence": "High",
+      "note": "Admin SQL runner tool. Protected by authentication and restricted to SELECT queries."
     }
   ],
-  "updated": "2026-03-06 00:12:41 +0300",
-  "brakeman_version": null
+  "updated": "2026-03-23 04:16:00 +0300",
+  "brakeman_version": "8.0.2"
 }
