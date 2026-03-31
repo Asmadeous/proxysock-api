@@ -80,11 +80,19 @@ jobs:
                   cache-from: type=gha,scope=client
                   cache-to: type=gha,scope=client,mode=max
 
+            # ─── Connect to Tailnet ────────────────────────────
+            - name: Connect to Tailscale
+              uses: tailscale/github-action@v2
+              with:
+                  oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+                  oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+                  tags: tag:ci
+
             # ─── Deploy to VM ──────────────────────────────────
             - name: Copy docker-compose config and monitoring
               uses: appleboy/scp-action@v0.1.7
               with:
-                  host: ${{ secrets.STAGING_HOST }}
+                  host: ${{ secrets.STAGING_TAILSCALE_IP }}
                   username: ${{ secrets.STAGING_USER }}
                   password: ${{ secrets.STAGING_PASSWORD }}
                   source: "docker-compose.yml,monitoring/"
@@ -93,7 +101,7 @@ jobs:
             - name: Deploy to Staging Server
               uses: appleboy/ssh-action@v1.0.3
               with:
-                  host: ${{ secrets.STAGING_HOST }}
+                  host: ${{ secrets.STAGING_TAILSCALE_IP }}
                   username: ${{ secrets.STAGING_USER }}
                   password: ${{ secrets.STAGING_PASSWORD }}
                   script: |

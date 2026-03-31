@@ -136,9 +136,6 @@ const ESIMOrdersPage = () => {
           allOrders.push({
             ...o,
             product_type: 'usa_esim',
-            package_name: o.product_name || `USA eSIM`,
-            total_amount: Number(o.amount) || Number(o.total_amount) || 0,
-            currency_code: o.currency || 'USD',
           });
         });
       }
@@ -218,8 +215,11 @@ const ESIMOrdersPage = () => {
     switch (status) {
       case "delivered":
       case "allocated":
+      case "completed":
+      case "active":
         return "success";
       case "pending":
+      case "provisioning":
         return "warning";
       case "failed":
       case "cancelled":
@@ -233,8 +233,11 @@ const ESIMOrdersPage = () => {
     switch (status) {
       case "delivered":
       case "allocated":
+      case "completed":
+      case "active":
         return CheckCircle;
       case "pending":
+      case "provisioning":
         return Clock;
       case "failed":
       case "cancelled":

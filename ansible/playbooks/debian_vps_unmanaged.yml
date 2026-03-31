@@ -10,44 +10,71 @@
         msg: "root_password must be defined for security reasons."
       when: root_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
-    new_root_password: "{{ root_password }}"
     new_user: "{{ hostname | default('vps-user') }}"
+    new_root_password: "{{ root_password }}"
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PreferredAuthentications=password -o PubkeyAuthentication=no'
 
   tasks:
     - block:
-        - name: Establish SSH connection
+        - name: Establish SSH connection with extended wait
           wait_for_connection:
-            timeout: 600
-            delay: 10
-          register: ssh_result
-          failed_when: ssh_result is failed
-          changed_when: false
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
-        - name: Debug SSH connection
-          debug:
-            msg: "{{ ssh_result }}"
-
-        - name: Gather facts
+        - name: Gather facts after connectivity verified
           setup:
 
-        - name: Create new user
+        - name: Update package cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 5
+          delay: 10
+
+        - name: Install essential packages
+          apt:
+            name:
+              - curl
+              - wget
+              - vim
+              - openssh-client
+              - openssh-server
+              - fail2ban
+              - unattended-upgrades
+            state: present
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 3
+          delay: 10
+
+        - name: Create user account
           user:
             name: "{{ new_user }}"
             password: "{{ new_root_password | password_hash('sha512') }}"
             shell: /bin/bash
             state: present
+            groups: sudo
+            append: yes
           no_log: true
-
-        - name: Update packages
-          apt:
-            update_cache: yes
 
         - name: Set root password
           user:
             name: root
             password: "{{ new_root_password | password_hash('sha512') }}"
+            update_password: always
           no_log: true
 
         - name: Configure SSH to use custom port
@@ -59,21 +86,17 @@
 
         - name: Set hostname
           hostname:
-            name: "{{ hostname }}"
+            name: "{{ hostname | default('debian-vps') }}"
+          when: hostname is defined
 
-        - name: Install basic packages
-          apt:
-            name:
-              - curl
-              - wget
-              - fail2ban
-              - unattended-upgrades
-            state: present
-            update_cache: yes
-          retries: 3
-          delay: 10
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.1\.1'
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
+          when: hostname is defined
 
-        - name: Ensure security services are running
+        - name: Enable security services
           systemd:
             name: "{{ item }}"
             enabled: yes
@@ -83,15 +106,13 @@
             - unattended-upgrades
           ignore_errors: yes
 
-        - name: Final configuration step
-          shell: |
-            echo "=== Debian VPS Configuration Complete ==="
-            echo "✅ User '{{ new_user }}' created"
-            echo "✅ Root password updated"
-            echo "✅ Hostname set to '{{ hostname }}'"
-            echo "✅ Basic packages installed"
-            echo ""
-            echo "Configuration complete"
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
+
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
 
         - name: Notify API - Success
           uri:
@@ -107,16 +128,16 @@
               os_template: "{{ os_template | default('debian') }}"
               management_type: "{{ management_type | default('unmanaged') }}"
               admin_configured: true
-              configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
+              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
             validate_certs: yes
             timeout: 30
-            no_log: true
+          no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
-          ignore_errors: yes
+          become: no
 
       rescue:
         - name: Notify API - Failure
@@ -133,21 +154,22 @@
               os_template: "{{ os_template | default('debian') }}"
               management_type: "{{ management_type | default('unmanaged') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
+              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
             validate_certs: yes
             timeout: 30
-            no_log: true
+          no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
+          become: no
           ignore_errors: yes
 
         - name: Final failure notification
           debug:
             msg:
-              - "❌ Debian VPS Configuration FAILED!"
+              - "❌ Debian VPS Unmanaged Configuration FAILED!"
               - "❌ VM ID: {{ vm_id | default('unknown') }}"
               - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
               - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
@@ -157,3 +179,13 @@
       systemd:
         name: ssh
         state: restarted
+
+    - name: restart_fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+      ignore_errors: true
+
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes

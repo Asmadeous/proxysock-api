@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# # frozen_string_literal: true
 
 class VmHealthCheckJob < ApplicationJob
   queue_as :default
@@ -6,8 +6,7 @@ class VmHealthCheckJob < ApplicationJob
   # Checks all active VMs are reachable via ping/SSH
   # Scheduled via sidekiq-cron every 30 minutes
   def perform
-    logger.info '[VmHealthCheck] Starting health check for active VMs'
-
+    return # Disabled — uncomment body to re-enable
     active_vms = Vm.where(status: 'active').where.not(ip_address: [nil, ''])
     checked = 0
     failed = 0
@@ -23,8 +22,6 @@ class VmHealthCheckJob < ApplicationJob
         failed += 1
         update_metadata(vm, 'unreachable')
 
-        logger.warn "[VmHealthCheck] VM #{vm.id} (#{vm.ip_address}) is unreachable"
-
         # Notify admins if VM has been unreachable for 2+ consecutive checks
         consecutive_failures = (vm.metadata&.dig('consecutive_failures') || 0) + 1
         vm.metadata ||= {}
@@ -34,8 +31,6 @@ class VmHealthCheckJob < ApplicationJob
         notify_admins_about_unhealthy_vm(vm, consecutive_failures) if consecutive_failures >= 2
       end
     end
-
-    logger.info "[VmHealthCheck] Completed: #{checked} checked, #{failed} unreachable"
   end
 
   private

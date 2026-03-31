@@ -10,21 +10,28 @@
         msg: "rdp_password must be defined for security reasons."
       when: rdp_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
     admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
-
-
-    ansible_become_password: "{{ rdp_password }}"
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
     ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
 
   tasks:
     - block:
-        - name: Wait for SSH
+        - name: Establish SSH connection with extended wait
           wait_for_connection:
-            timeout: 300
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
-        - name: Install Python libdnf5 for Fedora 41+ compatibility
+        - name: Install python3-libdnf5 for Fedora 41+ compatibility
           raw: |
             if command -v dnf5 >/dev/null 2>&1 || [ -f /usr/bin/dnf5 ]; then
               dnf install -y python3-libdnf5
@@ -32,10 +39,10 @@
           register: libdnf5_install
           changed_when: "'Nothing to do' not in libdnf5_install.stdout"
 
-        - name: Gather facts after connection is established
+        - name: Gather facts after connectivity verified
           setup:
 
-        - name: Install RDP packages only
+        - name: Install RDP packages and security tools
           dnf:
             name:
               - xrdp
@@ -43,6 +50,10 @@
               - xorgxrdp
               - fail2ban
               - dnf-automatic
+              - policycoreutils-python-utils
+              - curl
+              - wget
+              - vim
             state: present
           retries: 3
           delay: 10
@@ -54,96 +65,40 @@
             groups: wheel
             shell: /bin/bash
             create_home: yes
-            no_log: true
+            state: present
+          no_log: true
 
-        - name: Configure complete xrdp.ini
-          copy:
-            content: |
-              [Globals]
-              ini_version=1
-              fork=true
-              port={{ custom_port | default(3389) }}
-              tcp_nodelay=true
-              tcp_keepalive=true
-              security_layer=tls
-              certificate=/etc/xrdp/cert.pem
-              key_file=/etc/xrdp/key.pem
-              ssl_protocols=TLSv1.2, TLSv1.3
-              autorun=
-              allow_channels=true
-              allow_multimon=true
-              bitmap_cache=true
-              bitmap_compression=true
-              bulk_compression=true
-              max_bpp=32
-              new_cursors=true
-              use_fastpath=both
-              use_vsock=false
-              rdp_compress_type=1
-              implicit_user=true
+        - name: Disable sshd.socket (use sshd service directly)
+          systemd:
+            name: sshd.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
 
-              [Logging]
-              LogFile=xrdp.log
-              LogLevel=INFO
-              EnableSyslog=true
-              SyslogLevel=INFO
+        - name: Ensure sshd service is enabled
+          systemd:
+            name: sshd
+            enabled: yes
+          ignore_errors: true
 
-              [Channels]
-              rdpdr=true
-              rdpsnd=true
-              drdynvc=true
-              cliprdr=true
-              rail=true
-              xrdpvr=true
-              tcutils=true
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
 
-              [Xorg]
-              name=Xorg
-              lib=libxup.so
-              username=ask
-              password=ask
-              ip=127.0.0.1
-              port=-1
-              code=20
-
-              [Xvnc]
-              name=Xvnc
-              lib=libvnc.so
-              username=ask
-              password=ask
-              ip=127.0.0.1
-              port=-1
-              xserverbpp=24
-              code=10
-
-              [vnc-any]
-              name=vnc-any
-              lib=libvnc.so
-              ip=ask
-              port=ask5900
-              username=na
-              password=ask
-              code=10
-
-              [sesman-any]
-              name=sesman-any
-              lib=libvnc.so
-              ip=ask
-              port=ask3350
-              username=ask
-              password=ask
-              code=10
-
-              [neutrinordp-any]
-              name=neutrinordp-any
-              lib=libneutrinordp.so
-              ip=ask
-              port=ask3389
-              username=ask
-              password=ask
-              code=10
-            dest: /etc/xrdp/xrdp.ini
+        - name: Configure xrdp service
+          lineinfile:
+            path: /etc/xrdp/xrdp.ini
+            regexp: "{{ item.regexp }}"
+            line: "{{ item.line }}"
             backup: yes
+          loop:
+            - { regexp: '^max_bpp=', line: 'max_bpp=32' }
+            - { regexp: '^use_vsock=', line: 'use_vsock=false' }
+            - { regexp: '^tcp_nodelay=', line: 'tcp_nodelay=true' }
+            - { regexp: '^tcp_keepalive=', line: 'tcp_keepalive=true' }
           notify: restart xrdp
 
         - name: Enable and start xrdp services
@@ -155,14 +110,7 @@
             - xrdp
             - xrdp-sesman
 
-        - name: Configure SSH to use custom port
-          lineinfile:
-            path: /etc/ssh/sshd_config
-            regexp: '^#?Port '
-            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
-          notify: restart_ssh
-
-        - name: Enable security services
+        - name: Enable security and auto-update services
           systemd:
             name: "{{ item }}"
             enabled: yes
@@ -170,19 +118,21 @@
           loop:
             - fail2ban
             - dnf-automatic.timer
+          ignore_errors: yes
 
         - name: Set hostname
           hostname:
             name: "{{ hostname | default('fedora-rdp') }}"
+          when: hostname is defined
 
-        # OPTIONAL: completely disable firewalld (uncomment if you want it off)
-        # - name: Disable firewalld completely
-        #   systemd:
-        #     name: firewalld
-        #     state: stopped
-        #     enabled: no
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.1\.1'
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
+          when: hostname is defined
 
-        - name: Configure SELinux for xrdp
+        - name: Configure SELinux booleans for xrdp
           seboolean:
             name: "{{ item }}"
             state: yes
@@ -190,30 +140,34 @@
           loop:
             - allow_polyinstantiation
             - use_nfs_home_dirs
-          ignore_errors: yes
-          when: ansible_selinux.status == "enabled"
+          ignore_errors: true
+          when:
+            - ansible_facts['selinux'] is defined
+            - ansible_facts['selinux'].status == "enabled"
 
-        - name: Verify RDP configuration
-          shell: |
-            echo "=== Fedora Basic RDP Configuration Verification ==="
-            echo "Administrator user: {{ admin_username }}"
-            echo "User exists: $(id {{ admin_username }} &>/dev/null && echo 'YES' || echo 'NO')"
-            echo "XRDP service status: $(systemctl is-active xrdp)"
-            echo "XRDP-sesman service status: $(systemctl is-active xrdp-sesman)"
-            echo "RDP port listening: $(netstat -ln | grep ':3389' &>/dev/null && echo 'YES' || echo 'NO')"
-          register: verification_result
+        - name: Configure SELinux to allow custom SSH port
+          seport:
+            ports: "{{ custom_port | default(22) }}"
+            proto: tcp
+            setype: ssh_port_t
+            state: present
+          ignore_errors: true
+          when:
+            - ansible_facts['selinux'] is defined
+            - ansible_facts['selinux'].status == "enabled"
+            - custom_port is defined
+            - custom_port | int != 22
 
-        - name: Display verification results
-          debug:
-            msg: "{{ verification_result.stdout_lines }}"
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
 
-        - name: Final configuration step
-          shell: |
-            echo "=== Fedora Basic RDP Configuration Complete ==="
-            echo "✅ Administrator user '{{ admin_username }}' created"
-            echo "✅ XRDP packages installed (basic configuration)"
-            echo "✅ Firewall NOT managed by this playbook"
-            echo "Configuration complete"
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
+
+        - name: Flush handlers before API callback
+          meta: flush_handlers
 
         - name: Notify API - Success
           uri:
@@ -227,15 +181,19 @@
               vm_id: "{{ vm_id }}"
               status: "configured"
               os_template: "{{ os_template | default('fedora') }}"
-              management_type: "{{ management_type | default('basic') }}"
+              management_type: "{{ management_type | default('unmanaged') }}"
               admin_configured: true
               rdp_configured: true
-              configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
-            validate_certs: no
+              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
+            validate_certs: yes
             timeout: 30
+          no_log: true
+          when:
+            - api_url is defined
+            - vm_id is defined
           delegate_to: localhost
-          when: api_url is defined and api_key is defined
+          become: no
 
       rescue:
         - name: Notify API - Failure
@@ -250,20 +208,24 @@
               vm_id: "{{ vm_id }}"
               status: "failed"
               os_template: "{{ os_template | default('fedora') }}"
-              management_type: "{{ management_type | default('basic') }}"
+              management_type: "{{ management_type | default('unmanaged') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
-            validate_certs: no
+              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
+            validate_certs: yes
             timeout: 30
+          no_log: true
+          when:
+            - api_url is defined
+            - vm_id is defined
           delegate_to: localhost
+          become: no
           ignore_errors: yes
-          when: api_url is defined and api_key is defined
 
         - name: Final failure notification
           debug:
             msg:
-              - "❌ Fedora Basic RDP Configuration FAILED!"
+              - "❌ Fedora RDP Unmanaged Configuration FAILED!"
               - "❌ VM ID: {{ vm_id | default('unknown') }}"
               - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
               - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
@@ -277,7 +239,14 @@
         - xrdp
         - xrdp-sesman
 
+    - name: restart_fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+      ignore_errors: true
+
     - name: restart_ssh
       systemd:
         name: sshd
         state: restarted
+      ignore_errors: true

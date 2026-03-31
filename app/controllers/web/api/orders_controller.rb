@@ -701,11 +701,15 @@ module Web
           total_amount: order.total_amount,
           amount: order.total_amount,
           currency: order.product_pricing&.currency || 'USD',
-          status: order.status == 'active' ? 'completed' : order.status,
+          currency_code: order.product_pricing&.currency || 'USD',
+          status: %w[vps rdp vm].include?(order.product.product_type) ? order.status : (order.status == 'active' ? 'completed' : order.status),
           created_at: order.created_at,
-          expires_at: resource.try(:expires_at),
+          expires_at: resource.try(:expires_at) || order.expires_at || (order.created_at + 30.days),
           reorderable: order.reorderable?(current_actor),
-          payment_method: 'wallet'
+          payment_method: 'wallet',
+          metadata: order.metadata.merge(order.product.metadata || {}),
+          duration: order.product_pricing&.duration_value ? (order.product_pricing.duration_value / 30.0).ceil : 1,
+          transaction_id: order.metadata&.dig('transaction_id') || order.id
         }
 
         # Include product-specific details
@@ -770,45 +774,71 @@ module Web
               server: resource&.try(:server)
             }
           end
-        when 'vps', 'rdp'
+        when 'vps', 'rdp', 'vm'
           base[:vm_details] = resource&.as_json || {}
+          base[:vm_id] = resource&.proxmox_vm_id&.to_i
+          base[:hostname] = resource&.hostname || "vm-#{resource&.id}"
+          base[:node] = resource&.proxmox_node || 'N/A'
+          base[:os_template] = order.product.metadata&.dig('os_template') || 'ubuntu-22.04'
+          base[:service_type] = order.product.metadata&.dig('vm_type') || 'residential'
+          base[:management_type] = 'unmanaged'
+          base[:ip_address] = resource&.ip_address
+          base[:ssh_port] = resource&.ssh_port || 22
+          base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)
+          base[:concurrent_users] = order.product.metadata&.dig('concurrent_users') || 1
+          base[:activated_at] = resource&.try(:provisioned_at) || resource&.created_at
           base[:credentials] = {
-            username: resource&.try(:ssh_username),
-            password: resource&.try(:ssh_password),
+            username: resource&.try(:ssh_username) || resource&.try(:rdp_username) || 'root',
+            password: resource&.try(:root_password) || resource&.try(:ssh_password) || resource&.try(:rdp_password_encrypted),
             ip: resource&.try(:ip_address),
-            port: resource&.try(:ssh_port)
+            port: resource&.try(:ssh_port) || resource&.try(:rdp_port) || 22
           }
         when 'esim'
-          base[:esim_details] = resource&.as_json || {}
-          base[:credentials_list] = resource&.esims&.map do |esim|
+          base[:esim_order_no] = resource&.provider_order_no
+          base[:package_code] = resource&.package_code
+          base[:package_slug] = order.product.product_category&.slug
+          base[:package_name] = order.product.name
+          base[:quantity] = 1 # Default for standard eSIM
+
+          base[:profiles] = resource&.esims&.map do |esim|
             {
               id: esim.id,
               iccid: esim.iccid,
-              qr_code: esim.qr_code_data,
+              qr_code_data: esim.qr_code_data,
+              qr_code_url: esim.qr_code_data,
               activation_code: esim.activation_code,
               pin1: esim.pin1,
               puk1: esim.puk1,
+              total_volume: (esim.data_total_bytes.to_i / (1024 * 1024)).to_i, # MB
+              used_volume: (esim.data_used_bytes.to_i / (1024 * 1024)).to_i,
+              location_name: resource.country_code || 'Global',
+              expired_time: esim.expires_at,
               status: esim.status
             }
           end
-          # Keep legacy field for backwards compatibility if needed
-          base[:credentials] = base[:credentials_list]&.first
+          base[:credentials_list] = base[:profiles]
         when 'usa_esim'
-          base[:credentials_list] = resource&.usa_esim_credentials&.map do |credential|
+          base[:package_name] = order.product.name
+          base[:quantity] = 1
+          base[:profiles] = resource&.usa_esim_credentials&.map do |credential|
             {
               id: credential.id,
               iccid: credential.iccid,
               qr_code: credential.qr_code,
-              qr_activation_code: credential.qr_activation_code,
+              qr_code_data: credential.qr_code,
+              activation_code: credential.qr_activation_code,
               pin1: credential.send('PIN1'),
               pin2: credential.send('PIN2'),
               puk1: credential.send('PUK1'),
               puk2: credential.send('PUK2'),
               zip_code: credential.zip_code,
-              status: credential.status
+              status: credential.status,
+              total_volume: 0, # Unlimited or not tracked per-cred
+              location_name: 'USA',
+              expired_time: order.expires_at
             }
           end
-          base[:credentials] = base[:credentials_list]&.first
+          base[:credentials_list] = base[:profiles]
         end
 
         # Download availability flags

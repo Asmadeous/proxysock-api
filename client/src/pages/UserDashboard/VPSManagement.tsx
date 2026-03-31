@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ServerIcon,
@@ -43,6 +43,7 @@ interface VPSInstance {
   ssh_port: number;
   rdp_port: number;
   external_port: number;
+  username?: string;
   resource_usage?: {
     cpu_percent: number;
     ram_percent: number;
@@ -61,7 +62,7 @@ type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'status' | 'created' | 'cost' | 'usage';
 type SortOrder = 'asc' | 'desc';
 
-import { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
 import { toast } from "react-hot-toast";
 
 const VPSManagement = () => {
@@ -85,6 +86,9 @@ const VPSManagement = () => {
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [showFilters, setShowFilters] = useState(false);
+
+  const [loadingStats, setLoadingStats] = useState<{ [id: string]: boolean }>({});
+  const fetchedStatIds = useRef<Set<string | number>>(new Set());
 
   useEffect(() => {
     if (accessToken) {
@@ -220,6 +224,40 @@ const VPSManagement = () => {
   }, [vpsInstances, searchTerm, statusFilter, osFilter, nodeFilter, planFilter, sortBy, sortOrder]);
 
   // Group instances by status for categorization
+  // Fetch live stats for visible instances
+  useEffect(() => {
+    filteredAndSortedInstances.forEach(instance => {
+      // Fetch stats for running or otherwise active instances
+      if (!fetchedStatIds.current.has(instance.id) && instance.status !== 'terminated' && instance.status !== 'failed') {
+        fetchedStatIds.current.add(instance.id);
+        fetchLiveStats(instance.id);
+      }
+    });
+  }, [filteredAndSortedInstances]);
+
+  const fetchLiveStats = async (id: string | number) => {
+    setLoadingStats(prev => ({ ...prev, [id]: true }));
+    try {
+      const response = await fetchVmStatus(id);
+      if (response.data.resource_usage || response.data.status) {
+        setVpsInstances(prev => prev.map(inst => {
+          if (inst.id === id) {
+            return {
+              ...inst,
+              status: response.data.status || inst.status,
+              resource_usage: response.data.resource_usage || inst.resource_usage
+            };
+          }
+          return inst;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch live stats for', id, error);
+    } finally {
+      setLoadingStats(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
   const instancesByStatus = useMemo(() => {
     const groups: Record<string, VPSInstance[]> = {};
     filteredAndSortedInstances.forEach(instance => {
@@ -236,7 +274,7 @@ const VPSManagement = () => {
   };
 
   const getConnectionIP = (instance: VPSInstance) => {
-    return instance.proxmox_public_ip || instance.ip_address;
+    return instance.ip_address;
   };
 
   const getSSHPort = (instance: VPSInstance) => {
@@ -250,7 +288,8 @@ const VPSManagement = () => {
   const getSSHCommand = (instance: VPSInstance) => {
     const ip = getConnectionIP(instance);
     const port = getSSHPort(instance);
-    return ip ? `ssh root@${ip} -p ${port}` : 'IP address pending...';
+    const user = instance.username || 'root';
+    return ip ? `ssh ${user}@${ip} -p ${port}` : 'IP address pending...';
   };
 
   const getStatusColor = (status: string) => {
@@ -314,7 +353,7 @@ const VPSManagement = () => {
             </div>
             <div>
               <h3 className="text-lg font-semibold">{instance.hostname || `VPS-${instance.vm_id}`}</h3>
-              <p className="text-sm text-muted-foreground">{instance.plan_name || `VM ID: ${instance.vm_id}`}</p>
+              <p className="text-sm text-muted-foreground">{instance.plan_name ? `${instance.plan_name} (VM: ${instance.vm_id})` : `VM ID: ${instance.vm_id}`}</p>
             </div>
           </div>
           <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
@@ -345,44 +384,60 @@ const VPSManagement = () => {
 
         {/* Usage Stats */}
         <div className="space-y-3 mb-4">
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>CPU Usage</span>
-              <span>{instance.resource_usage?.cpu_percent || 0}%</span>
+          {loadingStats[instance.id] ? (
+            <div className="space-y-3 py-1">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between">
+                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-8 bg-muted animate-pulse rounded" />
+                  </div>
+                  <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
+                </div>
+              ))}
             </div>
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${instance.resource_usage?.cpu_percent || 0}%` }}
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>CPU Usage</span>
+                  <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
+                  />
+                </div>
+              </div>
 
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>RAM Usage</span>
-              <span>{instance.resource_usage?.ram_percent || 0}%</span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${instance.resource_usage?.ram_percent || 0}%` }}
-              />
-            </div>
-          </div>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>RAM Usage</span>
+                  <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
+                  />
+                </div>
+              </div>
 
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Disk Usage</span>
-              <span>{instance.resource_usage?.disk_percent || 0}%</span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${instance.resource_usage?.disk_percent || 0}%` }}
-              />
-            </div>
-          </div>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Disk Usage</span>
+                  <span>{instance.resource_usage?.disk_percent?.toFixed(1) || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, instance.resource_usage?.disk_percent || 0)}%` }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Connection Details */}
@@ -413,20 +468,18 @@ const VPSManagement = () => {
               </button>
             </div>
           </div>
-          {instance.ip_address && instance.proxmox_public_ip && instance.ip_address !== instance.proxmox_public_ip && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Internal IP:</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-mono">{instance.ip_address}</span>
-                <button
-                  onClick={() => copyToClipboard(instance.ip_address)}
-                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ClipboardDocumentIcon className="h-4 w-4" />
-                </button>
-              </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Username:</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-mono">{instance.username || 'root'}</span>
+              <button
+                onClick={() => copyToClipboard(instance.username || 'root')}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ClipboardDocumentIcon className="h-4 w-4" />
+              </button>
             </div>
-          )}
+          </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Root Password:</span>
             <div className="flex items-center space-x-2">
@@ -547,7 +600,7 @@ const VPSManagement = () => {
         {/* Billing Info */}
         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>Monthly Cost: <span className="text-primary font-semibold">${instance.monthly_cost || 'N/A'}</span></span>
-          <span>Expires: {instance.expired_at ? new Date(instance.expired_at).toLocaleDateString() : 'N/A'}</span>
+          <span>Expires: {instance.expires_at ? new Date(instance.expires_at).toLocaleDateString() : 'N/A'}</span>
         </div>
       </motion.div>
     );
@@ -1064,20 +1117,6 @@ const VPSManagement = () => {
                         </button>
                       </div>
                     </div>
-                    {selectedInstance.ip_address && selectedInstance.proxmox_public_ip && selectedInstance.ip_address !== selectedInstance.proxmox_public_ip && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Internal IP:</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono">{selectedInstance.ip_address}</span>
-                          <button
-                            onClick={() => copyToClipboard(selectedInstance.ip_address)}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <ClipboardDocumentIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Root Password:</span>
                       <div className="flex items-center space-x-2">
@@ -1148,7 +1187,7 @@ const VPSManagement = () => {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Expires:</span>
-                      <span className="text-foreground ml-2">{selectedInstance.expired_at ? new Date(selectedInstance.expired_at).toLocaleDateString() : 'N/A'}</span>
+                      <span className="text-foreground ml-2">{selectedInstance.expires_at ? new Date(selectedInstance.expires_at).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
                 </div>

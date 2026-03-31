@@ -9,7 +9,7 @@ class VmMailer < ApplicationMailer
 
     mail(
       to: params[:target_email].presence || @owner.email,
-      subject: "Your VM is Ready - #{@vm.ip_address}"
+      subject: "Your VM is Ready - #{@vm.dns_name.presence || @vm.ip_address}"
     )
   end
 end

@@ -5,6 +5,10 @@ class Vm < ApplicationRecord
 
   has_one :order, through: :vm_order
   has_many :proxmox_operations, dependent: :destroy
+  has_many :ip_addresses, foreign_key: 'vm_id'
+
+  validates :ip_address, uniqueness: true, allow_nil: true
+  validates :private_ip_address, uniqueness: true, allow_nil: true
 
   include AASM
 

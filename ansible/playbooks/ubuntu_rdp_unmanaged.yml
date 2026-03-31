@@ -10,21 +10,26 @@
         msg: "rdp_password must be defined for security reasons."
       when: rdp_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
-    # User credentials
     admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
-    
-    # API configuration
     api_url: "{{ api_url | default('http://localhost:4000') }}"
-    ansible_become_password: "{{ rdp_password }}"
     ansible_python_interpreter: /usr/bin/python3
-    
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
+
   tasks:
     - block:
-        - name: Wait for SSH
+        - name: Establish SSH connection with extended wait
           wait_for_connection:
-            timeout: 300
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
         - name: Gather facts after connectivity verified
           setup:
@@ -41,6 +46,10 @@
               - xrdp
               - xfce4
               - xfce4-goodies
+              - curl
+              - wget
+              - vim
+              - fail2ban
             state: present
           retries: 3
           delay: 10
@@ -53,7 +62,14 @@
             shell: /bin/bash
             create_home: yes
             state: present
-            no_log: true
+          no_log: true
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Port '
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
 
         - name: Configure xrdp service
           lineinfile:
@@ -77,6 +93,15 @@
             - xrdp
             - xrdp-sesman
 
+        - name: Enable security services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - fail2ban
+          ignore_errors: yes
+
         - name: Set hostname
           hostname:
             name: "{{ hostname | default('ubuntu-rdp') }}"
@@ -86,49 +111,16 @@
           lineinfile:
             path: /etc/hosts
             regexp: '^127\.0\.1\.1'
-            line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
           when: hostname is defined
 
-        - name: Install basic packages
-          apt:
-            name:
-              - curl
-              - wget
-              - vim
-            state: present
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
 
-        - name: Verify RDP configuration
-          shell: |
-            echo "=== Ubuntu RDP Configuration Verification ==="
-            echo "Administrator user: {{ admin_username }}"
-            echo "User exists: $(id {{ admin_username }} &>/dev/null && echo 'YES' || echo 'NO')"
-            echo "XRDP service status: $(systemctl is-active xrdp)"
-            echo "XRDP-sesman service status: $(systemctl is-active xrdp-sesman)"
-            echo "RDP port listening: $(netstat -ln | grep ':3389' &>/dev/null && echo 'YES' || echo 'NO')"
-            echo ""
-            echo "🐧 UBUNTU RDP READY FOR CONNECTION!"
-            echo "Username: {{ admin_username }}"
-            echo "Connect to: <external_ip>:<external_port>"
-          register: verification_result
-
-        - name: Display verification results
-          debug:
-            msg: "{{ verification_result.stdout_lines }}"
-
-        - name: Final configuration step
-          shell: |
-            echo "=== Ubuntu RDP Configuration Complete ==="
-            echo "✅ Administrator user '{{ admin_username }}' created"
-            echo "✅ XRDP and XFCE4 desktop installed"
-            echo "✅ RDP enabled and listening on port 3389"
-            echo ""
-            echo "CONNECTION DETAILS:"
-            echo "- Username: {{ admin_username }}"
-            echo "- Password: [Set via rdp_password variable]"
-            echo "- RDP Port: 3389"
-            echo "- Connect to: <external_ip>:<external_port>"
-            echo ""
-            echo "Configuration complete"
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
 
         - name: Notify API - Success
           uri:
@@ -145,15 +137,16 @@
               management_type: "{{ management_type | default('unmanaged') }}"
               admin_configured: true
               rdp_configured: true
-              configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
+              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
-            no_log: true
+          no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
+          become: no
 
       rescue:
         - name: Notify API - Failure
@@ -170,16 +163,22 @@
               os_template: "{{ os_template | default('ubuntu') }}"
               management_type: "{{ management_type | default('unmanaged') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_date_time.iso8601 }}"
+              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
             validate_certs: yes
-            no_log: true
+            timeout: 30
+          no_log: true
+          when:
+            - api_url is defined
+            - vm_id is defined
           delegate_to: localhost
+          become: no
           ignore_errors: yes
 
         - name: Final failure notification
           debug:
-            msg: 
-              - "❌ Ubuntu RDP Configuration FAILED!"
+            msg:
+              - "❌ Ubuntu RDP Unmanaged Configuration FAILED!"
               - "❌ VM ID: {{ vm_id | default('unknown') }}"
               - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
               - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
@@ -192,3 +191,15 @@
       loop:
         - xrdp
         - xrdp-sesman
+
+    - name: restart_fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+      ignore_errors: true
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted
+      ignore_errors: true
