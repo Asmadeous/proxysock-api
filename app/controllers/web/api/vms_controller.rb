@@ -77,11 +77,25 @@ module Web
           @vm.status
         end
 
+        resource_usage = nil
+        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present?
+          if (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
+            resource_usage = {
+              cpu_percent: (pve_status['cpu'] || 0) * 100,
+              ram_percent: pve_status['maxmem'].to_f > 0 ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem'].to_f) * 100 : 0,
+              disk_percent: pve_status['maxdisk'].to_f > 0 ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk'].to_f) * 100 : 0,
+              uptime: pve_status['uptime'] || 0,
+              status: pve_status['status']
+            }
+          end
+        end
+
         render json: {
           vm_id: @vm.id,
-          status: cached_status,
+          status: resource_usage&.dig(:status) || cached_status,
           ip_address: @vm.ip_address,
-          proxmox_vm_id: @vm.proxmox_vm_id
+          proxmox_vm_id: @vm.proxmox_vm_id,
+          resource_usage: resource_usage
         }
       end
 
@@ -151,6 +165,7 @@ module Web
           vm_type: vm.vm_type,
           ip_address: vm.ip_address,
           proxmox_vm_id: vm.proxmox_vm_id,
+          vm_id: vm.proxmox_vm_id.to_i,
           ssh_port: vm.ssh_port || (is_rdp ? nil : 22),
           rdp_port: vm.rdp_port || (is_rdp ? 3389 : nil),
           external_port: vm.rdp_port || vm.ssh_port || (is_rdp ? 3389 : 22),
@@ -160,11 +175,17 @@ module Web
           ram_gb: vm_order&.ram_gb,
           storage_gb: vm_order&.disk_gb,
           root_password: vm.root_password,
-          expires_at: vm.expires_at,
+          rdp_username: vm.rdp_username || (is_rdp ? 'Administrator' : nil),
+          rdp_password: vm.root_password,
+          ssh_username: vm.ssh_username || 'root',
+          expires_at: vm.expires_at || order&.expires_at || (vm.created_at + 30.days),
           created_at: vm.created_at,
           plan_name: product&.name,
           monthly_cost: pricing&.selling_price,
-          proxmox_public_ip: ENV['PUBLIC_IP'] || '127.0.0.1'
+          proxmox_public_ip: ENV['PUBLIC_IP'] || '127.0.0.1',
+          username: vm.ssh_username || vm.rdp_username || (is_rdp ? 'Administrator' : 'root'),
+          node: vm.proxmox_node,
+          dns_name: vm.dns_name
         }
       end
     end

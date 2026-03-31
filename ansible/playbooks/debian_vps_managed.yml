@@ -2,6 +2,7 @@
 - name: Configure Debian VPS MANAGED
   hosts: linux
   become: yes
+  gather_facts: no
 
   pre_tasks:
     - name: Ensure root_password is defined
@@ -9,83 +10,76 @@
         msg: "root_password must be defined for security reasons."
       when: root_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
+    new_user: "{{ hostname | default('vps-user') }}"
     new_root_password: "{{ root_password }}"
-    api_url: "{{ api_url | default('http://localhost:5000') }}"
-    proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
-    no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
-    proxy_username: "{{ proxy_config.proxy_username | default('') }}"
-    proxy_password: "{{ proxy_config.proxy_password | default('') }}"
-  
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
+    node_exporter_port: 59100
+
   tasks:
     - block:
-        - name: Verify basic connectivity
-          ping:
-          register: connectivity_check
+        - name: Establish SSH connection with extended wait
+          wait_for_connection:
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
-        - name: Gather system facts after connectivity verified
+        - name: Gather facts after connectivity verified
           setup:
-
-        - name: Install proxychains
-          apt:
-            name: proxychains4
-            state: present
-            update_cache: yes
-          when: proxy_config is defined
-          retries: 3
-          delay: 10
-
-        - name: Configure proxychains
-          copy:
-            content: |
-              # proxychains.conf  VER 4.x
-              #
-              #        HTTP, SOCKS4a, SOCKS5 tunneling proxifier with DNS.
-              #
-
-              strict_chain
-              
-              # Quiet mode (no output from library)
-              #quiet_mode
-
-              ## Proxy DNS requests - no leak for DNS data
-              proxy_dns
-
-              # Some timeouts in milliseconds
-              tcp_read_time_out 15000
-              tcp_connect_time_out 8000
-
-              [ProxyList]
-              # add proxy here ...
-              {{ proxy_config.protocol }} {{ proxy_config.proxy_ip }} {{ proxy_config.proxy_port }} {{ proxy_username }} {{ proxy_password }}
-            dest: /etc/proxychains4.conf
-            mode: '0644'
-            backup: yes
-          when: proxy_config is defined
-
-        - name: Create proxychains wrapper script
-          copy:
-            content: |
-              #!/bin/bash
-              # Wrapper script to use proxychains4 by default
-              exec proxychains4 "$@"
-            dest: /usr/local/bin/proxy
-            mode: '0755'
-          when: proxy_config is defined
 
         - name: Update package cache
           apt:
             update_cache: yes
             cache_valid_time: 3600
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 5
+          delay: 10
 
-        - name: Install security updates
+        - name: Install essential packages and monitoring tools
           apt:
-            name: "*"
-            state: latest
-            only_upgrade: yes
-          register: update_result
+            name:
+              - curl
+              - wget
+              - vim
+              - git
+              - net-tools
+              - openssh-client
+              - openssh-server
+              - fail2ban
+              - unattended-upgrades
+              - apt-listchanges
+              - prometheus-node-exporter
+            state: present
+          environment:
+            DEBIAN_FRONTEND: noninteractive
           retries: 3
           delay: 10
+
+        - name: Create user account
+          user:
+            name: "{{ new_user }}"
+            password: "{{ new_root_password | password_hash('sha512') }}"
+            shell: /bin/bash
+            state: present
+            groups: sudo
+            append: yes
+          no_log: true
+
+        - name: Enable passwordless sudo for user
+          copy:
+            content: "{{ new_user }} ALL=(ALL) NOPASSWD:ALL\n"
+            dest: "/etc/sudoers.d/{{ new_user }}"
+            mode: '0440'
+            validate: 'visudo -cf %s'
 
         - name: Set root password securely
           user:
@@ -101,54 +95,72 @@
             line: "Port {{ custom_port | default(22) }}"
           notify: restart_ssh
 
-        - name: Create hostname user with root password
-          user:
-            name: "{{ hostname }}"
-            password: "{{ new_root_password | password_hash('sha512') }}"
-            groups: sudo
-            shell: /bin/bash
-            create_home: yes
-            state: present
-          no_log: true
-          when: hostname is defined
-
         - name: Set hostname if provided
           hostname:
-            name: "{{ hostname }}"
+            name: "{{ hostname | default('debian-vps') }}"
           when: hostname is defined
 
         - name: Update /etc/hosts with hostname
           lineinfile:
             path: /etc/hosts
             regexp: '^127\.0\.1\.1'
-            line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
           when: hostname is defined
 
-        - name: Install essential packages
-          apt:
-            name:
-              - htop
-              - curl
-              - wget
-              - git
-              - net-tools
-              - unattended-upgrades
-              - apt-listchanges
-              - prometheus-node-exporter
-              - fail2ban
-            state: present
-            update_cache: yes
-          retries: 3
-          delay: 10
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
+
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
+
+        # ── Monitoring ────────────────────────────────────────────────────────
+
+        - name: Configure Prometheus Node Exporter to listen on custom port
+          copy:
+            content: |
+              ARGS="--web.listen-address=:{{ node_exporter_port }}"
+            dest: /etc/default/prometheus-node-exporter
+            mode: '0644'
+          notify: restart_node_exporter
+
+        - name: Create textfile collector directory
+          file:
+            path: /var/lib/prometheus/node-exporter
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+          ignore_errors: true
+
+        - name: Create custom VM metrics script
+          copy:
+            content: |
+              #!/bin/bash
+              METRICS_FILE="/var/lib/prometheus/node-exporter/vm_info.prom"
+              cat > "${METRICS_FILE}.tmp" <<EOF
+              # HELP vm_info VM metadata information
+              # TYPE vm_info gauge
+              vm_info{vm_id="{{ vm_id | default('unknown') }}",hostname="{{ hostname | default('unknown') }}",os="debian",management_type="{{ management_type | default('managed') }}"} 1
+              EOF
+              mv "${METRICS_FILE}.tmp" "${METRICS_FILE}"
+            dest: /usr/local/bin/vm_metrics.sh
+            mode: '0755'
+
+        - name: Set up cron job for VM metrics
+          cron:
+            name: "VM metrics collection"
+            minute: "*/5"
+            job: "/usr/local/bin/vm_metrics.sh"
+            user: root
 
         - name: Configure unattended upgrades
           copy:
             content: |
-              // Unattended-Upgrade::Origins-Pattern controls which packages are
-              // upgraded.
               Unattended-Upgrade::Origins-Pattern {
-                  "origin=Debian,codename=${distro_codename},label=Debian-Security";
-                  "o=Debian,a=${distro_codename}-updates";
+                "origin=Debian,codename=${distro_codename},label=Debian-Security";
+                "o=Debian,a=${distro_codename}-updates";
               };
 
               Unattended-Upgrade::Package-Blacklist {
@@ -212,7 +224,7 @@
         - name: Reboot if needed
           reboot:
             reboot_timeout: 600
-          when: update_result.changed and reboot_required_file.stat.exists
+          when: reboot_required_file.stat.exists
 
         - name: Verify services are running
           systemd:
@@ -235,20 +247,24 @@
             body:
               status: "configured"
               vm_id: "{{ vm_id }}"
-              hostname: "{{ hostname | default(ansible_hostname) }}"
+              hostname: "{{ hostname | default(ansible_facts['hostname']) }}"
               os_template: "{{ os_template | default('debian') }}"
               management_type: "{{ management_type | default('managed') }}"
               connectivity_status: "working"
               services_verified: "{{ service_verification.results | map(attribute='name') | list }}"
-              configuration_timestamp: "{{ ansible_date_time.iso8601 }}"
+              configuration_timestamp: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
               proxy_configured: "{{ proxy_config is defined }}"
               monitoring_enabled: true
               unattended_upgrades_enabled: true
-            status_code: [200, 201, 202]
+            status_code: [200, 201]
+            validate_certs: yes
             timeout: 30
-          when: 
+          no_log: true
+          when:
             - api_url is defined
             - vm_id is defined
+          delegate_to: localhost
+          become: no
           register: api_response
           failed_when: false
           ignore_errors: yes
@@ -256,14 +272,14 @@
         - name: Log configuration completion
           debug:
             msg: |
-              Debian VPS Configuration Complete:
+              Debian VPS MANAGED Configuration Complete:
               - VM ID: {{ vm_id | default('Unknown') }}
-              - Hostname: {{ hostname | default(ansible_hostname) }}
-              - User created: {{ hostname | default('None') }}
+              - Hostname: {{ hostname | default(ansible_facts['hostname']) }}
+              - User created: {{ new_user }}
               - Connectivity: Working
               - Proxy Configured: {{ proxy_config is defined }}
               - Services: {{ service_verification.results | map(attribute='name') | list }}
-              - Monitoring: Enabled (prometheus-node-exporter, fail2ban)
+              - Monitoring: Enabled (prometheus-node-exporter, node_exporter_port={{ node_exporter_port }})
               - Unattended Updates: Enabled
               - API Response: {{ api_response.status | default('No response') }}
 
@@ -271,10 +287,10 @@
           shell: |
             echo "=== Debian VPS MANAGED Configuration Complete ==="
             echo "✅ Root password updated"
-            echo "✅ User '{{ hostname }}' created with sudo access"
-            echo "✅ Hostname configured: {{ hostname | default(ansible_hostname) }}"
+            echo "✅ User '{{ new_user }}' created with sudo access"
+            echo "✅ Hostname configured: {{ hostname | default(ansible_facts['hostname']) }}"
             echo "✅ Essential packages installed"
-            echo "✅ Monitoring enabled (Prometheus Node Exporter)"
+            echo "✅ Monitoring enabled (Prometheus Node Exporter :{{ node_exporter_port }})"
             echo "✅ Security hardening (fail2ban, unattended-upgrades)"
             echo "✅ Proxy configured: {{ 'Yes' if proxy_config is defined else 'No' }}"
             echo ""
@@ -295,30 +311,42 @@
               os_template: "{{ os_template | default('debian') }}"
               management_type: "{{ management_type | default('managed') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
+              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+            status_code: [200, 201]
+            validate_certs: yes
             timeout: 30
+          no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
+          become: no
           ignore_errors: yes
-        
+
         - name: Final failure notification
           debug:
-            msg: 
+            msg:
               - "❌ Debian VPS MANAGED Configuration FAILED!"
               - "❌ VM ID: {{ vm_id | default('unknown') }}"
               - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
               - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
 
   handlers:
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted
+
     - name: restart_fail2ban
       systemd:
         name: fail2ban
         state: restarted
 
-    - name: restart_ssh
+    - name: restart_node_exporter
       systemd:
-        name: ssh
+        name: prometheus-node-exporter
         state: restarted
+
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes

@@ -10,9 +10,8 @@ require 'timeout'
 require 'net/ssh'
 
 class VmProvisioningService
-  # Template configuration — Updated from Proxmox environment screenshot
+  # Template configuration — all VMs on vmbr0 (public bridge)
   TEMPLATES = {
-    # ── Ubuntu ────────────────────────────────────────────────────
     'ubuntu-rdp' => {
       id: ENV.fetch('TEMPLATE_UBUNTU_RDP', 103).to_i,
       bridge: 'vmbr0',
@@ -27,15 +26,13 @@ class VmProvisioningService
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
-    'ubuntu-22-04' => { # Alias for backward compatibility
+    'ubuntu-22-04' => {
       id: ENV.fetch('TEMPLATE_UBUNTU_VPS', 105).to_i,
       bridge: 'vmbr0',
       credentials: { user: ENV.fetch('VM_LINUX_TEMPLATE_USER', 'ansible'), pass: ENV.fetch('VM_LINUX_TEMPLATE_PASSWORD', 'temporary') },
       connection: { type: 'ssh' },
       os_family: 'ubuntu'
     },
-
-    # ── Debian ────────────────────────────────────────────────────
     'debian-vps' => {
       id: ENV.fetch('TEMPLATE_DEBIAN_VPS', 107).to_i,
       bridge: 'vmbr0',
@@ -43,8 +40,6 @@ class VmProvisioningService
       connection: { type: 'ssh' },
       os_family: 'debian'
     },
-
-    # ── Alma Linux ────────────────────────────────────────────────
     'alma-vps' => {
       id: ENV.fetch('TEMPLATE_ALMA_VPS', 108).to_i,
       bridge: 'vmbr0',
@@ -52,8 +47,6 @@ class VmProvisioningService
       connection: { type: 'ssh' },
       os_family: 'alma'
     },
-
-    # ── Rocky Linux ───────────────────────────────────────────────
     'rocky-vps' => {
       id: ENV.fetch('TEMPLATE_ROCKY_VPS', 106).to_i,
       bridge: 'vmbr0',
@@ -61,8 +54,6 @@ class VmProvisioningService
       connection: { type: 'ssh' },
       os_family: 'rocky'
     },
-
-    # ── Fedora (RDP desktop) ──────────────────────────────────────
     'fedora-rdp' => {
       id: ENV.fetch('TEMPLATE_FEDORA_RDP', 104).to_i,
       bridge: 'vmbr0',
@@ -70,12 +61,11 @@ class VmProvisioningService
       connection: { type: 'ssh' },
       os_family: 'fedora'
     },
-
-    # ── Windows (single template for both RDP and VPS) ────────────
+    # Windows on vmbr0 — direct public IP, no gateway needed
     'windows-rdp' => {
       id: ENV.fetch('TEMPLATE_WINDOWS_RDP', 102).to_i,
       bridge: 'vmbr0',
-      credentials: { user: ENV.fetch('VM_WINDOWS_ADMIN_USER', 'ansible'), pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
+      credentials: { user: ENV.fetch('VM_WINDOWS_ADMIN_USER', 'Administrator'), pass: ENV['VM_WINDOWS_TEMPLATE_PASSWORD'] },
       connection: { type: 'winrm' },
       os_family: 'windows'
     }
@@ -108,15 +98,12 @@ class VmProvisioningService
     }
   }.freeze
 
-  # Ensure the API URL always ends with /api2/json for correct endpoint routing
   PROXMOX_API_BASE = "#{ENV['PROXMOX_API_URL'].to_s.gsub(%r{/$}, '').gsub(%r{/api2/json$}, '')}/api2/json"
-
   PROXMOX_NODE = ENV['PROXMOX_NODE'] || 'pve'
   PUBLIC_IP = ENV['PUBLIC_IP'] || '127.0.0.1'
-  PROXMOX_API_TOKEN_ID = ENV['PROXMOX_API_TOKEN_ID'] # e.g. root@pam!tokenid
+  PROXMOX_API_TOKEN_ID = ENV['PROXMOX_API_TOKEN_ID']
   PROXMOX_API_TOKEN_SECRET = ENV['PROXMOX_API_TOKEN_SECRET']
 
-  # Resolve playbook directory relative to Rails root
   PLAYBOOK_DIR = Rails.root.join('ansible', 'playbooks').to_s.freeze
   INVENTORY_DIR = Rails.root.join('ansible', 'inventory').to_s.freeze
   TARGETS_DIR = Rails.root.join('monitoring', 'prometheus', 'targets').to_s.freeze
@@ -124,32 +111,29 @@ class VmProvisioningService
   def initialize(order = nil, logger = Rails.logger)
     @order = order
     @logger = logger || Rails.logger
-    # @dns_service = CloudflareDnsService.new
     FileUtils.mkdir_p(INVENTORY_DIR) unless Dir.exist?(INVENTORY_DIR)
     FileUtils.mkdir_p(TARGETS_DIR) unless Dir.exist?(TARGETS_DIR)
-
     validate_config!
   end
 
-  def generate_secure_password(length = 24)
-    lowercase = ('a'..'z').to_a
+  def generate_secure_password(length = 20)
+    # Using only alpha-numeric characters to avoid shell-mangling and JSON escaping issues
+    # that were causing "Bad Credentials" errors on Windows RDP.
     uppercase = ('A'..'Z').to_a
+    lowercase = ('a'..'z').to_a
     numbers = ('0'..'9').to_a
-    symbols = ['!', '@', '#', '$', '%', '^', '&', '*', '-', '_', '+', '=']
     
-    password = [
-      lowercase.sample,
-      uppercase.sample,
-      numbers.sample,
-      symbols.sample
-    ]
+    # Ensure at least one of each class is present
+    password = [uppercase.sample, lowercase.sample, numbers.sample]
     
-    all_chars = lowercase + uppercase + numbers + symbols
-    password += Array.new(length - 4) { all_chars.sample }
+    all_chars = uppercase + lowercase + numbers
+    password += Array.new(length - 3) { all_chars.sample }
     
     password.shuffle.join
   end
 
+  # Main provisioning method — unified flow for all OS types
+  # All VMs are on vmbr0, get public IPs directly via DHCP/Guest Agent
   def provision(params)
     pve_vmid = nil
     actual_ip = nil
@@ -167,71 +151,81 @@ class VmProvisioningService
       management_type = params['management_type'] || 'unmanaged'
       country_code = params['country_code'].to_s.upcase
       proxy_config = params['proxy'] || {}
-      
+
       if %w[CA CANADA].include?(country_code)
         @logger.info("Country is #{country_code}, skipping proxy config for VM")
         proxy_config = {}
       end
-      root_password = params['root_password'] || generate_secure_password
 
+      root_password = params['root_password'] || generate_secure_password
       template_config = TEMPLATES[os_template]
       raise "Unsupported OS template: #{os_template} (Original: #{params['os_template']})" unless template_config
 
+      is_windows = template_config[:os_family] == 'windows'
       template_id = template_config[:id]
       bridge = template_config[:bridge]
       db_vm_id = params['db_vm_id']
 
-      # Allocation
       pve_vmid = get_next_vm_id(vm_type)
-
       hostname ||= "#{vm_type}-#{Array.new(6) { ('a'..'z').to_a.sample }.join}"
 
       @logger.info("Allocated — PVE VMID: #{pve_vmid}, Hostname: #{hostname}, Type: #{vm_type}")
 
-      # Update VM record immediately so callbacks can find it
       if db_vm_id
         Vm.find(db_vm_id).update!(proxmox_vm_id: pve_vmid.to_s)
       end
 
-      # Creation (Clone)
+      # 1. Clone VM
       create_vm(pve_vmid, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge, os_template)
 
-      mac_address = get_vm_mac_address(pve_vmid)
-
+      # 2. Start VM
+      start_vm(pve_vmid)
       raise "VM #{pve_vmid} failed to become ready" unless wait_for_vm_ready(pve_vmid)
 
-      actual_ip = discover_and_bind_vm_ip(db_vm_id, pve_vmid, mac_address, hostname)
-      @logger.info("VM #{pve_vmid} using IP: #{actual_ip}")
+      # 3. Get MAC address
+      mac_address = get_vm_mac_address(pve_vmid)
+      @logger.info("VM #{pve_vmid} has MAC: #{mac_address}")
 
-      # Connection details & Dynamic Port Calculation
-      is_windows = template_config[:connection][:type] == 'winrm' || template_config[:os_family] == 'windows'
+      # 4. Discover IP (all VMs on vmbr0 get public IPs directly)
+      actual_ip = discover_and_bind_vm_ip(db_vm_id, pve_vmid, mac_address, hostname, is_windows)
+      @logger.info("VM #{pve_vmid} IP: #{actual_ip}")
+
+      # 5. Port allocation
       rdp_access = is_windows || vm_type.to_s.include?('rdp')
       protocol = rdp_access ? 'rdp' : 'ssh'
-
-      # Security: Random high port to prevent bot scanning
-      # Range: 10000-59999 (avoids well-known ports and ephemeral range)
       custom_port = generate_random_port
 
-      # DNS Setup (Optional Cloudflare integration with SRV)
-      # dns_name = @dns_service.create_vm_record(pve_vmid, actual_ip, custom_port, protocol)
-      # @logger.info("DNS records created: #{dns_name}") if dns_name
+      if db_vm_id
+        vm = Vm.find(db_vm_id)
+        if protocol == 'rdp'
+          vm.update!(ip_address: actual_ip, rdp_port: custom_port)
+        else
+          vm.update!(ip_address: actual_ip, ssh_port: custom_port)
+        end
+      end
+
       dns_name = nil
 
-      # Ansible Setup
+      # 6. Run Ansible (Tailscale for Linux is configured entirely by Ansible playbooks)
       if ansible_available?
-        # We pass custom_port to ansible so it can configure the guest OS
         params_with_port = params.merge('custom_port' => custom_port)
         run_ansible_step(pve_vmid, actual_ip, template_config, root_password, params_with_port, hostname, management_type, os_template, proxy_config)
       else
         @logger.warn('[VmProvisioningService] Ansible not found in container! Skipping playbook')
       end
 
-      # Monitoring (Managed Only)
+      # 7. Windows: Create Cloudflare DNS record (hostname.proxysock.com -> IP)
+      if is_windows
+        dns_service = CloudflareDnsService.new(@logger)
+        dns_name = dns_service.create_vm_dns(hostname, actual_ip)
+        @logger.info("Cloudflare DNS: #{dns_name}") if dns_name
+      end
+
+      # 8. Monitoring
       if management_type == 'managed'
         register_vm_with_monitoring(pve_vmid, actual_ip, hostname, os_template)
       end
 
-      # Prepare result
       {
         status: 'success',
         pve_vmid: pve_vmid,
@@ -240,7 +234,7 @@ class VmProvisioningService
         dns_name: dns_name,
         protocol: protocol,
         port: custom_port,
-        username: protocol == 'rdp' ? 'Administrator' : hostname,
+        username: is_windows ? 'Administrator' : hostname,
         password: root_password,
         root_password: root_password
       }
@@ -257,7 +251,7 @@ class VmProvisioningService
   def start_vm(vm_id)
     @logger.info("Starting VM #{vm_id}")
     response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/status/start")
-    wait_for_proxmox_task(response['data'])
+    wait_for_proxmox_task(response['data']) if response['data']
   end
 
   def stop_vm(vm_id)
@@ -283,7 +277,14 @@ class VmProvisioningService
 
     @logger.info("Starting cleanup for PVE VM #{pve_vmid}")
 
-    # 1. Stop VM
+    captured_mac = nil
+    begin
+      captured_mac = get_vm_mac_address(pve_vmid)
+    rescue StandardError => e
+      @logger.debug("Could not capture MAC address before destruction: #{e.message}")
+    end
+
+    # Stop VM
     begin
       response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{pve_vmid}/status/stop")
       wait_for_proxmox_task(response['data'])
@@ -291,7 +292,7 @@ class VmProvisioningService
       @logger.debug("VM stop failed (might be stopped): #{e.message}")
     end
 
-    # 2. Destroy VM
+    # Destroy VM
     begin
       response = proxmox_delete("/nodes/#{PROXMOX_NODE}/qemu/#{pve_vmid}?purge=1")
       wait_for_proxmox_task(response['data'])
@@ -300,24 +301,75 @@ class VmProvisioningService
       @logger.error("Failed to destroy PVE VM #{pve_vmid}: #{e.message}")
     end
 
-    # 3. Clean inventory file
+    # Clean inventory file
     inventory_file = File.join(INVENTORY_DIR, "vm_#{pve_vmid}.ini")
     FileUtils.rm_f(inventory_file) if File.exist?(inventory_file)
 
-    # 4. Clean monitoring target
+    # Clean monitoring target
     unregister_vm_from_monitoring(pve_vmid)
 
-    # 5. Release IP address back to pool
-    # Use the database UUID (vm_id) if available, otherwise we can't reliably find it in IpAddress table
-    IpAddress.find_by(vm_id: db_vm_id)&.release! if db_vm_id
+    if db_vm_id
+      vm = Vm.find_by(id: db_vm_id)
+      if vm
+        # Delete Cloudflare DNS record for Windows VMs
+        if vm.hostname.present?
+          CloudflareDnsService.new(@logger).delete_vm_dns(vm.hostname)
+        end
+
+        # Release IP address
+        IpAddress.find_by(vm_id: db_vm_id)&.release!
+      end
+    end
+
+    remove_dnsmasq_entry(pve_vmid, captured_mac)
   end
 
-  # Determine which playbook to use based on vm_type, os_template, and management_type
+  def remove_dnsmasq_entry(pve_vmid, mac_address = nil)
+    ssh_host = ENV['PROXMOX_SSH_HOST'] || PROXMOX_API_BASE.match(%r{https?://([^:/]+)})&.[](1)
+    ssh_user = ENV['PROXMOX_SSH_USER'] || 'root'
+    ssh_pass = ENV['PROXMOX_SSH_PASSWORD']
+    ssh_key  = ENV['PROXMOX_SSH_KEY_PATH']
+
+    return @logger.warn('SSH credentials missing, skipping dnsmasq cleanup') unless ssh_host && (ssh_pass || ssh_key)
+
+    dnsmasq_conf = '/etc/dnsmasq.d/proxysock_vms.conf'
+
+    mac = mac_address
+    if mac.blank?
+      begin
+        mac = get_vm_mac_address(pve_vmid)
+      rescue StandardError
+        @logger.warn("Could not get MAC for VM #{pve_vmid} during cleanup, skipping dnsmasq removal")
+        return
+      end
+    end
+
+    remote_cmd = <<~BASH
+      sudo sed -i "/#{mac}/d" #{dnsmasq_conf}
+      sudo systemctl restart dnsmasq
+    BASH
+
+    begin
+      ssh_options = { password: ssh_pass }
+      ssh_options[:append_all_supported_algorithms] = true
+      ssh_options[:verify_host_key] = :never
+      ssh_options[:non_interactive] = true
+      ssh_options[:auth_methods] = ssh_key && File.exist?(ssh_key) ? %w[publickey password] : ['password']
+
+      Net::SSH.start(ssh_host, ssh_user, ssh_options) do |ssh|
+        actual_cmd = ssh_pass ? "echo #{Shellwords.escape(ssh_pass)} | sudo -S bash -c '#{remote_cmd}'" : "sudo -n bash -c '#{remote_cmd}'"
+        output = ssh.exec!(actual_cmd)
+        @logger.info("Dnsmasq cleanup output for VM #{pve_vmid}: #{output}")
+      end
+    rescue StandardError => e
+      @logger.error("Failed to remove dnsmasq entry for VM #{pve_vmid}: #{e.message}")
+    end
+  end
+
   def determine_playbook(vm_type, os_template, management_type)
     template_config = TEMPLATES[os_template]
     os_family = template_config&.dig(:os_family) || 'ubuntu'
 
-    # Normalize vm_type to 'vps' or 'rdp'
     normalized_type = vm_type.to_s.downcase.include?('rdp') ? 'rdp' : 'vps'
     normalized_mgmt = %w[managed unmanaged].include?(management_type.to_s) ? management_type.to_s : 'unmanaged'
 
@@ -336,36 +388,25 @@ class VmProvisioningService
 
     @logger.info("Changing password for VM #{vm.id}")
 
-    # Generate temporary inventory for this VM using root_password
-    escaped_pass = Shellwords.escape(vm.root_password || '')
+    safe_pass = "'#{(vm.root_password || '').gsub("'", "''")}'"
     user = (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'Administrator' : 'root'
 
     inventory_content = if user == 'Administrator'
-                          "[windows]\n#{vm.ip_address} ansible_user=#{user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore"
+                          "[windows]\n#{vm.ip_address} ansible_user=#{user} ansible_password=#{safe_pass} ansible_connection=winrm ansible_winrm_transport=basic ansible_winrm_server_cert_validation=ignore ansible_port=5985"
                         else
-                          "[linux]\n#{vm.ip_address} ansible_user=#{user} ansible_ssh_pass=#{escaped_pass} ansible_connection=ssh ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
+                          "[linux]\n#{vm.ip_address} ansible_user=#{user} ansible_ssh_pass=#{safe_pass} ansible_connection=ssh ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
                         end
 
     inventory_path = "/tmp/pwd_change_#{vm.id}.ini"
     File.write(inventory_path, inventory_content)
 
     begin
-      # Prepare Ansible command
       extra_vars = {
         password: new_password,
         user: (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'Administrator' : 'root'
       }.to_json
 
-      # We need to decide which playbook to use.
-      # For Windows, we might need a separate windows_change_password.yml or handle it in one.
-      # Assuming change_password.yml handles Linux. Let's create a specialized one or detect.
-
-      playbook = if (vm.vm_order&.os_type || '').downcase.include?('windows')
-                   'windows_change_password.yml'
-                 else
-                   'change_password.yml'
-                 end
-
+      playbook = (vm.vm_order&.os_type || '').downcase.include?('windows') ? 'windows_change_password.yml' : 'change_password.yml'
       playbook_path = File.join(PLAYBOOK_DIR, playbook)
       result = execute_ansible_command(inventory_path, playbook_path, extra_vars)
 
@@ -384,29 +425,23 @@ class VmProvisioningService
 
   def normalize_template_name(name)
     name = name.to_s.downcase.strip
-    
-    # RDP Priority
+
     return 'ubuntu-rdp'   if name.include?('ubuntu') && name.include?('rdp')
     return 'fedora-rdp'   if name.include?('fedora') && name.include?('rdp')
     return 'windows-rdp'  if name.include?('windows')
-    
-    # VPS Priority
     return 'ubuntu-vps'   if name.include?('ubuntu')
     return 'alma-vps'     if name.include?('alma')
     return 'rocky-vps'    if name.include?('rocky')
     return 'debian-vps'   if name.include?('debian')
-    return 'fedora-rdp'   if name.include?('fedora') # Fallback for fedora
-    
-    # Fallback to key if it exists in TEMPLATES
+    return 'fedora-rdp'   if name.include?('fedora')
     return name if TEMPLATES.key?(name)
-    
-    name 
+
+    name
   end
 
-  # Generate a random port in 10000-59999 that isn't already used by another VM
   RANDOM_PORT_MIN = 10_000
   RANDOM_PORT_MAX = 59_999
-  RESERVED_PORTS = [11211, 27017, 28017, 33060].freeze # memcached, mongo, mysql-x
+  RESERVED_PORTS = [11_211, 27_017, 28_017, 33_060].freeze
 
   def generate_random_port(max_attempts = 50)
     used_ports = Vm.where.not(ssh_port: nil).pluck(:ssh_port) +
@@ -418,7 +453,6 @@ class VmProvisioningService
       return port unless used_ports_set.include?(port)
     end
 
-    # Extremely unlikely fallback: sequential scan for a free port
     (RANDOM_PORT_MIN..RANDOM_PORT_MAX).each do |port|
       return port unless used_ports_set.include?(port)
     end
@@ -447,27 +481,50 @@ class VmProvisioningService
   end
 
   def proxmox_get(path)
-    url = "#{PROXMOX_API_BASE}#{path}"
-    response = HTTParty.get(url, headers: proxmox_headers, verify: false, timeout: 15)
-    handle_api_response(response)
+    with_retries do
+      url = "#{PROXMOX_API_BASE}#{path}"
+      response = HTTParty.get(url, headers: proxmox_headers, verify: false, timeout: 30)
+      handle_api_response(response)
+    end
   end
 
   def proxmox_post(path, body = {})
-    url = "#{PROXMOX_API_BASE}#{path}"
-    response = HTTParty.post(url, headers: proxmox_headers, body: body.to_json, verify: false, timeout: 15)
-    handle_api_response(response)
+    with_retries do
+      url = "#{PROXMOX_API_BASE}#{path}"
+      response = HTTParty.post(url, headers: proxmox_headers, body: body.to_json, verify: false, timeout: 30)
+      handle_api_response(response)
+    end
   end
 
   def proxmox_put(path, body = {})
-    url = "#{PROXMOX_API_BASE}#{path}"
-    response = HTTParty.put(url, headers: proxmox_headers, body: body.to_json, verify: false, timeout: 15)
-    handle_api_response(response)
+    with_retries do
+      url = "#{PROXMOX_API_BASE}#{path}"
+      response = HTTParty.put(url, headers: proxmox_headers, body: body.to_json, verify: false, timeout: 30)
+      handle_api_response(response)
+    end
   end
 
   def proxmox_delete(path)
-    url = "#{PROXMOX_API_BASE}#{path}"
-    response = HTTParty.delete(url, headers: proxmox_headers, verify: false)
-    handle_api_response(response)
+    with_retries do
+      url = "#{PROXMOX_API_BASE}#{path}"
+      response = HTTParty.delete(url, headers: proxmox_headers, verify: false, timeout: 30)
+      handle_api_response(response)
+    end
+  end
+
+  def with_retries(max_retries = 3)
+    attempt = 0
+    begin
+      attempt += 1
+      yield
+    rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED, Errno::ECONNRESET, SocketError => e
+      if attempt < max_retries
+        @logger.warn("Proxmox API trial failed (#{e.message}), retrying #{attempt}/#{max_retries}...")
+        sleep 2
+        retry
+      end
+      raise e
+    end
   end
 
   def handle_api_response(response)
@@ -480,17 +537,17 @@ class VmProvisioningService
     @logger.warn("Could not parse Proxmox API response: #{response.body}")
     { 'data' => response.body }
   end
+
   def wait_for_proxmox_task(upid)
     return unless upid
 
     300.times do
       status = proxmox_get("/nodes/#{PROXMOX_NODE}/tasks/#{upid}/status")['data']
       if status['status'] == 'stopped'
-        if status['exitstatus'] == 'OK'
-          return true
-        else
-          raise "Proxmox task failed: #{status['exitstatus']}"
-        end
+        exit_status = status['exitstatus']
+        return true if exit_status == 'OK' || exit_status&.start_with?('WARNINGS')
+
+        raise "Proxmox task failed: #{exit_status}"
       end
       sleep 2
     end
@@ -513,46 +570,37 @@ class VmProvisioningService
   def create_vm(vm_id, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge, os_template)
     @logger.info("Creating VM #{vm_id} from template #{template_id} via API")
 
-    # 1. Clone
     response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{template_id}/clone", {
-                             newid: vm_id,
-                             name: hostname,
-                             full: 1
-                           })
+                              newid: vm_id,
+                              name: hostname,
+                              full: false # Linked clone for all VMs (fast)
+                            })
     upid = response['data']
-
-    # 2. Wait for clone task to finish
     @logger.info("Waiting for clone task #{upid} to complete...")
     wait_for_proxmox_task(upid)
 
-    # 3. Update resources & Networking
     ram_mb = ram_gb * 1024
-    
-    # Base configuration parameters
     config_params = {
       cores: cpu_cores,
       memory: ram_mb,
       net0: "virtio,bridge=#{bridge},firewall=1",
-      agent: 1, # Ensure Guest Agent is enabled for IP discovery
-      machine: "pc-q35-9.0" # Use a more compatible machine type
+      agent: 1,
+      machine: 'pc-q35-9.0'
     }
 
-    # RDP/Windows specific optimizations for performance and stability
     if os_template.include?('rdp') || os_template.include?('windows')
       config_params.merge!({
-        scsihw: 'virtio-scsi-pci',
-        cpu: 'host',
-        vga: 'virtio,memory=128',
-        ostype: 'win11' # Default for modern Windows/RDP templates
-      })
+                             scsihw: 'virtio-scsi-pci',
+                             cpu: 'host',
+                             vga: 'virtio,memory=128'
+                           })
+      config_params[:ostype] = os_template.include?('windows') ? 'win11' : 'l26'
     end
 
     @logger.info("Updating VM config for #{vm_id}: #{config_params}")
     response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config", config_params)
     wait_for_proxmox_task(response['data']) if response['data']
 
-    # 4. Resize Disk (using dedicated endpoint with relative increment)
-    # Fetch current config to identifying the correct disk key
     config = proxmox_get("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config")['data'] || {}
     disk_key = config.keys.find { |k| k.match(/^(scsi|virtio|ide|sata)0$/) }
     disk_config = config[disk_key] || ''
@@ -570,8 +618,6 @@ class VmProvisioningService
       end
     end
 
-    # 5. Detach any CD-ROMs that might have missing ISOs (common problem with templates)
-    # We detach them to avoid 'volume does not exist' errors on startup
     detach_params = {}
     config.each do |key, value|
       if key.to_s.match(/^(ide|sata|scsi)\d+$/) && value.to_s.include?('media=cdrom')
@@ -579,14 +625,7 @@ class VmProvisioningService
         detach_params[key] = 'none,media=cdrom'
       end
     end
-    if detach_params.any?
-      proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config", detach_params)
-    end
-
-    # 6. Start
-    @logger.info("Starting VM #{vm_id}")
-    response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/status/start")
-    wait_for_proxmox_task(response['data'])
+    proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{vm_id}/config", detach_params) if detach_params.any?
   end
 
   def get_vm_mac_address(vm_id)
@@ -599,7 +638,6 @@ class VmProvisioningService
     elsif (match = net0.match(/virtio,bridge=[^,]+,macaddr=([a-fA-F0-9:]{17})/))
       match[1]
     elsif (match = net0.match(/([a-fA-F0-9:]{17})/))
-      # Try a cleaner regex for the MAC in the netX string
       match[1]
     else
       raise "Could not find MAC address for VM #{vm_id} in config: #{net0}"
@@ -616,17 +654,17 @@ class VmProvisioningService
     false
   end
 
-  def discover_and_bind_vm_ip(db_vm_id, pve_vmid, _expected_mac, hostname)
+  # Discover IP via Guest Agent — all VMs on vmbr0 get public IPs directly
+  def discover_and_bind_vm_ip(db_vm_id, pve_vmid, mac_address, hostname, is_windows = false)
     actual_ip = nil
-    actual_mac = nil
+    actual_mac = mac_address
 
-    @logger.info("Polling Guest Agent for VM #{pve_vmid} to find IP and MAC...")
+    max_retries = is_windows ? 36 : 12  # Windows needs longer to boot
 
-    40.times do |attempt|
+    max_retries.times do |attempt|
       begin
         result = proxmox_get("/nodes/#{PROXMOX_NODE}/qemu/#{pve_vmid}/agent/network-get-interfaces")
         if result.is_a?(Hash)
-          # Proxmox API wraps the response in 'data', and the agent call itself often wraps in 'result'
           res_data = result['data'] || result
           interfaces = res_data.is_a?(Hash) ? (res_data['result'] || res_data['interfaces'] || res_data) : res_data
         else
@@ -634,10 +672,7 @@ class VmProvisioningService
         end
 
         Array(interfaces).each do |interface|
-          # SAFETY: Skip if interface is not a hash (prevents 'no implicit conversion of String into Integer')
           next unless interface.is_a?(Hash)
-          
-          # Skip loopback and interfaces without IPs
           next if interface['name'] == 'lo' || interface['ip-addresses'].blank?
 
           interface['ip-addresses'].each do |ip_info|
@@ -645,37 +680,32 @@ class VmProvisioningService
             next if ip_info['ip-address'].start_with?('127.', '169.254.')
 
             actual_ip = ip_info['ip-address']
-            actual_mac = interface['hardware-address']
+            actual_mac = interface['hardware-address'] || mac_address
             break
           end
           break if actual_ip
         end
 
         if actual_ip
-          @logger.info("Found IP: #{actual_ip}, MAC: #{actual_mac} for VM #{pve_vmid} on attempt #{attempt + 1}")
+          @logger.info("Found IP: #{actual_ip}, MAC: #{actual_mac} for VM #{pve_vmid}")
           break
         end
       rescue StandardError => e
         @logger.debug("Guest agent query failed (attempt #{attempt + 1}): #{e.message}")
       end
-      sleep 5
+      sleep 10
     end
 
     raise "Could not discover IP for VM #{pve_vmid} via Guest Agent" unless actual_ip
 
-    # 1. Update the Vm record itself
+    # All VMs on vmbr0 — store IP directly
     vm = Vm.find(db_vm_id)
     vm.update!(ip_address: actual_ip)
 
-    # 2. Store in IpAddress table as assigned
     ip_record = IpAddress.find_or_initialize_by(address: actual_ip)
-    ip_record.update!(
-      status: 'assigned',
-      vm_id: db_vm_id,
-      assigned_at: Time.current
-    )
+    ip_record.update!(status: 'assigned', vm_id: db_vm_id, assigned_at: Time.current)
 
-    # 3. Whitelist in dnsmasq on Proxmox server
+    # Whitelist in dnsmasq
     whitelist_ip_on_dnsmasq(actual_mac, actual_ip, hostname)
 
     actual_ip
@@ -687,29 +717,26 @@ class VmProvisioningService
     ssh_pass = ENV['PROXMOX_SSH_PASSWORD']
     ssh_key  = ENV['PROXMOX_SSH_KEY_PATH']
 
-    return @logger.warn("SSH credentials missing, skipping dnsmasq whitelist") unless ssh_host && (ssh_pass || ssh_key)
+    return @logger.warn('SSH credentials missing, skipping dnsmasq whitelist') unless ssh_host && (ssh_pass || ssh_key)
 
     @logger.info("Whitelisting #{ip} (#{mac}) in dnsmasq on #{ssh_host}")
 
-    dnsmasq_conf = "/etc/dnsmasq.d/proxysock_vms.conf"
+    dnsmasq_conf = '/etc/dnsmasq.d/proxysock_vms.conf'
     entry = "dhcp-host=#{mac},#{ip},#{hostname}"
-    
-    # Remote command to append entry and restart dnsmasq
+
     remote_cmd = <<~BASH
-      grep -q "#{mac}" #{dnsmasq_conf} || echo "#{entry}" >> #{dnsmasq_conf}
-      systemctl restart dnsmasq
+      sudo grep -q "#{mac}" #{dnsmasq_conf} || echo "#{entry}" | sudo tee -a #{dnsmasq_conf} > /dev/null
+      sudo systemctl restart dnsmasq
     BASH
 
     begin
-      ssh_options = ssh_key ? { keys: [ssh_key] } : { password: ssh_pass }
-      # Ensure non-interactive and no host-key checking issues for simplicity in this env
+      ssh_options = { password: ssh_pass }
       ssh_options[:append_all_supported_algorithms] = true
       ssh_options[:verify_host_key] = :never
       ssh_options[:non_interactive] = true
-      ssh_options[:auth_methods] = ["password", "publickey"]
+      ssh_options[:auth_methods] = ssh_key && File.exist?(ssh_key) ? %w[publickey password] : ['password']
 
       Net::SSH.start(ssh_host, ssh_user, ssh_options) do |ssh|
-        # Use sudo -n (non-interactive) if possible, or -S if we must pass password
         actual_cmd = ssh_pass ? "echo #{Shellwords.escape(ssh_pass)} | sudo -S bash -c '#{remote_cmd}'" : "sudo -n bash -c '#{remote_cmd}'"
         output = ssh.exec!(actual_cmd)
         @logger.info("Dnsmasq update output: #{output}")
@@ -721,14 +748,13 @@ class VmProvisioningService
     end
   end
 
-  def run_ansible_step(vm_id, actual_ip, template_config, root_password, params, hostname, management_type, os_template, proxy_config)
+  def run_ansible_step(vm_id, ansible_connect_ip, template_config, root_password, params, hostname, management_type, os_template, proxy_config)
     vm_type = params['vm_type']
     ansible_username = template_config[:credentials][:user]
     ansible_password = template_config[:credentials][:pass]
 
-    inventory_path = create_inventory(vm_id, actual_ip, template_config, ansible_username, ansible_password)
+    inventory_path = create_inventory(vm_id, ansible_connect_ip, template_config, ansible_username, ansible_password)
 
-    # Select playbook
     playbook_name = determine_playbook(vm_type, os_template, management_type)
     playbook_path = File.join(PLAYBOOK_DIR, playbook_name)
 
@@ -737,53 +763,62 @@ class VmProvisioningService
         vm_id: vm_id,
         hostname: hostname,
         management_type: management_type,
-        os_family: template_config[:os_family], # Pass family for logic
+        os_family: template_config[:os_family],
+        os_template: os_template,
         root_password: root_password,
         rdp_password: root_password,
-        ip_address: actual_ip,
-        proxy_params: proxy_config
+        ip_address: ansible_connect_ip,
+        proxy_params: proxy_config,
+        custom_port: params['custom_port']
       )
 
       result = execute_ansible_command(inventory_path, playbook_path, extra_vars)
       raise "Configuration failed: #{result[:stderr]}" unless result[:success]
+
+      result
     else
       @logger.warn("Playbook #{playbook_path} not found, skipping Ansible run")
+      nil
     end
   end
 
   def create_inventory(vm_id, ip_address, template_config, username, password)
-  is_windows = (template_config[:connection][:type] == 'winrm')
-  inventory_path = File.join(INVENTORY_DIR, "vm_#{vm_id}.ini")
+    is_windows = (template_config[:connection][:type] == 'winrm')
+    inventory_path = File.join(INVENTORY_DIR, "vm_#{vm_id}.ini")
 
-  escaped_user = Shellwords.escape(username)
-  escaped_pass = Shellwords.escape(password)
+    safe_user = "'#{username.gsub("'", "''")}'"
+    safe_pass = "'#{password.gsub("'", "''")}'"
 
-  if is_windows
-    inventory_content = "[windows]\n#{ip_address} ansible_user=#{escaped_user} ansible_password=#{escaped_pass} ansible_connection=winrm ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore ansible_port=5985 ansible_winrm_read_timeout_sec=60 ansible_winrm_operation_timeout_sec=30\n"
-  else
-    inventory_content = "[linux]\n#{ip_address} ansible_user=#{escaped_user} ansible_ssh_pass=#{escaped_pass} ansible_become_password=#{escaped_pass} ansible_connection=ssh ansible_port=22 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password'\n"
+    if is_windows
+      inventory_content = "[windows]\n#{ip_address} ansible_user=#{safe_user} ansible_password=#{safe_pass} ansible_connection=winrm ansible_winrm_transport=basic ansible_winrm_server_cert_validation=ignore ansible_port=5985 ansible_winrm_read_timeout_sec=60 ansible_winrm_operation_timeout_sec=30\n"
+    else
+      inventory_content = "[linux]\n#{ip_address} ansible_user=#{safe_user} ansible_ssh_pass=#{safe_pass} ansible_become_password=#{safe_pass} ansible_connection=ssh ansible_port=22 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password'\n"
+    end
+
+    File.write(inventory_path, inventory_content)
+    File.chmod(0o644, inventory_path)
+    inventory_path
   end
 
-  File.write(inventory_path, inventory_content)
-  File.chmod(0o644, inventory_path)
-  inventory_path
-  end
-  # Build extra_vars hash for the Ansible playbook, including proxy_config if proxy params exist
+  # Build extra_vars for Ansible
+  # Linux VMs: Tailscale VPN config (Ansible installs/configures it)
+  # Windows VMs: Cloudflare tunnel config (replaces Tailscale)
   def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:,
-                       ip_address: nil, proxy_params: {})
+                       os_template: 'unknown', ip_address: nil, proxy_params: {}, custom_port: 22)
     vars = {
       vm_id: vm_id,
       hostname: hostname,
       management_type: management_type,
       os_family: os_family,
+      os_template: os_template,
       root_password: root_password,
       rdp_password: rdp_password,
       api_url: ENV.fetch('APP_URL', "http://#{PUBLIC_IP}:3000"),
       api_key: ENV.fetch('VM_CALLBACK_API_KEY', 'internal-provisioning-key'),
-      ip_address: ip_address
+      ip_address: ip_address,
+      custom_port: custom_port
     }
 
-    # Build the proxy_config dict that playbooks expect
     if proxy_params['ip'].present?
       vars[:proxy_config] = {
         protocol: proxy_params['protocol'] || 'http',
@@ -792,6 +827,19 @@ class VmProvisioningService
         proxy_username: proxy_params['username'] || '',
         proxy_password: proxy_params['password'] || ''
       }
+    else
+      # Linux only: Tailscale VPN (configured by Ansible)
+      # Windows: no VPN config needed — Cloudflare DNS handled by Ruby after provisioning
+      unless os_family == 'windows'
+        ts_auth_key = ENV['TAILSCALE_AUTH_KEY']
+        ts_exit_node = ENV['TAILSCALE_EXIT_NODE_IP']
+        if ts_auth_key.present? && ts_exit_node.present?
+          vars[:tailscale_config] = {
+            auth_key: ts_auth_key,
+            exit_node_ip: ts_exit_node
+          }
+        end
+      end
     end
 
     vars
@@ -806,6 +854,10 @@ class VmProvisioningService
     ]
 
     env = {
+      'ANSIBLE_CONFIG' => File.join(Rails.root, 'ansible', 'ansible.cfg'),
+      'ANSIBLE_REMOTE_TMP' => '/tmp/.ansible/tmp',
+      'ANSIBLE_REMOTE_TEMP' => '/tmp/.ansible/tmp',
+      'ANSIBLE_LOCAL_TMP' => '/tmp/.ansible/tmp',
       'ANSIBLE_HOST_KEY_CHECKING' => 'False',
       'ANSIBLE_FORCE_COLOR' => 'True',
       'ANSIBLE_PYTHON_INTERPRETER' => 'auto_silent',

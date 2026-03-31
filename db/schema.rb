@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -1141,6 +1141,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.string "hostname"
     t.string "ip_address"
     t.jsonb "metadata"
+    t.string "private_ip_address", comment: "Private IP on vmbr1 for Windows VMs"
     t.string "proxmox_node"
     t.string "proxmox_vm_id"
     t.string "rdp_password_encrypted"
@@ -1155,6 +1156,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.datetime "updated_at", null: false
     t.uuid "vm_order_id"
     t.string "vm_type"
+    t.index ["private_ip_address"], name: "index_vms_on_private_ip_address", unique: true
   end
 
   create_table "vpn_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

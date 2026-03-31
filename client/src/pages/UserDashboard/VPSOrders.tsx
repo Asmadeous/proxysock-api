@@ -165,7 +165,7 @@ const VPSOrdersPage = () => {
       o.status === 'terminated' || o.status === 'suspended'
     ).length;
     const failed = orders.filter(o => o.status === 'failed' || o.status === 'cancelled').length;
-    const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+    const totalSpent = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
     const totalVMs = orders.filter(o => o.vm_id).length;
     const totalCores = orders.reduce((sum, o) => sum + (o.plan?.cpu_cores || 0), 0);
     const totalRAM = orders.reduce((sum, o) => sum + (o.plan?.ram_gb || 0), 0);
