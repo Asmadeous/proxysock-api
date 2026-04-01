@@ -49,8 +49,6 @@ module Admin
       def create
         require_admin!
         reseller = Reseller.create!(reseller_create_params)
-        reseller.create_main_wallet!(wallet_type: 'main')
-        reseller.create_earnings_wallet!(wallet_type: 'earnings') if reseller.infrastructure?
         record_audit_log('reseller.created', reseller)
         render json: reseller_json(reseller), status: :created
       end
@@ -114,12 +112,12 @@ module Admin
       end
 
       def reseller_params
-        params.permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
-                      :subscription_fee, :dedicated_api_key, :customer_email)
+        params.require(:reseller).permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
+                                         :subscription_fee, :dedicated_api_key, :customer_email, :allowed_product_category_id)
       end
 
       def reseller_create_params
-        params.permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
+        params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
       end
 
       def reseller_json(r, full: false)

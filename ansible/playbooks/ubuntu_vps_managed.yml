@@ -88,6 +88,21 @@
             update_password: always
           no_log: true
 
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
+          systemd:
+            name: ssh.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: yes
+
+        # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
@@ -111,8 +126,7 @@
           include_tasks: tasks/proxy_config.yml
           when: proxy_config is defined
 
-        # ── Monitoring ────────────────────────────────────────────────────────
-
+        # Monitoring
         - name: Configure Prometheus Node Exporter to listen on custom port
           copy:
             content: |
@@ -120,15 +134,6 @@
             dest: /etc/default/prometheus-node-exporter
             mode: '0644'
           notify: restart_node_exporter
-
-        - name: Create textfile collector directory
-          file:
-            path: /var/lib/prometheus/node-exporter
-            state: directory
-            owner: prometheus
-            group: prometheus
-            mode: '0755'
-          ignore_errors: true
 
         - name: Create custom VM metrics script
           copy:
@@ -146,19 +151,6 @@
               mv "${METRICS_FILE}.tmp" "${METRICS_FILE}"
             dest: /usr/local/bin/vm_metrics.sh
             mode: '0755'
-
-        - name: Create systemd service for custom metrics
-          copy:
-            content: |
-              [Unit]
-              Description=Generate custom VM metrics for Prometheus
-              After=network.target
-
-              [Service]
-              Type=oneshot
-              ExecStart=/usr/local/bin/vm_metrics.sh
-            dest: /etc/systemd/system/vm-metrics.service
-            mode: '0644'
 
         - name: Create systemd timer for custom metrics
           copy:
@@ -187,19 +179,13 @@
             - fail2ban
             - unattended-upgrades
 
-        - name: Run initial custom metrics generation
-          systemd:
-            name: vm-metrics.service
-            state: started
-
-        # ── Security ─────────────────────────────────────────────────────────
-
+        # Security hardening - Fail2ban synchronization
         - name: Configure fail2ban for SSH
           copy:
             content: |
               [sshd]
               enabled = true
-              port = ssh
+              port = {{ custom_port | default(22) }}
               filter = sshd
               logpath = /var/log/auth.log
               maxretry = 3
@@ -209,24 +195,9 @@
             mode: '0644'
           notify: restart_fail2ban
 
-        - name: Configure unattended upgrades
-          lineinfile:
-            path: /etc/apt/apt.conf.d/20auto-upgrades
-            regexp: "{{ item.regexp }}"
-            line: "{{ item.line }}"
-            create: yes
-          loop:
-            - { regexp: '^APT::Periodic::Update-Package-Lists', line: 'APT::Periodic::Update-Package-Lists "1";' }
-            - { regexp: '^APT::Periodic::Unattended-Upgrade',   line: 'APT::Periodic::Unattended-Upgrade "1";' }
-            - { regexp: '^APT::Periodic::AutocleanInterval',    line: 'APT::Periodic::AutocleanInterval "7";' }
-
-        # ── Tailscale / VPN ──────────────────────────────────────────────────
-
         - name: Configure Tailscale VPN
           include_tasks: tasks/tailscale_linux.yml
           when: tailscale_config is defined
-
-        # ── API Callback ─────────────────────────────────────────────────────
 
         - name: Notify API - Success
           uri:
@@ -241,10 +212,6 @@
               status: "configured"
               os_template: "{{ os_template | default('ubuntu') }}"
               management_type: "{{ management_type | default('managed') }}"
-              admin_configured: true
-              monitoring_port: "{{ node_exporter_port }}"
-              proxy_configured: "{{ proxy_config is defined }}"
-              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
@@ -267,41 +234,31 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('managed') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
             validate_certs: yes
           no_log: true
           delegate_to: localhost
           become: no
           ignore_errors: yes
 
-        - name: Final failure notification
-          debug:
-            msg:
-              - "❌ Ubuntu VPS Managed Configuration FAILED!"
-              - "❌ VM ID: {{ vm_id | default('unknown') }}"
-              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
-              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
-
     - name: restart_fail2ban
       systemd:
         name: fail2ban
         state: restarted
-      ignore_errors: true
 
     - name: restart_node_exporter
       systemd:
         name: prometheus-node-exporter
         state: restarted
 
-    - name: reload systemd
+    - name: restart_ssh
       systemd:
-        daemon_reload: yes
+        name: ssh
+        state: restarted
+      async: 10
+      poll: 0

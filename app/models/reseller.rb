@@ -28,7 +28,7 @@ class Reseller < ApplicationRecord
 
   def initialize_wallet
     wallet
-    earnings_wallet || create_earnings_wallet!(wallet_type: 'earnings')
+    create_earnings_wallet!(wallet_type: 'earnings') if infrastructure?
   end
 
   has_many :api_tokens, dependent: :destroy

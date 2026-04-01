@@ -1,8 +1,8 @@
 ---
 - name: Configure Ubuntu Desktop RDP UNMANAGED
   hosts: linux
-  become: yes
-  gather_facts: no
+  become: true
+  gather_facts: false
 
   pre_tasks:
     - name: Ensure rdp_password is defined
@@ -36,7 +36,9 @@
 
         - name: Update package cache
           apt:
-            update_cache: yes
+            update_cache: true
+          environment:
+            DEBIAN_FRONTEND: noninteractive
           retries: 5
           delay: 10
 
@@ -50,7 +52,10 @@
               - wget
               - vim
               - fail2ban
+              - ssl-cert
             state: present
+          environment:
+            DEBIAN_FRONTEND: noninteractive
           retries: 3
           delay: 10
 
@@ -60,10 +65,42 @@
             password: "{{ admin_password | password_hash('sha512') }}"
             groups: sudo
             shell: /bin/bash
-            create_home: yes
+            create_home: true
             state: present
           no_log: true
 
+        - name: Add users to ssl-cert group
+          user:
+            name: "{{ item }}"
+            groups: ssl-cert
+            append: true
+          loop:
+            - "{{ admin_username }}"
+            - xrdp
+          ignore_errors: true
+
+        - name: Enable passwordless sudo for Administrator user
+          copy:
+            content: "{{ admin_username }} ALL=(ALL) NOPASSWD:ALL\n"
+            dest: "/etc/sudoers.d/{{ admin_username }}"
+            mode: '0440'
+            validate: 'visudo -cf %s'
+
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
+          systemd:
+            name: ssh.socket
+            state: stopped
+            enabled: false
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: true
+
+        # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
@@ -71,36 +108,87 @@
             line: "Port {{ custom_port | default(22) }}"
           notify: restart_ssh
 
-        - name: Configure xrdp service
-          lineinfile:
+        - name: Configure xrdp service (ini settings)
+          ini_file:
             path: /etc/xrdp/xrdp.ini
-            regexp: "{{ item.regexp }}"
-            line: "{{ item.line }}"
-            backup: yes
+            section: Globals
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            backup: true
           loop:
-            - { regexp: '^max_bpp=', line: 'max_bpp=32' }
-            - { regexp: '^use_vsock=', line: 'use_vsock=false' }
-            - { regexp: '^tcp_nodelay=', line: 'tcp_nodelay=true' }
-            - { regexp: '^tcp_keepalive=', line: 'tcp_keepalive=true' }
+            - { option: 'port', value: "{{ custom_port | default(3389) }}" }
+            - { option: 'max_bpp', value: '32' }
+            - { option: 'use_vsock', value: 'false' }
+            - { option: 'tcp_nodelay', value: 'true' }
+            - { option: 'tcp_keepalive', value: 'true' }
           notify: restart xrdp
 
         - name: Enable and start xrdp services
           systemd:
             name: "{{ item }}"
-            enabled: yes
+            enabled: true
             state: started
           loop:
             - xrdp
             - xrdp-sesman
 
+        - name: Create .xsession file for RDP user
+          copy:
+            content: "exec startxfce4\n"
+            dest: "/home/{{ admin_username }}/.xsession"
+            owner: "{{ admin_username }}"
+            group: "{{ admin_username }}"
+            mode: '0644'
+
+        - name: Configure Polkit to allow color management over RDP (modern rules)
+          copy:
+            dest: /etc/polkit-1/rules.d/45-allow-colord.rules
+            content: |
+              polkit.addRule(function(action, subject) {
+                  if ((action.id == "org.freedesktop.color-manager.create-device" ||
+                       action.id == "org.freedesktop.color-manager.create-profile" ||
+                       action.id == "org.freedesktop.color-manager.delete-device" ||
+                       action.id == "org.freedesktop.color-manager.delete-profile" ||
+                       action.id == "org.freedesktop.color-manager.modify-device" ||
+                       action.id == "org.freedesktop.color-manager.modify-profile") &&
+                      subject.isInGroup("ssl-cert")) {
+                      return polkit.Result.YES;
+                  }
+              });
+            mode: '0644'
+          ignore_errors: true
+
+        - name: Allow RDP port in UFW
+          ufw:
+            rule: allow
+            port: "{{ custom_port | default(3389) }}"
+            proto: tcp
+          ignore_errors: true
+
         - name: Enable security services
           systemd:
             name: "{{ item }}"
-            enabled: yes
+            enabled: true
             state: started
           loop:
             - fail2ban
-          ignore_errors: yes
+          ignore_errors: true
+
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = {{ custom_port | default(22) }}
+              filter = sshd
+              logpath = /var/log/auth.log
+              maxretry = 3
+              bantime = 3600
+              findtime = 600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          notify: restart_fail2ban
 
         - name: Set hostname
           hostname:
@@ -133,20 +221,18 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "configured"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('unmanaged') }}"
-              admin_configured: true
+              os_template: "{{ os_template | default('ubuntu-rdp') }}"
+              management_type: "unmanaged"
               rdp_configured: true
-              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
             status_code: [200, 201]
-            validate_certs: yes
+            validate_certs: true
             timeout: 30
           no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
-          become: no
+          become: false
 
       rescue:
         - name: Notify API - Failure
@@ -160,28 +246,16 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('unmanaged') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
-            status_code: [200, 201]
-            validate_certs: yes
-            timeout: 30
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
+            validate_certs: true
           no_log: true
-          when:
-            - api_url is defined
-            - vm_id is defined
           delegate_to: localhost
-          become: no
-          ignore_errors: yes
+          become: false
+          ignore_errors: true
 
-        - name: Final failure notification
-          debug:
-            msg:
-              - "❌ Ubuntu RDP Unmanaged Configuration FAILED!"
-              - "❌ VM ID: {{ vm_id | default('unknown') }}"
-              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
-              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
     - name: restart xrdp
@@ -196,10 +270,10 @@
       systemd:
         name: fail2ban
         state: restarted
-      ignore_errors: true
 
     - name: restart_ssh
       systemd:
         name: ssh
         state: restarted
-      ignore_errors: true
+      async: 10
+      poll: 0
