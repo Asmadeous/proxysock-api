@@ -47,10 +47,15 @@
         # ========================================
         - name: Configure Administrator account
           block:
-            - name: Enable and configure Administrator
+            - name: Enable Administrator account
               win_user:
                 name: Administrator
                 account_disabled: false
+                state: present
+
+            - name: Set Administrator password
+              win_user:
+                name: Administrator
                 password: "{{ admin_password }}"
                 password_never_expires: yes
                 state: present
@@ -156,7 +161,7 @@
         # ========================================
         - name: Configure RDP for remote access
           block:
-            - name: Enable RDP with Network Level Authentication
+            - name: Enable RDP for remote management
               win_regedit:
                 path: "{{ item.path }}"
                 name: "{{ item.name }}"
@@ -164,8 +169,8 @@
                 type: dword
               loop:
                 - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server", name: "fDenyTSConnections", data: 0 }
-                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "UserAuthentication", data: 1 }
-                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "SecurityLayer", data: 2 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "UserAuthentication", data: 0 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "SecurityLayer", data: 0 }
             
             - name: Configure RDP encryption level
               win_regedit:
@@ -371,7 +376,6 @@
                 "status": "configured",
                 "os_template": "{{ os_template | default('windows-server') }}",
                 "management_type": "{{ management_type }}",
-                "whitelist_ip": "{{ whitelist_ip }}",
                 "admin_configured": true,
                 "rdp_configured": true,
                 "rdp_port": 3389,
@@ -410,7 +414,6 @@
                 "status": "failed",
                 "os_template": "{{ os_template | default('windows-server') }}",
                 "management_type": "{{ management_type }}",
-                "whitelist_ip": "{{ whitelist_ip }}",
                 "error": "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}",
                 "failed_at": "{{ ansible_date_time.iso8601 }}"
               }
