@@ -14,11 +14,18 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# Install base packages (including Ansible + all Python/collection dependencies for VM provisioning)
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client ansible sshpass openssh-client python3-passlib && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client \
+      ansible sshpass openssh-client python3-passlib python3-pip python3-venv && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Install pywinrm for Windows WinRM connections and Ansible Galaxy collections
+COPY ansible/requirements.yml /tmp/ansible-requirements.yml
+RUN pip3 install --no-cache-dir --break-system-packages pywinrm requests-credssp && \
+    ansible-galaxy collection install -r /tmp/ansible-requirements.yml --force && \
+    rm /tmp/ansible-requirements.yml
 
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
 ENV RAILS_ENV="production" \

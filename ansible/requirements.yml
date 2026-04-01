@@ -1,0 +1,19 @@
+---
+# Ansible Galaxy collection dependencies for VM provisioning
+# Install with: ansible-galaxy collection install -r ansible/requirements.yml
+collections:
+  # Windows VM management (win_uri, win_ping, win_user, win_shell, etc.)
+  - name: ansible.windows
+    version: ">=2.1.0"
+
+  # POSIX modules (firewalld for Fedora/Rocky/Alma)
+  - name: ansible.posix
+    version: ">=1.5.0"
+
+  # Community Windows modules (win_chocolatey, win_updates, win_environment, etc.)
+  - name: community.windows
+    version: ">=2.0.0"
+
+  # Community general modules (various utility modules)
+  - name: community.general
+    version: ">=8.0.0"
