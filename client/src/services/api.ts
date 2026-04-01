@@ -34,7 +34,23 @@ api.interceptors.request.use(
 
 // Response interceptor for API calls
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Dynamically use 'reseller_selling_price' instead of retail 'price' if rendering inside the reseller dashboard
+    if (
+      window.location.pathname.startsWith('/reseller') &&
+      response.config.url?.includes('/web/api/products') &&
+      response.data &&
+      Array.isArray(response.data.products)
+    ) {
+      response.data.products = response.data.products.map((p: any) => {
+        if (p.pricings && p.pricings.length > 0 && p.pricings[0].reseller_selling_price !== undefined) {
+          p.price = p.pricings[0].reseller_selling_price;
+        }
+        return p;
+      });
+    }
+    return response;
+  },
   (error) => {
     const message = error.response?.data?.error || error.response?.data?.message || "An error occurred";
     // We handle toasts manually in login/register components so we don't spam here for auth failures

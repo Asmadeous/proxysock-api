@@ -31,7 +31,11 @@ interface Country {
   flag: string;
 }
 
-export default function RDPTypes() {
+interface RDPTypesProps {
+  onNavigate?: (countryCode: string) => void;
+}
+
+export default function RDPTypes({ onNavigate }: RDPTypesProps = {}) {
   const navigate = useNavigate();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -76,7 +80,11 @@ export default function RDPTypes() {
 
   const handleCountryClick = (countryCode: string) => {
     setSelectedCountry(countryCode);
-    navigate(`/dashboard/rdp-plans?country=${countryCode}`);
+    if (onNavigate) {
+      onNavigate(countryCode);
+    } else {
+      navigate(`/dashboard/rdp-plans?country=${countryCode}`);
+    }
   };
 
   if (loading) {
