@@ -34,6 +34,15 @@
 
         - name: Configure Administrator account
           block:
+            - name: Ensure critical services are running
+              win_service:
+                name: "{{ item }}"
+                state: started
+                start_mode: auto
+              loop:
+                - wuauserv
+              ignore_errors: yes
+
             - name: Enable Administrator account
               win_user:
                 name: Administrator

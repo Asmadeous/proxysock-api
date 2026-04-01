@@ -52,7 +52,7 @@ class VmHealthCheckJob < ApplicationJob
     vm.metadata ||= {}
     vm.metadata['consecutive_failures'] = consecutive_failures
     vm.metadata['failure_reason'] = reason
-    vm.save!
+    vm.update_column(:metadata, vm.metadata)
 
     notify_admins_about_unhealthy_vm(vm, consecutive_failures, status, reason) if consecutive_failures >= 2
   end
@@ -81,7 +81,7 @@ class VmHealthCheckJob < ApplicationJob
     vm.metadata['health_status'] = status
     vm.metadata['last_health_check'] = Time.current.iso8601
     vm.metadata['consecutive_failures'] = 0 if status == 'healthy'
-    vm.save!
+    vm.update_column(:metadata, vm.metadata)
   end
 
   def notify_admins_about_unhealthy_vm(vm, consecutive_failures, status, reason)

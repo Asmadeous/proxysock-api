@@ -18,3 +18,7 @@ collections:
   # Community general modules (seport, various utilities)
   - name: community.general
     version: "12.5.0"
+
+  # Chocolatey for Windows package management
+  - name: chocolatey.chocolatey
+    version: "1.5.3"
