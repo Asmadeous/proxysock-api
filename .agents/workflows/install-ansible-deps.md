@@ -4,91 +4,44 @@ description: One-time install of Ansible dependencies on existing staging/produc
 
 # Install Ansible Dependencies (One-Time)
 
-This is a **one-time** task to install missing Ansible dependencies inside already-running Docker containers on staging and production servers. Future deploys will include these via the updated Dockerfile automatically.
+This is a **one-time** task to install missing Ansible dependencies inside already-running Docker containers on staging and production servers.
 
-## What gets installed
+> **Note:** This is automated in the GitHub deploy workflows (`deploy-staging.yml` and `deploy.yml`). After every deploy, dependencies are installed automatically via `docker exec`. This doc is for manual recovery only.
 
-| Dependency | Purpose |
+## Pinned Versions (matching local dev)
+
+| Component | Version |
 |---|---|
-| `python3-pip`, `python3-venv` | Package installer for Python deps |
-| `pywinrm` | WinRM transport for Windows VM provisioning |
-| `requests-credssp` | CredSSP auth for WinRM |
-| `ansible.windows` collection | `win_uri`, `win_ping` etc. |
-| `ansible.posix` collection | `firewalld` for Fedora/Rocky/Alma |
-| `community.windows` collection | `win_chocolatey`, `win_updates`, `win_environment` etc. |
-| `community.general` collection | Utility modules like `seport` |
+| `ansible-core` | 2.20.4 |
+| `ansible.windows` | 3.5.0 |
+| `ansible.posix` | 2.1.0 |
+| `community.windows` | 3.1.0 |
+| `community.general` | 12.5.0 |
 
-## Staging Server
+## Manual Install (if needed)
 
-SSH into the staging server:
+### Staging
 
 ```bash
 ssh odin@64.6.175.181
+
+INSTALL_CMD='apt-get update -qq && apt-get install --no-install-recommends -y python3-pip python3-venv && pip3 install --no-cache-dir --break-system-packages ansible-core==2.20.4 pywinrm requests-credssp && ansible-galaxy collection install ansible.windows:==3.5.0 ansible.posix:==2.1.0 community.windows:==3.1.0 community.general:==12.5.0 --force && rm -rf /var/lib/apt/lists /var/cache/apt/archives'
+
+docker exec -u root proxysock-sidekiq-staging bash -c "$INSTALL_CMD"
+docker exec -u root proxysock-web-staging bash -c "$INSTALL_CMD"
 ```
 
-Run on the **sidekiq** container (where Ansible provisioning jobs run):
+### Production
 
 ```bash
-docker exec -u root proxysock-sidekiq-staging bash -c '
-apt-get update -qq && 
-apt-get install --no-install-recommends -y python3-pip python3-venv &&
-pip3 install --no-cache-dir --break-system-packages pywinrm requests-credssp &&
-ansible-galaxy collection install ansible.windows ansible.posix community.windows community.general --force &&
-rm -rf /var/lib/apt/lists /var/cache/apt/archives &&
-echo "✅ Sidekiq container done"
-'
+INSTALL_CMD='apt-get update -qq && apt-get install --no-install-recommends -y python3-pip python3-venv && pip3 install --no-cache-dir --break-system-packages ansible-core==2.20.4 pywinrm requests-credssp && ansible-galaxy collection install ansible.windows:==3.5.0 ansible.posix:==2.1.0 community.windows:==3.1.0 community.general:==12.5.0 --force && rm -rf /var/lib/apt/lists /var/cache/apt/archives'
+
+docker exec -u root proxysock-sidekiq bash -c "$INSTALL_CMD"
+docker exec -u root proxysock-web bash -c "$INSTALL_CMD"
 ```
 
-Run on the **web** container (for manual Ansible commands / console):
+### Verify
 
 ```bash
-docker exec -u root proxysock-web-staging bash -c '
-apt-get update -qq && 
-apt-get install --no-install-recommends -y python3-pip python3-venv &&
-pip3 install --no-cache-dir --break-system-packages pywinrm requests-credssp &&
-ansible-galaxy collection install ansible.windows ansible.posix community.windows community.general --force &&
-rm -rf /var/lib/apt/lists /var/cache/apt/archives &&
-echo "✅ Web container done"
-'
+docker exec proxysock-sidekiq-staging bash -c 'ansible --version | head -1 && ansible-galaxy collection list | grep -E "(ansible\.windows|ansible\.posix|community\.windows|community\.general)"'
 ```
-
-## Production Server
-
-SSH into the production server and run the same commands with production container names:
-
-```bash
-docker exec -u root proxysock-sidekiq bash -c '
-apt-get update -qq && 
-apt-get install --no-install-recommends -y python3-pip python3-venv &&
-pip3 install --no-cache-dir --break-system-packages pywinrm requests-credssp &&
-ansible-galaxy collection install ansible.windows ansible.posix community.windows community.general --force &&
-rm -rf /var/lib/apt/lists /var/cache/apt/archives &&
-echo "✅ Sidekiq container done"
-'
-```
-
-```bash
-docker exec -u root proxysock-web bash -c '
-apt-get update -qq && 
-apt-get install --no-install-recommends -y python3-pip python3-venv &&
-pip3 install --no-cache-dir --break-system-packages pywinrm requests-credssp &&
-ansible-galaxy collection install ansible.windows ansible.posix community.windows community.general --force &&
-rm -rf /var/lib/apt/lists /var/cache/apt/archives &&
-echo "✅ Web container done"
-'
-```
-
-## Verify
-
-After running, verify inside any container:
-
-```bash
-docker exec proxysock-sidekiq-staging bash -c '
-pip3 show pywinrm | grep Version &&
-ansible-galaxy collection list | grep -E "(ansible\.windows|ansible\.posix|community\.windows|community\.general)"
-'
-```
-
-## Note
-
-These installs are ephemeral — they will be lost if containers are recreated. The updated `Dockerfile` and `ansible/requirements.yml` ensure all future image builds include these dependencies permanently.
