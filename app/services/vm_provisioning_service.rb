@@ -859,7 +859,8 @@ class VmProvisioningService
       'ANSIBLE_FORCE_COLOR' => 'True',
       'ANSIBLE_PYTHON_INTERPRETER' => 'auto_silent',
       'ANSIBLE_PIPELINING' => 'True',
-      'ANSIBLE_SSH_CONTROL_PATH' => '/tmp/ansible-ssh-%%h-%%p-%%r'
+      'ANSIBLE_SSH_CONTROL_PATH' => '/tmp/ansible-ssh-%%h-%%p-%%r',
+      'ANSIBLE_COLLECTIONS_PATH' => '/usr/share/ansible/collections:/home/rails/.ansible/collections'
     }
 
     @logger.info("Running Ansible Command: #{cmd.join(' ')}")

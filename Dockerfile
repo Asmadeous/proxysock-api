@@ -27,9 +27,10 @@ RUN pip3 install --no-cache-dir --break-system-packages \
       pywinrm \
       requests-credssp
 
-# Install Ansible Galaxy collections (pinned to match local dev)
+# Install Ansible Galaxy collections to system-wide path (accessible by rails user)
 COPY ansible/requirements.yml /tmp/ansible-requirements.yml
-RUN ansible-galaxy collection install -r /tmp/ansible-requirements.yml --force && \
+RUN ansible-galaxy collection install -r /tmp/ansible-requirements.yml \
+      -p /usr/share/ansible/collections --force && \
     rm /tmp/ansible-requirements.yml
 
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.

@@ -223,9 +223,7 @@
                 state: started
                 start_mode: auto
               loop:
-                - WinDefend
                 - wuauserv
-                - MpsSvc
               ignore_errors: yes
           tags: services
         
