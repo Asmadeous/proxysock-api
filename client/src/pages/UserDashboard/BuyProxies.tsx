@@ -14,13 +14,18 @@ import {
 } from "@/types/index";
 import { getCategoryIcon } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Info, ShoppingCart, X } from "lucide-react";
+import { Check, Info, ShoppingCart, X, Loader2, Zap } from "lucide-react";
 import { getCategoryColor } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryColor";
 import { renderProxyPlans } from "@/components/dashboard/Purchase-Products/buy-proxies/RenderProxyPlans";
 import { renderISPOptionsWithCountries } from "@/components/dashboard/Purchase-Products/buy-proxies/RenderISPOptionsWithCountries";
 import { conversionTracker } from "@/utils/redditPixel";
 
-export default function BuyProxies() {
+interface BuyProxiesProps {
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps = {}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedCategoryData, setSelectedCategoryData] =
@@ -34,6 +39,7 @@ export default function BuyProxies() {
   const [selectedISP, setSelectedISP] = useState<number | null>(null);
   const [selectedCity, setSelectedCity] = useState<number | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState<boolean>(false);
+  const [isProvisioning, setIsProvisioning] = useState<boolean>(false);
   const [period, setPeriod] = useState<number>(1);
   const [protocol, setProtocol] = useState<"http" | "socks5">("http");
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
@@ -568,6 +574,32 @@ export default function BuyProxies() {
         },
       }),
     };
+
+    if (isDirectBuy && onDirectBuy) {
+        setIsProvisioning(true);
+        onDirectBuy(plan.id, newCartItem.quantity || 1, {
+            ...newCartItem,
+            locationId: newCartItem.locationId,
+            locationsString: newCartItem.locationsString,
+            period: newCartItem.period,
+            protocol: newCartItem.protocol
+        }).then(() => {
+            setShowSuccessAlert(true);
+            setTimeout(() => setShowSuccessAlert(false), 3000);
+            setError(null);
+            setSelectedPlan(null);
+            setSelectedISP(null);
+            setSelectedCity(null);
+            setPeriod(1);
+            setQuantity(1);
+        }).catch((err) => {
+            setError(err?.response?.data?.error || err.message || "Failed to provision order");
+        }).finally(() => {
+            setIsProvisioning(false);
+        });
+        return;
+    }
+
     try {
       const existingCart = JSON.parse(
         localStorage.getItem("cartItems") || "[]",
@@ -768,12 +800,12 @@ export default function BuyProxies() {
                   <button
                     onClick={handleAddToCart}
                     disabled={
-                      !selectedPlan || totalPrice === null || error !== null
+                      !selectedPlan || totalPrice === null || error !== null || isProvisioning
                     }
                     className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
                   >
-                    <ShoppingCart className="w-5 h-5" />
-                    Add to Cart
+                    {isProvisioning ? <Loader2 className="w-5 h-5 animate-spin" /> : isDirectBuy ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+                    {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                   </button>
                   {error && (
                     <Card className="border-l-4 border-l-destructive bg-destructive/5">

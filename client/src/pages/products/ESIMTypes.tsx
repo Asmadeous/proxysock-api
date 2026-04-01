@@ -17,7 +17,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 
-export default function ESIMTypes() {
+interface ESIMTypesProps {
+  onNavigateUSA?: () => void;
+  onNavigateGlobal?: () => void;
+}
+
+export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypesProps = {}) {
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -111,13 +116,23 @@ export default function ESIMTypes() {
             </Card>
 
             {/* CTA Button */}
-            <Link
-              to="/dashboard/usa-esim"
-              className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
-            >
-              View USA Plans
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            {onNavigateUSA ? (
+              <button
+                onClick={onNavigateUSA}
+                className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
+              >
+                View USA Plans
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <Link
+                to="/dashboard/usa-esim"
+                className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
+              >
+                View USA Plans
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </CardContent>
         </Card>
 
@@ -204,13 +219,23 @@ export default function ESIMTypes() {
             </Card>
 
             {/* CTA Button */}
-            <Link
-              to="/dashboard/global-esim"
-              className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
-            >
-              View Global Plans
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            {onNavigateGlobal ? (
+              <button
+                onClick={onNavigateGlobal}
+                className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
+              >
+                View Global Plans
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <Link
+                to="/dashboard/global-esim"
+                className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all flex items-center justify-center gap-2 group"
+              >
+                View Global Plans
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>

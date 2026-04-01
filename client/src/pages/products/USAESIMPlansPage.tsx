@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowLeft, X, Loader2, Zap } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,9 +115,16 @@ const USAESIMCardSkeleton = () => (
   </Card>
 );
 
-export default function USAESIMPlansPage() {
+interface USAESIMPlansPageProps {
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +184,17 @@ export default function USAESIMPlansPage() {
     return () => globalThis.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
 
-  const addToCart = (plan: USAESIMPlan) => {
+  const addToCart = async (plan: USAESIMPlan) => {
+    if (isDirectBuy && onDirectBuy) {
+        setProvisioningPkgId(plan.id);
+        try {
+            await onDirectBuy(plan.id, plan.moq || 1, {});
+        } finally {
+            setProvisioningPkgId(null);
+        }
+        return;
+    }
+
     const storedCart = localStorage.getItem('cartItems');
     let currentCart = [];
 
@@ -294,7 +311,7 @@ export default function USAESIMPlansPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => globalThis.history.back()}
+              onClick={() => onBack ? onBack() : globalThis.history.back()}
               className="p-2"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -340,7 +357,7 @@ export default function USAESIMPlansPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => globalThis.history.back()}
+            onClick={() => onBack ? onBack() : globalThis.history.back()}
             className="p-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -513,11 +530,11 @@ export default function USAESIMPlansPage() {
                 ) : (
                   <Button
                     onClick={() => addToCart(plan)}
+                    disabled={provisioningPkgId === plan.id}
                     className="w-full gap-2"
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    Add to Cart
-                    <ArrowRight className="h-5 w-5" />
+                    {provisioningPkgId === plan.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                    {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                   </Button>
                 )}
               </CardContent>

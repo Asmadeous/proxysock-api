@@ -68,6 +68,9 @@
             - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
               name: "UserAuthentication"
               data: 0
+            - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+              name: "SecurityLayer"
+              data: 0
 
         - name: Configure RDP Port in Registry
           win_regedit:
@@ -89,21 +92,20 @@
             state: present
             enabled: yes
 
-        - name: Restart Remote Desktop Service to apply port change
-          win_service:
-            name: TermService
-            state: restarted
-          ignore_errors: yes
-
         - name: Set hostname
           win_hostname:
             name: "{{ hostname }}"
           register: hostname_result
           when: hostname is defined
 
-        - name: Reboot if needed
+        - name: Reboot to apply all changes
           win_reboot:
-          when: (hostname_result is defined and hostname_result.reboot_required) or (update_result is defined and update_result.reboot_required)
+            reboot_timeout: 600
+            post_reboot_delay: 30
+          when: >
+            (hostname_result is defined and hostname_result.reboot_required) or
+            (update_result is defined and update_result.reboot_required) or
+            true
 
         - name: Notify API - Success
           uri:

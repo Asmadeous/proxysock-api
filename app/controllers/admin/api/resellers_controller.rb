@@ -117,7 +117,9 @@ module Admin
       end
 
       def reseller_create_params
-        params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
+        p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
+        p[:password] ||= params[:password] if params[:password].present?
+        p
       end
 
       def reseller_json(r, full: false)

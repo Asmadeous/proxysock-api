@@ -18,6 +18,7 @@ import {
   Star,
   Sparkles,
   Flame,
+  Loader2,
 } from "lucide-react";
 import { conversionTracker } from "@/utils/redditPixel";
 import {
@@ -91,10 +92,17 @@ interface OSMetadata {
   description: string;
 }
 
-export default function RDPPlans() {
+interface RDPPlansProps {
+  country?: string;
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function RDPPlans({ country, onBack, isDirectBuy, onDirectBuy }: RDPPlansProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const countryParam = searchParams.get("country") || "";
+  const countryParam = country || searchParams.get("country") || "";
 
   const [plans, setPlans] = useState<RDPPlan[]>([]);
   const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
@@ -106,6 +114,7 @@ export default function RDPPlans() {
   const [selectedManagement, setSelectedManagement] = useState("unmanaged");
   const [selectedCountry, setSelectedCountry] = useState(countryParam);
   const [showModal, setShowModal] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState(false);
 
   const { data: plansData = [], isLoading, error: queryError } = useQuery(
     ['rdpPlans'],
@@ -291,6 +300,23 @@ export default function RDPPlans() {
 
     const hostname = `rdp-${Math.random().toString(36).substring(2, 8)}`;
 
+    if (isDirectBuy && onDirectBuy) {
+        setIsProvisioning(true);
+        try {
+            await onDirectBuy(selectedPlan.id, 1, {
+                os_template: selectedOS,
+                country_code: selectedCountry,
+                management_type: selectedManagement,
+                hostname,
+                period: selectedDuration
+            });
+            setShowModal(false);
+        } finally {
+            setIsProvisioning(false);
+        }
+        return;
+    }
+
     const cartItem = {
       rdpPlan: selectedPlan,
       osTemplate: selectedOS,
@@ -469,10 +495,10 @@ export default function RDPPlans() {
       <div>
         <Button
           variant="outline"
-          onClick={() => navigate("/dashboard/rdp")}
+          onClick={() => onBack ? onBack() : navigate("/dashboard/rdp")}
           className="mb-4 gap-2"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Country Selection
+          <ArrowLeft className="w-4 h-4" /> {onBack ? 'Back to Store' : 'Back to Country Selection'}
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
@@ -890,10 +916,11 @@ export default function RDPPlans() {
                 </Button>
                 <Button
                   onClick={handleAddToCart}
-                  disabled={!selectedOS || !selectedCountry}
+                  disabled={!selectedOS || !selectedCountry || isProvisioning}
                   className="flex-1 gap-2"
                 >
-                  <ShoppingCart className="h-4 w-4" /> Add to Cart
+                  {isProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : isDirectBuy ? <Zap className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                  {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                 </Button>
               </div>
             </div>
