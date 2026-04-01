@@ -64,3 +64,4 @@ Thumbs.db
 /monitoring/prometheus/data/
 /monitoring/grafana/data/
 extract_pdf.rb
+/monitoring/prometheus/targets/*.json

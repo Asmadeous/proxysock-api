@@ -88,6 +88,21 @@
             update_password: always
           no_log: true
 
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
+          systemd:
+            name: ssh.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: yes
+
+        # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
@@ -115,8 +130,7 @@
           include_tasks: tasks/tailscale_linux.yml
           when: tailscale_config is defined
 
-        # ── Monitoring ────────────────────────────────────────────────────────
-
+        # Monitoring
         - name: Configure Prometheus Node Exporter to listen on custom port
           copy:
             content: |
@@ -124,15 +138,6 @@
             dest: /etc/default/prometheus-node-exporter
             mode: '0644'
           notify: restart_node_exporter
-
-        - name: Create textfile collector directory
-          file:
-            path: /var/lib/prometheus/node-exporter
-            state: directory
-            owner: prometheus
-            group: prometheus
-            mode: '0755'
-          ignore_errors: true
 
         - name: Create custom VM metrics script
           copy:
@@ -142,69 +147,11 @@
               cat > "${METRICS_FILE}.tmp" <<EOF
               # HELP vm_info VM metadata information
               # TYPE vm_info gauge
-              vm_info{vm_id="{{ vm_id | default('unknown') }}",hostname="{{ hostname | default('unknown') }}",os="debian",management_type="{{ management_type | default('managed') }}"} 1
+              vm_info{vm_id="{{ vm_id | default('unknown') }}",hostname="{{ hostname | default('unknown') }}",os="debian",management_type="managed"} 1
               EOF
               mv "${METRICS_FILE}.tmp" "${METRICS_FILE}"
             dest: /usr/local/bin/vm_metrics.sh
             mode: '0755'
-
-        - name: Set up cron job for VM metrics
-          cron:
-            name: "VM metrics collection"
-            minute: "*/5"
-            job: "/usr/local/bin/vm_metrics.sh"
-            user: root
-
-        - name: Configure unattended upgrades
-          copy:
-            content: |
-              Unattended-Upgrade::Origins-Pattern {
-                "origin=Debian,codename=${distro_codename},label=Debian-Security";
-                "o=Debian,a=${distro_codename}-updates";
-              };
-
-              Unattended-Upgrade::Package-Blacklist {
-              };
-
-              Unattended-Upgrade::AutoFixInterruptedDpkg "true";
-              Unattended-Upgrade::MinimalSteps "true";
-              Unattended-Upgrade::InstallOnShutdown "false";
-              Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-              Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
-              Unattended-Upgrade::Remove-Unused-Dependencies "true";
-              Unattended-Upgrade::Automatic-Reboot "false";
-              Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
-              Unattended-Upgrade::Automatic-Reboot-Time "02:00";
-              Unattended-Upgrade::SyslogEnable "true";
-            dest: /etc/apt/apt.conf.d/50unattended-upgrades
-            mode: '0644'
-            backup: yes
-
-        - name: Enable unattended upgrades
-          lineinfile:
-            path: /etc/apt/apt.conf.d/20auto-upgrades
-            regexp: "{{ item.regexp }}"
-            line: "{{ item.line }}"
-            create: yes
-          loop:
-            - { regexp: '^APT::Periodic::Update-Package-Lists', line: 'APT::Periodic::Update-Package-Lists "1";' }
-            - { regexp: '^APT::Periodic::Unattended-Upgrade', line: 'APT::Periodic::Unattended-Upgrade "1";' }
-            - { regexp: '^APT::Periodic::AutocleanInterval', line: 'APT::Periodic::AutocleanInterval "7";' }
-
-        - name: Configure fail2ban
-          copy:
-            content: |
-              [sshd]
-              enabled = true
-              port = ssh
-              filter = sshd
-              logpath = /var/log/auth.log
-              maxretry = 3
-              bantime = 3600
-              findtime = 600
-            dest: /etc/fail2ban/jail.d/sshd.conf
-            mode: '0644'
-          notify: restart_fail2ban
 
         - name: Ensure monitoring and security services are running
           systemd:
@@ -216,25 +163,21 @@
             - fail2ban
             - unattended-upgrades
 
-        - name: Check if reboot is required (info only)
-          stat:
-            path: /var/run/reboot-required
-          register: reboot_required_file
-
-        - name: Reboot if needed
-          reboot:
-            reboot_timeout: 600
-          when: reboot_required_file.stat.exists
-
-        - name: Verify services are running
-          systemd:
-            name: "{{ item }}"
-            state: started
-          loop:
-            - prometheus-node-exporter
-            - fail2ban
-            - unattended-upgrades
-          register: service_verification
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = {{ custom_port | default(22) }}
+              filter = sshd
+              logpath = /var/log/auth.log
+              maxretry = 3
+              bantime = 3600
+              findtime = 600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          notify: restart_fail2ban
 
         - name: Send status to management API
           uri:
@@ -249,13 +192,7 @@
               vm_id: "{{ vm_id }}"
               hostname: "{{ hostname | default(ansible_facts['hostname']) }}"
               os_template: "{{ os_template | default('debian') }}"
-              management_type: "{{ management_type | default('managed') }}"
-              connectivity_status: "working"
-              services_verified: "{{ service_verification.results | map(attribute='name') | list }}"
-              configuration_timestamp: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
-              proxy_configured: "{{ proxy_config is defined }}"
-              monitoring_enabled: true
-              unattended_upgrades_enabled: true
+              management_type: "managed"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
@@ -267,34 +204,6 @@
           become: no
           register: api_response
           failed_when: false
-          ignore_errors: yes
-
-        - name: Log configuration completion
-          debug:
-            msg: |
-              Debian VPS MANAGED Configuration Complete:
-              - VM ID: {{ vm_id | default('Unknown') }}
-              - Hostname: {{ hostname | default(ansible_facts['hostname']) }}
-              - User created: {{ new_user }}
-              - Connectivity: Working
-              - Proxy Configured: {{ proxy_config is defined }}
-              - Services: {{ service_verification.results | map(attribute='name') | list }}
-              - Monitoring: Enabled (prometheus-node-exporter, node_exporter_port={{ node_exporter_port }})
-              - Unattended Updates: Enabled
-              - API Response: {{ api_response.status | default('No response') }}
-
-        - name: Final configuration step
-          shell: |
-            echo "=== Debian VPS MANAGED Configuration Complete ==="
-            echo "✅ Root password updated"
-            echo "✅ User '{{ new_user }}' created with sudo access"
-            echo "✅ Hostname configured: {{ hostname | default(ansible_facts['hostname']) }}"
-            echo "✅ Essential packages installed"
-            echo "✅ Monitoring enabled (Prometheus Node Exporter :{{ node_exporter_port }})"
-            echo "✅ Security hardening (fail2ban, unattended-upgrades)"
-            echo "✅ Proxy configured: {{ 'Yes' if proxy_config is defined else 'No' }}"
-            echo ""
-            echo "Configuration complete"
 
       rescue:
         - name: Notify API - Failure
@@ -308,10 +217,7 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('debian') }}"
-              management_type: "{{ management_type | default('managed') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
@@ -323,20 +229,11 @@
           become: no
           ignore_errors: yes
 
-        - name: Final failure notification
-          debug:
-            msg:
-              - "❌ Debian VPS MANAGED Configuration FAILED!"
-              - "❌ VM ID: {{ vm_id | default('unknown') }}"
-              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
-              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
-
     - name: restart_fail2ban
       systemd:
         name: fail2ban
@@ -347,6 +244,9 @@
         name: prometheus-node-exporter
         state: restarted
 
-    - name: reload systemd
+    - name: restart_ssh
       systemd:
-        daemon_reload: yes
+        name: ssh
+        state: restarted
+      async: 10
+      poll: 0

@@ -855,9 +855,6 @@ class VmProvisioningService
 
     env = {
       'ANSIBLE_CONFIG' => File.join(Rails.root, 'ansible', 'ansible.cfg'),
-      'ANSIBLE_REMOTE_TMP' => '/tmp/.ansible/tmp',
-      'ANSIBLE_REMOTE_TEMP' => '/tmp/.ansible/tmp',
-      'ANSIBLE_LOCAL_TMP' => '/tmp/.ansible/tmp',
       'ANSIBLE_HOST_KEY_CHECKING' => 'False',
       'ANSIBLE_FORCE_COLOR' => 'True',
       'ANSIBLE_PYTHON_INTERPRETER' => 'auto_silent',

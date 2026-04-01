@@ -177,6 +177,8 @@ class OrderProvisioningService
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
+      'hostname' => @order.metadata&.dig('hostname').presence,
+      'management_type' => @order.metadata&.dig('management_type') || @product.metadata&.dig('management_type') || 'unmanaged',
       'country_code' => vm_order.country_code
     }
 

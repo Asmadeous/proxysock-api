@@ -33,10 +33,12 @@
 - name: Install Tailscale
   shell: |
     curl -fsSL https://tailscale.com/install.sh | sh
-  args:
-    creates: /usr/bin/tailscale
   retries: 3
   delay: 10
+
+- name: Reload systemd manager
+  systemd:
+    daemon_reload: yes
 
 # -----------------------------------------------------------------------
 # 3. SELinux (RedHat family only)
@@ -80,11 +82,10 @@
 # 4. Enable tailscaled
 # -----------------------------------------------------------------------
 - name: Enable and start tailscaled
-  systemd:
+  service:
     name: tailscaled
     enabled: yes
     state: started
-    daemon_reload: yes
 
 # -----------------------------------------------------------------------
 # 5. Authenticate
@@ -172,4 +173,4 @@
     --exit-node={{ tailscale_config.exit_node_ip }}
     --exit-node-allow-lan-access=true
     &
-  ignore_errors: yes
+  ignore_errors: true

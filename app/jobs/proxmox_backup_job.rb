@@ -28,26 +28,24 @@ class ProxmoxBackupJob < ApplicationJob
 
     logger.info "[ProxmoxBackupJob] Found #{vm_ids.length} VMs: #{vm_ids.join(', ')}"
 
-    # Run vzdump for all VMs in one shot
+    # Run vzdump for all VMs in one shot via API
     vmid_list = vm_ids.join(',')
-    cmd = [
-      'vzdump', vmid_list,
-      '--storage', storage,
-      '--compress', compress,
-      '--mode', mode,
-      '--prune-backups', "keep-last=#{keep_last}",
-      '--mailto', mailto,
-      '--notes-template', 'auto-backup-{{guestname}}-{{vmid}}'
-    ]
+    params = {
+      vmid: vmid_list,
+      storage: storage,
+      compress: compress,
+      mode: mode,
+      'prune-backups': "keep-last=#{keep_last}",
+      mailto: mailto,
+      'notes-template': 'auto-backup-{{guestname}}-{{vmid}}'
+    }
 
-    logger.info "[ProxmoxBackupJob] Executing: #{cmd.join(' ')}"
-    stdout, stderr, status = Open3.capture3(*cmd)
+    logger.info "[ProxmoxBackupJob] Triggering backup via API on node #{node} for VMs: #{vmid_list}"
+    upid = ProxmoxApiClient.trigger_backup(node, params)
 
-    if status.success?
-      logger.info '[ProxmoxBackupJob] Backup completed successfully'
-      logger.info "[ProxmoxBackupJob] Output: #{stdout.last(2000)}" if stdout.present?
-
-      record_backup_result(vm_ids, 'success')
+    if upid
+      logger.info "[ProxmoxBackupJob] Backup task started successfully via API. UPID: #{upid}"
+      record_backup_result(vm_ids, 'success', "Task UPID: #{upid}")
 
       # Notify admins
       Employee.where(active: true).find_each do |employee|
@@ -60,18 +58,18 @@ class ProxmoxBackupJob < ApplicationJob
         )
       end
     else
-      logger.error '[ProxmoxBackupJob] Backup FAILED'
-      logger.error "[ProxmoxBackupJob] stderr: #{stderr}"
+      error_msg = "Failed to trigger backup via API for node #{node}"
+      logger.error "[ProxmoxBackupJob] #{error_msg}"
 
-      record_backup_result(vm_ids, 'failed', stderr)
+      record_backup_result(vm_ids, 'failed', error_msg)
 
       Employee.where(active: true).find_each do |employee|
         NotificationService.notify(
           recipient: employee,
           category: 'error',
           title: 'Proxmox Backup Failed',
-          message: "Automatic backup failed: #{stderr.truncate(500)}",
-          metadata: { vm_ids: vm_ids, error: stderr, timestamp: Time.current.iso8601 }
+          message: "Automatic backup failed: #{error_msg}",
+          metadata: { vm_ids: vm_ids, error: error_msg, timestamp: Time.current.iso8601 }
         )
       end
     end
@@ -84,20 +82,10 @@ class ProxmoxBackupJob < ApplicationJob
   private
 
   def fetch_vm_ids(node)
-    # Use pvesh to list all QEMU VMs on the node
-    output, _stderr, _status = Open3.capture3('pvesh', 'get', "/nodes/#{node}/qemu", '--output-format', 'json')
-    return [] if output.blank?
+    vms = ProxmoxApiClient.list_vms(node)
+    return [] if vms.empty?
 
-    vms = JSON.parse(output)
     vms.map { |vm| vm['vmid'].to_s }.sort
-  rescue JSON::ParserError, StandardError => e
-    logger.error "[ProxmoxBackupJob] Failed to list VMs: #{e.message}"
-
-    # Fallback: parse qm list
-    output, _stderr, _status = Open3.capture3('qm', 'list')
-    return [] if output.blank?
-
-    output.lines.drop(1).map { |line| line.strip.split(/\s+/).first }.compact
   end
 
   def record_backup_result(vm_ids, status, error = nil)

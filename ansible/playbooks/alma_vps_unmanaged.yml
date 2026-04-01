@@ -1,7 +1,7 @@
 ---
 - name: Configure Alma Linux VPS UNMANAGED
   hosts: linux
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Ensure root_password is defined
@@ -11,16 +11,18 @@
 
   vars:
     new_user_password: "{{ root_password }}"
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
+
   tasks:
     - block:
         - name: Wait for SSH
           wait_for_connection:
             timeout: 300
-    
+
         - name: Update package cache
           dnf:
             update_cache: yes
-    
+
         - name: Create hostname user
           user:
             name: "{{ hostname }}"
@@ -29,28 +31,74 @@
             shell: /bin/bash
             create_home: yes
             state: present
-            no_log: true
+          no_log: true
           when: hostname is defined
 
+        - name: Install SELinux management tools
+          dnf:
+            name: policycoreutils-python-utils
+            state: present
+            update_cache: yes
+          ignore_errors: true
+
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable sshd.socket (use sshd service directly)
+          systemd:
+            name: sshd.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure sshd service is enabled
+          systemd:
+            name: sshd
+            enabled: yes
+
+        # Step 3 — set SELinux port labeling
+        - name: Add SELinux ssh_port_t with seport
+          seport:
+            ports: "{{ custom_port | default(22) }}"
+            proto: tcp
+            setype: ssh_port_t
+            state: present
+          when: custom_port is defined
+
+        # Step 4 — set firewalld rule
+        - name: Check if firewalld is running
+          command: systemctl is-active firewalld
+          register: firewalld_status
+          failed_when: false
+          changed_when: false
+
+        - name: Allow custom SSH port in firewalld
+          ansible.posix.firewalld:
+            port: "{{ custom_port | default(22) }}/tcp"
+            permanent: yes
+            state: enabled
+            immediate: yes
+          when: firewalld_status.stdout == 'active' and custom_port is defined
+
+        # Step 5 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
             regexp: '^#?Port '
             line: "Port {{ custom_port | default(22) }}"
           notify: restart_ssh
-    
+
         - name: Set hostname
           hostname:
             name: "{{ hostname }}"
           when: hostname is defined
-    
+
         - name: Update /etc/hosts with hostname
           lineinfile:
             path: /etc/hosts
-            regexp: '^127\.0\.1\.1'
-            line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
+            regexp: '^127\.0\.0\.1'
+            line: "127.0.0.1 {{ hostname | default(ansible_facts['hostname']) }} localhost"
           when: hostname is defined
-    
+
         - name: Enable EPEL repository
           dnf:
             name: epel-release
@@ -66,6 +114,21 @@
               - dnf-automatic
             state: present
 
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = {{ custom_port | default(22) }}
+              filter = sshd
+              logpath = /var/log/secure
+              maxretry = 3
+              bantime = 3600
+              findtime = 600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+
         - name: Enable security services
           systemd:
             name: "{{ item }}"
@@ -75,9 +138,9 @@
             - fail2ban
             - dnf-automatic.timer
 
-        - name: Final configuration step
-          command: echo "Configuration complete"
-          
+        - name: Ensure handlers are flushed
+          meta: flush_handlers
+
         - name: Notify API - Success
           uri:
             url: "{{ api_url }}/vm/{{ vm_id }}/status"
@@ -89,11 +152,15 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "configured"
-              os_template: "{{ os_template }}"
-              management_type: "{{ management_type }}"
+              os_template: "{{ os_template | default('alma') }}"
+              management_type: "unmanaged"
             validate_certs: yes
-            no_log: true
+          no_log: true
           delegate_to: localhost
+          become: false
+          when:
+            - api_url is defined
+            - vm_id is defined
 
       rescue:
         - name: Notify API - Failure
@@ -107,14 +174,28 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template }}"
-              management_type: "{{ management_type }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
+            validate_certs: yes
           delegate_to: localhost
-          ignore_errors: yes
+          become: false
+          ignore_errors: true
+          when:
+            - api_url is defined
+            - vm_id is defined
+
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
+    - name: restart_fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+
     - name: restart_ssh
       systemd:
         name: sshd
         state: restarted
+      async: 10
+      poll: 0

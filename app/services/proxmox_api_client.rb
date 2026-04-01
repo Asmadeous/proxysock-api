@@ -34,4 +34,42 @@ class ProxmoxApiClient
     Rails.logger.error("ProxmoxApiClient failed to fetch status: #{e.message}")
     nil
   end
+
+  # Lists all QEMU VMs on a specific node
+  # Returns array of VM hashes or empty array on failure
+  def self.list_vms(node)
+    return [] if node.blank? || api_base.blank?
+
+    url = "#{api_base}/nodes/#{node}/qemu"
+    response = get(url, headers: headers, verify: false, timeout: 10)
+
+    if response.success?
+      response['data'] || []
+    else
+      Rails.logger.warn("ProxmoxApiClient GET list_vms failed: #{response.code} #{response.message}")
+      []
+    end
+  rescue StandardError => e
+    Rails.logger.error("ProxmoxApiClient failed to list VMs: #{e.message}")
+    []
+  end
+
+  # Triggers a cluster-wide or node-specific backup (vzdump)
+  # Params should include node, storage, vmid (comma separated list), etc.
+  def self.trigger_backup(node, params = {})
+    return nil if node.blank? || api_base.blank?
+
+    url = "#{api_base}/nodes/#{node}/vzdump"
+    response = post(url, headers: headers, body: params.to_json, verify: false, timeout: 15)
+
+    if response.success?
+      response['data'] # This is usually the UPID of the backup task
+    else
+      Rails.logger.warn("ProxmoxApiClient POST vzdump failed: #{response.code} #{response.message}")
+      nil
+    end
+  rescue StandardError => e
+    Rails.logger.error("ProxmoxApiClient failed to trigger backup: #{e.message}")
+    nil
+  end
 end

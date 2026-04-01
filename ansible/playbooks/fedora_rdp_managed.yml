@@ -1,8 +1,8 @@
 ---
 - name: Configure Fedora Desktop RDP MANAGED
   hosts: linux
-  become: yes
-  gather_facts: no
+  become: true
+  gather_facts: false
 
   pre_tasks:
     - name: Ensure rdp_password is defined
@@ -22,7 +22,6 @@
     ansible_python_interpreter: /usr/bin/python3
     ansible_ssh_timeout: 120
     ansible_command_timeout: 1200
-    node_exporter_version: "1.8.2"
     node_exporter_port: 59100
 
   tasks:
@@ -68,7 +67,7 @@
             password: "{{ admin_password | password_hash('sha512') }}"
             groups: wheel
             shell: /bin/bash
-            create_home: yes
+            create_home: true
             state: present
           no_log: true
 
@@ -79,18 +78,59 @@
             mode: '0440'
             validate: 'visudo -cf %s'
 
+        # Step 1 — release port 22 from systemd socket control
         - name: Disable sshd.socket (use sshd service directly)
           systemd:
             name: sshd.socket
             state: stopped
-            enabled: no
+            enabled: false
           ignore_errors: true
 
+        # Step 2 — ensure the service itself is active
         - name: Ensure sshd service is enabled
           systemd:
             name: sshd
-            enabled: yes
-          ignore_errors: true
+            enabled: true
+
+        # Step 3 — set SELinux port labeling
+        - name: Add SELinux ssh_port_t with seport
+          seport:
+            ports: "{{ custom_port | default(22) }}"
+            proto: tcp
+            setype: ssh_port_t
+            state: present
+          when: custom_port is defined
+
+        # Step 4 — now this actually takes effect
+        - name: Check if firewalld is running
+          command: systemctl is-active firewalld
+          register: firewalld_status
+          failed_when: false
+          changed_when: false
+
+        - name: Allow custom SSH port in firewalld
+          ansible.posix.firewalld:
+            port: "{{ custom_port | default(22) }}/tcp"
+            permanent: true
+            state: enabled
+            immediate: true
+          when: firewalld_status.stdout == 'active' and custom_port is defined
+
+        - name: Allow RDP port in firewalld
+          ansible.posix.firewalld:
+            port: "{{ custom_port | default(3389) }}/tcp"
+            permanent: true
+            state: enabled
+            immediate: true
+          when: firewalld_status.stdout == 'active'
+
+        - name: Add SELinux RDP port labeling
+          seport:
+            ports: "{{ custom_port | default(3389) }}"
+            proto: tcp
+            setype: xrdp_port_t
+            state: present
+          when: custom_port is defined
 
         - name: Configure SSH to use custom port
           lineinfile:
@@ -104,166 +144,26 @@
             path: /etc/xrdp/xrdp.ini
             regexp: "{{ item.regexp }}"
             line: "{{ item.line }}"
-            backup: yes
+            backup: true
           loop:
             - { regexp: '^max_bpp=', line: 'max_bpp=32' }
             - { regexp: '^use_vsock=', line: 'use_vsock=false' }
             - { regexp: '^tcp_nodelay=', line: 'tcp_nodelay=true' }
             - { regexp: '^tcp_keepalive=', line: 'tcp_keepalive=true' }
+            - { regexp: '^port=', line: "port={{ custom_port | default(3389) }}" }
           notify: restart xrdp
 
         - name: Enable and start xrdp services
           systemd:
             name: "{{ item }}"
-            enabled: yes
+            enabled: true
             state: started
           loop:
             - xrdp
             - xrdp-sesman
 
-        - name: Set hostname
-          hostname:
-            name: "{{ hostname | default('fedora-rdp') }}"
-          when: hostname is defined
-
-        - name: Update /etc/hosts with hostname
-          lineinfile:
-            path: /etc/hosts
-            regexp: '^127\.0\.1\.1'
-            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
-          when: hostname is defined
-
-        - name: Configure SELinux booleans for xrdp
-          seboolean:
-            name: "{{ item }}"
-            state: yes
-            persistent: yes
-          loop:
-            - allow_polyinstantiation
-            - use_nfs_home_dirs
-          ignore_errors: true
-          when:
-            - ansible_facts['selinux'] is defined
-            - ansible_facts['selinux'].status == "enabled"
-
-        - name: Configure SELinux to allow custom SSH port
-          seport:
-            ports: "{{ custom_port | default(22) }}"
-            proto: tcp
-            setype: ssh_port_t
-            state: present
-          ignore_errors: true
-          when:
-            - ansible_facts['selinux'] is defined
-            - ansible_facts['selinux'].status == "enabled"
-            - custom_port is defined
-            - custom_port | int != 22
-
-        - name: Configure proxy settings
-          include_tasks: tasks/proxy_config.yml
-          when: proxy_config is defined
-
-        - name: Configure Tailscale VPN
-          include_tasks: tasks/tailscale_linux.yml
-          when: tailscale_config is defined
-
-        # ── Monitoring ────────────────────────────────────────────────────────
-
-        - name: Create prometheus system user
-          user:
-            name: prometheus
-            system: yes
-            shell: /sbin/nologin
-            home: /var/lib/prometheus
-            create_home: no
-
-        - name: Create prometheus directories
-          file:
-            path: "{{ item }}"
-            state: directory
-            owner: prometheus
-            group: prometheus
-            mode: '0755'
-          loop:
-            - /var/lib/prometheus
-            - /var/lib/prometheus/node-exporter
-
-        - name: Download Prometheus Node Exporter
-          get_url:
-            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-            dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
-            mode: '0644'
-          retries: 3
-          delay: 5
-
-        - name: Extract Node Exporter
-          unarchive:
-            src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
-            dest: /tmp
-            remote_src: yes
-
-        - name: Install node_exporter binary
-          copy:
-            src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
-            dest: /usr/local/bin/node_exporter
-            owner: prometheus
-            group: prometheus
-            mode: '0755'
-            remote_src: yes
-
-        - name: Clean up downloaded node_exporter files
-          file:
-            path: "{{ item }}"
-            state: absent
-          loop:
-            - "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
-            - "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64"
-
-        - name: Create node_exporter systemd service
-          copy:
-            dest: /etc/systemd/system/node_exporter.service
-            mode: '0644'
-            content: |
-              [Unit]
-              Description=Prometheus Node Exporter
-              Wants=network-online.target
-              After=network-online.target
-
-              [Service]
-              User=prometheus
-              Group=prometheus
-              Type=simple
-              ExecStart=/usr/local/bin/node_exporter \
-                --web.listen-address=:{{ node_exporter_port }} \
-                --collector.textfile.directory=/var/lib/prometheus/node-exporter
-              Restart=on-failure
-
-              [Install]
-              WantedBy=multi-user.target
-          notify: reload systemd
-
-        - name: Create custom VM metrics script
-          copy:
-            dest: /usr/local/bin/vm_metrics.sh
-            mode: '0755'
-            content: |
-              #!/bin/bash
-              METRICS_FILE="/var/lib/prometheus/node-exporter/vm_info.prom"
-              cat > "${METRICS_FILE}.tmp" <<EOF
-              # HELP vm_info VM metadata information
-              # TYPE vm_info gauge
-              vm_info{vm_id="{{ vm_id | default('unknown') }}",hostname="{{ hostname | default('unknown') }}",os="fedora",management_type="{{ management_type | default('managed') }}"} 1
-              EOF
-              mv "${METRICS_FILE}.tmp" "${METRICS_FILE}"
-
-        - name: Set up cron job for VM metrics
-          cron:
-            name: "VM metrics collection"
-            minute: "*/5"
-            job: "/usr/local/bin/vm_metrics.sh"
-            user: root
-
-        - name: Configure fail2ban for custom SSH port
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
           copy:
             content: |
               [sshd]
@@ -278,37 +178,37 @@
             mode: '0644'
           notify: restart_fail2ban
 
-        - name: Configure dnf-automatic for security updates
-          copy:
-            content: |
-              [commands]
-              upgrade_type = security
-              random_sleep = 0
-              network_online_timeout = 60
-              download_updates = yes
-              apply_updates = yes
-
-              [emitters]
-              emit_via = stdio
-
-              [base]
-              debuglevel = 1
-            dest: /etc/dnf/automatic.conf
-            mode: '0644'
-            backup: yes
-
-        - name: Enable monitoring, security and auto-update services
+        - name: Enable security and monitoring services
           systemd:
             name: "{{ item }}"
-            enabled: yes
+            enabled: true
             state: started
           loop:
-            - node_exporter
             - fail2ban
             - dnf-automatic.timer
-          ignore_errors: yes
+          ignore_errors: true
 
-        - name: Send status to management API
+        - name: Set hostname
+          hostname:
+            name: "{{ hostname | default('fedora-rdp') }}"
+          when: hostname is defined
+
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.0\.1'
+            line: "127.0.0.1 {{ hostname | default(ansible_facts['hostname']) }} localhost"
+          when: hostname is defined
+
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
+
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
+
+        - name: Notify API - Success
           uri:
             url: "{{ api_url }}/vm/{{ vm_id }}/status"
             method: POST
@@ -317,41 +217,20 @@
               Content-Type: "application/json"
             body_format: json
             body:
-              status: "configured"
               vm_id: "{{ vm_id }}"
-              hostname: "{{ hostname | default(ansible_facts['hostname']) }}"
-              os_template: "{{ os_template | default('fedora') }}"
-              management_type: "{{ management_type | default('managed') }}"
+              status: "configured"
+              os_template: "{{ os_template | default('fedora-rdp') }}"
+              management_type: "managed"
               rdp_configured: true
-              connectivity_status: "working"
-              configuration_timestamp: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
-              proxy_configured: "{{ proxy_config is defined }}"
-              monitoring_enabled: true
-              unattended_upgrades_enabled: true
             status_code: [200, 201]
-            validate_certs: yes
+            validate_certs: true
             timeout: 30
           no_log: true
           when:
             - api_url is defined
             - vm_id is defined
           delegate_to: localhost
-          become: no
-          register: api_response
-          failed_when: false
-          ignore_errors: yes
-
-        - name: Final configuration step
-          shell: |
-            echo "=== Fedora RDP MANAGED Configuration Complete ==="
-            echo "✅ Administrator user '{{ admin_username }}' created"
-            echo "✅ SSH port set to {{ custom_port | default(22) }}"
-            echo "✅ RDP (xrdp/gnome-desktop) configured"
-            echo "✅ Monitoring enabled (Node Exporter :{{ node_exporter_port }})"
-            echo "✅ Security hardening (fail2ban, dnf-automatic)"
-            echo "✅ Proxy configured: {{ 'Yes' if proxy_config is defined else 'No' }}"
-            echo ""
-            echo "Configuration complete"
+          become: false
 
       rescue:
         - name: Notify API - Failure
@@ -365,28 +244,16 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('fedora') }}"
-              management_type: "{{ management_type | default('managed') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
-            status_code: [200, 201]
-            validate_certs: yes
-            timeout: 30
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
+            validate_certs: true
           no_log: true
-          when:
-            - api_url is defined
-            - vm_id is defined
           delegate_to: localhost
-          become: no
-          ignore_errors: yes
+          become: false
+          ignore_errors: true
 
-        - name: Final failure notification
-          debug:
-            msg:
-              - "❌ Fedora RDP MANAGED Configuration FAILED!"
-              - "❌ VM ID: {{ vm_id | default('unknown') }}"
-              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
-              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
     - name: restart xrdp
@@ -401,20 +268,10 @@
       systemd:
         name: fail2ban
         state: restarted
-      ignore_errors: true
 
     - name: restart_ssh
       systemd:
         name: sshd
         state: restarted
-      ignore_errors: true
-
-    - name: restart node-exporter
-      systemd:
-        name: node_exporter
-        state: restarted
-      ignore_errors: true
-
-    - name: reload systemd
-      systemd:
-        daemon_reload: yes
+      async: 10
+      poll: 0

@@ -76,6 +76,21 @@
             update_password: always
           no_log: true
 
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
+          systemd:
+            name: ssh.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: yes
+
+        # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
@@ -105,6 +120,22 @@
             - unattended-upgrades
           ignore_errors: yes
 
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = {{ custom_port | default(22) }}
+              filter = sshd
+              logpath = /var/log/auth.log
+              maxretry = 3
+              bantime = 3600
+              findtime = 600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          notify: restart_fail2ban
+
         - name: Configure proxy settings
           include_tasks: tasks/proxy_config.yml
           when: proxy_config is defined
@@ -125,9 +156,7 @@
               vm_id: "{{ vm_id }}"
               status: "configured"
               os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('unmanaged') }}"
-              admin_configured: true
-              configuration_completed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+              management_type: "unmanaged"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
@@ -150,36 +179,26 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('unmanaged') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_facts['date_time']['iso8601'] | default('unknown') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
             validate_certs: yes
           no_log: true
           delegate_to: localhost
           become: no
           ignore_errors: yes
 
-        - name: Final failure notification
-          debug:
-            msg:
-              - "❌ Ubuntu VPS Unmanaged Configuration FAILED!"
-              - "❌ VM ID: {{ vm_id | default('unknown') }}"
-              - "❌ Task: {{ ansible_failed_task.name | default('Unknown') }}"
-              - "❌ Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
-
     - name: restart_fail2ban
       systemd:
         name: fail2ban
         state: restarted
-      ignore_errors: true
 
-    - name: reload systemd
+    - name: restart_ssh
       systemd:
-        daemon_reload: yes
+        name: ssh
+        state: restarted
+      async: 10
+      poll: 0
