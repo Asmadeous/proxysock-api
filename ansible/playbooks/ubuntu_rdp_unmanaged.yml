@@ -130,13 +130,17 @@
         - name: Create .xsession file for RDP user
           copy:
             content: |
+              #!/bin/sh
               export GNOME_SHELL_SESSION_MODE=ubuntu
               export XDG_CURRENT_DESKTOP=ubuntu:GNOME
-              exec env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS gnome-session
+              export XDG_SESSION_TYPE=x11
+              export XDG_SESSION_DESKTOP=ubuntu
+              export XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg
+              exec env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS gnome-session --session=ubuntu
             dest: "/home/{{ admin_username }}/.xsession"
             owner: "{{ admin_username }}"
             group: "{{ admin_username }}"
-            mode: '0644'
+            mode: '0755'
 
         - name: Configure Polkit to allow color management over RDP (modern rules)
           copy:
