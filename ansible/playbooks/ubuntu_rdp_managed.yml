@@ -43,12 +43,10 @@
           retries: 5
           delay: 10
 
-        - name: Install RDP packages and desktop environment
+        - name: Install RDP packages
           apt:
             name:
               - xrdp
-              - xfce4
-              - xfce4-goodies
               - curl
               - wget
               - vim
@@ -64,11 +62,14 @@
         - name: Create Administrator user for RDP
           user:
             name: "{{ admin_username }}"
-            password: "{{ admin_password | password_hash('sha512') }}"
             groups: sudo
             shell: /bin/bash
             create_home: true
             state: present
+          no_log: true
+
+        - name: Set Administrator password via OS native chpasswd
+          shell: "echo '{{ admin_username }}:{{ admin_password }}' | chpasswd"
           no_log: true
 
         - name: Add users to ssl-cert group
@@ -130,7 +131,10 @@
 
         - name: Create .xsession file for RDP user
           copy:
-            content: "exec startxfce4\n"
+            content: |
+              export GNOME_SHELL_SESSION_MODE=ubuntu
+              export XDG_CURRENT_DESKTOP=ubuntu:GNOME
+              exec env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS gnome-session
             dest: "/home/{{ admin_username }}/.xsession"
             owner: "{{ admin_username }}"
             group: "{{ admin_username }}"
