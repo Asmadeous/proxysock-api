@@ -51,13 +51,9 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
             className="mt-8 max-w-2xl text-base sm:text-lg font-inter-regular text-foreground"
           >
             High-performance{" "}
-            <strong className="text-primary">residential VPNs</strong>
-            <span className="text-primary font-manrope-bold">
-              proxy services
-            </span>{" "}
-            font-manrope-bold , Windows{" "}
-            <span className="text-primary  font-manrope-bold">RDP hosting</span>
-            , enterprise{" "}
+            <strong className="text-primary font-manrope-bold">residential VPNs</strong>,{" "}
+            <span className="text-primary font-manrope-bold">proxy services</span>, Windows{" "}
+            <span className="text-primary font-manrope-bold">RDP hosting</span>, enterprise{" "}
             <span className="text-primary  font-manrope-bold">VPS servers</span>{" "}
             and global{" "}
             <span className="text-primary font-manrope-bold">
