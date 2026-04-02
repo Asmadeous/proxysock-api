@@ -100,13 +100,7 @@
             name: ssh
             enabled: true
 
-        # Step 3 — now this actually takes effect
-        - name: Configure SSH to use custom port
-          lineinfile:
-            path: /etc/ssh/sshd_config
-            regexp: '^#?Port '
-            line: "Port {{ custom_port | default(22) }}"
-          notify: restart_ssh
+
 
         - name: Configure xrdp service (ini settings)
           ini_file:
@@ -180,7 +174,7 @@
             content: |
               [sshd]
               enabled = true
-              port = {{ custom_port | default(22) }}
+              port = 22
               filter = sshd
               logpath = /var/log/auth.log
               maxretry = 3
@@ -234,6 +228,10 @@
           delegate_to: localhost
           become: false
 
+        - name: Permanently disable SSH after playbook completion
+          shell: "nohup bash -c 'sleep 5 && systemctl stop ssh && systemctl disable ssh' > /dev/null 2>&1 &"
+          ignore_errors: true
+
       rescue:
         - name: Notify API - Failure
           uri:
@@ -271,9 +269,4 @@
         name: fail2ban
         state: restarted
 
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
-      async: 10
-      poll: 0
+

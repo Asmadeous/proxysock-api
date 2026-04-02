@@ -92,14 +92,7 @@
             name: sshd
             enabled: true
 
-        # Step 3 — set SELinux port labeling
-        - name: Add SELinux ssh_port_t with seport
-          seport:
-            ports: "{{ custom_port | default(22) }}"
-            proto: tcp
-            setype: ssh_port_t
-            state: present
-          when: custom_port is defined
+
 
         # Step 4 — now this actually takes effect
         - name: Check if firewalld is running
@@ -108,13 +101,7 @@
           failed_when: false
           changed_when: false
 
-        - name: Allow custom SSH port in firewalld
-          ansible.posix.firewalld:
-            port: "{{ custom_port | default(22) }}/tcp"
-            permanent: true
-            state: enabled
-            immediate: true
-          when: firewalld_status.stdout == 'active' and custom_port is defined
+
 
         - name: Allow RDP port in firewalld
           ansible.posix.firewalld:
@@ -132,12 +119,7 @@
             state: present
           when: custom_port is defined
 
-        - name: Configure SSH to use custom port
-          lineinfile:
-            path: /etc/ssh/sshd_config
-            regexp: '^#?Port '
-            line: "Port {{ custom_port | default(22) }}"
-          notify: restart_ssh
+
 
         - name: Configure xrdp service
           lineinfile:
@@ -168,7 +150,7 @@
             content: |
               [sshd]
               enabled = true
-              port = {{ custom_port | default(22) }}
+              port = 22
               filter = sshd
               logpath = /var/log/secure
               maxretry = 3
@@ -232,6 +214,10 @@
           delegate_to: localhost
           become: false
 
+        - name: Permanently disable SSH after playbook completion
+          shell: "nohup bash -c 'sleep 5 && systemctl stop sshd && systemctl disable sshd' > /dev/null 2>&1 &"
+          ignore_errors: true
+
       rescue:
         - name: Notify API - Failure
           uri:
@@ -269,9 +255,4 @@
         name: fail2ban
         state: restarted
 
-    - name: restart_ssh
-      systemd:
-        name: sshd
-        state: restarted
-      async: 10
-      poll: 0
+
