@@ -138,7 +138,7 @@ const VPSManagement = () => {
     try {
       setIsUpdatingPassword(true);
       await changeVmPassword(showPasswordModal.id, newPassword);
-      toast.success('Password change initiated via Ansible');
+      toast.success('Password change initiated successfully');
       setShowPasswordModal(null);
       setNewPassword('');
       loadVPSInstances();
@@ -1229,7 +1229,7 @@ const VPSManagement = () => {
 
               <p className="text-sm text-muted-foreground mb-4">
                 Updating password for <strong>{showPasswordModal.hostname || `VM ${showPasswordModal.vm_id}`}</strong>.
-                This will trigger an Ansible playbook to securely update the credentials on the instance.
+                This will securely update the credentials on your instance. Please allow a few minutes for the changes to apply.
               </p>
 
               <div className="space-y-4">
