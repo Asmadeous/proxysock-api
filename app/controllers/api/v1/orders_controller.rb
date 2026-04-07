@@ -7,10 +7,9 @@ module Api
 
       # GET /api/v1/orders
       def index
-        # Resellers can see all their orders
-        # Using ResellerOrder as the primary query base to get all products they've purchased for resale
-        scope = current_reseller.orders
-                                .includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
+        # Resellers can see all their orders.
+        # Infrastructure resellers also see orders from all their managed users.
+        scope = order_scope.includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
 
         if params[:product_type].present?
           types = params[:product_type].split(',')
@@ -36,13 +35,13 @@ module Api
 
       # GET /api/v1/orders/:id
       def show
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
         render json: serialize_order(order)
       end
 
       # GET /api/v1/orders/stats
       def stats
-        orders = current_reseller.orders
+        orders = order_scope
 
         active_statuses = %w[active processing completed delivered allocated]
         pending_statuses = %w[pending provisioning awaiting_payment]
@@ -255,7 +254,7 @@ module Api
       # GET /api/v1/orders/:id/credentials
       # Returns credentials dynamically based on product type
       def credentials
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
         resource = order.provisioned_resource
 
         unless resource
@@ -291,7 +290,7 @@ module Api
             server_ip: resource.server_ip,
             status: resource.status
           }
-        when 'proxy', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
+        when 'proxy', 'isp', 'datacenter', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
           # Dynamic credential mapping for various proxy models
           # MobileProxy, StaticDatacenterProxy, GlobalIspProxy, etc.
           proxies = if resource.respond_to?(:proxies)
@@ -345,7 +344,7 @@ module Api
 
       # POST /api/v1/orders/:id/renew
       def renew
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
 
         # Double check reseller restriction (already handled by model but safe to be explicit)
         unless order.product.product_type == 'vm'
@@ -367,7 +366,7 @@ module Api
       # POST /api/v1/orders/:id/cancel
       # Resellers can cancel orders within 1 hour of creation
       def cancel
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
 
         # Check if order can be cancelled
         unless %w[pending active processing completed delivered allocated].include?(order.status)
@@ -413,7 +412,7 @@ module Api
 
       # POST /api/v1/orders/:id/reorder
       def reorder
-        original_order = current_reseller.orders.find(params[:id])
+        original_order = order_scope.find(params[:id])
         product = original_order.product
         pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
 
@@ -459,6 +458,21 @@ module Api
         }
       end
 
+      # Centralized order scope for hierarchical reseller management
+      def order_scope
+        if current_reseller.infrastructure?
+          # Infrastructure resellers see their own orders + their managed users' orders
+          managed_user_ids = current_reseller.managed_user_ids
+          Order.where(
+            "(orderable_type = 'Reseller' AND orderable_id = ?) OR (orderable_type = 'User' AND orderable_id IN (?))",
+            current_reseller.id, managed_user_ids
+          )
+        else
+          # Standard resellers see ONLY their own direct orders
+          current_reseller.orders
+        end
+      end
+
       # ── api_only: Balance-based order ──
       # Deducts from main_wallet, provisions immediately, returns credentials in JSON.
       def create_api_only_order(product, pricing, custom_metadata = nil)
@@ -488,16 +502,15 @@ module Api
           )
         end
 
-        OrderProvisioningService.new(@order, current_reseller).process!
+        OrderProvisioningJob.perform_later(@order.id, current_reseller.id)
 
-        @order.reload
-        resource = @order.provisioned_resource
-
-        render json: serialize_order(@order).merge(
-          message: 'Order completed',
-          credentials: resource ? serialize_credentials(@order, resource) : nil,
+        render json: {
+          id: @order.id,
+          order_number: @order.order_number,
+          status: 'pending',
+          message: 'Order received and provisioning has started. Please wait a minute for credentials to appear.',
           available_balance: current_reseller.main_wallet&.balance.to_f
-        ), status: :created
+        }, status: :accepted
       end
 
       # ── infrastructure: Gateway-based order ──

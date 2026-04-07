@@ -19,6 +19,15 @@ module Web
         user.ip_address = request.remote_ip
         user.email_confirmation_token = SecureRandom.urlsafe_base64(32)
 
+        # Handle signing up under a reseller (Infrastructure Resellers)
+        if params[:user][:reseller_id].present?
+          reseller = Reseller.find_by(id: params[:user][:reseller_id])
+          if reseller&.infrastructure?
+            user.reseller = reseller
+            user.owner_type = 'reseller_managed'
+          end
+        end
+
         if user.save
           # Track affiliate referral if a referral code was provided
           if params[:user][:referral_code].present?
@@ -300,7 +309,7 @@ module Web
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
-                                     :country, :city, :username, :profile_picture_url, :referral_code, :avatar)
+                                     :country, :city, :username, :profile_picture_url, :referral_code, :avatar, :reseller_id)
       end
 
       def login_params

@@ -50,13 +50,18 @@ class OrderProvisioningService
     # 6. Record reseller profit share (replaced affiliate commission)
     ResellerEarningsService.record_profit_share!(@order)
 
-    NotificationService.notify(
-      recipient: @actor,
-      category: 'success',
-      title: 'Order Completed',
-      message: "Order ##{@order.order_number} has been successfully provisioned.",
-      metadata: { order_id: @order.id }
-    )
+    # Notify Admins and Support on success ONLY (as per requirements)
+    [Employee.admins, Employee.support_agents].each do |scope|
+      scope.find_each do |employee|
+        NotificationService.notify(
+          recipient: employee,
+          category: 'success',
+          title: 'Order Completed',
+          message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} has been successfully provisioned.",
+          metadata: { order_id: @order.id }
+        )
+      end
+    end
 
     true
   rescue StandardError => e
@@ -73,23 +78,49 @@ class OrderProvisioningService
     Rails.logger.error("[OrderProvisioningService] Failed: #{e.message}")
     @order.fail! if @order.may_fail?
 
-    NotificationService.notify(
-      recipient: @actor,
-      category: 'error',
-      title: 'Order Failed',
-      message: "Order ##{@order.order_number} failed to provision. Support has been notified.",
-      metadata: { order_id: @order.id, error: e.message }
-    )
-
-    # Notify Employees (System Alert)
-    Employee.where(active: true).find_each do |employee|
+    # Notify the Actor (Customer or Reseller)
+    if @actor.is_a?(Reseller)
+      # Direct Resellers get detailed failure info
       NotificationService.notify(
-        recipient: employee,
-        category: 'system_alert',
-        title: 'Provisioning Failure',
-        message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} failed: #{e.message}",
-        metadata: { order_id: @order.id, actor_id: @actor.id, actor_type: @actor.class.name }
+        recipient: @actor,
+        category: 'error',
+        title: 'Provisioning Failed',
+        message: "Your order ##{@order.order_number} failed to provision: #{e.message}",
+        metadata: { order_id: @order.id, error: e.message }
       )
+    elsif @actor.is_a?(User)
+      # Regular customers get a generic failure message
+      NotificationService.notify(
+        recipient: @actor,
+        category: 'error',
+        title: 'Provisioning Failed',
+        message: "Your order ##{@order.order_number} failed to provision. Support has been notified.",
+        metadata: { order_id: @order.id }
+      )
+
+      # If this user belongs to an Infrastructure Reseller, notify the reseller with details
+      if @actor.reseller.present?
+        NotificationService.notify(
+          recipient: @actor.reseller,
+          category: 'error',
+          title: 'Managed User Provisioning Failed',
+          message: "Managed user #{@actor.username}'s order ##{@order.order_number} failed: #{e.message}",
+          metadata: { order_id: @order.id, user_id: @actor.id, error: e.message }
+        )
+      end
+    end
+
+    # Notify Admins and Support ONLY on failure
+    [Employee.admins, Employee.support_agents].each do |scope|
+      scope.find_each do |employee|
+        NotificationService.notify(
+          recipient: employee,
+          category: 'system_alert',
+          title: 'Provisioning Failure',
+          message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} failed: #{e.message}",
+          metadata: { order_id: @order.id, actor_id: @actor.id, actor_type: @actor.class.name }
+        )
+      end
     end
 
     raise e
@@ -276,6 +307,10 @@ class OrderProvisioningService
     when 'myproxyapi'
       category_slug = @product.product_category&.slug
 
+      # NOTE: residential rotating and global-isp are different in a way.
+      # Global ISP targets specific ISP/City IDs for a fixed duration (7d/30d),
+      # while Residential Rotating uses traffic-based plans (GB) and dynamic pool rotations.
+
       # Extract provisioning params from order metadata.
       # 'period' = months/days string for static IPs, GB for residential rotating, IPs count for mobile
       raw_period = @order.metadata['period'] || @product.metadata&.dig('duration_value') || 1
@@ -341,8 +376,11 @@ class OrderProvisioningService
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
+        # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials
+        sleep(60)
+
         begin
-          # Use the appropriate view endpoint based on product category
+          # Re-fetch full details (IPs, credentials) from the provider
           full_details = if category_slug == 'mobile'
                            client.view_mobile_order(provider_order_id)
                          elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
@@ -350,8 +388,8 @@ class OrderProvisioningService
                          else
                            client.view_order(provider_order_id)
                          end
-          # Support multiple proxies across all categories where a list is returned
-          response = full_details['data'] || full_details
+          # Support both Array and Hash formats returned by the API
+          response = full_details['data'].is_a?(Array) ? full_details['data'].first : (full_details['data'] || full_details)
         rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
         end
@@ -383,19 +421,19 @@ class OrderProvisioningService
                         end
 
             proxy_creds = client.generate_v2_res_rot_proxy(
-              user_id:        user_id,
-              hostname:       proxy_hostname,
-              username:       proxy_username,
-              password:       proxy_password,
+              user_id: user_id,
+              hostname: proxy_hostname,
+              username: proxy_username,
+              password: proxy_password,
               proxy_rotation: proxy_rotation.to_s,
-              protocol:       protocol,
-              quantity:       1,
-              format:         'hostname:port:username:password',
-              country:        @order.metadata['residentalRotatingConfig']&.dig('country'),
-              state:          @order.metadata['residentalRotatingConfig']&.dig('state'),
-              city:           @order.metadata['residentalRotatingConfig']&.dig('city'),
-              isp:            @order.metadata['residentalRotatingConfig']&.dig('isp'),
-              targeting:      targeting
+              protocol: protocol,
+              quantity: 1,
+              format: 'hostname:port:username:password',
+              country: @order.metadata['residentalRotatingConfig']&.dig('country'),
+              state: @order.metadata['residentalRotatingConfig']&.dig('state'),
+              city: @order.metadata['residentalRotatingConfig']&.dig('city'),
+              isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              targeting: targeting
             )
             all_credentials << proxy_creds
           end
@@ -837,31 +875,58 @@ class OrderProvisioningService
           )
         end
       end
-    when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential'
-      if response['ips'].is_a?(Array)
-        # Handle new Static IP format: ["ip:port:user:pass", ...]
-        response['ips'].each_with_index do |cred_string, idx|
+    when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential', 'premium_isp'
+      proxy_order_class = case category_slug
+                          when 'datacenter' then StaticDatacenterProxyOrder
+                          when 'premium_isp', 'premium-isp' then PremiumIspProxyOrder
+                          when 'static-residential', 'static_residential' then StaticResidentialProxyOrder
+                          else StaticIspProxyOrder
+                          end
+
+      proxy_class = case category_slug
+                    when 'datacenter' then StaticDatacenterProxy
+                    when 'premium_isp', 'premium-isp' then PremiumIspProxy
+                    when 'static-residential', 'static_residential' then StaticResidentialProxy
+                    else StaticIspProxy
+                    end
+
+      # Create parent order record
+      po = proxy_order_class.find_or_create_by!(order: @order) do |o|
+        o.status = 'active' if o.respond_to?(:status=)
+      end
+      fk = proxy_order_class.name.underscore + "_id"
+
+      # Handle both Array and Hash responses
+      records = response['ips'] || (response.is_a?(Array) ? response : [response])
+
+      if records.is_a?(Array) && records.first.is_a?(String) && records.first.include?(':')
+        records.each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
-          StaticIspProxy.create!(
-            order: @order,
-            ip_address: parts[0],
-            port: parts[1],
-            username: parts[2],
-            password: parts[3],
+          # Sometimes IP is missing from string ("::user:pass"), use top-level fields
+          ip = parts[0].presence || response['ip'] || response['ip_address']
+          port = parts[1].presence || response['port'] || response['http_port'] || response['socks5_port']
+
+          proxy_class.create!(
+            order_id: @order.id,
+            fk => po.id,
+            ip_address: ip,
+            port: port,
+            username: parts[2] || response['username'],
+            password: parts[3] || response['password'],
             status: 'active',
             metadata: {
               original_cred: cred_string,
-              info: response.dig('ips_info', idx),
+              info: response.dig('ips_info', idx) || response['info'],
               config: response['config']
             }
           )
         end
       else
-        # Fallback to old format
         proxies_data = response.is_a?(Array) ? response : [response]
         proxies_data.each do |p_data|
-          StaticIspProxy.create!(
-            order: @order,
+          proxy_class.create!(
+            order_id: @order.id,
+            fk => po.id,
             ip_address: p_data['ip'] || p_data['ip_address'],
             port: p_data['port'] || p_data['http_port'] || p_data['socks5_port'],
             username: p_data['username'],
@@ -889,22 +954,22 @@ class OrderProvisioningService
       if creds_array.any?
         creds_array.each_with_index do |creds, idx|
           ResidentialRotatingProxy.create!(
-            order:                            @order,
+            order: @order,
             residential_rotating_proxy_order: ro,
-            myproxyapi_order_id:              provider_order_id,
-            main_username:                    creds['username'],
-            main_password:                    creds['password'],
-            hostname:                         creds['hostname'],
-            port:                             creds['port'],
-            traffic_gb_total:                 ro.traffic_gb_total,
-            traffic_gb_used:                  0,
-            status:                           'active',
+            myproxyapi_order_id: provider_order_id,
+            main_username: creds['username'],
+            main_password: creds['password'],
+            hostname: creds['hostname'],
+            port: creds['port'],
+            traffic_gb_total: ro.traffic_gb_total,
+            traffic_gb_used: 0,
+            status: 'active',
             metadata: {
-              credential_set:    idx + 1,
+              credential_set: idx + 1,
               rotation_strategy: @order.metadata&.dig('rotation_strategy'),
-              proxy_region:      @order.metadata&.dig('proxy_region'),
-              isp:               @order.metadata['residentalRotatingConfig']&.dig('isp'),
-              country:           @order.metadata['residentalRotatingConfig']&.dig('country'),
+              proxy_region: @order.metadata&.dig('proxy_region'),
+              isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              country: @order.metadata['residentalRotatingConfig']&.dig('country'),
               original_response: creds
             }
           )
@@ -912,13 +977,13 @@ class OrderProvisioningService
       else
         # v1 / non-v2 fallback: single placeholder representing pool access
         ResidentialRotatingProxy.create!(
-          order:                            @order,
+          order: @order,
           residential_rotating_proxy_order: ro,
-          myproxyapi_order_id:              provider_order_id,
-          traffic_gb_total:                 ro.traffic_gb_total,
-          traffic_gb_used:                  0,
-          status:                           'active',
-          metadata:                         order_data
+          myproxyapi_order_id: provider_order_id,
+          traffic_gb_total: ro.traffic_gb_total,
+          traffic_gb_used: 0,
+          status: 'active',
+          metadata: order_data
         )
       end
     end
