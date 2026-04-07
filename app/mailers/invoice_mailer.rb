@@ -31,7 +31,8 @@ class InvoiceMailer < ApplicationMailer
   def api_proxy_credentials_email
     @order        = params[:order]
     @owner        = params[:owner] || @order.orderable
-    @api_response = params[:api_response]
+    @api_response = params[:api_response].is_a?(Array) ? params[:api_response].first : params[:api_response]
+    @api_response ||= {}
     @title        = "Your Access Credentials - Order ##{@order.order_number}"
 
     if @order.respond_to?(:ovpn_config) && @order.ovpn_config.attached?
