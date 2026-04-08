@@ -517,6 +517,7 @@ DEPENDENCIES
   dotenv-rails
   httparty (~> 0.24.2)
   image_processing (~> 1.2)
+  json (>= 2.19.2)
   jwt
   kamal
   kaminari
