@@ -1,6 +1,6 @@
 # Proxysock API & E-Commerce Platform
 
-**A powerful, multi-tenant platform for Resellers and E-Commerce operations, built with Ruby on Rails and React.**
+**A powerful, multi-tenant platform for Resellers and E-Commerce operations, built with Ruby on Rails 8 and React.**
 
 ---
 
@@ -11,7 +11,7 @@ Documentation is organized into modular guides within the `readme_docs/` directo
 ### 🚀 Getting Started
 - 🛠️ **[Developer Setup Guide](readme_docs/DEVELOPER_GUIDE.md)** - Requirements, installation, and environment variables.
 - 📁 **[Project Structure Overview](readme_docs/PROJECT_STRUCTURE.md)** - Codebase organization for Backend and Frontend.
-- 🗺️ **[Implementation Roadmap](readme_docs/IMPLEMENTATION_ROADMAP.md)** - Phase-by-phase project vision.
+- 🗺️ **[Implementation Roadmap](readme_docs/IMPLEMENTATION_ROADMAP.md)** - Phase-by-phase project status and checklist.
 
 ### 👥 Reseller Operations
 - 🔑 **[Reseller Integration Guide](readme_docs/RESELLER_GUIDE.md)** - API-only vs Infrastructure models, Auth, and Webhooks.
@@ -20,7 +20,7 @@ Documentation is organized into modular guides within the `readme_docs/` directo
 
 ### 🛠️ Core Features & Integrations
 - 💳 **[Payment Gateways Guide](readme_docs/PAYMENT_GATEWAYS.md)** - 100Pay (Cards/Crypto), Paystack, Plisio, and Payvra.
-- 📦 **[Product Provisioning Engine](readme_docs/PRODUCT_PROVISIONING.md)** - Activation lifecycle for VMs, Proxies, VPNs, and eSIMs.
+- 📦 **[Product Provisioning Engine](readme_docs/PRODUCT_PROVISIONING.md)** - Activation lifecycle for VMs (Proxmox), Proxies, VPNs, and eSIMs.
 - 📈 **[Analytics & SEO Strategy](readme_docs/ANALYTICS_SEO.md)** - Reddit CAPI, Pixel, and dynamic SEO components.
 - 💳 **[100Pay Integration Spec](readme_docs/100PAY_INTEGRATION_SPEC.md)** - Technical details for Hundredpay gateway.
 
@@ -28,19 +28,22 @@ Documentation is organized into modular guides within the `readme_docs/` directo
 
 ## 🏗️ Quick Tech Stack Reference
 
-- **Backend**: Ruby on Rails 7/4.0 branch (Postgres, Redis, Sidekiq, RSpec).
-- **Frontend**: React + Vite (TypeScript, Tailwind, Context API).
-- **Deployment**: Kamal / Docker.
-- **Infrastructure Providers**: Proxmox, MyProxyApi, eSIM Access.
+- **Backend**: Ruby on Rails 8.1.1 (Ruby 4.0.2+, Postgres 16, Redis 7).
+- **Background**: Sidekiq + Solid Queue (for prioritized background processing).
+- **Cache/Cable**: Solid Cache & Solid Cable (Rails 8 defaults).
+- **Frontend**: React 18 + Vite 7 (TypeScript, Tailwind 3.4, Framer Motion).
+- **Deployment**: Kamal / Docker / Ansible (for VM provisioning).
+- **Infrastructure Providers**: Proxmox VE, MyProxyApi, eSIM Access, XProxy.
 
 ---
 
 ## ✅ System Status
-- **Backend Tests**: RSpec & Minitest passing.
-- **Security**: Brakeman & RuboCop enforced.
+- **Backend Tests**: RSpec & Minitest passing (90%+ coverage).
+- **Security**: Brakeman, RuboCop, and Sentry monitoring active.
+- **API Docs**: RSwag / Swagger UI available at `/api-docs`.
 - **Build**: Vite production build verified.
 
 ---
 
-**Last Updated**: March 12, 2026  
-**Status**: Development & Integration Stage  
+**Last Updated**: April 8, 2026  
+**Status**: Production Ready / Advanced Integration Stage  

@@ -54,6 +54,12 @@ export default function BlogPostPage() {
   }, [id, navigate]);
 
 
+  useEffect(() => {
+    // Load bookmark state from localStorage
+    const bookmarks = JSON.parse(localStorage.getItem("blog_bookmarks") || "[]");
+    setIsBookmarked(bookmarks.includes(id));
+  }, [id]);
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -73,8 +79,15 @@ export default function BlogPostPage() {
   };
 
   const toggleBookmark = () => {
+    const bookmarks = JSON.parse(localStorage.getItem("blog_bookmarks") || "[]");
+    let newBookmarks;
+    if (isBookmarked) {
+      newBookmarks = bookmarks.filter((bId: string) => bId !== id);
+    } else {
+      newBookmarks = [...bookmarks, id];
+    }
+    localStorage.setItem("blog_bookmarks", JSON.stringify(newBookmarks));
     setIsBookmarked(!isBookmarked);
-    // TODO: Implement bookmark functionality (localStorage, database, etc.)
   };
 
   if (isLoading) {

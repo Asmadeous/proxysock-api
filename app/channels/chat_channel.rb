@@ -2,8 +2,6 @@
 
 class ChatChannel < ApplicationCable::Channel
   def subscribed
-    # Clients should ideally pass chat_id and chat_type ("SupportChat" or "GuestChat")
-    # But we'll try to find the current chat if they don't, for user experience.
     @chat = resolve_chat
 
     if @chat && authorized_to_view?(@chat)

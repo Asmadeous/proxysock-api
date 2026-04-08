@@ -54,6 +54,27 @@ class ProxmoxApiClient
     []
   end
 
+  # VM Power Control Methods
+  def self.start_vm(node, vm_id)
+    url = "#{api_base}/nodes/#{node}/qemu/#{vm_id}/status/start"
+    post(url, headers: headers, verify: false, timeout: 15)
+  end
+
+  def self.stop_vm(node, vm_id)
+    url = "#{api_base}/nodes/#{node}/qemu/#{vm_id}/status/stop"
+    post(url, headers: headers, verify: false, timeout: 15)
+  end
+
+  def self.shutdown_vm(node, vm_id)
+    url = "#{api_base}/nodes/#{node}/qemu/#{vm_id}/status/shutdown"
+    post(url, headers: headers, verify: false, timeout: 15)
+  end
+
+  def self.reboot_vm(node, vm_id)
+    url = "#{api_base}/nodes/#{node}/qemu/#{vm_id}/status/reboot"
+    post(url, headers: headers, verify: false, timeout: 15)
+  end
+
   # Triggers a cluster-wide or node-specific backup (vzdump)
   # Params should include node, storage, vmid (comma separated list), etc.
   def self.trigger_backup(node, params = {})

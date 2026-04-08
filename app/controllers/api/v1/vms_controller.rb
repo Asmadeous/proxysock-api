@@ -53,34 +53,46 @@ module Api
 
       # POST /api/v1/vms/:id/start
       def start
-        # TODO: Implement start via Proxmox
-        render json: { message: 'Start command sent', vm_id: @vm.id }
+        VmControlJob.perform_later(@vm.id, 'start')
+        render json: { message: 'Start command sent', vm_id: @vm.id, status: 'starting' }
       end
 
       # POST /api/v1/vms/:id/stop
       def stop
-        # TODO: Implement stop via Proxmox
-        render json: { message: 'Stop command sent', vm_id: @vm.id }
+        VmControlJob.perform_later(@vm.id, 'stop')
+        render json: { message: 'Stop command sent', vm_id: @vm.id, status: 'stopping' }
       end
 
       # POST /api/v1/vms/:id/restart
       def restart
-        # TODO: Implement restart via Proxmox
-        render json: { message: 'Restart command sent', vm_id: @vm.id }
+        VmControlJob.perform_later(@vm.id, 'reboot')
+        render json: { message: 'Restart command sent', vm_id: @vm.id, status: 'restarting' }
       end
 
       # GET /api/v1/vms/:id/status
       def status
-        # Use cache for status
-        cached_status = Rails.cache.fetch("vm_status_#{@vm.id}", expires_in: 5.minutes) do
-          @vm.status
+        resource_usage = nil
+        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present?
+          if (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
+            resource_usage = {
+              cpu_percent: (pve_status['cpu'] || 0) * 100,
+              ram_percent: pve_status['maxmem'].to_f > 0 ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem'].to_f) * 100 : 0,
+              disk_percent: pve_status['maxdisk'].to_f > 0 ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk'].to_f) * 100 : 0,
+              uptime: pve_status['uptime'] || 0,
+              status: pve_status['status']
+            }
+          end
         end
+
+        # Use cache for status if Proxmox fetch fails
+        cached_status = Rails.cache.fetch("vm_status_#{@vm.id}", expires_in: 5.minutes) { @vm.status }
 
         render json: {
           vm_id: @vm.id,
-          status: cached_status,
+          status: resource_usage&.dig(:status) || cached_status,
           ip_address: @vm.ip_address,
-          proxmox_vm_id: @vm.proxmox_vm_id
+          proxmox_vm_id: @vm.proxmox_vm_id,
+          resource_usage: resource_usage
         }
       end
 
