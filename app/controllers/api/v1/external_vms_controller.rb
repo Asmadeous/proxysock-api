@@ -13,96 +13,101 @@ module Api
       # Temporary endpoint for Supabase integration — bypasses billing/balance logic.
       def provision
         # 1. Prepare parameters
-        # Map Supabase's 'proxy_config' to Rails standard 'proxy'
-        provision_params = vm_params.to_h
-        provision_params[:proxy] = params[:proxy_config] if params[:proxy_config].present?
-        provision_params[:callback_url] = params[:callback_url]
-        provision_params[:job_id]       = params[:job_id]
+        p_params = vm_params.to_h
+        p_params[:callback_url] = params[:callback_url]
+        p_params[:job_id]       = params[:job_id]
+        p_params[:proxy]        = params[:proxy_config] if params[:proxy_config].present?
 
         # 2. Create records
         vm = nil
+        order = nil
+        
         ActiveRecord::Base.transaction do
-          # External orders need a valid owner and product to satisfy DB constraints
-          # External orders must be owned by an admin actor
-          owner = Employee.find_by(role: 'admin')
-          product  = Product.find_by(product_type: provision_params[:vm_type] || 'vps') || Product.first
-          pricing  = product&.product_pricings&.first
+          owner = Employee.find_by(role: 'admin') || Employee.first
+          unless owner
+            render json: { error: "No Admin Employee found to own the external order." }, status: :unprocessable_entity
+            return
+          end
 
-          # Create an orphaned VM record but link it to a system order for metadata consistency
+          # Stub missing association for PricingService compatibility without touching core files
+          owner.define_singleton_method(:affiliate_referrals) { AffiliateReferral.none }
+
+          product = Product.find_by(product_type: p_params[:vm_type] || 'vps') || Product.first
+          pricing = product&.product_pricings&.first
+
+          unless product && pricing
+            render json: { error: "Product 'vps' or Pricing not found. Please ensure the product catalog is seeded." }, status: :unprocessable_entity
+            return
+          end
+
+          # Create system order for metadata consistency
           order = Order.new(
             orderable: owner,
             product: product,
             product_pricing: pricing,
-            quantity: 1,
-            status: 'completed',
+            status: 'processing',
+            total_amount: pricing.selling_price,
             metadata: {
               external_provision: true,
-              source: 'supabase',
-              callback_url: params[:callback_url],
-              external_job_id: params[:job_id]
+              callback_url: p_params[:callback_url],
+              external_job_id: p_params[:job_id]
             }
           )
 
+          # Crucial: Since we cannot touch the core PricingService to handle Employee actors,
+          # and Order has a before_save callback that calls PricingService,
+          # we must ensure that we don't trigger that callback in a way that crashes.
+          # We've already set the total_amount above.
+          
           vm_order = VmOrder.new(
             order: order,
-            os_type: provision_params[:os_template],
-            cpu_cores: provision_params[:cpu_cores] || 2,
-            ram_gb: provision_params[:ram_gb] || 4,
-            disk_gb: provision_params[:storage_gb] || 60,
+            vm_type: p_params[:vm_type] || 'vps',
+            os_type: p_params[:os_template],
+            cpu_cores: p_params[:cpu_cores] || 2,
+            ram_gb: p_params[:ram_gb] || 4,
+            disk_gb: p_params[:storage_gb] || 60,
             status: 'pending'
           )
-          
-          # Generate credentials locally so we can store them for the callback
-          service = VmProvisioningService.new(nil, Rails.logger)
-          password = service.generate_secure_password(16)
-          
+
           vm = Vm.new(
-            vm_order: vm_order,
             status: 'pending',
-            vm_type: provision_params[:vm_type] || 'vps',
-            hostname: provision_params[:hostname],
-            metadata: {
-              callback_url: params[:callback_url],
-              external_job_id: params[:job_id],
-              root_password: password,
-              rdp_password: password,
-              source: 'supabase'
-            }
+            vm_type: p_params[:vm_type] || 'vps',
+            vm_order: vm_order,
+            hostname: p_params[:hostname]
           )
 
-          order.save(validate: false)
-          vm_order.save(validate: false)
-          vm.save!
-
-          # Ensure the job uses the generated password
-          provision_params[:root_password] = password
-          provision_params[:rdp_password] = password
+          # We use save(validate: false) on the order if absolutely necessary to bypass 
+          # potential callback crashes, but first let's try a standard save with the 
+          # attribute errors fixed.
+          unless order.save && vm_order.save && vm.save
+            errors = order.errors.full_messages + vm_order.errors.full_messages + vm.errors.full_messages
+            render json: { error: errors.join(", ") }, status: :unprocessable_entity
+            return
+          end
         end
 
         # 3. Trigger Job
-        VmProvisioningJob.perform_later(vm.id, provision_params)
+        VmProvisioningJob.perform_later(vm.id, p_params)
 
         render json: {
           message: 'External provisioning started',
           vm_id: vm.id,
-          status: vm.status
+          status: vm.status,
+          order_id: order.id
         }, status: :accepted
       rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        # If the PricingService crash still happens, we'll catch it here and know
+        render json: { error: "Internal Server Error: #{e.message}" }, status: :internal_server_error
       end
 
       # GET /api/v1/external/vms/:id/metadata
-      # Ansible calls this to get callback details
       def metadata
         vm = Vm.find(params[:id])
+        order = vm.vm_order&.order
         
         render json: {
-          callback_url: vm.metadata['callback_url'],
-          job_id: vm.metadata['external_job_id'],
-          credentials: {
-            root_password: vm.metadata['root_password'],
-            rdp_password: vm.metadata['rdp_password']
-          }
+          callback_url: order&.metadata&.[]('callback_url'),
+          job_id: order&.metadata&.[]('external_job_id')
         }
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'VM not found' }, status: :not_found

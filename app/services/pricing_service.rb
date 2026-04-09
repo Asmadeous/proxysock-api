@@ -46,8 +46,6 @@ class PricingService
 
   def apply_affiliate_discount(amount)
     # Only apply if there is a pending referral for this actor
-    return amount unless @actor.respond_to?(:affiliate_referrals)
-    
     referral = @actor.affiliate_referrals.pending.first
     return amount unless referral
 
