@@ -5,6 +5,7 @@ module Api
     class ExternalVmsController < BaseController
       # Skip standard reseller authentication for this temporary endpoint
       # We will use a dedicated API key instead
+      skip_before_action :authenticate_request
       skip_before_action :authenticate_reseller!
       before_action :verify_external_key
 
@@ -15,12 +16,13 @@ module Api
         # Map Supabase's 'proxy_config' to Rails standard 'proxy'
         provision_params = vm_params.to_h
         provision_params[:proxy] = params[:proxy_config] if params[:proxy_config].present?
+        provision_params[:callback_url] = params[:callback_url]
+        provision_params[:job_id]       = params[:job_id]
 
         # 2. Create records
         vm = nil
         ActiveRecord::Base.transaction do
-          # Create an orphaned VM record (optional VmOrder association matches as-is logic)
-          # We create a dummy VmOrder to satisfy model requirements and store OS type
+          # Create an orphaned VM record
           order = Order.new(status: 'completed', metadata: { external_provision: true, source: 'supabase' })
           vm_order = VmOrder.new(
             order: order,
@@ -31,17 +33,30 @@ module Api
             status: 'pending'
           )
           
+          # Generate credentials locally so we can store them for the callback
+          password = CommonUtils.generate_secure_password(16)
+          
           vm = Vm.new(
             vm_order: vm_order,
             status: 'pending',
             vm_type: provision_params[:vm_type] || 'vps',
-            hostname: provision_params[:hostname]
+            hostname: provision_params[:hostname],
+            metadata: {
+              callback_url: params[:callback_url],
+              external_job_id: params[:job_id],
+              root_password: password,
+              rdp_password: password,
+              source: 'supabase'
+            }
           )
 
-          # Skip validations for Order/VmOrder as we don't need a valid Reseller or payment
           order.save(validate: false)
           vm_order.save(validate: false)
           vm.save!
+
+          # Ensure the job uses the generated password
+          provision_params[:root_password] = password
+          provision_params[:rdp_password] = password
         end
 
         # 3. Trigger Job
@@ -54,6 +69,23 @@ module Api
         }, status: :accepted
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # GET /api/v1/external/vms/:id/metadata
+      # Ansible calls this to get callback details
+      def metadata
+        vm = Vm.find(params[:id])
+        
+        render json: {
+          callback_url: vm.metadata['callback_url'],
+          job_id: vm.metadata['external_job_id'],
+          credentials: {
+            root_password: vm.metadata['root_password'],
+            rdp_password: vm.metadata['rdp_password']
+          }
+        }
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: 'VM not found' }, status: :not_found
       end
 
       private
