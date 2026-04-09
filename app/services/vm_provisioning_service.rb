@@ -769,7 +769,9 @@ class VmProvisioningService
         rdp_password: root_password,
         ip_address: ansible_connect_ip,
         proxy_params: proxy_config,
-        custom_port: params['custom_port']
+        custom_port: params['custom_port'],
+        supabase_callback_url: params['callback_url'],
+        external_job_id: params['job_id']
       )
 
       result = execute_ansible_command(inventory_path, playbook_path, extra_vars)
@@ -804,7 +806,8 @@ class VmProvisioningService
   # Linux VMs: Tailscale VPN config (Ansible installs/configures it)
   # Windows VMs: Cloudflare tunnel config (replaces Tailscale)
   def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:,
-                       os_template: 'unknown', ip_address: nil, proxy_params: {}, custom_port: 22)
+                       os_template: 'unknown', ip_address: nil, proxy_params: {}, custom_port: 22,
+                       supabase_callback_url: nil, external_job_id: nil)
     vars = {
       vm_id: vm_id,
       hostname: hostname,
@@ -816,7 +819,9 @@ class VmProvisioningService
       api_url: ENV.fetch('APP_URL', "http://#{PUBLIC_IP}:3000"),
       api_key: ENV.fetch('VM_CALLBACK_API_KEY', 'internal-provisioning-key'),
       ip_address: ip_address,
-      custom_port: custom_port
+      custom_port: custom_port,
+      supabase_callback_url: supabase_callback_url,
+      external_job_id: external_job_id
     }
 
     if proxy_params['ip'].present?
