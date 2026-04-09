@@ -603,14 +603,16 @@ export default function BuyVPN({ isDirectBuy, onDirectBuy }: VPNPlansProps = {})
                   <div className="text-sm text-muted-foreground">
                     One-time payment
                   </div>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={!selectedCity || isProvisioning}
-                    className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
-                  >
-                    {isProvisioning ? <Loader2 className="w-5 h-5 animate-spin" /> : isDirectBuy ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                    {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                  </button>
+                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={!selectedCity || isProvisioning}
+                      className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
+                    >
+                      {isProvisioning ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                      {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                    </button>
+                  )}
                   {error && (
                     <Card className="border-l-4 border-l-destructive bg-destructive/5">
                       <CardContent className="py-3">

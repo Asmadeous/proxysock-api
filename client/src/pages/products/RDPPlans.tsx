@@ -912,16 +912,18 @@ export default function RDPPlans({ country, onBack, isDirectBuy, onDirectBuy }: 
                   onClick={() => setShowModal(false)}
                   className="flex-1"
                 >
-                  Cancel
+                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type === "infrastructure" ? "Close" : "Cancel"}
                 </Button>
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={!selectedOS || !selectedCountry || isProvisioning}
-                  className="flex-1 gap-2"
-                >
-                  {isProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : isDirectBuy ? <Zap className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-                  {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                </Button>
+                {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                    <Button
+                    onClick={handleAddToCart}
+                    disabled={!selectedOS || !selectedCountry || isProvisioning}
+                    className="flex-1 gap-2"
+                    >
+                    {isProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : isDirectBuy ? <Zap className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                    {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                    </Button>
+                )}
               </div>
             </div>
           )}

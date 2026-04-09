@@ -1,0 +1,26 @@
+---
+# Debian/Ubuntu specific Tailscale tasks
+
+- name: Wait for APT lock before Tailscale installation
+  shell: |
+    # Loop until the lock is released
+    LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/lib/dpkg/lock"
+    
+    for lock in $LOCK_FILES; do
+      if [ -f "$lock" ]; then
+        count=0
+        while (lsof "$lock" >/dev/null 2>&1 || fuser "$lock" >/dev/null 2>&1 || ! apt-get check >/dev/null 2>&1) && [ $count -lt 60 ]; do
+          echo "Waiting for APT lock on $lock... ($((count * 5))s)"
+          sleep 5
+          count=$((count + 1))
+        done
+      fi
+    done
+  changed_when: false
+  ignore_errors: true
+
+- name: Install Tailscale (Debian/Ubuntu)
+  shell: |
+    curl -fsSL https://tailscale.com/install.sh | sh
+  retries: 10
+  delay: 30

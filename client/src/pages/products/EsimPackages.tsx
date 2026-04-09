@@ -853,61 +853,63 @@ function ESIMPackagesPageContent({
                       </CardContent>
                     </Card>
 
-                    {inCart ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg border border-primary/30">
-                          <Button
-                            onClick={() =>
-                              updateQuantity(
-                                pkg.id,
-                                (cartItem?.quantity || 1) - 1,
-                              )
-                            }
-                            variant="default"
-                            size="sm"
-                            className="h-9 w-9 p-0"
-                          >
-                            −
-                          </Button>
-                          <div className="flex-1 text-center">
-                            <span className="text-lg font-bold">
-                              {cartItem?.quantity || 0}
-                            </span>
-                            <div className="text-primary text-xs font-medium">
-                              in cart
+                    {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                        inCart ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg border border-primary/30">
+                                <Button
+                                  onClick={() =>
+                                    updateQuantity(
+                                      pkg.id,
+                                      (cartItem?.quantity || 1) - 1,
+                                    )
+                                  }
+                                  variant="default"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                >
+                                  −
+                                </Button>
+                                <div className="flex-1 text-center">
+                                  <span className="text-lg font-bold">
+                                    {cartItem?.quantity || 0}
+                                  </span>
+                                  <div className="text-primary text-xs font-medium">
+                                    in cart
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() =>
+                                    updateQuantity(
+                                      pkg.id,
+                                      (cartItem?.quantity || 0) + 1,
+                                    )
+                                  }
+                                  variant="default"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                >
+                                  +
+                                </Button>
+                              </div>
+                              <Button
+                                onClick={() => removeFromCart(pkg.id)}
+                                variant="destructive"
+                                className="w-full"
+                              >
+                                Remove from Cart
+                              </Button>
                             </div>
-                          </div>
-                          <Button
-                            onClick={() =>
-                              updateQuantity(
-                                pkg.id,
-                                (cartItem?.quantity || 0) + 1,
-                              )
-                            }
-                            variant="default"
-                            size="sm"
-                            className="h-9 w-9 p-0"
-                          >
-                            +
-                          </Button>
-                        </div>
-                        <Button
-                          onClick={() => removeFromCart(pkg.id)}
-                          variant="destructive"
-                          className="w-full"
-                        >
-                          Remove from Cart
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => addToCart(pkg)}
-                        disabled={provisioningPkgId === pkg.id}
-                        className="w-full gap-2"
-                      >
-                        {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-                        {provisioningPkgId === pkg.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                      </Button>
+                          ) : (
+                            <Button
+                              onClick={() => addToCart(pkg)}
+                              disabled={provisioningPkgId === pkg.id}
+                              className="w-full gap-2"
+                            >
+                              {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                              {provisioningPkgId === pkg.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                            </Button>
+                          )
                     )}
                   </CardContent>
                 </Card>
