@@ -91,6 +91,9 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+
+      # External Provisioning (Temporary for Supabase integration)
+      post 'external/provision', to: 'external_vms#provision'
     end
   end
 

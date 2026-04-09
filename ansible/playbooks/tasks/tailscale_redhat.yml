@@ -1,6 +1,23 @@
 ---
-# RedHat/Fedora specific Tailscale tasks
-# Included by tailscale_linux.yml when ansible_facts['os_family'] == 'RedHat'
+# RedHat/Fedora/Alma/Rocky specific Tailscale tasks
+
+- name: Wait for DNF/RPM lock
+  shell: |
+    # Loop until the lock is released
+    LOCK_FILES="/var/run/dnf.pid /var/lib/rpm/.rpm.lock"
+    
+    for lock in $LOCK_FILES; do
+      if [ -f "$lock" ]; then
+        count=0
+        while (lsof "$lock" >/dev/null 2>&1 || fuser "$lock" >/dev/null 2>&1) && [ $count -lt 60 ]; do
+          echo "Waiting for DNF/RPM lock on $lock... ($((count * 5))s)"
+          sleep 5
+          count=$((count + 1))
+        done
+      fi
+    done
+  changed_when: false
+  ignore_errors: true
 
 - name: "[Fedora 41+] Install python3-libdnf5"
   raw: |
@@ -10,6 +27,14 @@
   when:
     - ansible_facts['distribution'] == 'Fedora'
     - ansible_facts['distribution_major_version'] | int >= 41
+
+- name: Install Tailscale (RedHat family)
+  shell: |
+    if ! command -v tailscale >/dev/null 2>&1; then
+      curl -fsSL https://tailscale.com/install.sh | sh
+    fi
+  retries: 5
+  delay: 10
 
 - name: "[SELinux] Check tailscale_enabled boolean"
   command: getsebool tailscale_enabled
@@ -39,12 +64,6 @@
     - semanage_ts.rc != 0
     - "'already defined' not in semanage_ts.stderr"
   ignore_errors: true
-  when:
-    - ansible_facts['selinux'] is defined
-    - ansible_facts['selinux'].status == "enabled"
-
-- name: "[SELinux] restorecon on policy routing service"
-  shell: restorecon /etc/systemd/system/ssh-policy-route.service || true
   when:
     - ansible_facts['selinux'] is defined
     - ansible_facts['selinux'].status == "enabled"

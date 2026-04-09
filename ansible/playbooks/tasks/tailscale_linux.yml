@@ -1,95 +1,47 @@
 ---
-# Tailscale VPN configuration for Linux VMs
-# Included conditionally: when tailscale_config is defined
+# Tailscale VPN configuration for Linux VMs (Unified Entry Point)
 #
 # CRITICAL DESIGN CONSTRAINT:
 #   `raw` is the ONLY Ansible task type that runs without uploading a
-#   Python helper to /tmp/.ansible/tmp. Every other task type — shell,
-#   command, copy, blockinfile, systemd — requires that temp dir.
+#   Python helper to /tmp/.ansible/tmp. Every other task type requires that temp dir.
 #
 #   Once the Tailscale exit-node activates, the routing table changes
-#   and SSH can no longer reach /tmp to create that directory, causing
-#   "Failed to create temporary directory" on the very next task.
+#   and SSH can no longer reach /tmp to create that directory.
 #
 #   Rule: the exit-node activation MUST use `raw`, not `shell`.
 #         Nothing may follow it.
 
 # -----------------------------------------------------------------------
-# 1. Fedora 41+ compat shim
+# 0. Fix remote_tmp warning and prepare for Python tasks
 # -----------------------------------------------------------------------
-- name: "[Fedora 41+] Install python3-libdnf5"
-  raw: |
-    if command -v dnf5 >/dev/null 2>&1 || [ -f /usr/bin/dnf5 ]; then
-      dnf install -y python3-libdnf5
-    fi
-  when:
-    - ansible_facts['os_family'] == 'RedHat'
-    - ansible_facts['distribution'] == 'Fedora'
-    - ansible_facts['distribution_major_version'] | int >= 41
+- name: "[System] Pre-create Ansible temporary directory"
+  raw: mkdir -p /tmp/.ansible/tmp && chmod 1777 /tmp/.ansible/tmp
+  changed_when: false
 
 # -----------------------------------------------------------------------
-# 2. Install Tailscale
+# 1. OS-specific Installation
 # -----------------------------------------------------------------------
-- name: Install Tailscale
-  shell: |
-    curl -fsSL https://tailscale.com/install.sh | sh
-  retries: 3
-  delay: 10
+- name: "[OS Family] Include Debian specific tasks"
+  include_tasks: tailscale_debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
 
+- name: "[OS Family] Include RedHat specific tasks"
+  include_tasks: tailscale_redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# -----------------------------------------------------------------------
+# 2. Shared Configuration
+# -----------------------------------------------------------------------
 - name: Reload systemd manager
   systemd:
     daemon_reload: yes
 
-# -----------------------------------------------------------------------
-# 3. SELinux (RedHat family only)
-# -----------------------------------------------------------------------
-- name: "[SELinux] Check tailscale_enabled boolean"
-  command: getsebool tailscale_enabled
-  register: tailscale_bool_check
-  failed_when: false
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == 'RedHat'
-    - ansible_facts['selinux'] is defined
-    - ansible_facts['selinux'].status == "enabled"
-
-- name: "[SELinux] Set tailscale_enabled boolean"
-  seboolean:
-    name: tailscale_enabled
-    state: true
-    persistent: true
-  ignore_errors: true
-  when:
-    - ansible_facts['os_family'] == 'RedHat'
-    - ansible_facts['selinux'] is defined
-    - ansible_facts['selinux'].status == "enabled"
-    - tailscale_bool_check.rc is defined
-    - tailscale_bool_check.rc == 0
-
-- name: "[SELinux] Label Tailscale UDP port"
-  command: semanage port -a -t tailscaled_port_t -p udp 41641
-  register: semanage_ts
-  failed_when:
-    - semanage_ts.rc != 0
-    - "'already defined' not in semanage_ts.stderr"
-  ignore_errors: true
-  when:
-    - ansible_facts['os_family'] == 'RedHat'
-    - ansible_facts['selinux'] is defined
-    - ansible_facts['selinux'].status == "enabled"
-
-# -----------------------------------------------------------------------
-# 4. Enable tailscaled
-# -----------------------------------------------------------------------
 - name: Enable and start tailscaled
   service:
     name: tailscaled
     enabled: yes
     state: started
 
-# -----------------------------------------------------------------------
-# 5. Authenticate
-# -----------------------------------------------------------------------
 - name: Authenticate Tailscale
   command: >
     tailscale up
@@ -100,16 +52,10 @@
   delay: 5
   no_log: true
 
-# -----------------------------------------------------------------------
-# 6. Tailscale SSH
-# -----------------------------------------------------------------------
 - name: Enable Tailscale SSH
   command: tailscale set --ssh
   ignore_errors: true
 
-# -----------------------------------------------------------------------
-# 7. fail2ban — whitelist Tailscale CGNAT range
-# -----------------------------------------------------------------------
 - name: Whitelist Tailscale CGNAT in fail2ban
   blockinfile:
     path: /etc/fail2ban/jail.d/sshd.conf
@@ -120,10 +66,6 @@
   notify: restart_fail2ban
   ignore_errors: true
 
-# -----------------------------------------------------------------------
-# 8. Policy routing service file — written with shell heredoc
-#    (shell still needs temp dir, but this runs BEFORE exit-node)
-# -----------------------------------------------------------------------
 - name: Write ssh-policy-route systemd service
   shell: |
     cat > /etc/systemd/system/ssh-policy-route.service << 'UNIT_EOF'
@@ -162,10 +104,7 @@
     daemon_reload: yes
 
 # -----------------------------------------------------------------------
-# 9. EXIT NODE — raw only, absolutely last task.
-#    `raw` sends the command directly over the SSH channel with no
-#    Python upload. The routing change happens on the remote side;
-#    Ansible never needs to reconnect because raw has no response wait.
+# 3. EXIT NODE — raw only, absolutely last task.
 # -----------------------------------------------------------------------
 - name: Apply Tailscale exit node (raw — no temp dir — FINAL TASK)
   raw: >

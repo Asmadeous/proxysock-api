@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import { ShoppingCart, Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
+import { Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
 
 import { fetchResellerProducts, fetchResellerBalance, createResellerOrder } from "../../../services/resellerApi";
 import DataTable from "../../SuperAdmin/components/DataTable";
@@ -155,19 +155,7 @@ export default function ResProducts({ type }: ResProductsProps) {
                         label: "Actions",
                         render: (r: Record<string, unknown>) => (
                             <div className="flex items-center gap-2">
-                                {isEnterprise ? (
-                                    <button
-                                        onClick={() => {
-                                            setSelectedProduct(r);
-                                            setShowEmailModal(true);
-                                        }}
-                                        className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-                                    >
-                                        <ShoppingCart className="w-3.5 h-3.5" />
-                                        Order
-                                    </button>
-                                ) : (
-
+                                {!isEnterprise && (
                                     <button
                                         onClick={() => {
                                             setSelectedProduct(r);
