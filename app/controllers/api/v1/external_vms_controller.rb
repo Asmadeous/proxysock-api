@@ -22,8 +22,27 @@ module Api
         # 2. Create records
         vm = nil
         ActiveRecord::Base.transaction do
-          # Create an orphaned VM record
-          order = Order.new(status: 'completed', metadata: { external_provision: true, source: 'supabase' })
+          # External orders need a valid owner and product to satisfy DB constraints
+          # External orders must be owned by an admin actor
+          owner = Employee.find_by(role: 'admin')
+          product  = Product.find_by(product_type: provision_params[:vm_type] || 'vps') || Product.first
+          pricing  = product&.product_pricings&.first
+
+          # Create an orphaned VM record but link it to a system order for metadata consistency
+          order = Order.new(
+            orderable: owner,
+            product: product,
+            product_pricing: pricing,
+            quantity: 1,
+            status: 'completed',
+            metadata: {
+              external_provision: true,
+              source: 'supabase',
+              callback_url: params[:callback_url],
+              external_job_id: params[:job_id]
+            }
+          )
+
           vm_order = VmOrder.new(
             order: order,
             os_type: provision_params[:os_template],
@@ -34,7 +53,8 @@ module Api
           )
           
           # Generate credentials locally so we can store them for the callback
-          password = CommonUtils.generate_secure_password(16)
+          service = VmProvisioningService.new(nil, Rails.logger)
+          password = service.generate_secure_password(16)
           
           vm = Vm.new(
             vm_order: vm_order,
