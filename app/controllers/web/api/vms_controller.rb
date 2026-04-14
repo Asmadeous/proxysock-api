@@ -185,7 +185,10 @@ module Web
           proxmox_public_ip: ENV['PUBLIC_IP'] || '127.0.0.1',
           username: vm.ssh_username || vm.rdp_username || (is_rdp ? 'Administrator' : 'root'),
           node: vm.proxmox_node,
-          dns_name: vm.dns_name
+          dns_name: vm.dns_name,
+          auto_renew: vm.metadata&.dig('auto_renew') == true,
+          renewal_method: vm.metadata&.dig('renewal_method') || 'wallet',
+          order_id: order&.id
         }
       end
     end

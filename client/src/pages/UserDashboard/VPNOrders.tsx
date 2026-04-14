@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -69,6 +70,7 @@ const VPNOrdersPage: FC = () => {
     const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "failed">("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
+    const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
     const { user, accessToken } = useAuth();
 
     // Stats
@@ -656,6 +658,16 @@ Country: ${order.country || "Global"}
                                             >
                                                 <FileText className="h-4 w-4" />
                                             </Button>
+                                            {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={() => setRefundDialogOrderId(order.id)}
+                                                    className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                                                >
+                                                    <DollarSign className="h-4 w-4" />
+                                                    Refund
+                                                </Button>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -762,6 +774,13 @@ Country: ${order.country || "Global"}
                     )}
                 </DialogContent>
             </Dialog>
+
+            <CryptoRefundModal
+                orderId={refundDialogOrderId}
+                isOpen={!!refundDialogOrderId}
+                onClose={() => setRefundDialogOrderId(null)}
+                onSuccess={fetchVPNOrders}
+            />
         </div>
     );
 };

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_12_112421) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -81,17 +81,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
 
   create_table "affiliates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "affiliatable_id"
-    t.string "affiliatable_type", null: false
+    t.string "affiliatable_type"
     t.decimal "commission_rate", precision: 5, scale: 2, default: "10.0", null: false
     t.datetime "created_at", null: false
     t.decimal "discount_rate", precision: 5, scale: 2, default: "5.0", null: false
+    t.string "email"
     t.datetime "last_payout_at"
+    t.string "name"
     t.text "notes"
+    t.jsonb "payment_details", default: {}
     t.string "referral_code", null: false
     t.string "status", default: "active", null: false
     t.decimal "total_earned", precision: 10, scale: 2, default: "0.0", null: false
     t.decimal "total_paid_out", precision: 10, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_affiliates_on_email", where: "(email IS NOT NULL)"
     t.index ["referral_code"], name: "index_affiliates_on_referral_code", unique: true
     t.index ["status"], name: "index_affiliates_on_status"
   end
@@ -787,7 +791,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
   create_table "resellers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "allowed_product_category_id"
     t.string "api_key_hash"
+    t.string "city"
     t.string "company_name"
+    t.string "country"
+    t.string "country_code"
     t.datetime "created_at", null: false
     t.string "current_token_jti"
     t.string "customer_email"
@@ -796,6 +803,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
     t.string "email"
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
     t.datetime "last_seen_at"
+    t.integer "myproxyapi_country_id"
+    t.string "myproxyapi_user_id"
     t.string "password_digest"
     t.string "permanent_api_key"
     t.string "referred_by_code"
@@ -1087,6 +1096,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "city"
     t.string "country"
+    t.string "country_code"
     t.datetime "created_at", null: false
     t.string "email"
     t.string "email_confirmation_token"
@@ -1097,6 +1107,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_29_031531) do
     t.string "last_name"
     t.datetime "last_seen_at"
     t.jsonb "metadata"
+    t.integer "myproxyapi_country_id"
+    t.string "myproxyapi_user_id"
     t.string "owner_type", default: "platform", null: false
     t.string "password_digest"
     t.datetime "password_reset_sent_at"

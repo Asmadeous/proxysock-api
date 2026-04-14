@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -86,6 +87,7 @@ const ESIMOrdersPage = () => {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "esim" | "usa_esim">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<ESIMOrder | null>(null);
+  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
   const { accessToken } = useAuth();
 
   // Stats
@@ -744,6 +746,17 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                           Download
                         </Button>
                       )}
+
+                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setRefundDialogOrderId(order.id)}
+                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -883,6 +896,12 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
           )}
         </DialogContent>
       </Dialog>
+      <CryptoRefundModal
+        orderId={refundDialogOrderId}
+        isOpen={!!refundDialogOrderId}
+        onClose={() => setRefundDialogOrderId(null)}
+        onSuccess={fetchESIMOrders}
+      />
     </div>
   );
 };

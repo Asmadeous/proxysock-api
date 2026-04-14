@@ -476,8 +476,13 @@ module Api
       # ── api_only: Balance-based order ──
       # Deducts from main_wallet, provisions immediately, returns credentials in JSON.
       def create_api_only_order(product, pricing, custom_metadata = nil)
+        orderable_actor = current_reseller
+        if params[:user_id].present? && custom_metadata.nil?
+          orderable_actor = current_reseller.managed_users.find(params[:user_id])
+        end
+
         @order = Order.new(
-          orderable: current_reseller,
+          orderable: orderable_actor,
           product_id: product.id,
           product_pricing_id: pricing.id,
           quantity: params[:quantity] || 1,

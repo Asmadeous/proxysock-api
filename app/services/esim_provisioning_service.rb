@@ -62,7 +62,11 @@ class EsimProvisioningService
       esim_type: 'data_only',
       moq_quantity: 1,
       api_response: result.to_json,
-      provider_order_no: result['orderNo']
+      provider_order_no: result['orderNo'],
+      metadata: {
+        'auto_renew' => @order.metadata['auto_renew'],
+        'renewal_method' => @order.metadata['payment_debug']
+      }.compact
     )
 
     # The eSIM Access API processes orders asynchronously — the order stays
@@ -111,7 +115,11 @@ class EsimProvisioningService
         status: 'completed',
         esim_provider: provider,
         esim_type: esim_type,
-        moq_quantity: quantity
+        moq_quantity: quantity,
+        metadata: {
+          'auto_renew' => @order.metadata['auto_renew'],
+          'renewal_method' => @order.metadata['payment_debug']
+        }.compact
       )
 
       # Provision one Esim record per inventory item

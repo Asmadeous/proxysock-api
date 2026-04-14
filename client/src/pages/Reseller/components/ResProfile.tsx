@@ -10,6 +10,10 @@ export default function ResProfile() {
                 <Field label="Company Name"><input className={inputClasses} defaultValue={user.company_name || ""} readOnly /></Field>
                 <Field label="Email"><input className={inputClasses} defaultValue={user.email || ""} readOnly /></Field>
                 <Field label="Username"><input className={inputClasses} defaultValue={user.username || ""} readOnly /></Field>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Country Code"><input className={inputClasses} defaultValue={user.country_code || ""} readOnly /></Field>
+                    <Field label="City"><input className={inputClasses} defaultValue={user.city || ""} readOnly /></Field>
+                </div>
                 <Field label="Account Type"><input className={inputClasses} defaultValue={user.reseller_type || "standard"} readOnly /></Field>
             </div>
         </div>

@@ -112,6 +112,17 @@ export const updateProxyCredentials = (id: number, data: { username?: string; pa
     adminApi.post(`/orders/${id}/update_credentials`, data);
 export const rotateProxyIp = (id: number) =>
     adminApi.post(`/orders/${id}/rotate_ip`);
+
+// ── USA eSIM Credentials ─────────────────────────
+export const fetchAdminUsaCredentials = () =>
+    adminApi.get("/usa_esim_credentials");
+export const deleteAdminUsaCredential = (id: string | number) =>
+    adminApi.delete(`/usa_esim_credentials/${id}`);
+export const importUsaCredentials = (formData: FormData) =>
+    adminApi.post("/usa_esim_credentials/import", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+    });
+
 export const changeProxyProtocol = (id: number, protocol: string) =>
     adminApi.post(`/orders/${id}/change_protocol`, { protocol });
 export const whitelistAdd = (id: number, ip: string, description?: string) =>

@@ -305,6 +305,72 @@ class MyProxyApiClient
     []
   end
 
+  # ==========================================================================
+  # Dynamic Sub-User Creation Endpoints
+  # ==========================================================================
+
+  # Fetches the remote IDs for all available invoice countries
+  # @return [Hash] mapping of country ISO code (e.g. 'US') to integer ID
+  def fetch_invoice_countries
+    Rails.cache.fetch('myproxyapi_invoice_countries', expires_in: 24.hours) do
+      response = request(:get, "#{ROOT_URL}/v1/countries")
+      data = response['data'] || []
+      mapping = {}
+      data.each do |country|
+        mapping[country['code']] = country['id'] if country['code']
+      end
+      mapping
+    end
+  end
+
+  # Creates a sub-user in MyProxyApi
+  # @return [String] the dynamically generated MyProxyApi sub-user ID
+  def create_user(actor, ip_address)
+    country_mapping = fetch_invoice_countries
+    
+    # Must explicitly upcase actor.country_code or it won't match dictionary keys commonly
+    country_code_normalized = actor.country_code.to_s.upcase
+    country_id = country_mapping[country_code_normalized] || country_mapping['US'] || 1
+    
+    # Track the mapped ID locally 
+    actor.update_columns(myproxyapi_country_id: country_id) if actor.myproxyapi_country_id.nil?
+
+    payload = {
+      customer_password: SecureRandom.hex(10),
+      customer_phone: '1234567890',
+      customer_country: country_id,
+      customer_city: actor.city.presence || 'Unknown',
+      whitelist_ip: ip_address
+    }
+    
+    if actor.is_a?(User)
+      payload[:customer_name] = "#{actor.first_name} #{actor.last_name}".strip
+      payload[:customer_username] = actor.username
+      payload[:customer_email] = actor.email
+    else
+      payload[:customer_name] = actor.company_name
+      payload[:customer_username] = actor.username
+      payload[:customer_email] = actor.email
+    end
+    
+    response = request(:post, "#{ROOT_URL}/v1/users", payload)
+    
+    user_id = response.dig('data', 'id') || response.dig('id')
+    raise "Failed to create remote MyProxyApi user: #{response}" unless user_id.present?
+    
+    user_id
+  end
+
+  # Resolves or registers the MyProxyApi User dynamically.
+  def get_or_create_user(actor, ip_address)
+    return actor.myproxyapi_user_id if actor.myproxyapi_user_id.present?
+    
+    user_id = create_user(actor, ip_address)
+    actor.update_columns(myproxyapi_user_id: user_id)
+    
+    user_id
+  end
+
   private
 
   # The per-category endpoints return:

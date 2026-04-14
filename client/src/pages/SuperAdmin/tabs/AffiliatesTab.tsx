@@ -44,7 +44,7 @@ export default function AffiliatesTab() {
     const [configTarget, setConfigTarget] = useState<AffiliateRow | null>(null);
     const [configForm, setConfigForm] = useState({ commission_rate: "10", discount_rate: "5", status: "active" });
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
+    const [createForm, setCreateForm] = useState({ affiliatable_type: "Standalone", name: "", email: "", commission_rate: "10", discount_rate: "5" });
     const [actionLoading, setActionLoading] = useState(false);
 
     const loadAffiliates = useCallback(async () => {
@@ -89,15 +89,22 @@ export default function AffiliatesTab() {
     const handleCreate = async () => {
         setActionLoading(true);
         try {
-            await createAffiliate({
-                affiliatable_type: createForm.affiliatable_type,
+            const payload: any = {
                 email: createForm.email,
                 commission_rate: parseFloat(createForm.commission_rate),
                 discount_rate: parseFloat(createForm.discount_rate),
-            });
+            };
+            
+            if (createForm.affiliatable_type !== "Standalone") {
+                payload.affiliatable_type = createForm.affiliatable_type;
+            } else {
+                payload.name = createForm.name;
+            }
+
+            await createAffiliate(payload);
             toast.success("Affiliate created");
             setShowCreate(false);
-            setCreateForm({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
+            setCreateForm({ affiliatable_type: "Standalone", name: "", email: "", commission_rate: "10", discount_rate: "5" });
             loadAffiliates();
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Failed to create affiliate");
@@ -220,14 +227,22 @@ export default function AffiliatesTab() {
 
             {/* Create Affiliate Modal */}
             <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Onboard New Affiliate" onSubmit={handleCreate} submitLabel="Create Affiliate" loading={actionLoading}>
-                <Field label="Entity Type">
+                <Field label="Affiliate Type">
                     <select className={selectClasses} value={createForm.affiliatable_type} onChange={(e) => setCreateForm({ ...createForm, affiliatable_type: e.target.value })}>
-                        <option value="User">User</option>
-                        <option value="Reseller">Reseller</option>
+                        <option value="Standalone">Standalone (External Partner)</option>
+                        <option value="User">Existing User</option>
+                        <option value="Reseller">Existing Reseller</option>
                     </select>
                 </Field>
+
+                {createForm.affiliatable_type === "Standalone" && (
+                    <Field label="Name *">
+                        <input className={inputClasses} type="text" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Influencer Name or Brand" required={createForm.affiliatable_type === "Standalone"} />
+                    </Field>
+                )}
+
                 <Field label="Email *">
-                    <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="user@example.com" required />
+                    <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder={createForm.affiliatable_type === "Standalone" ? "partner@example.com" : "user@example.com"} required />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="Commission Rate (%)">

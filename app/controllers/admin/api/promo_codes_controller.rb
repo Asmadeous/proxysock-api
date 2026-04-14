@@ -24,7 +24,7 @@ module Admin
       # POST /admin/api/promo_codes
       def create
         promo = PromoCode.new(promo_params)
-        promo.created_by_id = current_admin&.id
+        promo.created_by_id = current_employee&.id
 
         if promo.save
           render json: promo_json(promo), status: :created

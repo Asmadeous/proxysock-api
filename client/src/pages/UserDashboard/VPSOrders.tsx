@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -88,6 +88,10 @@ const VPSOrdersPage = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated' | 'failed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<VPSOrder | null>(null);
+  
+  // Refund states
+  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
+
   const { accessToken } = useAuth();
 
   // Stats
@@ -677,6 +681,16 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                         <Download className="h-4 w-4" />
                         Download
                       </Button>
+                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setRefundDialogOrderId(order.id)}
+                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -850,6 +864,13 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
           )}
         </DialogContent>
       </Dialog>
+      {/* Crypto Refund Modal */}
+      <CryptoRefundModal
+        orderId={refundDialogOrderId}
+        isOpen={!!refundDialogOrderId}
+        onClose={() => setRefundDialogOrderId(null)}
+        onSuccess={fetchVPSOrders}
+      />
     </div>
   );
 };

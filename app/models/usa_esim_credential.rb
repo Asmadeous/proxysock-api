@@ -4,6 +4,12 @@ class UsaEsimCredential < ApplicationRecord
   belongs_to :usa_esim_order, foreign_key: 'order_id', optional: true
   belongs_to :user, optional: true
 
+  has_one_attached :qr_code_image
+
+  validates :iccid, presence: true, uniqueness: true
+  validates :provider, presence: true
+  validates :status, inclusion: { in: %w[available assigned] }
+
   validate :prevent_reassignment, on: :update
 
   private

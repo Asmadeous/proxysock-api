@@ -30,10 +30,11 @@ export default function Profile() {
     last_name: user?.last_name || "",
     country: user?.country || "",
     city: user?.city || "",
+    country_code: user?.country_code || "",
   });
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(formatImageUrl(user?.profile_picture_url) || null);
-  const [errors, setErrors] = useState<{ username?: string; country?: string; city?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; country?: string; city?: string; country_code?: string }>({});
 
   useEffect(() => {
     if (user) {
@@ -43,6 +44,7 @@ export default function Profile() {
         last_name: user.last_name || "",
         country: user.country || "",
         city: user.city || "",
+        country_code: user.country_code || "",
       });
       setPreviewUrl(formatImageUrl(user.profile_picture_url) || null);
     }
@@ -96,6 +98,7 @@ export default function Profile() {
         payload.append("last_name", formData.last_name);
         payload.append("country", formData.country);
         payload.append("city", formData.city);
+        payload.append("country_code", formData.country_code);
         payload.append("avatar", profilePicture);
       } else {
         payload = formData;
@@ -112,6 +115,7 @@ export default function Profile() {
           last_name: data.user.last_name || "",
           country: data.user.country || "",
           city: data.user.city || "",
+          country_code: data.user.country_code || "",
         });
         setPreviewUrl(formatImageUrl(data.user.profile_picture_url) || null);
         setProfilePicture(null);
@@ -253,7 +257,18 @@ export default function Profile() {
                 </div>
 
                 {/* Location Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="country_code">ISO Code</Label>
+                    <Input
+                      id="country_code"
+                      name="country_code"
+                      value={formData.country_code}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      placeholder="US"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="country">Country</Label>
                     <div className="relative">

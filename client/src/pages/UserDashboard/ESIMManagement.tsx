@@ -55,6 +55,8 @@ interface ESIMProfile {
   days_remaining: number | null;
   order_total: number;
   order_status: string;
+  auto_renew?: boolean;
+  renewal_method?: string;
 }
 
 const ESIMManagement = () => {
@@ -66,6 +68,7 @@ const ESIMManagement = () => {
   // cannot be changed programmatically. These are fixed per profile by the provider.
   const [showActivationCode, setShowActivationCode] = useState<{ [key: string]: boolean }>({});
   const [showQRModal, setShowQRModal] = useState<ESIMProfile | null>(null);
+  const [subscriptionModalProfile, setSubscriptionModalProfile] = useState<ESIMProfile | null>(null);
   const { accessToken } = useAuth();
 
   useEffect(() => {
@@ -116,6 +119,8 @@ const ESIMManagement = () => {
               order_total: Number(order.amount || order.total_amount || 0),
               order_status: order.status,
               days_remaining: order.expires_at ? Math.max(0, Math.ceil((new Date(order.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null,
+              auto_renew: order.auto_renew,
+              renewal_method: order.renewal_method,
             }));
           });
         setEsimProfiles(transformedProfiles);
@@ -515,9 +520,19 @@ const ESIMManagement = () => {
                   <button
                     onClick={() => setSelectedProfile(profile)}
                     className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                    title="View Details"
                   >
                     <EyeIcon className="h-4 w-4" />
                   </button>
+                  {profile.order_status === 'active' && (
+                    <button
+                      onClick={() => setSubscriptionModalProfile(profile)}
+                      className="px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors"
+                      title="Manage Subscription"
+                    >
+                      <ArrowPathIcon className="h-4 w-4" />
+                    </button>
+                  )}
                   {profile.is_expired && (
                     <button
                       onClick={() => handleReorder(profile.esim_order_id)}
@@ -808,6 +823,114 @@ const ESIMManagement = () => {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Subscription Management Modal */}
+      <AnimatePresence>
+        {subscriptionModalProfile && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card rounded-2xl border w-full max-w-md shadow-2xl"
+            >
+              <div className="p-6 border-b flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <ArrowPathIcon className="h-6 w-6 text-primary" />
+                  Auto-Renewal Settings
+                </h3>
+                <button
+                  onClick={() => setSubscriptionModalProfile(null)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <XCircleIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-semibold">Enable Auto-Renewal</h4>
+                      <p className="text-sm text-muted-foreground">Automatically renew this eSIM data plan</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const newState = !subscriptionModalProfile.auto_renew;
+                        try {
+                          await api.post(`/web/api/orders/${subscriptionModalProfile.esim_order_id}/update_subscription`, { auto_renew: newState });
+                          toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
+                          setSubscriptionModalProfile({ ...subscriptionModalProfile, auto_renew: newState });
+                          fetchESIMProfiles();
+                        } catch (e) {
+                          toast.error('Failed to update settings');
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${subscriptionModalProfile.auto_renew ? 'bg-primary' : 'bg-muted'
+                        }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscriptionModalProfile.auto_renew ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm">Preferred Payment Method</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
+                        { id: 'paystack', name: 'Saved Card (Paystack)', icon: DevicePhoneMobileIcon },
+                        { id: 'fastspring', name: 'FastSpring Subscription', icon: GlobeAltIcon }
+                      ].map((method) => (
+                        <button
+                          key={method.id}
+                          onClick={async () => {
+                            try {
+                              await api.post(`/web/api/orders/${subscriptionModalProfile.esim_order_id}/update_subscription`, { renewal_method: method.id });
+                              toast.success(`Payment method updated`);
+                              setSubscriptionModalProfile({ ...subscriptionModalProfile, renewal_method: method.id });
+                              fetchESIMProfiles();
+                            } catch (e) {
+                              toast.error('Failed to update method');
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${subscriptionModalProfile.renewal_method === method.id
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                            : 'border-border hover:bg-muted'
+                            }`}
+                        >
+                          <method.icon className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left text-sm">
+                            <p className="font-medium">{method.name}</p>
+                          </div>
+                          {subscriptionModalProfile.renewal_method === method.id && (
+                            <CheckCircleIcon className="h-4 w-4 text-primary ml-auto" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3 text-sm text-yellow-500/90">
+                  <ClockIcon className="h-5 w-5 shrink-0" />
+                  <p>
+                    Ensure your balance is sufficient before <strong>{new Date(subscriptionModalProfile.expired_time).toLocaleDateString()}</strong>.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSubscriptionModalProfile(null)}
+                  className="w-full py-3 px-4 rounded-xl bg-muted hover:bg-muted/80 font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

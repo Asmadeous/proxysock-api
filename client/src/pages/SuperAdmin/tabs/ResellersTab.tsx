@@ -24,6 +24,9 @@ interface ResellerRow {
     total_orders: number;
     has_affiliate: boolean;
     created_at: string;
+    country_code?: string;
+    country?: string;
+    city?: string;
     // Full detail fields
     users?: { id: string; email: string; name: string; status: string; created_at: string }[];
     orders?: { id: string; product: string; status: string; total: number; created_at: string }[];
@@ -38,7 +41,7 @@ interface Stats {
     total_balance: number;
 }
 
-const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only" };
+const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only", country_code: "US", country: "United States", city: "" };
 
 const TYPE_FILTERS = [
     { label: "All", value: "" },
@@ -150,7 +153,16 @@ export default function ResellersTab() {
 
     const openEdit = (r: ResellerRow) => {
         setEditTarget(r);
-        setForm({ email: r.email, username: r.username, company_name: r.company_name || "", password: "", reseller_type: r.reseller_type || "api_only" });
+        setForm({ 
+            email: r.email, 
+            username: r.username, 
+            company_name: r.company_name || "", 
+            password: "", 
+            reseller_type: r.reseller_type || "api_only",
+            country_code: r.country_code || "US",
+            country: r.country || "United States",
+            city: r.city || ""
+        });
     };
 
     const openConfig = (r: ResellerRow) => {
@@ -408,6 +420,15 @@ export default function ResellersTab() {
                 <Field label="Email"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name"><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-1">
+                        <Field label="Country Code"><input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US"/></Field>
+                    </div>
+                    <div className="col-span-2">
+                        <Field label="Country"><input className={inputClasses} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="United States"/></Field>
+                    </div>
+                </div>
+                <Field label="City"><input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York"/></Field>
                 <Field label="Password"><input className={inputClasses} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
@@ -423,6 +444,15 @@ export default function ResellersTab() {
                 <Field label="Email"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name"><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-1">
+                        <Field label="Country Code"><input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US"/></Field>
+                    </div>
+                    <div className="col-span-2">
+                        <Field label="Country"><input className={inputClasses} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="United States"/></Field>
+                    </div>
+                </div>
+                <Field label="City"><input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York"/></Field>
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>

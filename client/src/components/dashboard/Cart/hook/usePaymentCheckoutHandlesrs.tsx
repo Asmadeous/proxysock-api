@@ -23,6 +23,7 @@ interface UsePaymentCheckoutHandlersProps {
   setIsLoadingPayvra: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingFastspring: React.Dispatch<React.SetStateAction<boolean>>;
   // functions
   clearCart: () => void;
   // constants
@@ -44,6 +45,7 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingPayvra,
   setIsLoadingPaystack,
   setIsLoadingHundredpay,
+  setIsLoadingFastspring,
   clearCart,
   usaEsimInCart,
   onSuccess,
@@ -142,6 +144,7 @@ export const usePaymentCheckoutHandlers = ({
       quantity: getQuantity(item),
       metadata: {
         ...buildMetadata(item),
+        auto_renew: !!item.auto_renew,
         ...(item.period ? { period: item.period } : {}),
         ...(item.locationsString ? { locationsString: item.locationsString } : {}),
         ...(item.protocol ? { protocol: item.protocol } : {})
@@ -243,6 +246,7 @@ export const usePaymentCheckoutHandlers = ({
   const handlePayvraCheckout = () => handleDepositGateway('payvra', setIsLoadingPayvra);
   const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
   const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
+  const handleFastSpringCheckout = () => handleDepositGateway('fastspring', setIsLoadingFastspring);
 
   return {
     handleBalancePayment,
@@ -250,5 +254,6 @@ export const usePaymentCheckoutHandlers = ({
     handlePayvraCheckout,
     handlePaystackCheckout,
     handleHundredpayCheckout,
+    handleFastSpringCheckout,
   };
 };

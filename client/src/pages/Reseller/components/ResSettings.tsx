@@ -13,7 +13,10 @@ export default function ResSettings() {
         email: "",
         username: "",
         dedicated_api_key: "",
-        profile_picture_url: ""
+        profile_picture_url: "",
+        country_code: "US",
+        country: "United States",
+        city: ""
     });
     const [profilePicture, setProfilePicture] = useState<File | null>(null);
 
@@ -29,7 +32,10 @@ export default function ResSettings() {
                     email: data.email || "",
                     username: data.username || "",
                     dedicated_api_key: data.dedicated_api_key || "",
-                    profile_picture_url: data.profile_picture_url || ""
+                    profile_picture_url: data.profile_picture_url || "",
+                    country_code: data.country_code || "US",
+                    country: data.country || "United States",
+                    city: data.city || ""
                 });
             })
             .catch(() => toast.error("Failed to load profile"))
@@ -45,12 +51,18 @@ export default function ResSettings() {
                 payload = new FormData();
                 payload.append("reseller[company_name]", profile.company_name);
                 payload.append("reseller[username]", profile.username);
+                payload.append("reseller[country_code]", profile.country_code);
+                payload.append("reseller[country]", profile.country);
+                payload.append("reseller[city]", profile.city);
                 payload.append("reseller[avatar]", profilePicture);
             } else {
                 payload = {
                     reseller: {
                         company_name: profile.company_name,
-                        username: profile.username
+                        username: profile.username,
+                        country_code: profile.country_code,
+                        country: profile.country,
+                        city: profile.city
                     }
                 };
             }
@@ -64,7 +76,10 @@ export default function ResSettings() {
                 email: updatedData.email || "",
                 username: updatedData.username || "",
                 dedicated_api_key: updatedData.dedicated_api_key || "",
-                profile_picture_url: updatedData.profile_picture_url || ""
+                profile_picture_url: updatedData.profile_picture_url || "",
+                country_code: updatedData.country_code || "US",
+                country: updatedData.country || "United States",
+                city: updatedData.city || ""
             });
             
             toast.success("Profile updated successfully");
@@ -127,6 +142,42 @@ export default function ResSettings() {
                                         className="w-full bg-muted/30 border border-border/50 p-4 pl-12 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                         value={profile.company_name}
                                         onChange={e => setProfile({ ...profile, company_name: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2 col-span-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country Code</label>
+                                <div className="relative group">
+                                    <input
+                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        value={profile.country_code}
+                                        onChange={e => setProfile({ ...profile, country_code: e.target.value })}
+                                        placeholder="US"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 col-span-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country Name</label>
+                                <div className="relative group">
+                                    <input
+                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        value={profile.country}
+                                        onChange={e => setProfile({ ...profile, country: e.target.value })}
+                                        placeholder="United States"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">City</label>
+                                <div className="relative group">
+                                    <input
+                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        value={profile.city}
+                                        onChange={e => setProfile({ ...profile, city: e.target.value })}
+                                        placeholder="New York"
                                     />
                                 </div>
                             </div>
