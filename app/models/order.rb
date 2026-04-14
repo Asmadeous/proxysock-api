@@ -167,6 +167,7 @@ class Order < ApplicationRecord
     state :expired
     state :cancelled
     state :failed
+    state :refunded
 
     event :await_payment do
       transitions from: :pending, to: :awaiting_payment
@@ -190,6 +191,10 @@ class Order < ApplicationRecord
 
     event :fail do
       transitions from: %i[pending processing], to: :failed
+    end
+
+    event :refund do
+      transitions from: %i[active failed cancelled], to: :refunded
     end
   end
 end

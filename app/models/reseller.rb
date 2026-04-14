@@ -46,6 +46,10 @@ class Reseller < ApplicationRecord
   validates :username, presence: true, uniqueness: true
   validates :company_name, presence: true
 
+  # Ensure location is available for MyProxyApi integrations
+  validates :country_code, presence: true
+  validates :city, presence: true
+
   # Reseller Tiers
   # api_only:        Balance-based, deposits via gateways (min $1500), rotational JWT, all products
   # single_product:  Balance-based, deposits via gateways (min $500), rotational JWT, one product category

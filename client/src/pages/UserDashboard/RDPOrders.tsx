@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -90,6 +90,7 @@ const RDPOrdersPage = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<RDPOrder | null>(null);
+  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
   const { accessToken } = useAuth();
 
   // Stats
@@ -664,6 +665,23 @@ Payment Method: ${order.payment_method || 'N/A'}
                         <Terminal className="h-4 w-4" />
                         Details
                       </Button>
+                      <Button
+                        onClick={() => downloadOrderDetails(order)}
+                        className="flex-1 gap-2 border-primary/30 hover:bg-primary/5 text-primary"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Instructions
+                      </Button>
+                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setRefundDialogOrderId(order.id)}
+                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                       {order.ip_address && order.status === 'active' && (
                         <Button
                           onClick={async () => {
@@ -879,6 +897,12 @@ Payment Method: ${order.payment_method || 'N/A'}
           )}
         </DialogContent>
       </Dialog>
+      <CryptoRefundModal
+        orderId={refundDialogOrderId}
+        isOpen={!!refundDialogOrderId}
+        onClose={() => setRefundDialogOrderId(null)}
+        onSuccess={fetchRDPOrders}
+      />
     </div>
   );
 };

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -72,6 +73,10 @@ const ProxyOrdersPage: FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
+  
+  // Refund states
+  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
+
   const { user, accessToken } = useAuth();
 
   // Stats
@@ -724,6 +729,16 @@ IPs Included: ${order.ips_included || 0}
                       >
                         <FileText className="h-4 w-4" />
                       </Button>
+                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setRefundDialogOrderId(order.id)}
+                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -847,6 +862,14 @@ IPs Included: ${order.ips_included || 0}
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Crypto Refund Modal */}
+      <CryptoRefundModal
+        orderId={refundDialogOrderId}
+        isOpen={!!refundDialogOrderId}
+        onClose={() => setRefundDialogOrderId(null)}
+        onSuccess={fetchProxyOrders}
+      />
     </div>
   );
 };

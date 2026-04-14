@@ -142,6 +142,12 @@ export default function Cart() {
     setCartItems(updatedCart);
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));
     globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: updatedCart.length } }));
+  const updateItemAutoRenew = (index: number, auto_renew: boolean) => {
+    const updatedCart = cartItems.map((item, i) =>
+      i === index ? { ...item, auto_renew } : item
+    );
+    setCartItems(updatedCart);
+    localStorage.setItem("cartItems", JSON.stringify(updatedCart));
   };
 
   return (
@@ -233,6 +239,7 @@ export default function Cart() {
                     index={index}
                     cartItems={cartItems}
                     removeItem={removeItem}
+                    updateItemAutoRenew={updateItemAutoRenew}
                     exchangeRate={exchangeRate}
                     updateESIMQuantity={updateESIMQuantity}
                   />

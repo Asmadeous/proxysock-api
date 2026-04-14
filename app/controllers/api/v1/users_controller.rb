@@ -7,7 +7,6 @@ module Api
     class UsersController < BaseController
       include JwtAuthenticated
 
-      before_action :require_infrastructure!
       before_action :set_user, only: %i[show update destroy orders transactions]
 
       # GET /api/v1/users
@@ -92,12 +91,6 @@ module Api
 
       private
 
-      def require_infrastructure!
-        return if current_reseller&.infrastructure?
-
-        render json: { error: 'Only infrastructure resellers can manage users' }, status: :forbidden
-      end
-
       # Strict scoping: only find users that belong to THIS reseller
       def set_user
         @user = current_reseller.managed_users.find(params[:id])
@@ -106,11 +99,11 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:email, :username, :first_name, :last_name, :phone)
+        params.require(:user).permit(:email, :username, :first_name, :last_name, :phone, :country, :city, :country_code)
       end
 
       def user_update_params
-        params.require(:user).permit(:email, :first_name, :last_name, :phone, :status)
+        params.require(:user).permit(:email, :first_name, :last_name, :phone, :status, :country, :city, :country_code)
       end
 
       def serialize_user(user)
@@ -122,6 +115,9 @@ module Api
           last_name: user.last_name,
           phone: user.phone,
           status: user.status,
+          country: user.country,
+          city: user.city,
+          country_code: user.country_code,
           balance: user.main_wallet&.balance.to_f,
           created_at: user.created_at
         }

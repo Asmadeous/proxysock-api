@@ -319,6 +319,21 @@ export default function ResWallet() {
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "paystack" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
 
+                                    {/* FastSpring Option */}
+                                    <div 
+                                        onClick={() => setPaymentGateway("fastspring")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "fastspring" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${paymentGateway === "fastspring" ? "bg-blue-500/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "fastspring" ? "text-blue-600" : "text-muted-foreground"}`} /></div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">FastSpring (Global)</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Cards & PayPal (USD)</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "fastspring" ? "border-blue-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
                                     {/* 100Pay Option */}
                                     <div 
                                         onClick={() => setPaymentGateway("hundredpay")}

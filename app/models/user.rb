@@ -45,6 +45,10 @@ class User < ApplicationRecord
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
 
+  # Ensure location is available for MyProxyApi integrations
+  validates :country_code, presence: true
+  validates :city, presence: true
+
   validate :avatar_security_checks
 
   generates_token_for :password_reset, expires_in: 15.minutes do

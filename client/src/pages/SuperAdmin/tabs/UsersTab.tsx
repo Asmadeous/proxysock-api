@@ -16,6 +16,8 @@ interface UserRow {
     wallet_balance: number;
     total_orders: number;
     created_at: string;
+    country_code?: string;
+    city?: string;
 }
 
 export default function UsersTab() {
@@ -29,7 +31,7 @@ export default function UsersTab() {
     // Modals
     const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
     const [editTarget, setEditTarget] = useState<UserRow | null>(null);
-    const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", status: "" });
+    const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", status: "", country_code: "", city: "" });
     const [actionLoading, setActionLoading] = useState(false);
 
     const load = useCallback(async () => {
@@ -92,7 +94,14 @@ export default function UsersTab() {
 
     const openEdit = (user: UserRow) => {
         setEditTarget(user);
-        setEditForm({ first_name: user.first_name || "", last_name: user.last_name || "", email: user.email, status: user.status || "active" });
+        setEditForm({ 
+            first_name: user.first_name || "", 
+            last_name: user.last_name || "", 
+            email: user.email, 
+            status: user.status || "active",
+            country_code: user.country_code || "US",
+            city: user.city || ""
+        });
     };
 
     const columns = [
@@ -183,6 +192,14 @@ export default function UsersTab() {
                 <Field label="Email">
                     <input className={inputClasses} type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
                 </Field>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Country Code">
+                        <input className={inputClasses} value={editForm.country_code} onChange={(e) => setEditForm({ ...editForm, country_code: e.target.value })} placeholder="US" />
+                    </Field>
+                    <Field label="City">
+                        <input className={inputClasses} value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} placeholder="New York" />
+                    </Field>
+                </div>
                 <Field label="Status">
                     <select className={inputClasses} value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                         <option value="active">Active</option>

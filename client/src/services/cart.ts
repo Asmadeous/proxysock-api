@@ -116,7 +116,7 @@ export const checkoutWithWallet = async (): Promise<CheckoutResult> => {
 
 // Checkout with payment gateway
 export const checkoutWithGateway = async (
-    paymentMethod: "paystack" | "plisio" | "payvra"
+    paymentMethod: "paystack" | "plisio" | "payvra" | "fastspring"
 ): Promise<CheckoutResult> => {
     try {
         const response = await railsApi.post<CheckoutResult>("/cart/checkout", {

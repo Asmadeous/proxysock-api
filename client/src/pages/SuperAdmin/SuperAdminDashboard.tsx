@@ -42,6 +42,7 @@ const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
 const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
 const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
+const UsaCredentialsTab = lazy(() => import("./tabs/UsaCredentialsTab"));
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -61,6 +62,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
   { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
   { id: "database", name: "Database", icon: CircleStackIcon },
+  { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
 
@@ -82,6 +84,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   promo_codes: PromoCodesTab,
   settings: SettingsTab,
   database: DatabaseTab,
+  usa_credentials: UsaCredentialsTab,
   logs: SystemLogsTab,
 };
 

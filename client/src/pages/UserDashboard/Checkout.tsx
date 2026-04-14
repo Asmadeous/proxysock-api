@@ -38,6 +38,7 @@ export default function Checkout() {
     const [isLoadingPayvra, setIsLoadingPayvra] = useState(false);
     const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
+    const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
     const [isAnyPaymentProcessing, setIsAnyPaymentProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -147,6 +148,7 @@ export default function Checkout() {
         handleHundredpayCheckout,
         handlePayvraCheckout,
         handlePlisioCheckout,
+        handleFastSpringCheckout,
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
@@ -160,6 +162,7 @@ export default function Checkout() {
         setIsLoadingPayvra,
         setIsLoadingPaystack,
         setIsLoadingHundredpay,
+        setIsLoadingFastspring,
         clearCart: () => {
             localStorage.removeItem("cartItems");
             setCartItems([]);
@@ -175,6 +178,7 @@ export default function Checkout() {
         else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "payvra") handlePayvraCheckout();
+        else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
     };
 
     const orderTotal = calculateOrderTotalSync();
@@ -221,7 +225,7 @@ export default function Checkout() {
 
 
     const isProcessing =
-        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingPayvra || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingPayvra || isLoadingFastspring || isAnyPaymentProcessing;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -284,6 +288,20 @@ export default function Checkout() {
                                         <div className="flex-1">
                                             <div className="font-semibold">Paystack (Card)</div>
                                             <div className="text-sm text-muted-foreground">Pay with NGN</div>
+                                        </div>
+                                    </Label>
+                                </div>
+
+                                {/* FastSpring Option */}
+                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "fastspring" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                    <RadioGroupItem value="fastspring" id="fastspring" className="sr-only" />
+                                    <Label htmlFor="fastspring" className="flex items-center gap-4 w-full cursor-pointer">
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                                            <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold">FastSpring (Global)</div>
+                                            <div className="text-sm text-muted-foreground">Cards, PayPal (USD)</div>
                                         </div>
                                     </Label>
                                 </div>

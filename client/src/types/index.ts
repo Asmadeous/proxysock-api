@@ -170,6 +170,7 @@ export interface CartItem {
   location?: { country: string; countryCode: string };
   effective_base_price?: number;
   residentalRotatingConfig?: ResidentalRotatingConfig;
+  auto_renew?: boolean;
 }
 
 export interface Transaction {

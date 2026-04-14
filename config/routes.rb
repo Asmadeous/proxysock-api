@@ -39,6 +39,7 @@ Rails.application.routes.draw do
           post :renew
           post :cancel
           post :reorder
+          post :update_subscription
         end
       end
 
@@ -92,8 +93,6 @@ Rails.application.routes.draw do
         post :messages, on: :collection, action: :add_message
       end
 
-      # External Provisioning (Temporary for Supabase integration)
-      post 'external/provision', to: 'external_vms#provision'
     end
   end
 
@@ -152,6 +151,7 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :reorder
+          post :update_subscription
           get :download_ovpn
           get :download_invoice
           get :download_rdp_config
@@ -160,6 +160,7 @@ Rails.application.routes.draw do
           post :rotate_ip
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
+          post :claim_crypto_refund
         end
       end
       resource :wallet, only: [:show] do
@@ -297,6 +298,10 @@ Rails.application.routes.draw do
         post :impersonate, on: :member
         post :onboard,     on: :member
       end
+      resources :usa_esim_credentials, only: %i[index destroy] do
+        post :import, on: :collection
+      end
+
       resources :orders, only: %i[index show] do
         post :refund,   on: :member
         post :rescue,   on: :member
@@ -382,12 +387,14 @@ Rails.application.routes.draw do
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
     post 'hundredpay', to: 'webhooks#hundredpay'
+    post 'fastspring', to: 'webhooks#fastspring'
 
     # Handle accidental browser GET redirects from payment gateways by sending them to frontend
     get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'fastspring', to: redirect { ENV['FRONTEND_URL'] || '/' }
   end
 
   post 'esim', to: 'webhooks/esim_access#webhook'

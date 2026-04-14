@@ -178,19 +178,34 @@ class VmProvisioningService
       # 1. Clone VM
       create_vm(pve_vmid, template_id, hostname, cpu_cores, ram_gb, storage_gb, bridge, os_template)
 
-      # 2. Start VM
+      # 2. Assign IP and Whitelist (Pre-Start to avoid collision)
+      mac_address = get_vm_mac_address(pve_vmid)
+      @logger.info("Allocated IP and whitelisting for VM #{pve_vmid} (MAC: #{mac_address})")
+      
+      assigned_ip_record = IpAddress.claim_next_available(db_vm_id)
+      raise "No available IPs in the pool" unless assigned_ip_record
+      actual_ip = assigned_ip_record.address
+      
+      # Update VM record with IP immediately
+      Vm.find(db_vm_id).update!(ip_address: actual_ip) if db_vm_id
+
+      # Whitelist in dnsmasq BEFORE starting to ensure DHCP picks it up
+      whitelist_ip_on_dnsmasq(mac_address, actual_ip, hostname)
+
+      # 3. Start VM
       start_vm(pve_vmid)
       raise "VM #{pve_vmid} failed to become ready" unless wait_for_vm_ready(pve_vmid)
 
-      # 3. Get MAC address
-      mac_address = get_vm_mac_address(pve_vmid)
-      @logger.info("VM #{pve_vmid} has MAC: #{mac_address}")
+      # 4. Wait for OS boot and Guest Agent availability (60s)
+      @logger.info("Sleeping for 60 seconds to allow VM #{pve_vmid} to boot and Guest Agent to start...")
+      sleep 60
 
-      # 4. Discover IP (all VMs on vmbr0 get public IPs directly)
-      actual_ip = discover_and_bind_vm_ip(db_vm_id, pve_vmid, mac_address, hostname, is_windows)
-      @logger.info("VM #{pve_vmid} IP: #{actual_ip}")
+      # 5. Verify IP via Guest Agent (Windows needs more retries)
+      verify_retries = is_windows ? 36 : 12
+      verify_vm_ip!(pve_vmid, actual_ip, verify_retries)
+      @logger.info("Verified VM #{pve_vmid} is running on expected IP: #{actual_ip}")
 
-      # 5. Port allocation
+      # 6. Port allocation
       rdp_access = is_windows || vm_type.to_s.include?('rdp')
       protocol = rdp_access ? 'rdp' : 'ssh'
       custom_port = generate_random_port
@@ -206,7 +221,7 @@ class VmProvisioningService
 
       dns_name = nil
 
-      # 6. Run Ansible (Tailscale for Linux is configured entirely by Ansible playbooks)
+      # 7. Run Ansible (Tailscale for Linux is configured entirely by Ansible playbooks)
       if ansible_available?
         params_with_port = params.merge('custom_port' => custom_port)
         run_ansible_step(pve_vmid, actual_ip, template_config, root_password, params_with_port, hostname, management_type, os_template, proxy_config)
@@ -214,14 +229,14 @@ class VmProvisioningService
         @logger.warn('[VmProvisioningService] Ansible not found in container! Skipping playbook')
       end
 
-      # 7. Windows: Create Cloudflare DNS record (hostname.proxysock.com -> IP)
+      # 8. Windows: Create Cloudflare DNS record (hostname.proxysock.com -> IP)
       if is_windows
         dns_service = CloudflareDnsService.new(@logger)
         dns_name = dns_service.create_vm_dns(hostname, actual_ip)
         @logger.info("Cloudflare DNS: #{dns_name}") if dns_name
       end
 
-      # 8. Monitoring
+      # 9. Monitoring
       if management_type == 'managed'
         register_vm_with_monitoring(pve_vmid, actual_ip, hostname, os_template)
       end
@@ -242,7 +257,16 @@ class VmProvisioningService
       @logger.error("Provisioning failed: #{e.message}")
       @logger.error(e.backtrace.join("\n"))
 
-      cleanup_vm(pve_vmid, actual_ip, hostname, nil, db_vm_id) if pve_vmid
+      # Only stop the VM — do NOT destroy it. Admin will rescue manually.
+      # VmGarbageCollectionJob handles eventual cleanup of abandoned VMs.
+      if pve_vmid
+        begin
+          stop_vm(pve_vmid)
+          @logger.info("VM #{pve_vmid} stopped after provisioning failure (retained for rescue)")
+        rescue StandardError => stop_err
+          @logger.error("Failed to stop VM #{pve_vmid} after failure: #{stop_err.message}")
+        end
+      end
 
       raise e
     end
@@ -313,11 +337,23 @@ class VmProvisioningService
       if vm
         # Delete Cloudflare DNS record for Windows VMs
         if vm.hostname.present?
-          CloudflareDnsService.new(@logger).delete_vm_dns(vm.hostname)
+          begin
+            CloudflareDnsService.new(@logger).delete_vm_dns(vm.hostname)
+          rescue StandardError => e
+            @logger.error("Failed to delete DNS record for #{vm.hostname}: #{e.message}")
+          end
         end
+      end
 
-        # Release IP address
-        IpAddress.find_by(vm_id: db_vm_id)&.release!
+      # Release IP address back to pool (critical for pre-assigned IPs)
+      begin
+        ip_record = IpAddress.find_by(vm_id: db_vm_id)
+        if ip_record
+          ip_record.release!
+          @logger.info("Released IP #{ip_record.address} back to pool for VM #{db_vm_id}")
+        end
+      rescue StandardError => e
+        @logger.error("Failed to release IP for VM #{db_vm_id}: #{e.message}")
       end
     end
 
@@ -654,12 +690,9 @@ class VmProvisioningService
     false
   end
 
-  # Discover IP via Guest Agent — all VMs on vmbr0 get public IPs directly
-  def discover_and_bind_vm_ip(db_vm_id, pve_vmid, mac_address, hostname, is_windows = false)
+  # Verify IP via Guest Agent — ensures the VM picked up the pre-assigned IP
+  def verify_vm_ip!(pve_vmid, expected_ip, max_retries = 12)
     actual_ip = nil
-    actual_mac = mac_address
-
-    max_retries = is_windows ? 36 : 12  # Windows needs longer to boot
 
     max_retries.times do |attempt|
       begin
@@ -679,36 +712,25 @@ class VmProvisioningService
             next unless ip_info['ip-address-type'] == 'ipv4'
             next if ip_info['ip-address'].start_with?('127.', '169.254.')
 
-            actual_ip = ip_info['ip-address']
-            actual_mac = interface['hardware-address'] || mac_address
-            break
+            if ip_info['ip-address'] == expected_ip
+              actual_ip = ip_info['ip-address']
+              break
+            end
           end
           break if actual_ip
         end
 
         if actual_ip
-          @logger.info("Found IP: #{actual_ip}, MAC: #{actual_mac} for VM #{pve_vmid}")
-          break
+          @logger.info("Guest Agent verified IP: #{actual_ip} for VM #{pve_vmid}")
+          return true
         end
       rescue StandardError => e
-        @logger.debug("Guest agent query failed (attempt #{attempt + 1}): #{e.message}")
+        @logger.debug("Guest agent verification attempt #{attempt + 1} failed: #{e.message}")
       end
-      sleep 10
+      sleep 5
     end
 
-    raise "Could not discover IP for VM #{pve_vmid} via Guest Agent" unless actual_ip
-
-    # All VMs on vmbr0 — store IP directly
-    vm = Vm.find(db_vm_id)
-    vm.update!(ip_address: actual_ip)
-
-    ip_record = IpAddress.find_or_initialize_by(address: actual_ip)
-    ip_record.update!(status: 'assigned', vm_id: db_vm_id, assigned_at: Time.current)
-
-    # Whitelist in dnsmasq
-    whitelist_ip_on_dnsmasq(actual_mac, actual_ip, hostname)
-
-    actual_ip
+    raise "IP Verification Failed: VM #{pve_vmid} did not pick up expected IP #{expected_ip} via Guest Agent"
   end
 
   def whitelist_ip_on_dnsmasq(mac, ip, hostname)

@@ -52,6 +52,8 @@ interface VPNOrder {
     };
     traffic_used?: number;
     traffic_limit?: number;
+    auto_renew?: boolean;
+    renewal_method?: string;
 }
 
 export default function VPNManagement() {
@@ -60,6 +62,7 @@ export default function VPNManagement() {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<VPNOrder | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
     const { user, accessToken } = useAuth();
 
     useEffect(() => {
@@ -89,6 +92,8 @@ export default function VPNManagement() {
                         credentials: order.credentials || {},
                         traffic_used: order.vpn_details?.traffic_used || 0,
                         traffic_limit: Number(order.bandwidth_gb) || 0,
+                        auto_renew: order.auto_renew,
+                        renewal_method: order.renewal_method,
                     }));
 
                 // Filter based on active tab
@@ -225,23 +230,37 @@ export default function VPNManagement() {
                         )}
                     </div>
 
-                    <div className="flex gap-2">
-                        <Button
-                            className="flex-1 gap-2"
-                            onClick={() => openDetails(order)}
-                        >
-                            <Eye className="h-4 w-4" /> Manage
-                        </Button>
-                        {order.status === "expired" && (
-                            <Button
-                                className="flex-1 gap-2"
-                                variant="outline"
-                                onClick={() => handleReorder(order.id)}
-                            >
-                                <ShoppingCart className="h-4 w-4" /> Reorder
-                            </Button>
-                        )}
-                    </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <Button
+                                    className="flex-1 gap-2"
+                                    onClick={() => openDetails(order)}
+                                >
+                                    <Eye className="h-4 w-4" /> Manage
+                                </Button>
+                                {order.status === "active" && (
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1 gap-2"
+                                        onClick={() => {
+                                            setSelectedOrder(order);
+                                            setIsSubscriptionOpen(true);
+                                        }}
+                                    >
+                                        <Clock className="h-4 w-4" /> Auto-Renew
+                                    </Button>
+                                )}
+                            </div>
+                            {order.status === "expired" && (
+                                <Button
+                                    className="w-full gap-2"
+                                    variant="outline"
+                                    onClick={() => handleReorder(order.id)}
+                                >
+                                    <ShoppingCart className="h-4 w-4" /> Reorder
+                                </Button>
+                            )}
+                        </div>
                 </CardContent>
             </Card>
         </motion.div>
@@ -444,6 +463,80 @@ export default function VPNManagement() {
                                     <Download className="h-4 w-4" /> Download
                                 </Button>
                             </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isSubscriptionOpen} onOpenChange={setIsSubscriptionOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Auto-Renewal Settings</DialogTitle>
+                        <DialogDescription>
+                            Manage recurring billing for this VPN service
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedOrder && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                                <div>
+                                    <p className="font-semibold">Enable Auto-Renewal</p>
+                                    <p className="text-sm text-muted-foreground">Renew using your wallet or card</p>
+                                </div>
+                                <Button
+                                    variant={selectedOrder.auto_renew ? "default" : "outline"}
+                                    onClick={async () => {
+                                        const newState = !selectedOrder.auto_renew;
+                                        try {
+                                            await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { auto_renew: newState });
+                                            toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
+                                            setSelectedOrder({ ...selectedOrder, auto_renew: newState });
+                                            fetchVPNData();
+                                        } catch (e) {
+                                            toast.error("Failed to update settings");
+                                        }
+                                    }}
+                                >
+                                    {selectedOrder.auto_renew ? "Enabled" : "Disabled"}
+                                </Button>
+                            </div>
+
+                            <div className="space-y-3">
+                                <p className="text-sm font-medium">Renewal Payment Method</p>
+                                {[
+                                    { id: 'wallet', name: 'Wallet Balance' },
+                                    { id: 'paystack', name: 'Saved Card (Paystack)' },
+                                    { id: 'fastspring', name: 'FastSpring Subscription' }
+                                ].map((method) => (
+                                    <Button
+                                        key={method.id}
+                                        variant={selectedOrder.renewal_method === method.id ? "default" : "outline"}
+                                        className="w-full justify-between"
+                                        onClick={async () => {
+                                            try {
+                                                await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { renewal_method: method.id });
+                                                toast.success("Payment method updated");
+                                                setSelectedOrder({ ...selectedOrder, renewal_method: method.id });
+                                                fetchVPNData();
+                                            } catch (e) {
+                                                toast.error("Failed to update method");
+                                            }
+                                        }}
+                                    >
+                                        {method.name}
+                                        {selectedOrder.renewal_method === method.id && <CheckCircle className="h-4 w-4" />}
+                                    </Button>
+                                ))}
+                            </div>
+
+                            <div className="bg-yellow-500/10 p-3 rounded-lg flex gap-2 text-xs text-yellow-600">
+                                <Clock className="h-4 w-4 shrink-0" />
+                                <p>Next renewal attempt: {selectedOrder.expires_at ? formatDate(selectedOrder.expires_at) : 'N/A'}</p>
+                            </div>
+
+                            <Button className="w-full" variant="secondary" onClick={() => setIsSubscriptionOpen(false)}>
+                                Done
+                            </Button>
                         </div>
                     )}
                 </DialogContent>
