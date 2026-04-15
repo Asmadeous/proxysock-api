@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 
 import api from "../../services/api";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 interface VPNOrder {
     id: string;
     order_number: string;
@@ -467,80 +468,16 @@ export default function VPNManagement() {
                     )}
                 </DialogContent>
             </Dialog>
-            <Dialog open={isSubscriptionOpen} onOpenChange={setIsSubscriptionOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Auto-Renewal Settings</DialogTitle>
-                        <DialogDescription>
-                            Manage recurring billing for this VPN service
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedOrder && (
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
-                                <div>
-                                    <p className="font-semibold">Enable Auto-Renewal</p>
-                                    <p className="text-sm text-muted-foreground">Renew using your wallet or card</p>
-                                </div>
-                                <Button
-                                    variant={selectedOrder.auto_renew ? "default" : "outline"}
-                                    onClick={async () => {
-                                        const newState = !selectedOrder.auto_renew;
-                                        try {
-                                            await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { auto_renew: newState });
-                                            toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
-                                            setSelectedOrder({ ...selectedOrder, auto_renew: newState });
-                                            fetchVPNData();
-                                        } catch (e) {
-                                            toast.error("Failed to update settings");
-                                        }
-                                    }}
-                                >
-                                    {selectedOrder.auto_renew ? "Enabled" : "Disabled"}
-                                </Button>
-                            </div>
-
-                            <div className="space-y-3">
-                                <p className="text-sm font-medium">Renewal Payment Method</p>
-                                {[
-                                    { id: 'wallet', name: 'Wallet Balance' },
-                                    { id: 'paystack', name: 'Saved Card (Paystack)' },
-                                    { id: 'fastspring', name: 'FastSpring Subscription' }
-                                ].map((method) => (
-                                    <Button
-                                        key={method.id}
-                                        variant={selectedOrder.renewal_method === method.id ? "default" : "outline"}
-                                        className="w-full justify-between"
-                                        onClick={async () => {
-                                            try {
-                                                await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { renewal_method: method.id });
-                                                toast.success("Payment method updated");
-                                                setSelectedOrder({ ...selectedOrder, renewal_method: method.id });
-                                                fetchVPNData();
-                                            } catch (e) {
-                                                toast.error("Failed to update method");
-                                            }
-                                        }}
-                                    >
-                                        {method.name}
-                                        {selectedOrder.renewal_method === method.id && <CheckCircle className="h-4 w-4" />}
-                                    </Button>
-                                ))}
-                            </div>
-
-                            <div className="bg-yellow-500/10 p-3 rounded-lg flex gap-2 text-xs text-yellow-600">
-                                <Clock className="h-4 w-4 shrink-0" />
-                                <p>Next renewal attempt: {selectedOrder.expires_at ? formatDate(selectedOrder.expires_at) : 'N/A'}</p>
-                            </div>
-
-                            <Button className="w-full" variant="secondary" onClick={() => setIsSubscriptionOpen(false)}>
-                                Done
-                            </Button>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <ManageSubscriptionModal
+                isOpen={isSubscriptionOpen}
+                onClose={() => setIsSubscriptionOpen(false)}
+                orderId={selectedOrder?.id}
+                autoRenew={!!selectedOrder?.auto_renew}
+                renewalMethod={selectedOrder?.renewal_method || 'wallet'}
+                expiresAt={selectedOrder?.expires_at || ''}
+                onUpdate={fetchVPNData}
+                api={api}
+            />
         </div>
     );
 }

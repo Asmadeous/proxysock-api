@@ -9,9 +9,10 @@ import {
     EyeSlashIcon,
     XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { fetchResellerVms } from "@/services/resellerApi";
+import resellerApi, { fetchResellerVms } from "@/services/resellerApi";
 import { startVm, stopVm, rebootVm } from "@/services/api";
 import { toast } from "react-hot-toast";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 
 interface VPSInstance {
     id: string | number;
@@ -28,6 +29,10 @@ interface VPSInstance {
     ssh_port: number;
     expires_at: string;
     plan_name?: string;
+    order_id?: string | number;
+    order_number?: string;
+    auto_renew?: boolean;
+    renewal_method?: string;
 }
 
 export default function ResVPSManagement() {
@@ -35,6 +40,7 @@ export default function ResVPSManagement() {
     const [loading, setLoading] = useState(true);
     const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
     const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
+    const [subscriptionVps, setSubscriptionVps] = useState<VPSInstance | null>(null);
 
     useEffect(() => {
         loadInstances();
@@ -123,7 +129,7 @@ export default function ResVPSManagement() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <button onClick={() => handleAction(vps.id, 'start')} disabled={refreshing[vps.id]} className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50">
                                 <ArrowPathIcon className={`w-4 h-4 mb-1 ${refreshing[vps.id] && vps.status === 'starting' ? 'animate-spin' : ''}`} />
                                 <span className="text-[10px]">Start</span>
@@ -136,10 +142,28 @@ export default function ResVPSManagement() {
                                 <ArrowPathIcon className="w-4 h-4 mb-1" />
                                 <span className="text-[10px]">Reboot</span>
                             </button>
+                            {vps.order_id && (
+                                <button onClick={() => setSubscriptionVps(vps)} className="flex flex-col items-center justify-center p-2 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20">
+                                    <ArrowPathIcon className="w-4 h-4 mb-1" />
+                                    <span className="text-[10px]">Renew</span>
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 ))}
             </div>
+
+            <ManageSubscriptionModal
+                isOpen={!!subscriptionVps}
+                onClose={() => setSubscriptionVps(null)}
+                orderId={subscriptionVps?.order_id || ''}
+                autoRenew={!!subscriptionVps?.auto_renew}
+                renewalMethod={subscriptionVps?.renewal_method || 'wallet'}
+                expiresAt={subscriptionVps?.expires_at || ''}
+                onUpdate={loadInstances}
+                api={resellerApi}
+                apiPrefix=""
+            />
         </div>
     );
 }

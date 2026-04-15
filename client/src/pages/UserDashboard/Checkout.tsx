@@ -293,7 +293,7 @@ export default function Checkout() {
                                 </div>
 
                                 {/* FastSpring Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "fastspring" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                {/* <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "fastspring" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="fastspring" id="fastspring" className="sr-only" />
                                     <Label htmlFor="fastspring" className="flex items-center gap-4 w-full cursor-pointer">
                                         <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
@@ -304,7 +304,7 @@ export default function Checkout() {
                                             <div className="text-sm text-muted-foreground">Cards, PayPal (USD)</div>
                                         </div>
                                     </Label>
-                                </div>
+                                </div> */}
 
                                 {/* Plisio Option */}
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "plisio" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>

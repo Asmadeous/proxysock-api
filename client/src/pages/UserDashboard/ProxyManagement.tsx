@@ -754,7 +754,7 @@ export default function ProxyManagement() {
                       {[
                         { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
                         { id: 'paystack', name: 'Saved Card (Paystack)', icon: KeyIcon },
-                        { id: 'fastspring', name: 'FastSpring Subscription', icon: ShoppingCartIcon }
+                        // { id: 'fastspring', name: 'FastSpring Subscription', icon: ShoppingCartIcon }
                       ].map((method) => (
                         <button
                           key={method.id}

@@ -247,7 +247,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     colorClass="cyan"
                     loading={loading}
                   />
-                  <PaymentMethodCard
+{/* <PaymentMethodCard
                     id="fastspring"
                     title="Pay with Card (FastSpring)"
                     description="Global Cards, PayPal & More"
@@ -256,7 +256,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     onClick={() => setPaymentMethod('fastspring')}
                     colorClass="blue"
                     loading={loading}
-                  />
+                  /> */}
                   <PaymentMethodCard
                     id="crypto_hundredpay"
                     title="100Pay (Card & Crypto)"
