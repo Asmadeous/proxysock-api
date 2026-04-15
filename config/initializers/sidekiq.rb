@@ -6,7 +6,7 @@ Sidekiq.configure_server do |config|
   # Dual logging for Admin Dashboard (Sidekiq logs)
   if ENV["RAILS_LOG_TO_STDOUT"].present?
     file_logger = Sidekiq::Logger.new(Rails.root.join("log/sidekiq.log"))
-    config.logger.extend(ActiveSupport::Logger.broadcast(file_logger))
+    config.logger = ActiveSupport::BroadcastLogger.new(config.logger, file_logger)
   end
 end
 
