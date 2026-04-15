@@ -43,8 +43,8 @@ Rails.application.configure do
     file_logger.formatter = config.log_formatter
     
     # Broadcast to both
-    broadcast_logger = stdout_logger.extend(ActiveSupport::Logger.broadcast(file_logger))
-    config.logger = ActiveSupport::TaggedLogging.new(broadcast_logger)
+    config.logger = ActiveSupport::BroadcastLogger.new(stdout_logger, file_logger)
+    config.logger = ActiveSupport::TaggedLogging.new(config.logger)
   end
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
