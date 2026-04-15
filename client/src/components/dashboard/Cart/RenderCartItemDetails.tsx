@@ -796,6 +796,7 @@ export const RenderCartItemDetails = ({
   removeItem,
   exchangeRate,
   updateESIMQuantity,
+  updateItemAutoRenew,
 }: {
   item: CartItem;
   index: number;

@@ -1,13 +1,12 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
     XMarkIcon, 
     ArrowPathIcon, 
     CheckCircleIcon, 
     ExclamationTriangleIcon,
     WalletIcon,
-    CreditCardIcon,
-    TicketIcon
+    CreditCardIcon
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 

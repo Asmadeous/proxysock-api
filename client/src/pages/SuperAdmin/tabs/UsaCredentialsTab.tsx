@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { motion } from "framer-motion";
 import {
     PlusIcon,
     TrashIcon,

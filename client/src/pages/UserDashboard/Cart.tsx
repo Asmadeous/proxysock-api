@@ -142,6 +142,8 @@ export default function Cart() {
     setCartItems(updatedCart);
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));
     globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: updatedCart.length } }));
+  };
+
   const updateItemAutoRenew = (index: number, auto_renew: boolean) => {
     const updatedCart = cartItems.map((item, i) =>
       i === index ? { ...item, auto_renew } : item
@@ -264,4 +266,4 @@ export default function Cart() {
       )}
     </div>
   );
-}}
+}

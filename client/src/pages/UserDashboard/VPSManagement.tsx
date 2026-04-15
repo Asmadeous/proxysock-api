@@ -1294,10 +1294,10 @@ const VPSManagement = () => {
       <ManageSubscriptionModal
         isOpen={!!subscriptionModalInstance}
         onClose={() => setSubscriptionModalInstance(null)}
-        orderId={subscriptionModalInstance?.order_id}
-        autoRenew={subscriptionModalInstance?.auto_renew}
-        renewalMethod={subscriptionModalInstance?.renewal_method}
-        expiresAt={subscriptionModalInstance?.expires_at}
+        orderId={subscriptionModalInstance?.order_id || ''}
+        autoRenew={!!subscriptionModalInstance?.auto_renew}
+        renewalMethod={subscriptionModalInstance?.renewal_method || 'wallet'}
+        expiresAt={subscriptionModalInstance?.expires_at || ''}
         onUpdate={loadVPSInstances}
         api={api}
       />

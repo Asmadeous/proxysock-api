@@ -36,6 +36,10 @@ class RefundService
     wallet = owner.main_wallet || owner.wallet
     raise RefundError, 'Owner wallet not found' unless wallet
 
+    # Validate that an actual debit transaction exists for this order before blindly refunding
+    debit_txn = Transaction.find_by(reference: @order, transaction_type: 'debit', status: 'success')
+    raise RefundError, 'No successful payment transaction found for this order; nothing to refund' unless debit_txn
+
     # This debit!/credit! internally uses with_lock as well
     wallet.credit!(@order.total_amount, "Refund for failed order ##{@order.order_number}", { order_id: @order.id })
     

@@ -471,7 +471,7 @@ export default function VPNManagement() {
             <ManageSubscriptionModal
                 isOpen={isSubscriptionOpen}
                 onClose={() => setIsSubscriptionOpen(false)}
-                orderId={selectedOrder?.id}
+                orderId={selectedOrder?.id || ''}
                 autoRenew={!!selectedOrder?.auto_renew}
                 renewalMethod={selectedOrder?.renewal_method || 'wallet'}
                 expiresAt={selectedOrder?.expires_at || ''}
