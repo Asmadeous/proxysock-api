@@ -101,6 +101,16 @@ class User < ApplicationRecord
     JWT.encode(payload, Rails.application.secret_key_base)
   end
 
+  def profile_picture_url
+    if avatar.attached?
+      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || 'https')
+    elsif super.present? && (super.start_with?('http') || super.start_with?('/'))
+      super
+    else
+      nil
+    end
+  end
+
   private
 
   def avatar_security_checks
