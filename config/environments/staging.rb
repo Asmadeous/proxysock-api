@@ -36,9 +36,18 @@ Rails.application.configure do
   # Log to STDOUT with the current request id as a default log tag.
   if ENV["RAILS_LOG_TO_STDOUT"].present?
     config.log_tags = [:request_id]
-    logger           = ActiveSupport::Logger.new(STDOUT)
-    logger.formatter = config.log_formatter
-    config.logger    = ActiveSupport::TaggedLogging.new(logger)
+    
+    # Create STDOUT logger
+    stdout_logger = ActiveSupport::Logger.new(STDOUT)
+    stdout_logger.formatter = config.log_formatter
+    
+    # Create File logger
+    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}.log"))
+    file_logger.formatter = config.log_formatter
+    
+    # Broadcast to both
+    broadcast_logger = stdout_logger.extend(ActiveSupport::Logger.broadcast(file_logger))
+    config.logger = ActiveSupport::TaggedLogging.new(broadcast_logger)
   end
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
