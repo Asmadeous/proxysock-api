@@ -35,7 +35,7 @@ Rails.application.configure do
     config.log_tags = [:request_id]
     logger           = ActiveSupport::Logger.new(STDOUT)
     logger.formatter = config.log_formatter
-    config.logger    = ActiveSupport::TaggedLogging.logger(logger)
+    config.logger    = ActiveSupport::TaggedLogging.new(logger)
   end
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
