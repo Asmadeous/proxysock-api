@@ -78,10 +78,18 @@ if File.exist?(staging_file) && (Rails.env.staging? || Rails.env.development?)
 
       # Step 4: Create or Update
       begin
-        # Ensure passwords for models that need them
-        if %w[User Employee Reseller].include?(model_name) && attrs['password_digest'].blank? && attrs['password'].blank?
-          attrs['password'] = 'Password123!'
-          attrs['password_confirmation'] = 'Password123!'
+        # Ensure passwords and mandatory fields for models that need them
+        if %w[User Employee Reseller].include?(model_name)
+          if attrs['password_digest'].blank? && attrs['password'].blank?
+            attrs['password'] = 'Password123!'
+            attrs['password_confirmation'] = 'Password123!'
+          end
+
+          # Add defaults for missing mandatory fields (country/city)
+          if %w[User Reseller].include?(model_name)
+            attrs['country_code'] ||= 'US'
+            attrs['city'] ||= 'New York'
+          end
         end
 
         if record
