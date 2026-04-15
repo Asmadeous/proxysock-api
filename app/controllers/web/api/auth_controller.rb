@@ -313,7 +313,7 @@ module Web
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
-                                     :country, :city, :username, :profile_picture_url, :avatar)
+                                     :country, :country_code, :city, :username, :profile_picture_url, :avatar)
       end
 
       def login_params

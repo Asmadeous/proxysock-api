@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import {
-    UsersIcon,
     UserPlusIcon,
     MagnifyingGlassIcon,
     PencilIcon,

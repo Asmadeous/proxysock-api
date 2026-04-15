@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_12_112421) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -332,6 +332,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_12_112421) do
     t.string "esim_provider"
     t.string "esim_type", default: "data_only", null: false
     t.datetime "expires_at"
+    t.jsonb "metadata", default: {}
     t.integer "moq_quantity", default: 1, null: false
     t.uuid "order_id"
     t.string "package_code"

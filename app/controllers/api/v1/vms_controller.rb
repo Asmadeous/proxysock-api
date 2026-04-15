@@ -169,8 +169,8 @@ module Api
           proxmox_vm_id: vm.proxmox_vm_id,
           ssh_port: vm.ssh_port,
           rdp_port: vm.rdp_port,
-          auto_renew: !!order&.auto_renew,
-          renewal_method: order&.renewal_method || 'wallet',
+          auto_renew: !!(order&.metadata || {})['auto_renew'],
+          renewal_method: (order&.metadata || {})['renewal_method'] || 'wallet',
           expires_at: vm.expires_at,
           created_at: vm.created_at
         }

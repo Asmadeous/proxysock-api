@@ -17,6 +17,7 @@ import {
   TicketIcon,
   AdjustmentsHorizontalIcon,
   CircleStackIcon,
+  DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
 import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";

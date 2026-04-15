@@ -8,6 +8,8 @@ one:
   current_token_jti: ~
   token_issued_at: ~
   token_request_count: 0
+  country_code: 'US'
+  city: 'New York'
 
 two:
   company_name: API Corp
@@ -19,3 +21,5 @@ two:
   current_token_jti: "test-jti-12345"
   token_issued_at: <%= Time.current %>
   token_request_count: 5
+  country_code: 'US'
+  city: 'Los Angeles'

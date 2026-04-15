@@ -367,20 +367,24 @@ module Api
       def update_subscription
         order = order_scope.find(params[:id])
 
-        if order.update(params.permit(:auto_renew, :renewal_method))
+        order.metadata ||= {}
+        order.metadata['auto_renew'] = params[:auto_renew] if params.key?(:auto_renew)
+        order.metadata['renewal_method'] = params[:renewal_method] if params.key?(:renewal_method)
+
+        if order.save
           # Propagate to provisioned resource if applicable
           if order.provisioned_resource&.respond_to?(:update!)
             resource_meta = order.provisioned_resource.metadata.to_h
             resource_meta['service_renewal_metadata'] ||= {}
-            resource_meta['service_renewal_metadata']['auto_renew'] = order.auto_renew
-            resource_meta['service_renewal_metadata']['renewal_method'] = order.renewal_method
+            resource_meta['service_renewal_metadata']['auto_renew'] = order.metadata['auto_renew']
+            resource_meta['service_renewal_metadata']['renewal_method'] = order.metadata['renewal_method']
             order.provisioned_resource.update!(metadata: resource_meta)
           end
 
           render json: {
             message: 'Subscription settings updated successfully',
-            auto_renew: order.auto_renew,
-            renewal_method: order.renewal_method
+            auto_renew: order.metadata['auto_renew'],
+            renewal_method: order.metadata['renewal_method']
           }
         else
           render json: { error: order.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -465,16 +469,16 @@ module Api
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
-          proxy_type: order.metadata['proxy_type'],
+          proxy_type: order.metadata.to_h['proxy_type'],
           quantity: order.quantity,
           total_amount: order.total_amount,
           status: order.status,
-          auto_renew: !!order.auto_renew,
-          renewal_method: order.renewal_method || 'wallet',
+          auto_renew: !!order.metadata.to_h['auto_renew'],
+          renewal_method: order.metadata.to_h['renewal_method'] || 'wallet',
           resource_status: resource&.status,
           # Conditional attributes based on resource availability
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
-          expires_at: resource.try(:expires_at) || order.metadata['expires_at'],
+          expires_at: resource.try(:expires_at) || order.metadata.to_h['expires_at'],
           created_at: order.created_at
         }
       end
