@@ -14,8 +14,10 @@ const api = axios.create({
 
 export const formatImageUrl = (url?: string) => {
   if (!url) return undefined;
+  if (url.startsWith('http')) return url;
   if (url.startsWith('/')) return `${API_HOST}${url}`;
-  return url;
+  // If it's a raw filename that doesn't start with / or http, it's likely broken historical data
+  return undefined;
 };
 
 // Request interceptor for API calls

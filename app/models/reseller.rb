@@ -155,12 +155,21 @@ class Reseller < ApplicationRecord
     end
   end
 
+  def profile_picture_url
+    if avatar.attached?
+      # Use full URL with host/protocol from default_url_options
+      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || 'https')
+    else
+      nil
+    end
+  end
+
   def as_json(options = {})
     super(options).merge({
                            balance: balance,
                            earnings_balance: earnings_balance,
                            price_multiplier: price_multiplier,
-                           profile_picture_url: avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(avatar, only_path: true) : nil
+                           profile_picture_url: profile_picture_url
                          })
   end
 
