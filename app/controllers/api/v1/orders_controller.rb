@@ -363,6 +363,30 @@ module Api
         end
       end
 
+      # POST /api/v1/orders/:id/update_subscription
+      def update_subscription
+        order = order_scope.find(params[:id])
+
+        if order.update(params.permit(:auto_renew, :renewal_method))
+          # Propagate to provisioned resource if applicable
+          if order.provisioned_resource&.respond_to?(:update!)
+            resource_meta = order.provisioned_resource.metadata.to_h
+            resource_meta['service_renewal_metadata'] ||= {}
+            resource_meta['service_renewal_metadata']['auto_renew'] = order.auto_renew
+            resource_meta['service_renewal_metadata']['renewal_method'] = order.renewal_method
+            order.provisioned_resource.update!(metadata: resource_meta)
+          end
+
+          render json: {
+            message: 'Subscription settings updated successfully',
+            auto_renew: order.auto_renew,
+            renewal_method: order.renewal_method
+          }
+        else
+          render json: { error: order.errors.full_messages.to_sentence }, status: :unprocessable_entity
+        end
+      end
+
       # POST /api/v1/orders/:id/cancel
       # Resellers can cancel orders within 1 hour of creation
       def cancel
@@ -437,15 +461,20 @@ module Api
         resource = order.provisioned_resource
         {
           id: order.id,
+          order_number: order.order_number,
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
+          proxy_type: order.metadata['proxy_type'],
           quantity: order.quantity,
           total_amount: order.total_amount,
           status: order.status,
+          auto_renew: !!order.auto_renew,
+          renewal_method: order.renewal_method || 'wallet',
           resource_status: resource&.status,
           # Conditional attributes based on resource availability
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
+          expires_at: resource.try(:expires_at) || order.metadata['expires_at'],
           created_at: order.created_at
         }
       end

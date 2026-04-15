@@ -883,7 +883,7 @@ const ESIMManagement = () => {
                       {[
                         { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
                         { id: 'paystack', name: 'Saved Card (Paystack)', icon: DevicePhoneMobileIcon },
-                        { id: 'fastspring', name: 'FastSpring Subscription', icon: GlobeAltIcon }
+                        // { id: 'fastspring', name: 'FastSpring Subscription', icon: GlobeAltIcon }
                       ].map((method) => (
                         <button
                           key={method.id}

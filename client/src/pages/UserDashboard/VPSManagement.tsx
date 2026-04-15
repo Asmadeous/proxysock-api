@@ -23,6 +23,7 @@ import {
   PencilIcon,
   KeyIcon
 } from "@heroicons/react/24/outline";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 import { useAuth } from "../../context/AuthContext";
 
 interface VPSInstance {
@@ -65,7 +66,7 @@ type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'status' | 'created' | 'cost' | 'usage';
 type SortOrder = 'asc' | 'desc';
 
-import { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import api, { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
 import { toast } from "react-hot-toast";
 
 const VPSManagement = () => {
@@ -1290,113 +1291,16 @@ const VPSManagement = () => {
         )}
       </AnimatePresence>
       {/* Subscription Management Modal */}
-      <AnimatePresence>
-        {subscriptionModalInstance && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card rounded-2xl border w-full max-w-lg shadow-2xl"
-            >
-              <div className="p-6 border-b flex items-center justify-between">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <ArrowPathIcon className="h-6 w-6 text-primary" />
-                  Manage Auto-Renewal
-                </h3>
-                <button
-                  onClick={() => setSubscriptionModalInstance(null)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <XCircleIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="font-semibold">Auto-Renew Status</h4>
-                      <p className="text-sm text-muted-foreground">Toggle automatic renewal for this VM</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const newState = !subscriptionModalInstance.auto_renew;
-                        try {
-                          await api.post(`/web/api/orders/${subscriptionModalInstance.order_id}/update_subscription`, { auto_renew: newState });
-                          toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
-                          setSubscriptionModalInstance({ ...subscriptionModalInstance, auto_renew: newState });
-                          loadVPSInstances();
-                        } catch (e) {
-                          toast.error('Failed to update settings');
-                        }
-                      }}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${subscriptionModalInstance.auto_renew ? 'bg-primary' : 'bg-muted'
-                        }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscriptionModalInstance.auto_renew ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t">
-                    <h4 className="font-semibold text-sm">Preferred Payment Method</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { id: 'wallet', name: 'Wallet Balance', icon: CircleStackIcon },
-                        { id: 'paystack', name: 'Saved Card (Paystack)', icon: KeyIcon },
-                        { id: 'fastspring', name: 'FastSpring Checkout', icon: TagIcon }
-                      ].map((method) => (
-                        <button
-                          key={method.id}
-                          onClick={async () => {
-                            try {
-                              await api.post(`/web/api/orders/${subscriptionModalInstance.order_id}/update_subscription`, { renewal_method: method.id });
-                              toast.success(`Payment method updated`);
-                              setSubscriptionModalInstance({ ...subscriptionModalInstance, renewal_method: method.id });
-                              loadVPSInstances();
-                            } catch (e) {
-                              toast.error('Failed to update method');
-                            }
-                          }}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${subscriptionModalInstance.renewal_method === method.id
-                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                            : 'border-border hover:bg-muted'
-                            }`}
-                        >
-                          <method.icon className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left text-sm">
-                            <p className="font-medium">{method.name}</p>
-                          </div>
-                          {subscriptionModalInstance.renewal_method === method.id && (
-                            <CheckCircleIcon className="h-4 w-4 text-primary ml-auto" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3 text-sm text-yellow-500/90">
-                  <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
-                  <p>
-                    Ensure your selected method has sufficient funds before <strong>{new Date(subscriptionModalInstance.expires_at).toLocaleDateString()}</strong>.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setSubscriptionModalInstance(null)}
-                  className="w-full py-3 px-4 rounded-xl bg-muted hover:bg-muted/80 font-medium transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ManageSubscriptionModal
+        isOpen={!!subscriptionModalInstance}
+        onClose={() => setSubscriptionModalInstance(null)}
+        orderId={subscriptionModalInstance?.order_id}
+        autoRenew={subscriptionModalInstance?.auto_renew}
+        renewalMethod={subscriptionModalInstance?.renewal_method}
+        expiresAt={subscriptionModalInstance?.expires_at}
+        onUpdate={loadVPSInstances}
+        api={api}
+      />
     </div>
   );
 };

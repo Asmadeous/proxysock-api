@@ -158,14 +158,20 @@ module Api
       end
 
       def serialize_vm(vm)
+        order = vm.vm_order&.order
         {
           id: vm.id,
+          order_id: order&.id,
+          order_number: order&.order_number,
           status: vm.status,
           vm_type: vm.vm_type,
           ip_address: vm.ip_address,
           proxmox_vm_id: vm.proxmox_vm_id,
           ssh_port: vm.ssh_port,
           rdp_port: vm.rdp_port,
+          auto_renew: !!order&.auto_renew,
+          renewal_method: order&.renewal_method || 'wallet',
+          expires_at: vm.expires_at,
           created_at: vm.created_at
         }
       end
