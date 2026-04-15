@@ -160,11 +160,11 @@ export default function MonitoringTab() {
                     <button onClick={handleRefresh} disabled={loading} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition disabled:opacity-50">
                         <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
                     </button>
-                    <a href={`${window.location.protocol}//${window.location.hostname}:3001`} target="_blank" rel="noopener noreferrer"
+                    <a href={`${window.location.protocol}//${window.location.hostname}/grafana/`} target="_blank" rel="noopener noreferrer"
                         className="px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition flex items-center gap-1.5">
                         Grafana
                     </a>
-                    <a href={`${window.location.protocol}//${window.location.hostname}:9090`} target="_blank" rel="noopener noreferrer"
+                    <a href={`${window.location.protocol}//${window.location.hostname}/prometheus/`} target="_blank" rel="noopener noreferrer"
                         className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-1.5">
                         Prometheus
                     </a>
@@ -535,9 +535,9 @@ export default function MonitoringTab() {
                 <span>Ruby {data?.system?.ruby_version}</span><span>•</span>
                 <span>Rails {data?.system?.rails_version}</span><span>•</span>
                 <span className="capitalize">{data?.system?.environment}</span><span>•</span>
-                <span>Prometheus: <a href={`${window.location.protocol}//${window.location.hostname}:9090`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">:9090</a></span>
+                <span>Prometheus: <a href={`${window.location.protocol}//${window.location.hostname}/prometheus/`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">/prometheus/</a></span>
                 <span>•</span>
-                <span>Grafana: <a href={`${window.location.protocol}//${window.location.hostname}:3001`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">:3001</a></span>
+                <span>Grafana: <a href={`${window.location.protocol}//${window.location.hostname}/grafana/`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">/grafana/</a></span>
             </div>
 
             {/* Confirm Modal */}
