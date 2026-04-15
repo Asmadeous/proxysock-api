@@ -120,7 +120,8 @@ module Admin
           payment_details: a.payment_details,
           total_referrals: a.affiliate_referrals.count,
           converted: a.affiliate_referrals.converted.count,
-          created_at: a.created_at
+          created_at: a.created_at,
+          reseller_type: a.affiliatable.try(:reseller_type)
         }
       end
     end
