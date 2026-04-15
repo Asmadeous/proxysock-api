@@ -64,8 +64,8 @@ class EsimProvisioningService
       api_response: result.to_json,
       provider_order_no: result['orderNo'],
       metadata: {
-        'auto_renew' => @order.metadata['auto_renew'],
-        'renewal_method' => @order.metadata['payment_debug']
+        'auto_renew' => @order.metadata&.dig('auto_renew'),
+        'renewal_method' => @order.metadata&.dig('payment_debug')
       }.compact
     )
 
@@ -117,8 +117,8 @@ class EsimProvisioningService
         esim_type: esim_type,
         moq_quantity: quantity,
         metadata: {
-          'auto_renew' => @order.metadata['auto_renew'],
-          'renewal_method' => @order.metadata['payment_debug']
+          'auto_renew' => @order.metadata&.dig('auto_renew'),
+          'renewal_method' => @order.metadata&.dig('payment_debug')
         }.compact
       )
 

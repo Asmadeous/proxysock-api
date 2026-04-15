@@ -42,7 +42,9 @@ module Web
               username: 'new_user_reg',
               email: 'newuser@example.com',
               password: 'password123',
-              password_confirmation: 'password123'
+              password_confirmation: 'password123',
+              country_code: 'US',
+              city: 'New York'
             }
           }
         end
