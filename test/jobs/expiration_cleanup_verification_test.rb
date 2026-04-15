@@ -6,7 +6,7 @@ class ExpirationCleanupJobTest < ActiveJob::TestCase
   setup do
     # Create proper order hierarchy
     user = User.create!(email: 'test_expire@example.com', password: 'password', username: 'test_expire',
-                        first_name: 'Test', last_name: 'Expire')
+                        first_name: 'Test', last_name: 'Expire', country_code: 'US', city: 'New York')
     @order = Order.create!(orderable: user, product: products(:one), product_pricing: product_pricings(:pricing_one),
                            status: 'active')
     @vm_order = VmOrder.create!(order: @order, cpu_cores: 2, ram_gb: 4, disk_gb: 50, os_type: 'ubuntu')
