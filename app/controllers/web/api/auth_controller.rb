@@ -168,7 +168,7 @@ module Web
 
       # PATCH /web/api/auth/update_profile
       def update_profile
-        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url, :avatar)
+        permitted = params.permit(:username, :first_name, :last_name, :country, :country_code, :city, :phone, :profile_picture_url, :avatar)
 
         # Check username uniqueness if changed
         if permitted[:username].present? && permitted[:username] != current_user.username && User.where(

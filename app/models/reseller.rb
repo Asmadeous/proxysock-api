@@ -158,7 +158,7 @@ class Reseller < ApplicationRecord
   def profile_picture_url
     if avatar.attached?
       # Use full URL with host/protocol from default_url_options
-      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || 'https')
+      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
     else
       nil
     end
