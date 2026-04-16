@@ -13,6 +13,13 @@ class User < ApplicationRecord
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
 
   after_create :initialize_wallet
+  before_validation :normalize_location_data
+
+  def normalize_location_data
+    self.country_code = country_code.to_s.strip.upcase if country_code.present?
+    self.country = country.to_s.strip if country.present?
+    self.city = city.to_s.strip if city.present?
+  end
 
   def wallet
     main_wallet || create_main_wallet!(wallet_type: 'main')

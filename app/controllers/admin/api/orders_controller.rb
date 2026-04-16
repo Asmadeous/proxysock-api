@@ -8,7 +8,18 @@ module Admin
       # GET /admin/api/orders
       def index
         orders = Order.preload(:product, :orderable).order(created_at: :desc)
-        orders = orders.joins(:product).where(products: { product_type: params[:product_type] }) if params[:product_type].present?
+        
+        if params[:product_type].present?
+          case params[:product_type]
+          when 'proxy'
+            orders = orders.joins(:product).where(products: { product_type: Product::PROXY_TYPES })
+          when 'esim'
+            orders = orders.joins(:product).where(products: { product_type: ['esim', 'usa_esim'] })
+          else
+            orders = orders.joins(:product).where(products: { product_type: params[:product_type] })
+          end
+        end
+
         orders = orders.where(status: params[:status]) if params[:status].present?
         orders = orders.where(orderable_type: params[:entity_type]) if params[:entity_type].present?
         orders = orders.where('id::text ILIKE :q', q: "%#{params[:q]}%") if params[:q].present?
@@ -16,6 +27,26 @@ module Admin
         page_num = (params[:page] || 1).to_i
         per_page = (params[:per] || 25).to_i
         orders = orders.page(page_num).per(per_page)
+
+        # Aggregate stats manually to handle grouped types correctly
+        raw_stats = Order.joins(:product).group('products.product_type').count
+        raw_revenue = Order.joins(:product).group('products.product_type').sum(:total_amount)
+
+        by_type = {
+          'proxy' => raw_stats.slice(*Product::PROXY_TYPES).values.sum,
+          'esim' => raw_stats.slice('esim', 'usa_esim').values.sum,
+          'rdp' => raw_stats['rdp'] || 0,
+          'vps' => raw_stats['vps'] || 0,
+          'vpn' => raw_stats['vpn'] || 0
+        }
+
+        revenue_by_type = {
+          'proxy' => raw_revenue.slice(*Product::PROXY_TYPES).values.sum,
+          'esim' => raw_revenue.slice('esim', 'usa_esim').values.sum,
+          'rdp' => raw_revenue['rdp'] || 0,
+          'vps' => raw_revenue['vps'] || 0,
+          'vpn' => raw_revenue['vpn'] || 0
+        }
 
         render json: {
           orders: orders.map { |o| order_json(o) },
@@ -27,11 +58,12 @@ module Admin
             pending: Order.where(status: 'pending').count,
             failed: Order.where(status: %w[failed error]).count,
             processing: Order.where(status: 'processing').count,
-            by_type: Order.joins(:product).group('products.product_type').count,
-            revenue_by_type: Order.joins(:product).group('products.product_type').sum(:total_amount)
+            by_type: by_type,
+            revenue_by_type: revenue_by_type
           }
         }
       end
+
 
       # GET /admin/api/orders/:id
       def show

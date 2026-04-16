@@ -352,9 +352,14 @@ class VmProvisioningService
           ip_record.release!
           @logger.info("Released IP #{ip_record.address} back to pool for VM #{db_vm_id}")
         end
+
+        # Explicitly clear IP from VM record even if IpAddress record wasn't found
+        # (Handles cases where IP record was manually deleted or out of sync)
+        Vm.find_by(id: db_vm_id)&.update!(ip_address: nil)
       rescue StandardError => e
         @logger.error("Failed to release IP for VM #{db_vm_id}: #{e.message}")
       end
+
     end
 
     remove_dnsmasq_entry(pve_vmid, captured_mac)
@@ -744,10 +749,11 @@ class VmProvisioningService
     @logger.info("Whitelisting #{ip} (#{mac}) in dnsmasq on #{ssh_host}")
 
     dnsmasq_conf = '/etc/dnsmasq.d/proxysock_vms.conf'
-    entry = "dhcp-host=#{mac},#{ip},#{hostname}"
+    entry = ["dhcp-host=#{mac}", ip, hostname.presence].compact.join(',')
 
     remote_cmd = <<~BASH
-      sudo grep -q "#{mac}" #{dnsmasq_conf} || echo "#{entry}" | sudo tee -a #{dnsmasq_conf} > /dev/null
+      sudo sed -i "/#{mac}/d" #{dnsmasq_conf}
+      echo "#{entry}" | sudo tee -a #{dnsmasq_conf} > /dev/null
       sudo systemctl restart dnsmasq
     BASH
 
@@ -795,7 +801,11 @@ class VmProvisioningService
       )
 
       result = execute_ansible_command(inventory_path, playbook_path, extra_vars)
-      raise "Configuration failed: #{result[:stderr]}" unless result[:success]
+      unless result[:success]
+        error_msg = "Configuration failed: #{result[:stderr]}"
+        error_msg += "\n\nFull Output:\n#{result[:stdout]}" if result[:stdout].present?
+        raise error_msg
+      end
 
       result
     else
@@ -874,6 +884,9 @@ class VmProvisioningService
       playbook_path,
       '-e', extra_vars.to_json
     ]
+
+    # Add increased verbosity for staging to help with debugging
+    cmd << '-vv' if Rails.env.staging?
 
     env = {
       'ANSIBLE_CONFIG' => File.join(Rails.root, 'ansible', 'ansible.cfg'),

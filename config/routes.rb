@@ -55,9 +55,17 @@ Rails.application.routes.draw do
         post :reply, on: :member
       end
 
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
+      resources :notifications, only: %i[index show] do
+        member do
+          put :read
+        end
+        collection do
+          get :unread_count
+          put :read_all
+          post :mark_as_read
+        end
       end
+
 
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
@@ -267,9 +275,17 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
+      resources :notifications, only: %i[index show] do
+        member do
+          put :read
+        end
+        collection do
+          get :unread_count
+          put :read_all
+          post :mark_as_read
+        end
       end
+
 
       namespace :analytics do
         get :dashboard

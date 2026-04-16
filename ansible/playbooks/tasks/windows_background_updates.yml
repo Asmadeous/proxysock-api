@@ -1,0 +1,72 @@
+---
+- name: Create Scripts directory
+  win_file:
+    path: 'C:\Scripts'
+    state: directory
+
+- name: Deploy Background Update Script
+  win_copy:
+    content: |
+      $ErrorActionPreference = "SilentlyContinue"
+      Write-Output "Starting Background Security Updates - $(Get-Date)"
+      
+      $updateSession = New-Object -ComObject Microsoft.Update.Session
+      $updateSearcher = $updateSession.CreateUpdateSearcher()
+      
+      # Search for Security and Critical updates
+      $searchResult = $updateSearcher.Search("IsInstalled=0 and Type='Software' and IsHidden=0")
+      
+      if ($searchResult.Updates.Count -eq 0) {
+          Write-Output "No updates found."
+          exit 0
+      }
+      
+      $updatesToInstall = New-Object -ComObject Microsoft.Update.UpdateCollection
+      foreach ($update in $searchResult.Updates) {
+          # Only target Security and Critical updates to minimize hang risk
+          if ($update.Title -match "Security" -or $update.Title -match "Critical" -or $update.MsrcSeverity) {
+              $updatesToInstall.Add($update)
+          }
+      }
+      
+      if ($updatesToInstall.Count -eq 0) {
+          Write-Output "No security or critical updates identified."
+          exit 0
+      }
+      
+      Write-Output "Downloading $($updatesToInstall.Count) updates..."
+      $downloader = $updateSession.CreateUpdateDownloader()
+      $downloader.Updates = $updatesToInstall
+      $downloader.Download()
+      
+      Write-Output "Installing updates..."
+      $installer = $updateSession.CreateUpdateInstaller()
+      $installer.Updates = $updatesToInstall
+      $result = $installer.Install()
+      
+      Write-Output "Installation Result Code: $($result.ResultCode)"
+      
+      if ($result.RebootRequired) {
+          Write-Output "Reboot required, restarting in 1 minute..."
+          Restart-Computer -Force -Delay 60
+      }
+      Write-Output "Background Updates Complete - $(Get-Date)"
+    dest: 'C:\Scripts\BackgroundUpdate.ps1'
+
+- name: Create Scheduled Task for Background Updates
+  win_scheduled_task:
+    name: "BackgroundSecurityUpdate"
+    description: "Runs security updates in the background on initial provisioning"
+    actions:
+      - path: powershell.exe
+        arguments: -ExecutionPolicy Bypass -File C:\Scripts\BackgroundUpdate.ps1
+    triggers:
+      - type: registration
+    username: SYSTEM
+    state: present
+    enabled: yes
+
+- name: Trigger Background Update Task immediately
+  win_shell: |
+    Start-ScheduledTask -TaskName "BackgroundSecurityUpdate"
+  ignore_errors: yes
