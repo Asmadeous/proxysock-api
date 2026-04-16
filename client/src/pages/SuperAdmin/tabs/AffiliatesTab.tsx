@@ -4,7 +4,7 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
-import { fetchAffiliates, deleteAffiliate, configureAffiliate, processAffiliatePayout, fetchAffiliatePayouts, createAffiliate } from "../../../services/adminApi";
+import { fetchAffiliates, deleteAffiliate, configureAffiliate, processAffiliatePayout, fetchAffiliatePayouts, createAffiliate, fetchAdminUsers, fetchResellers } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 
 interface AffiliateRow {
