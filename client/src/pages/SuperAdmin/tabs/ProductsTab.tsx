@@ -5,7 +5,7 @@ import {
     PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon,
     GlobeAltIcon, CpuChipIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, ShieldCheckIcon,
     ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon,
-    CloudArrowUpIcon, PhotoIcon, DocumentChartBarIcon, CheckCircleIcon, XCircleIcon
+    PhotoIcon, DocumentChartBarIcon, CheckCircleIcon, XCircleIcon
 } from "@heroicons/react/24/outline";
 
 import DataTable from "../components/DataTable";
