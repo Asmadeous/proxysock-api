@@ -42,7 +42,7 @@ class OrderProvisioningService
 
     # 3a. Send Invoice — MUST be outside the transaction so the Order
     #     is committed and visible to Sidekiq when the mailer job runs.
-    InvoiceMailer.with(order: @order).invoice_email.deliver_now
+    InvoiceMailer.with(order: @order).invoice_email.deliver_later
 
     # 4. Provision based on product type
     provision_product!
@@ -497,7 +497,7 @@ class OrderProvisioningService
           owner: owner,
           api_response: response,
           target_email: target_email
-        ).api_proxy_credentials_email.deliver_now
+        ).api_proxy_credentials_email.deliver_later
       end
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
@@ -577,7 +577,7 @@ class OrderProvisioningService
         proxy: proxy,
         order: saved_order,
         target_email: target_email
-      ).credentials_email.deliver_now
+      ).credentials_email.deliver_later
     end
   end
 
@@ -621,11 +621,11 @@ class OrderProvisioningService
         UsaEsimMailer.with(
           owner: saved_actor,
           order: saved_order
-        ).manual_order_notification.deliver_now
+        ).manual_order_notification.deliver_later
 
         UsaEsimMailer.with(
           order: saved_order
-        ).admin_manual_order_alert.deliver_now
+        ).admin_manual_order_alert.deliver_later
       end
       return
     end
@@ -670,7 +670,7 @@ class OrderProvisioningService
           credentials: saved_creds,
           order: saved_order,
           target_email: target_email
-        ).credentials_email.deliver_now
+        ).credentials_email.deliver_later
       end
     end
   end
@@ -763,7 +763,7 @@ class OrderProvisioningService
       owner = @actor || @order.orderable
       saved_order = @order
       ActiveRecord.after_all_transactions_commit do
-        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_now
+        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
       end
       return
     end
@@ -799,7 +799,7 @@ class OrderProvisioningService
         owner: owner,
         vpn_account: saved_vpn_account,
         target_email: target_email
-      ).credentials_email.deliver_now
+      ).credentials_email.deliver_later
     end
 
     @order.activate!

@@ -16,18 +16,23 @@ module Admin
       sheet = xlsx.sheet(0)
 
       # Assume headers are on the first row
-      headers = sheet.row(1).map(&:to_s).map(&:strip).map(&:upcase)
+      raw_headers = sheet.row(1).map(&:to_s).map(&:strip)
+      headers = raw_headers.map(&:upcase)
       
-      # Required headers
-      iccid_idx = headers.index('ICCID')
-      act_idx   = headers.index('ACTIVATION')
-      pin1_idx  = headers.index('PIN1')
-      puk1_idx  = headers.index('PUK1')
+      Rails.logger.info "[UsaEsimImportService] Detected Headers: #{raw_headers.join(', ')}"
+
+      # Flexible header selection
+      iccid_idx = headers.index('ICCID') || headers.index { |h| h.include?('ICCID') || h.include?('SIM SERIAL') }
+      act_idx   = headers.index('ACTIVATION') || headers.index { |h| h.include?('ACTIVATION') || h.include?('CODE') || h.include?('ACTION') }
+      pin1_idx  = headers.index('PIN1') || headers.index('PIN')
+      puk1_idx  = headers.index('PUK1') || headers.index('PUK')
       pin2_idx  = headers.index('PIN2')
       puk2_idx  = headers.index('PUK2')
 
       if iccid_idx.nil? || act_idx.nil?
-        @stats[:errors] << "Missing required headers: ICCID and ACTIVATION are mandatory."
+        error_msg = "Missing required headers. Found: #{raw_headers.join(', ')}. Need 'ICCID' and 'ACTIVATION' (or similar)."
+        @stats[:errors] << error_msg
+        Rails.logger.error "[UsaEsimImportService] #{error_msg}"
         return @stats
       end
 

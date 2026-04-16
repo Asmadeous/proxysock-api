@@ -249,10 +249,11 @@ export default function OrdersTab() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 {[
                     { type: "proxy", label: "Proxy Orders", icon: ShoppingCartIcon, colors: { bg: "bg-purple-500/10", text: "text-purple-500", border: "border-purple-500", ring: "ring-purple-500/30" }, count: stats.by_type?.proxy || 0, revenue: stats.revenue_by_type?.proxy || 0 },
-                    { type: "esim", label: "eSIM Orders", icon: DevicePhoneMobileIcon, colors: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500", ring: "ring-green-500/30" }, count: (stats.by_type?.esim || 0) + (stats.by_type?.usa_esim || 0), revenue: (stats.revenue_by_type?.esim || 0) + (stats.revenue_by_type?.usa_esim || 0) },
+                    { type: "esim", label: "eSIM Orders", icon: DevicePhoneMobileIcon, colors: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500", ring: "ring-green-500/30" }, count: stats.by_type?.esim || 0, revenue: stats.revenue_by_type?.esim || 0 },
                     { type: "rdp", label: "RDP Orders", icon: ComputerDesktopIcon, colors: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500", ring: "ring-red-500/30" }, count: stats.by_type?.rdp || 0, revenue: stats.revenue_by_type?.rdp || 0 },
                     { type: "vps", label: "VPS Orders", icon: ServerIcon, colors: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500", ring: "ring-blue-500/30" }, count: stats.by_type?.vps || 0, revenue: stats.revenue_by_type?.vps || 0 },
                     { type: "vpn", label: "VPN Orders", icon: GlobeAltIcon, colors: { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500", ring: "ring-cyan-500/30" }, count: stats.by_type?.vpn || 0, revenue: stats.revenue_by_type?.vpn || 0 },
+
                 ].map((c) => {
                     const isActive = productTypeFilter === c.type;
                     return (

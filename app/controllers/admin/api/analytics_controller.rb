@@ -106,15 +106,18 @@ module Admin
       def geolocation
         # Aggregate user countries from metadata or IP-based geolocation
         # Falls back to order country data if user geolocation not available
-        country_data = User.where.not(country: [nil, ''])
-                           .group(:country)
-                           .count
-                           .sort_by { |_, v| -v }
+        country_data = User.where.not(country_code: [nil, ''])
+                           .group(:country_code)
+                           .select('country_code, MAX(country) as country_name, COUNT(*) as user_count')
+                           .order('user_count DESC')
+
+
 
         render json: {
-          countries: country_data.map { |country, count| { country: country, users: count } },
+          countries: country_data.map { |d| { country: d.country_name.presence || d.country_code, users: d.user_count } },
           total_countries: country_data.length
         }
+
       end
 
       # GET /admin/api/analytics/traffic

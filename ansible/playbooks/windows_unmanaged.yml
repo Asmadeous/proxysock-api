@@ -23,14 +23,10 @@
         - name: Gather facts
           setup:
 
-        - name: Install Critical Security Updates
-          win_updates:
-            category_names:
-              - SecurityUpdates
-              - CriticalUpdates
-            state: installed
-          register: update_result
+        - name: Configure Background Security Updates
+          include_tasks: tasks/windows_background_updates.yml
           tags: security
+
 
         - name: Configure Administrator account
           block:

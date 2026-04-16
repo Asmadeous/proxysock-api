@@ -143,17 +143,8 @@
                 - { name: "ScheduledInstallDay", data: 0 }
                 - { name: "ScheduledInstallTime", data: 3 }
             
-            - name: Install critical security updates
-              win_updates:
-                category_names:
-                  - SecurityUpdates
-                  - CriticalUpdates
-                state: installed
-                reboot: no
-              async: 3600
-              poll: 0
-              register: update_status
-              ignore_errors: yes
+            - name: Configure Background Security Updates
+              include_tasks: tasks/windows_background_updates.yml
           tags: updates
         
         # ========================================
