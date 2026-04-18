@@ -10,7 +10,7 @@ import {
   AuroraBackground,
   PasswordResetFeaturesCarousel,
 } from "../../components/auth/carousel";
-import { ShieldCheckIcon } from "lucide-react";
+import AuthLogo from "../../components/auth/AuthLogo";
 import { EnvelopeIcon } from "@heroicons/react/24/outline";
 import api from "../../services/api";
 
@@ -43,12 +43,7 @@ export default function ForgotPassword() {
         <AuroraBackground />
         <PasswordResetFeaturesCarousel />
         <div className="absolute top-8 left-8 z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-red-600/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <ShieldCheckIcon className="h-6 w-6 text-red-500" />
-            </div>
-            <span className="text-white font-bold text-xl uppercase tracking-wider">ProxySock</span>
-          </div>
+          <AuthLogo variant="dark" />
         </div>
         <div className="absolute bottom-8 left-8 right-8 z-10">
           <div className="bg-black/40 backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
@@ -65,12 +60,7 @@ export default function ForgotPassword() {
       {/* Right Panel - Forgot Password Form or Success State */}
       <div className="flex-1 flex flex-col bg-background">
         <div className="lg:hidden flex items-center justify-center py-8 px-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-red-600/20 rounded-lg flex items-center justify-center">
-              <ShieldCheckIcon className="h-5 w-5 text-red-600" />
-            </div>
-            <span className="text-foreground font-bold text-lg uppercase tracking-wider">ProxySock</span>
-          </div>
+          <AuthLogo variant="auto" size="sm" />
         </div>
 
         <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
