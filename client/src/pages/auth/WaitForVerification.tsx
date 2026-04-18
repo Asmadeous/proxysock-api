@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Helmet } from 'react-helmet-async';
 import { motion } from "framer-motion";
-import { ShieldCheckIcon } from "@heroicons/react/24/outline";
+import AuthLogo from "../../components/auth/AuthLogo";
 import {
   VerificationHeader,
   VerificationContent,
@@ -34,12 +34,7 @@ export default function WaitForVerification() {
 
         {/* Logo */}
         <div className="absolute top-8 left-8 z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <ShieldCheckIcon className="h-6 w-6 text-red-400" />
-            </div>
-            <span className="text-white font-bold text-xl">ProxySock</span>
-          </div>
+          <AuthLogo variant="dark" />
         </div>
 
         {/* Welcome Text */}
@@ -59,12 +54,7 @@ export default function WaitForVerification() {
       <div className="flex-1 flex flex-col bg-background">
         {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-center py-8 px-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
-              <ShieldCheckIcon className="h-5 w-5 text-red-500" />
-            </div>
-            <span className="text-foreground font-bold text-lg">ProxySock</span>
-          </div>
+          <AuthLogo variant="auto" size="sm" />
         </div>
 
         <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
