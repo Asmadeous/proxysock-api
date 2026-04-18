@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import ConfirmModal from "../../SuperAdmin/components/ConfirmModal";
 import {
     fetchResellerWebhooks,
     createResellerWebhook,
@@ -50,6 +52,8 @@ export default function ResWebhookConfig() {
     const [saving, setSaving] = useState(false);
     const [verifyingId, setVerifyingId] = useState<string | null>(null);
     const [showSecret, setShowSecret] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchAll = async () => {
         setLoading(true);
@@ -95,21 +99,25 @@ export default function ResWebhookConfig() {
             }
             setShowModal(false);
             fetchAll();
-        } catch (e: any) {
-            toast.error(e.response?.data?.errors?.url?.[0] || "Failed to save webhook");
+        } catch (e) {
+            toast.error(getApiError(e, "Failed to save webhook"));
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Delete this webhook endpoint?")) return;
+    const handleDelete = async () => {
+        if (!confirmDeleteId) return;
+        setIsDeleting(true);
         try {
-            await deleteResellerWebhook(id);
+            await deleteResellerWebhook(confirmDeleteId);
             toast.success("Webhook deleted");
+            setConfirmDeleteId(null);
             fetchAll();
         } catch {
             toast.error("Failed to delete webhook");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -210,6 +218,7 @@ export default function ResWebhookConfig() {
                                                 </code>
                                                 <button
                                                     onClick={() => setShowSecret(showSecret === wh.id ? null : wh.id)}
+                                                    aria-label={showSecret === wh.id ? "Hide webhook secret" : "Show webhook secret"}
                                                     className="text-[10px] text-primary font-bold hover:underline"
                                                 >
                                                     {showSecret === wh.id ? "Hide" : "Show"}
@@ -231,7 +240,7 @@ export default function ResWebhookConfig() {
                                         <Button size="sm" variant="outline" onClick={() => openEdit(wh)} className="gap-1 h-8">
                                             <PencilIcon className="w-3 h-3" /> Edit
                                         </Button>
-                                        <Button size="sm" variant="destructive" onClick={() => handleDelete(wh.id)} className="gap-1 h-8">
+                                        <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteId(wh.id)} className="gap-1 h-8">
                                             <TrashIcon className="w-3 h-3" /> Delete
                                         </Button>
                                     </div>
@@ -241,6 +250,17 @@ export default function ResWebhookConfig() {
                     ))}
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={handleDelete}
+                title="Delete Webhook"
+                message="Are you sure you want to delete this webhook endpoint? This action cannot be undone."
+                confirmLabel="Delete"
+                loading={isDeleting}
+                destructive
+            />
 
             {/* Create/Edit Modal */}
             <Dialog open={showModal} onOpenChange={setShowModal}>

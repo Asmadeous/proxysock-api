@@ -4,11 +4,24 @@ import { toast } from "react-hot-toast";
 import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage } from "../../../services/resellerApi";
 import { getCableConsumer } from "../../../services/cable";
 
+interface ChatMessage {
+    id: string | number;
+    body: string;
+    sender_type: string;
+    sender_name?: string;
+    created_at: string;
+}
+
+interface ChatMeta {
+    id?: string | number;
+    assigned_to_name?: string;
+}
+
 export default function ResSupportChat() {
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(true);
-    const [chatMeta, setChatMeta] = useState<any>({});
+    const [chatMeta, setChatMeta] = useState<ChatMeta>({});
     const endRef = useRef<HTMLDivElement>(null);
 
     const loadChat = useCallback(async () => {
@@ -25,7 +38,7 @@ export default function ResSupportChat() {
     }, [loadChat]);
 
     useEffect(() => {
-        let sub: any = null;
+        let sub: { unsubscribe: () => void } | null = null;
         if (chatMeta.id) {
             const consumer = getCableConsumer();
             sub = consumer.subscriptions.create(
@@ -35,7 +48,7 @@ export default function ResSupportChat() {
                     chat_type: "SupportChat"
                 },
                 {
-                    received: (data: any) => {
+                    received: (data: { action: string; message: ChatMessage }) => {
                         if (data.action === 'message_created') {
                             setMessages(prev => {
                                 if (prev.find(m => m.id === data.message.id)) return prev;
@@ -87,7 +100,7 @@ export default function ResSupportChat() {
                             <p>Start a conversation with our support team.</p>
                         </div>
                     ) : (
-                        messages.map((m: any) => (
+                        messages.map((m) => (
                             <div key={m.id} className={`flex ${m.sender_type === "Reseller" ? "justify-end" : "justify-start"}`}>
                                 <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${m.sender_type === "Reseller" ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted text-foreground rounded-bl-none shadow-sm"}`}>
                                     {m.sender_type === "Employee" && (

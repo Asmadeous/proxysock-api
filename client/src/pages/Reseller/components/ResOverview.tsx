@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { WalletIcon, ShoppingCartIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { fetchResellerOrderStats } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import { toast } from "react-hot-toast";
 import StatsCard from "../../SuperAdmin/components/StatsCard";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +35,7 @@ export default function ResOverview() {
                 setLoading(false);
             })
             .catch((err) => {
-                console.error("Failed to fetch reseller stats:", err);
+                toast.error(getApiError(err, "Failed to load overview stats"));
                 setLoading(false);
             });
     }, []);
