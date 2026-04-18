@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,19 +9,36 @@ import {
 
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
+import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
+import EmptyState from "../components/EmptyState";
+import Button from "../components/Button";
 
 import {
-    fetchAdminProducts,
-    createAdminProduct,
-    updateAdminProduct,
-    deleteAdminProduct,
-    syncAdminProxies,
-    syncAdminEsims,
-    syncAdminVPS,
-    syncAdminVPN,
-    syncAdminRDP
-} from "../../../services/adminApi";
+    useAdminProducts,
+    useCreateProduct,
+    useUpdateProduct,
+    useDeleteProduct,
+    useSyncProducts,
+} from "../queries/products.queries";
+
+type SyncType = "proxies" | "esims" | "vps" | "vpn" | "rdp";
+
+interface CategoryColors {
+    border: string;
+    bg: string;
+    bgSubtle: string;
+    text: string;
+    glow: string;
+}
+
+const COLOR_MAP: Record<string, CategoryColors> = {
+    blue:   { border: "hover:border-blue-500/50",   bg: "bg-blue-500/10",   bgSubtle: "bg-blue-500/5",   text: "text-blue-500",   glow: "group-hover:bg-blue-500/10"   },
+    purple: { border: "hover:border-purple-500/50", bg: "bg-purple-500/10", bgSubtle: "bg-purple-500/5", text: "text-purple-500", glow: "group-hover:bg-purple-500/10" },
+    orange: { border: "hover:border-orange-500/50", bg: "bg-orange-500/10", bgSubtle: "bg-orange-500/5", text: "text-orange-500", glow: "group-hover:bg-orange-500/10" },
+    green:  { border: "hover:border-green-500/50",  bg: "bg-green-500/10",  bgSubtle: "bg-green-500/5",  text: "text-green-500",  glow: "group-hover:bg-green-500/10"  },
+    red:    { border: "hover:border-red-500/50",    bg: "bg-red-500/10",    bgSubtle: "bg-red-500/5",    text: "text-red-500",    glow: "group-hover:bg-red-500/10"    },
+};
 
 interface ProductRow {
     id: number;
@@ -31,7 +48,7 @@ interface ProductRow {
     provider: string;
     stock_status: string;
     is_active: boolean;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
     product_category_name?: string;
     product_category_id?: number;
     created_at: string;
@@ -45,7 +62,7 @@ const STORE_CATEGORIES = [
         icon: GlobeAltIcon,
         color: "blue",
         types: ["proxy", "datacenter", "isp", "premium_isp", "global_isp", "static_residential", "residential_rotating", "mobile"],
-        syncAction: syncAdminProxies,
+        syncType: "proxies" as SyncType,
         syncLabel: "Sync Proxies"
     },
     {
@@ -55,7 +72,7 @@ const STORE_CATEGORIES = [
         icon: CpuChipIcon,
         color: "purple",
         types: ["vps"],
-        syncAction: syncAdminVPS,
+        syncType: "vps" as SyncType,
         syncLabel: "Sync VPS"
     },
     {
@@ -65,7 +82,7 @@ const STORE_CATEGORIES = [
         icon: ComputerDesktopIcon,
         color: "orange",
         types: ["rdp"],
-        syncAction: syncAdminRDP,
+        syncType: "rdp" as SyncType,
         syncLabel: "Sync RDP"
     },
     {
@@ -75,8 +92,8 @@ const STORE_CATEGORIES = [
         icon: DevicePhoneMobileIcon,
         color: "green",
         types: ["esim", "usa_esim"],
-        syncAction: syncAdminEsims,
-        syncLabel: "Sync eSIMs" // using eSimAccess
+        syncType: "esims" as SyncType,
+        syncLabel: "Sync eSIMs"
     },
     {
         id: "vpn",
@@ -85,20 +102,17 @@ const STORE_CATEGORIES = [
         icon: ShieldCheckIcon,
         color: "red",
         types: ["vpn"],
-        syncAction: syncAdminVPN,
+        syncType: "vpn" as SyncType,
         syncLabel: "Sync VPN"
     }
 ];
 
 export default function ProductsTab() {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
-    const [products, setProducts] = useState<ProductRow[]>([]);
-    const [loading, setLoading] = useState(true);
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
-    const [actionLoading, setActionLoading] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
 
-    // Form state
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -109,19 +123,13 @@ export default function ProductsTab() {
         metadataString: "{}"
     });
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetchAdminProducts();
-            setProducts(res.data.products || []);
-        } catch {
-            toast.error("Failed to load products");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const { data: productsData, isLoading } = useAdminProducts();
+    const products: ProductRow[] = productsData?.products || [];
 
-    useEffect(() => { load(); }, [load]);
+    const createProduct = useCreateProduct();
+    const updateProduct = useUpdateProduct();
+    const deleteProduct = useDeleteProduct();
+    const syncProducts = useSyncProducts();
 
     const activeCatData = STORE_CATEGORIES.find(c => c.id === activeCategory);
     const filteredProducts = activeCatData
@@ -156,64 +164,34 @@ export default function ProductsTab() {
     };
 
     const handleSubmit = async () => {
-        setActionLoading(true);
+        let parsedMetadata = {};
         try {
-            let parsedMetadata = {};
-            try {
-                parsedMetadata = JSON.parse(formData.metadataString);
-            } catch (e) {
-                toast.error("Invalid JSON in Metadata");
-                setActionLoading(false);
-                return;
-            }
-
-            const payload = {
-                ...formData,
-                metadata: parsedMetadata,
-                metadataString: undefined // remove before send
-            };
-
-            if (modalMode === "create") {
-                await createAdminProduct(payload);
-                toast.success("Product created");
-            } else if (modalMode === "edit" && selectedProduct) {
-                await updateAdminProduct(selectedProduct.id, payload);
-                toast.success("Product updated");
-            }
-            setModalMode(null);
-            load();
-        } catch (err: any) {
-            toast.error(err.response?.data?.errors?.[0] || "Failed to save product");
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!window.confirm("Are you sure you want to delete this product?")) return;
-        try {
-            await deleteAdminProduct(id);
-            toast.success("Product deleted");
-            load();
+            parsedMetadata = JSON.parse(formData.metadataString);
         } catch {
-            toast.error("Failed to delete product");
+            toast.error("Invalid JSON in Metadata");
+            return;
         }
+
+        const payload = { ...formData, metadata: parsedMetadata, metadataString: undefined };
+
+        if (modalMode === "create") {
+            await createProduct.mutateAsync(payload as Record<string, unknown>);
+        } else if (modalMode === "edit" && selectedProduct) {
+            await updateProduct.mutateAsync({ id: selectedProduct.id, data: payload as Record<string, unknown> });
+        }
+        setModalMode(null);
     };
 
-    const handleSync = async () => {
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        await deleteProduct.mutateAsync(deleteTarget.id);
+        setDeleteTarget(null);
+    };
+
+    const handleSync = () => {
         if (!activeCatData) return;
-        if (!window.confirm(`Are you sure you want to sync ${activeCatData.name} products? This might take a few moments and syncs external/internal sources.`)) return;
-        
-        setActionLoading(true);
-        try {
-            await activeCatData.syncAction();
-            toast.success(`${activeCatData.name} synced successfully`);
-            load();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || `Failed to sync ${activeCatData.name}`);
-        } finally {
-            setActionLoading(false);
-        }
+        if (!window.confirm(`Sync ${activeCatData.name} products? This syncs from external/internal sources.`)) return;
+        syncProducts.mutate(activeCatData.syncType);
     };
 
     const columns = [
@@ -222,22 +200,22 @@ export default function ProductsTab() {
             key: "name", label: "Product", sortable: true, render: (row: ProductRow) => (
                 <div>
                     <div className="flex items-center gap-2">
-                        {row.metadata?.country_code && (
-                            <img 
-                                src={`https://flagcdn.com/w20/${row.metadata.country_code.toLowerCase()}.png`} 
-                                alt={row.metadata.country_code}
+                        {row.metadata?.country_code ? (
+                            <img
+                                src={`https://flagcdn.com/w20/${String(row.metadata.country_code).toLowerCase()}.png`}
+                                alt={String(row.metadata.country_code)}
                                 className="h-3 w-5 object-cover rounded-sm border border-border/50"
                             />
-                        )}
+                        ) : null}
                         <p className="text-sm font-medium text-foreground">{row.name}</p>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">{row.provider}</p>
-                        {row.metadata?.locations && (
+                        {row.metadata?.locations ? (
                             <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded-full">
-                                {Array.isArray(row.metadata.locations) ? row.metadata.locations.join(', ') : row.metadata.locations}
+                                {Array.isArray(row.metadata.locations) ? (row.metadata.locations as string[]).join(', ') : String(row.metadata.locations)}
                             </span>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             )
@@ -253,13 +231,11 @@ export default function ProductsTab() {
         { key: "is_active", label: "Active", render: (row: ProductRow) => <StatusBadge status={row.is_active ? "active" : "inactive"} /> },
     ];
 
-
     return (
         <div className="space-y-6">
             <AnimatePresence mode="wait">
                 {!activeCategory ? (
-                    // ── STORE CATALOG VIEW ──────────────────────────────────────────
-                    <motion.div 
+                    <motion.div
                         key="store"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -286,16 +262,14 @@ export default function ProductsTab() {
                                     whileHover={{ y: -4 }}
                                     transition={{ type: "spring", stiffness: 300 }}
                                     onClick={() => setActiveCategory(cat.id)}
-                                    className={`bg-card cursor-pointer border border-border hover:border-${cat.color}-500/50 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden`}
+                                    className={`bg-card cursor-pointer border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden ${COLOR_MAP[cat.color]?.border}`}
                                 >
-                                    <div className={`absolute -right-4 -top-4 w-32 h-32 bg-${cat.color}-500/5 rounded-full blur-2xl group-hover:bg-${cat.color}-500/10 transition-colors`} />
-                                    
-                                    <div className={`w-12 h-12 rounded-xl bg-${cat.color}-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                                        <cat.icon className={`w-6 h-6 text-${cat.color}-500`} />
+                                    <div className={`absolute -right-4 -top-4 w-32 h-32 ${COLOR_MAP[cat.color]?.bgSubtle} rounded-full blur-2xl ${COLOR_MAP[cat.color]?.glow} transition-colors`} />
+                                    <div className={`w-12 h-12 rounded-xl ${COLOR_MAP[cat.color]?.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                                        <cat.icon className={`w-6 h-6 ${COLOR_MAP[cat.color]?.text}`} />
                                     </div>
                                     <h3 className="text-xl font-bold text-foreground mb-1">{cat.name}</h3>
                                     <p className="text-sm text-muted-foreground mb-6">{cat.description}</p>
-                                    
                                     <div className="flex flex-wrap items-center justify-between gap-4 mt-auto">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-semibold bg-muted text-foreground px-2 py-1 rounded-md">
@@ -311,8 +285,7 @@ export default function ProductsTab() {
                         </div>
                     </motion.div>
                 ) : (
-                    // ── CATEGORY PRODUCTS VIEW ──────────────────────────────────────
-                    <motion.div 
+                    <motion.div
                         key="category"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -322,34 +295,33 @@ export default function ProductsTab() {
                     >
                         <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
                             <div className="flex items-center gap-4">
-                                <button 
+                                <button
                                     onClick={() => setActiveCategory(null)}
                                     className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
                                 >
                                     <ArrowLeftIcon className="h-5 w-5" />
                                 </button>
-                                <div className="h-8 w-px bg-border"></div>
-                                <div className={`h-10 w-10 bg-${activeCatData?.color}-500/10 rounded-lg flex items-center justify-center`}>
-                                   {activeCatData && <activeCatData.icon className={`h-5 w-5 text-${activeCatData.color}-500`} />}
+                                <div className="h-8 w-px bg-border" />
+                                <div className={`h-10 w-10 ${activeCatData ? COLOR_MAP[activeCatData.color]?.bg : ""} rounded-lg flex items-center justify-center`}>
+                                    {activeCatData && <activeCatData.icon className={`h-5 w-5 ${COLOR_MAP[activeCatData.color]?.text}`} />}
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-foreground leading-tight">{activeCatData?.name}</h2>
                                     <span className="text-xs text-muted-foreground">{filteredProducts.length} items configured</span>
                                 </div>
                             </div>
-                            
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleSync}
-                                    disabled={actionLoading}
+                                    disabled={syncProducts.isLoading}
                                     className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border transition-colors rounded-xl text-sm font-medium border border-border disabled:opacity-50 text-foreground"
                                 >
-                                    <ArrowPathIcon className={`h-4 w-4 ${actionLoading ? 'animate-spin' : ''}`} /> 
+                                    <ArrowPathIcon className={`h-4 w-4 ${syncProducts.isLoading ? 'animate-spin' : ''}`} />
                                     {activeCatData?.syncLabel}
                                 </button>
-                                <button onClick={() => openModal("create")} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground transition-colors rounded-xl text-sm font-medium">
+                                <Button onClick={() => openModal("create")}>
                                     <PlusIcon className="h-4 w-4" /> Add Product
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -357,14 +329,14 @@ export default function ProductsTab() {
                             <DataTable
                                 columns={columns}
                                 data={filteredProducts}
-                                loading={loading}
-                                emptyMessage={`No ${activeCatData?.name} found. Click Sync or Add Product to populate.`}
+                                loading={isLoading}
+                                emptyMessage={<EmptyState icon={BuildingStorefrontIcon} title={`No ${activeCatData?.name} found`} description="Click Sync or Add Product to populate." action={{ label: activeCatData?.syncLabel || "Sync", onClick: handleSync }} />}
                                 actions={(row: ProductRow) => (
                                     <div className="flex items-center justify-end gap-2 pr-2">
-                                        <button onClick={() => openModal("edit", row)} className="p-1.5 text-muted-foreground hover:text-blue-400 hover:bg-muted rounded-lg transition-colors">
+                                        <button onClick={() => openModal("edit", row)} aria-label="Edit product" className="p-1.5 text-muted-foreground hover:text-blue-400 hover:bg-muted rounded-lg transition-colors">
                                             <PencilSquareIcon className="h-4 w-4" />
                                         </button>
-                                        <button onClick={() => handleDelete(row.id)} className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-muted rounded-lg transition-colors">
+                                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete product" className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
                                             <TrashIcon className="h-4 w-4" />
                                         </button>
                                     </div>
@@ -375,12 +347,11 @@ export default function ProductsTab() {
                 )}
             </AnimatePresence>
 
-            {/* ── CREATE / EDIT MODAL ────────────────────────────────────── */}
             <FormModal
                 open={!!modalMode} onClose={() => setModalMode(null)}
                 title={modalMode === "create" ? "Add Custom Product" : "Edit Product"}
                 onSubmit={handleSubmit} submitLabel={modalMode === "create" ? "Create" : "Save Changes"}
-                loading={actionLoading}
+                loading={createProduct.isLoading || updateProduct.isLoading}
             >
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="Name *">
@@ -417,6 +388,16 @@ export default function ProductsTab() {
                     <span className="text-sm font-medium text-foreground">Is Active?</span>
                 </label>
             </FormModal>
+
+            <ConfirmModal
+                open={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDelete}
+                title="Delete Product"
+                message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                loading={deleteProduct.isLoading}
+            />
         </div>
     );
 }

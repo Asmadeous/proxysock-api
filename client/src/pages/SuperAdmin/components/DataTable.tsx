@@ -1,5 +1,6 @@
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { useDebounce } from "use-debounce";
 import {
     MagnifyingGlassIcon,
     ChevronUpIcon,
@@ -26,7 +27,7 @@ interface DataTableProps<T> {
     totalPages?: number;
     onPageChange?: (page: number) => void;
     total?: number;
-    emptyMessage?: string;
+    emptyMessage?: ReactNode;
     actions?: (row: T) => ReactNode;
     onRowClick?: (row: T) => void;
     toolbar?: ReactNode;
@@ -72,15 +73,51 @@ export default function DataTable<T extends { id?: number | string }>({
         });
     }, [data, sortKey, sortDir]);
 
-    const handleSearchChange = (value: string) => {
-        setLocalSearch(value);
-        onSearch?.(value);
-    };
+    const [debouncedSearch] = useDebounce(localSearch, 350);
+
+    useEffect(() => {
+        onSearch?.(debouncedSearch);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch]);
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500" />
+            <div className="space-y-4">
+                {onSearch && (
+                    <div className="relative flex-1 w-full sm:max-w-sm">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={searchPlaceholder}
+                            value={localSearch}
+                            onChange={(e) => setLocalSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl
+                text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+                        />
+                    </div>
+                )}
+                <div className="bg-card rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted/50 px-4 py-3.5 flex gap-6">
+                        {columns.map((col) => (
+                            <div key={col.key} className="h-3 bg-muted rounded animate-pulse flex-1" />
+                        ))}
+                        {actions && <div className="h-3 w-16 bg-muted rounded animate-pulse" />}
+                    </div>
+                    <div className="divide-y divide-border/50">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="px-4 py-3.5 flex gap-6 items-center">
+                                {columns.map((col) => (
+                                    <div
+                                        key={col.key}
+                                        className="h-3.5 bg-muted/70 rounded animate-pulse flex-1"
+                                        style={{ animationDelay: `${i * 40}ms` }}
+                                    />
+                                ))}
+                                {actions && <div className="h-3.5 w-16 bg-muted/70 rounded animate-pulse" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -96,7 +133,7 @@ export default function DataTable<T extends { id?: number | string }>({
                             type="text"
                             placeholder={searchPlaceholder}
                             value={localSearch}
-                            onChange={(e) => handleSearchChange(e.target.value)}
+                            onChange={(e) => setLocalSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl
                 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors text-sm"
                         />
@@ -114,7 +151,9 @@ export default function DataTable<T extends { id?: number | string }>({
                                 {columns.map((col) => (
                                     <th
                                         key={col.key}
+                                        scope="col"
                                         onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                                        aria-sort={col.sortable && sortKey === col.key ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
                                         className={`px-4 py-3.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider
                       ${col.sortable ? "cursor-pointer hover:text-foreground select-none" : ""}
                       ${col.className || ""}`}
@@ -123,14 +162,14 @@ export default function DataTable<T extends { id?: number | string }>({
                                             {col.label}
                                             {col.sortable && sortKey === col.key && (
                                                 sortDir === "asc"
-                                                    ? <ChevronUpIcon className="h-3 w-3" />
-                                                    : <ChevronDownIcon className="h-3 w-3" />
+                                                    ? <ChevronUpIcon className="h-3 w-3" aria-hidden="true" />
+                                                    : <ChevronDownIcon className="h-3 w-3" aria-hidden="true" />
                                             )}
                                         </div>
                                     </th>
                                 ))}
                                 {actions && (
-                                    <th className="px-4 py-3.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    <th scope="col" className="px-4 py-3.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Actions
                                     </th>
                                 )}
@@ -139,8 +178,10 @@ export default function DataTable<T extends { id?: number | string }>({
                         <tbody className="divide-y divide-border/50">
                             {sortedData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
-                                        {emptyMessage}
+                                    <td colSpan={columns.length + (actions ? 1 : 0)} className="text-center text-muted-foreground">
+                                        {typeof emptyMessage === "string" ? (
+                                            <p className="px-4 py-12">{emptyMessage}</p>
+                                        ) : emptyMessage}
                                     </td>
                                 </tr>
                             ) : (

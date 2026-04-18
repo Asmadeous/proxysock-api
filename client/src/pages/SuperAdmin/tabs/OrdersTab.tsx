@@ -19,6 +19,7 @@ import {
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
+import { getApiError } from "../utils/errors";
 import {
     fetchAdminOrders,
     refundOrder,
@@ -70,7 +71,7 @@ export default function OrdersTab() {
     const [rescueTarget, setRescueTarget] = useState<OrderRow | null>(null);
     const [refundTarget, setRefundTarget] = useState<OrderRow | null>(null);
     const [proxyConfigTarget, setProxyConfigTarget] = useState<OrderRow | null>(null);
-    const [proxyCreds, setProxyCreds] = useState<any>(null);
+    const [proxyCreds, setProxyCreds] = useState<Record<string, string> | null>(null);
     const [proxyActionLoading, setProxyActionLoading] = useState(false);
     const [newCreds, setNewCreds] = useState({ username: '', password: '' });
     const [newIp, setNewIp] = useState('');
@@ -105,8 +106,8 @@ export default function OrdersTab() {
             toast.success("Rescue triggered");
             setRescueTarget(null);
             load();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Rescue failed");
+        } catch (err) {
+            toast.error(getApiError(err, "Rescue failed"));
         } finally {
             setActionLoading(false);
         }
@@ -119,14 +120,14 @@ export default function OrdersTab() {
             const res = await fetchOrderCredentials(order.id);
             setProxyCreds(res.data);
             setNewCreds({ username: res.data.username || '', password: res.data.password || '' });
-        } catch (err: any) {
+        } catch (err) {
             toast.error("Failed to load proxy details");
         } finally {
             setProxyActionLoading(false);
         }
     };
 
-    const handleProxyAction = async (action: string, data?: any) => {
+    const handleProxyAction = async (action: string, data?: string) => {
         if (!proxyConfigTarget) return;
         setProxyActionLoading(true);
         try {
@@ -140,6 +141,7 @@ export default function OrdersTab() {
                     toast.success("IP rotation triggered");
                     break;
                 case 'change-protocol':
+                    if (!data) break;
                     await changeProxyProtocol(proxyConfigTarget.id, data);
                     toast.success(`Protocol changed to ${data}`);
                     break;
@@ -149,6 +151,7 @@ export default function OrdersTab() {
                     setNewIp('');
                     break;
                 case 'whitelist-delete':
+                    if (!data) break;
                     await whitelistDelete(proxyConfigTarget.id, data);
                     toast.success("IP removed from whitelist");
                     break;
@@ -164,8 +167,8 @@ export default function OrdersTab() {
             // Refresh credentials if still in modal
             const res = await fetchOrderCredentials(proxyConfigTarget.id);
             setProxyCreds(res.data);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Action failed");
+        } catch (err) {
+            toast.error(getApiError(err, "Action failed"));
         } finally {
             setProxyActionLoading(false);
         }
@@ -180,8 +183,8 @@ export default function OrdersTab() {
             setRefundTarget(null);
             setRefundMethod("wallet");
             load();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Refund failed");
+        } catch (err) {
+            toast.error(getApiError(err, "Refund failed"));
         } finally {
             setActionLoading(false);
         }
