@@ -1,10 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { TrashIcon, CogIcon, LinkIcon, PlusIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
+import { validEmail, positiveNumber, hasErrors, type ValidationErrors } from "../utils/validation";
+import Button from "../components/Button";
+import { useTabFilters } from "../hooks/useTabFilters";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
-import { fetchAffiliates, deleteAffiliate, configureAffiliate, processAffiliatePayout, fetchAffiliatePayouts, createAffiliate } from "../../../services/adminApi";
+import EmptyState from "../components/EmptyState";
+import {
+    useAdminAffiliates,
+    useAdminAffiliatePayouts,
+    useCreateAffiliate,
+    useDeleteAffiliate,
+    useConfigureAffiliate,
+    useProcessAffiliatePayout,
+} from "../queries/affiliates.queries";
 import { toast } from "react-hot-toast";
 
 interface AffiliateRow {
@@ -33,90 +44,64 @@ interface PayoutRow {
 }
 
 export default function AffiliatesTab() {
-    const [affiliates, setAffiliates] = useState<AffiliateRow[]>([]);
-    const [payouts, setPayouts] = useState<PayoutRow[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
-    const [search, setSearch] = useState("");
-    const [activeSubTab, setActiveSubTab] = useState<"affiliates" | "payouts">("affiliates");
+    const { get, update } = useTabFilters();
+    const search = get("search");
+    const activeSubTab = (get("subtab") || "affiliates") as "affiliates" | "payouts";
 
     const [deleteTarget, setDeleteTarget] = useState<AffiliateRow | null>(null);
     const [configTarget, setConfigTarget] = useState<AffiliateRow | null>(null);
     const [configForm, setConfigForm] = useState({ commission_rate: "10", discount_rate: "5", status: "active" });
     const [showCreate, setShowCreate] = useState(false);
     const [createForm, setCreateForm] = useState({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
-    const [actionLoading, setActionLoading] = useState(false);
+    const [createErrors, setCreateErrors] = useState<ValidationErrors>({});
 
-    const loadAffiliates = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params: Record<string, string> = {};
-            if (search) params.q = search;
-            const res = await fetchAffiliates(params);
-            setAffiliates(res.data.affiliates || []);
-            setTotal(res.data.total || 0);
-        } catch { toast.error("Failed to load affiliates"); }
-        finally { setLoading(false); }
-    }, [search]);
+    const { data: affiliatesData, isLoading: affiliatesLoading } = useAdminAffiliates({ search });
+    const { data: payoutsData, isLoading: payoutsLoading } = useAdminAffiliatePayouts();
 
-    const loadPayouts = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetchAffiliatePayouts();
-            setPayouts(res.data.payouts || []);
-        } catch { toast.error("Failed to load payouts"); }
-        finally { setLoading(false); }
-    }, []);
+    const affiliates: AffiliateRow[] = affiliatesData?.affiliates ?? [];
+    const total: number = affiliatesData?.total ?? 0;
+    const payouts: PayoutRow[] = payoutsData?.payouts ?? [];
 
-    useEffect(() => { activeSubTab === "affiliates" ? loadAffiliates() : loadPayouts(); }, [activeSubTab, loadAffiliates, loadPayouts]);
+    const createAffiliate = useCreateAffiliate();
+    const deleteAffiliate = useDeleteAffiliate();
+    const configureAffiliate = useConfigureAffiliate();
+    const processPayout = useProcessAffiliatePayout();
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
-        setActionLoading(true);
-        try { await deleteAffiliate(deleteTarget.id); toast.success("Affiliate deleted"); setDeleteTarget(null); loadAffiliates(); }
-        catch { toast.error("Failed"); }
-        finally { setActionLoading(false); }
+        await deleteAffiliate.mutateAsync(deleteTarget.id);
+        setDeleteTarget(null);
     };
 
     const handleConfigure = async () => {
         if (!configTarget) return;
-        setActionLoading(true);
-        try { await configureAffiliate(configTarget.id, configForm); toast.success("Configured"); setConfigTarget(null); loadAffiliates(); }
-        catch { toast.error("Failed"); }
-        finally { setActionLoading(false); }
+        await configureAffiliate.mutateAsync({ id: configTarget.id, data: configForm });
+        setConfigTarget(null);
     };
 
     const handleCreate = async () => {
-        setActionLoading(true);
-        try {
-            await createAffiliate({
-                affiliatable_type: createForm.affiliatable_type,
-                email: createForm.email,
-                commission_rate: parseFloat(createForm.commission_rate),
-                discount_rate: parseFloat(createForm.discount_rate),
-            });
-            toast.success("Affiliate created");
-            setShowCreate(false);
-            setCreateForm({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
-            loadAffiliates();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to create affiliate");
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleProcessPayout = async (id: number) => {
-        try { await processAffiliatePayout(id); toast.success("Payout processed"); loadPayouts(); }
-        catch { toast.error("Failed"); }
+        const errors = {
+            email: validEmail(createForm.email),
+            commission_rate: positiveNumber(createForm.commission_rate, "Commission rate"),
+        };
+        if (hasErrors(errors)) { setCreateErrors(errors); return; }
+        await createAffiliate.mutateAsync({
+            affiliatable_type: createForm.affiliatable_type,
+            email: createForm.email,
+            commission_rate: parseFloat(createForm.commission_rate),
+            discount_rate: parseFloat(createForm.discount_rate),
+        });
+        setShowCreate(false);
+        setCreateForm({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
+        setCreateErrors({});
     };
 
     const openConfig = (a: AffiliateRow) => {
         setConfigTarget(a);
         setConfigForm({
-            commission_rate: String(a.commission_rate || 10),
-            discount_rate: String(a.discount_rate || 5),
-            status: a.status || "active"
+            commission_rate: String(a.commission_rate ?? 10),
+            discount_rate: String(a.discount_rate ?? 5),
+            status: a.status ?? "active",
         });
     };
 
@@ -138,18 +123,18 @@ export default function AffiliatesTab() {
                             <p className="text-sm font-medium text-foreground font-mono">{row.referral_code}</p>
                             <button
                                 onClick={(e) => { e.stopPropagation(); copyCode(row.referral_code); }}
+                                aria-label="Copy referral code"
                                 className="p-0.5 rounded text-muted-foreground hover:text-blue-400 transition-colors"
-                                title="Copy promo code"
                             >
                                 <ClipboardDocumentIcon className="h-3.5 w-3.5" />
                             </button>
                         </div>
-                        <p className="text-xs text-muted-foreground">{row.affiliatable_type}: {row.affiliatable_email || row.affiliatable_name}</p>
+                        <p className="text-xs text-muted-foreground">{row.affiliatable_type}: {row.affiliatable_email ?? row.affiliatable_name}</p>
                     </div>
                 </div>
             ),
         },
-        { key: "status", label: "Status", render: (row: AffiliateRow) => <StatusBadge status={row.status || "active"} /> },
+        { key: "status", label: "Status", render: (row: AffiliateRow) => <StatusBadge status={row.status ?? "active"} /> },
         { key: "commission_rate", label: "Commission", render: (row: AffiliateRow) => <span className="text-sm font-medium text-emerald-400">{row.commission_rate}%</span> },
         { key: "discount_rate", label: "Discount", render: (row: AffiliateRow) => <span className="text-sm text-blue-400">{row.discount_rate}%</span> },
         { key: "total_referrals", label: "Referrals", sortable: true },
@@ -158,12 +143,12 @@ export default function AffiliatesTab() {
             key: "total_earned", label: "Earnings", sortable: true,
             render: (row: AffiliateRow) => (
                 <div>
-                    <span className="text-sm font-medium text-foreground">${Number(row.total_earned || 0).toFixed(2)}</span>
-                    {(row.pending_balance || 0) > 0 && (
+                    <span className="text-sm font-medium text-foreground">${Number(row.total_earned ?? 0).toFixed(2)}</span>
+                    {(row.pending_balance ?? 0) > 0 && (
                         <p className="text-[10px] text-yellow-400">${Number(row.pending_balance).toFixed(2)} pending</p>
                     )}
                 </div>
-            )
+            ),
         },
     ];
 
@@ -183,12 +168,16 @@ export default function AffiliatesTab() {
                     <p className="text-sm text-muted-foreground mt-1">{total} affiliates</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-foreground rounded-xl text-sm font-medium hover:bg-red-600 transition-colors">
+                    <Button onClick={() => setShowCreate(true)}>
                         <PlusIcon className="h-4 w-4" /> Onboard Affiliate
-                    </button>
+                    </Button>
                     <div className="flex bg-card rounded-xl border border-border p-0.5">
                         {(["affiliates", "payouts"] as const).map((tab) => (
-                            <button key={tab} onClick={() => setActiveSubTab(tab)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${activeSubTab === tab ? "bg-red-500 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                            <button
+                                key={tab}
+                                onClick={() => update({ subtab: tab, search: "" })}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${activeSubTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                            >
                                 {tab}
                             </button>
                         ))}
@@ -198,39 +187,56 @@ export default function AffiliatesTab() {
 
             {activeSubTab === "affiliates" ? (
                 <DataTable
-                    columns={affiliateColumns} data={affiliates} loading={loading}
-                    searchPlaceholder="Search affiliates..." onSearch={(q) => setSearch(q)}
-                    total={total} emptyMessage="No affiliates"
+                    columns={affiliateColumns}
+                    data={affiliates}
+                    loading={affiliatesLoading}
+                    searchPlaceholder="Search affiliates..."
+                    onSearch={(q) => update({ search: q })}
+                    total={total}
+                    emptyMessage={<EmptyState icon={LinkIcon} title="No affiliates" description="Onboard affiliates to start tracking referrals." action={{ label: "Onboard Affiliate", onClick: () => setShowCreate(true) }} />}
                     actions={(row: AffiliateRow) => (
                         <>
-                            <button onClick={() => openConfig(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10" title="Configure"><CogIcon className="h-4 w-4" /></button>
-                            <button onClick={() => setDeleteTarget(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                            <button onClick={() => openConfig(row)} aria-label="Configure affiliate" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10">
+                                <CogIcon className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => setDeleteTarget(row)} aria-label="Delete affiliate" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                <TrashIcon className="h-4 w-4" />
+                            </button>
                         </>
                     )}
                 />
             ) : (
                 <DataTable
-                    columns={payoutColumns} data={payouts} loading={loading}
-                    emptyMessage="No payouts"
-                    actions={(row: PayoutRow) => row.status === "pending" ? (
-                        <button onClick={() => handleProcessPayout(row.id)} className="px-3 py-1 text-xs bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors">Process</button>
-                    ) : null}
+                    columns={payoutColumns}
+                    data={payouts}
+                    loading={payoutsLoading}
+                    emptyMessage={<EmptyState title="No payouts" description="Affiliate payout requests will appear here." />}
+                    actions={(row: PayoutRow) =>
+                        row.status === "pending" ? (
+                            <button
+                                onClick={() => processPayout.mutate(row.id)}
+                                className="px-3 py-1 text-xs bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
+                            >
+                                Process
+                            </button>
+                        ) : null
+                    }
                 />
             )}
 
             {/* Create Affiliate Modal */}
-            <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Onboard New Affiliate" onSubmit={handleCreate} submitLabel="Create Affiliate" loading={actionLoading}>
+            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setCreateErrors({}); }} title="Onboard New Affiliate" onSubmit={handleCreate} submitLabel="Create Affiliate" loading={createAffiliate.isLoading}>
                 <Field label="Entity Type">
                     <select className={selectClasses} value={createForm.affiliatable_type} onChange={(e) => setCreateForm({ ...createForm, affiliatable_type: e.target.value })}>
                         <option value="User">User</option>
                         <option value="Reseller">Reseller</option>
                     </select>
                 </Field>
-                <Field label="Email *">
-                    <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="user@example.com" required />
+                <Field label="Email" error={createErrors.email}>
+                    <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="user@example.com" />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Commission Rate (%)">
+                    <Field label="Commission Rate (%)" error={createErrors.commission_rate}>
                         <input className={inputClasses} type="number" value={createForm.commission_rate} onChange={(e) => setCreateForm({ ...createForm, commission_rate: e.target.value })} />
                     </Field>
                     <Field label="Discount Rate (%)">
@@ -238,12 +244,12 @@ export default function AffiliatesTab() {
                     </Field>
                 </div>
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mt-2">
-                    <p className="text-xs text-blue-300">A unique promo code will be auto-generated. The affiliate can use this code for referrals and checkout discounts.</p>
+                    <p className="text-xs text-blue-300">A unique promo code will be auto-generated for referrals and checkout discounts.</p>
                 </div>
             </FormModal>
 
             {/* Configure Modal */}
-            <FormModal open={!!configTarget} onClose={() => setConfigTarget(null)} title={`Configure ${configTarget?.referral_code}`} onSubmit={handleConfigure} submitLabel="Apply" loading={actionLoading}>
+            <FormModal open={!!configTarget} onClose={() => setConfigTarget(null)} title={`Configure ${configTarget?.referral_code}`} onSubmit={handleConfigure} submitLabel="Apply" loading={configureAffiliate.isLoading}>
                 <Field label="Commission Rate (%)"><input className={inputClasses} type="number" value={configForm.commission_rate} onChange={(e) => setConfigForm({ ...configForm, commission_rate: e.target.value })} /></Field>
                 <Field label="Discount Rate (%)"><input className={inputClasses} type="number" value={configForm.discount_rate} onChange={(e) => setConfigForm({ ...configForm, discount_rate: e.target.value })} /></Field>
                 <Field label="Status">
@@ -255,7 +261,7 @@ export default function AffiliatesTab() {
                 </Field>
             </FormModal>
 
-            <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Affiliate" message={`Delete affiliate ${deleteTarget?.referral_code}?`} confirmLabel="Delete" loading={actionLoading} />
+            <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Affiliate" message={`Delete affiliate ${deleteTarget?.referral_code}?`} confirmLabel="Delete" loading={deleteAffiliate.isLoading} />
         </div>
     );
 }

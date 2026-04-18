@@ -1,12 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
+import { validEmail, required, hasErrors, type ValidationErrors } from "../utils/validation";
+import Button from "../components/Button";
+import { useTabFilters } from "../hooks/useTabFilters";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
-import { fetchResellers, createReseller, updateReseller, deleteReseller, onboardReseller, configureReseller, fetchResellerDetail } from "../../../services/adminApi";
-import { toast } from "react-hot-toast";
+import EmptyState from "../components/EmptyState";
+import { StatsCardSkeleton } from "../components/TableSkeleton";
+import {
+    useAdminResellers,
+    useResellerDetail,
+    useCreateReseller,
+    useUpdateReseller,
+    useDeleteReseller,
+    useOnboardReseller,
+    useConfigureReseller,
+} from "../queries/resellers.queries";
 
 interface ResellerRow {
     id: string;
@@ -24,7 +36,6 @@ interface ResellerRow {
     total_orders: number;
     has_affiliate: boolean;
     created_at: string;
-    // Full detail fields
     users?: { id: string; email: string; name: string; status: string; created_at: string }[];
     orders?: { id: string; product: string; status: string; total: number; created_at: string }[];
     webhooks?: { id: string; url: string; events: string[]; created_at: string }[];
@@ -48,13 +59,10 @@ const TYPE_FILTERS = [
 ];
 
 export default function ResellersTab() {
-    const [resellers, setResellers] = useState<ResellerRow[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
-    const [stats, setStats] = useState<Stats>({ total: 0, api_only: 0, enterprise: 0, single_product: 0, total_balance: 0 });
-    const [page, setPage] = useState(1);
-    const [search, setSearch] = useState("");
-    const [typeFilter, setTypeFilter] = useState("");
+    const { getNum, get, update } = useTabFilters();
+    const page = getNum("page", 1);
+    const search = get("search");
+    const typeFilter = get("type");
     const PER = 25;
 
     const [showCreate, setShowCreate] = useState(false);
@@ -62,8 +70,8 @@ export default function ResellersTab() {
     const [deleteTarget, setDeleteTarget] = useState<ResellerRow | null>(null);
     const [configTarget, setConfigTarget] = useState<ResellerRow | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [expandedDetail, setExpandedDetail] = useState<ResellerRow | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [formErrors, setFormErrors] = useState<ValidationErrors>({});
     const [configForm, setConfigForm] = useState({
         reseller_type: "api_only",
         surcharge: "0",
@@ -73,79 +81,56 @@ export default function ResellersTab() {
         customer_email: "",
         allowed_product_category_id: "",
     });
-    const [actionLoading, setActionLoading] = useState(false);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params: Record<string, string> = { page: String(page), per: String(PER) };
-            if (search) params.q = search;
-            if (typeFilter) params.type = typeFilter;
-            const res = await fetchResellers(params);
-            setResellers(res.data.resellers);
-            setTotal(res.data.total);
-            if (res.data.stats) setStats(res.data.stats);
-        } catch { toast.error("Failed to load resellers"); }
-        finally { setLoading(false); }
-    }, [page, search, typeFilter]);
+    const { data: resellersData, isLoading } = useAdminResellers({ page, search, typeFilter, per: PER });
+    const { data: detailData, isLoading: detailLoading } = useResellerDetail(expandedId);
 
-    useEffect(() => { load(); }, [load]);
+    const resellers: ResellerRow[] = resellersData?.resellers ?? [];
+    const total: number = resellersData?.total ?? 0;
+    const stats: Stats = resellersData?.stats ?? { total: 0, api_only: 0, enterprise: 0, single_product: 0, total_balance: 0 };
+
+    const createReseller = useCreateReseller();
+    const updateReseller = useUpdateReseller();
+    const deleteReseller = useDeleteReseller();
+    const onboardReseller = useOnboardReseller();
+    const configureReseller = useConfigureReseller();
+
+    const validateForm = (isCreate: boolean): ValidationErrors => ({
+        email: validEmail(form.email),
+        username: required(form.username, "Username"),
+        company_name: required(form.company_name, "Company name"),
+        ...(isCreate ? { password: required(form.password, "Password") } : {}),
+    });
 
     const handleCreate = async () => {
-        setActionLoading(true);
-        try {
-            await createReseller(form);
-            toast.success("Reseller created");
-            setShowCreate(false);
-            setForm(EMPTY_FORM);
-            load();
-        } catch { toast.error("Failed to create"); }
-        finally { setActionLoading(false); }
+        const errors = validateForm(true);
+        if (hasErrors(errors)) { setFormErrors(errors); return; }
+        await createReseller.mutateAsync(form as unknown as Record<string, unknown>);
+        setShowCreate(false);
+        setForm(EMPTY_FORM);
+        setFormErrors({});
     };
 
     const handleUpdate = async () => {
         if (!editTarget) return;
-        setActionLoading(true);
-        try {
-            const { password, ...data } = form;
-            await updateReseller(editTarget.id, data);
-            toast.success("Reseller updated");
-            setEditTarget(null);
-            load();
-        } catch { toast.error("Failed to update"); }
-        finally { setActionLoading(false); }
+        const errors = validateForm(false);
+        if (hasErrors(errors)) { setFormErrors(errors); return; }
+        const { password: _pw, ...data } = form;
+        await updateReseller.mutateAsync({ id: editTarget.id, data: data as unknown as Record<string, unknown> });
+        setEditTarget(null);
+        setFormErrors({});
     };
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
-        setActionLoading(true);
-        try {
-            await deleteReseller(deleteTarget.id);
-            toast.success("Reseller deleted");
-            setDeleteTarget(null);
-            load();
-        } catch { toast.error("Failed to delete"); }
-        finally { setActionLoading(false); }
-    };
-
-    const handleOnboard = async (id: string) => {
-        try {
-            const res = await onboardReseller(id);
-            toast.success(res.data.message);
-            load();
-        } catch { toast.error("Failed to onboard"); }
+        await deleteReseller.mutateAsync(deleteTarget.id);
+        setDeleteTarget(null);
     };
 
     const handleConfigure = async () => {
         if (!configTarget) return;
-        setActionLoading(true);
-        try {
-            await configureReseller(configTarget.id, configForm);
-            toast.success("Reseller configured");
-            setConfigTarget(null);
-            load();
-        } catch { toast.error("Failed to configure"); }
-        finally { setActionLoading(false); }
+        await configureReseller.mutateAsync({ id: configTarget.id, data: configForm as Record<string, unknown> });
+        setConfigTarget(null);
     };
 
     const openEdit = (r: ResellerRow) => {
@@ -162,23 +147,12 @@ export default function ResellersTab() {
             subscription_expires_at: r.subscription_expires_at ? r.subscription_expires_at.slice(0, 10) : "",
             dedicated_api_key: r.dedicated_api_key || "",
             customer_email: r.customer_email || "",
-            allowed_product_category_id: (r as any).allowed_product_category_id ? String((r as any).allowed_product_category_id) : "",
+            allowed_product_category_id: (r as unknown as Record<string, unknown>).allowed_product_category_id ? String((r as unknown as Record<string, unknown>).allowed_product_category_id) : "",
         });
     };
 
-    const toggleExpand = async (r: ResellerRow) => {
-        if (expandedId === r.id) {
-            setExpandedId(null);
-            setExpandedDetail(null);
-            return;
-        }
-        setExpandedId(r.id);
-        try {
-            const res = await fetchResellerDetail(r.id);
-            setExpandedDetail(res.data);
-        } catch {
-            setExpandedDetail(r);
-        }
+    const toggleExpand = (r: ResellerRow) => {
+        setExpandedId((prev) => (prev === r.id ? null : r.id));
     };
 
     const tierLabel = (type: string) => {
@@ -231,7 +205,7 @@ export default function ResellersTab() {
             ),
         },
         {
-            key: "subscription_fee", label: "Subscription", sortable: false,
+            key: "subscription_fee", label: "Subscription",
             render: (row: ResellerRow) => {
                 if (row.reseller_type !== "infrastructure") return <span className="text-xs text-muted-foreground">—</span>;
                 const isActive = row.subscription_expires_at && new Date(row.subscription_expires_at) > new Date();
@@ -253,10 +227,16 @@ export default function ResellersTab() {
         <div className="space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
-                <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} change={`${stats.api_only} API resellers`} />
-                <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} change={`${stats.single_product} product resellers`} />
-                <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} change={`${stats.enterprise} infrastructure`} />
+                {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
+                ) : (
+                    <>
+                        <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
+                        <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} />
+                        <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} />
+                        <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} />
+                    </>
+                )}
             </div>
 
             {/* Header + Filter Chips */}
@@ -267,9 +247,9 @@ export default function ResellersTab() {
                         {TYPE_FILTERS.map((f) => (
                             <button
                                 key={f.value}
-                                onClick={() => { setTypeFilter(f.value); setPage(1); }}
+                                onClick={() => update({ type: f.value, page: 1 })}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${typeFilter === f.value
-                                    ? "bg-red-500 text-white shadow-sm"
+                                    ? "bg-primary text-primary-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
                             >
@@ -278,137 +258,142 @@ export default function ResellersTab() {
                         ))}
                     </div>
                 </div>
-                <button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-foreground rounded-xl text-sm font-medium hover:bg-red-600 transition-colors">
+                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
                     <PlusIcon className="h-4 w-4" /> Add Reseller
-                </button>
+                </Button>
             </div>
 
             <DataTable
-                columns={columns} data={resellers} loading={loading}
+                columns={columns} data={resellers} loading={isLoading}
                 searchPlaceholder="Search resellers..."
-                onSearch={(q) => { setSearch(q); setPage(1); }}
-                page={page} totalPages={Math.ceil(total / PER)} onPageChange={setPage} total={total}
-                emptyMessage="No resellers found"
+                onSearch={(q) => update({ search: q, page: 1 })}
+                page={page} totalPages={Math.ceil(total / PER)} onPageChange={(p) => update({ page: p })} total={total}
+                emptyMessage={<EmptyState icon={UsersIcon} title="No resellers found" description="Add a reseller to get started." action={{ label: "Add Reseller", onClick: () => { setShowCreate(true); setForm(EMPTY_FORM); } }} />}
                 actions={(row: ResellerRow) => (
                     <>
-                        <button onClick={() => toggleExpand(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title="Details">
+                        <button onClick={() => toggleExpand(row)} aria-label="View details" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
                             {expandedId === row.id ? <ChevronUpIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                         </button>
-                        <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title="Edit"><PencilIcon className="h-4 w-4" /></button>
-                        <button onClick={() => openConfig(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10" title="Configure"><CogIcon className="h-4 w-4" /></button>
-                        <button onClick={() => handleOnboard(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10" title="Onboard"><ArrowPathIcon className="h-4 w-4" /></button>
-                        <button onClick={() => setDeleteTarget(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                        <button onClick={() => openEdit(row)} aria-label="Edit reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"><PencilIcon className="h-4 w-4" /></button>
+                        <button onClick={() => openConfig(row)} aria-label="Configure reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10"><CogIcon className="h-4 w-4" /></button>
+                        <button onClick={() => onboardReseller.mutate(row.id)} aria-label="Onboard reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10"><ArrowPathIcon className="h-4 w-4" /></button>
+                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"><TrashIcon className="h-4 w-4" /></button>
                     </>
                 )}
             />
 
             {/* Detail Panel */}
-            {expandedId && expandedDetail && (
+            {expandedId && (
                 <div className="bg-card rounded-xl border border-border p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-foreground">
-                            {expandedDetail.company_name || expandedDetail.username} — Details
+                            {detailData?.company_name || detailData?.username || "Loading..."} — Details
                         </h3>
-                        <button onClick={() => { setExpandedId(null); setExpandedDetail(null); }} className="text-muted-foreground hover:text-foreground">
+                        <button onClick={() => setExpandedId(null)} className="text-muted-foreground hover:text-foreground">
                             <ChevronUpIcon className="h-5 w-5" />
                         </button>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Users */}
-                        <div className="lg:col-span-1">
-                            <h4 className="text-sm font-semibold text-foreground mb-2">Users</h4>
-                            {expandedDetail.users && expandedDetail.users.length > 0 ? (
-                                <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                                    {expandedDetail.users.map((u) => (
-                                        <div key={u.id} className="flex justify-between items-center text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                            <div className="min-w-0 pr-2">
-                                                <p className="text-foreground font-medium truncate">{u.name || u.email}</p>
-                                                <p className="text-muted-foreground truncate opacity-80">{u.name ? u.email : ""}</p>
-                                            </div>
-                                            <StatusBadge status={u.status} />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-xs text-muted-foreground">No users assigned</p>}
+                    {detailLoading ? (
+                        <div className="h-32 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
                         </div>
-
-                        {/* Orders */}
-                        <div className="lg:col-span-1">
-                            <h4 className="text-sm font-semibold text-foreground mb-2">Recent Orders</h4>
-                            {expandedDetail.orders && expandedDetail.orders.length > 0 ? (
-                                <div className="space-y-1.5">
-                                    {expandedDetail.orders.slice(0, 8).map((o) => (
-                                        <div key={o.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                            <span className="text-foreground font-medium truncate max-w-[150px]">{o.product || "—"}</span>
-                                            <StatusBadge status={o.status} />
-                                            <span className="text-muted-foreground">${Number(o.total || 0).toFixed(2)}</span>
-                                            <span className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-xs text-muted-foreground">No orders</p>}
-                        </div>
-
-                        {/* Account Details + Webhooks */}
-                        <div className="lg:col-span-1 space-y-4">
-                            <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Account Details</h4>
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                        <p className="text-muted-foreground">Type</p>
-                                        <p className="font-medium text-foreground">{tierLabel(expandedDetail.reseller_type)}</p>
-                                    </div>
-                                    <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                        <p className="text-muted-foreground">Surcharge</p>
-                                        <p className="font-medium text-foreground">{expandedDetail.surcharge || 0}%</p>
-                                    </div>
-                                    {expandedDetail.reseller_type === "infrastructure" && (
-                                        <>
-                                            <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                                <p className="text-muted-foreground">Subscription</p>
-                                                <p className="font-medium text-foreground">${expandedDetail.subscription_fee || 0}/mo</p>
-                                            </div>
-                                            <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                                <p className="text-muted-foreground">Expires</p>
-                                                <p className="font-medium text-foreground">{expandedDetail.subscription_expires_at ? new Date(expandedDetail.subscription_expires_at).toLocaleDateString() : "—"}</p>
-                                            </div>
-                                            <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
-                                                <p className="text-muted-foreground">API Key</p>
-                                                <p className="font-mono text-foreground text-[10px] truncate">{expandedDetail.dedicated_api_key || "Not set"}</p>
-                                            </div>
-                                            <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
-                                                <p className="text-muted-foreground">Customer Email</p>
-                                                <p className="font-medium text-foreground">{expandedDetail.customer_email || "Not set"}</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {expandedDetail.webhooks && expandedDetail.webhooks.length > 0 && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-foreground mb-2">Webhooks</h4>
-                                    <div className="space-y-1.5">
-                                        {expandedDetail.webhooks.map((w) => (
-                                            <div key={w.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                                <span className="text-foreground font-mono truncate max-w-[200px]">{w.url}</span>
-                                                <span className="text-muted-foreground">{w.events?.length || 0} events</span>
+                    ) : detailData && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Users */}
+                            <div className="lg:col-span-1">
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Users</h4>
+                                {detailData.users && detailData.users.length > 0 ? (
+                                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                                        {detailData.users.map((u: { id: string; email: string; name: string; status: string }) => (
+                                            <div key={u.id} className="flex justify-between items-center text-xs bg-muted/50 rounded-lg px-3 py-2">
+                                                <div className="min-w-0 pr-2">
+                                                    <p className="text-foreground font-medium truncate">{u.name || u.email}</p>
+                                                    <p className="text-muted-foreground truncate opacity-80">{u.name ? u.email : ""}</p>
+                                                </div>
+                                                <StatusBadge status={u.status} />
                                             </div>
                                         ))}
                                     </div>
+                                ) : <p className="text-xs text-muted-foreground">No users assigned</p>}
+                            </div>
+
+                            {/* Orders */}
+                            <div className="lg:col-span-1">
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Recent Orders</h4>
+                                {detailData.orders && detailData.orders.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                        {detailData.orders.slice(0, 8).map((o: { id: string; product: string; status: string; total: number; created_at: string }) => (
+                                            <div key={o.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
+                                                <span className="text-foreground font-medium truncate max-w-[150px]">{o.product || "—"}</span>
+                                                <StatusBadge status={o.status} />
+                                                <span className="text-muted-foreground">${Number(o.total || 0).toFixed(2)}</span>
+                                                <span className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : <p className="text-xs text-muted-foreground">No orders</p>}
+                            </div>
+
+                            {/* Account Details + Webhooks */}
+                            <div className="lg:col-span-1 space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Account Details</h4>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div className="bg-muted/50 rounded-lg px-3 py-2">
+                                            <p className="text-muted-foreground">Type</p>
+                                            <p className="font-medium text-foreground">{tierLabel(detailData.reseller_type)}</p>
+                                        </div>
+                                        <div className="bg-muted/50 rounded-lg px-3 py-2">
+                                            <p className="text-muted-foreground">Surcharge</p>
+                                            <p className="font-medium text-foreground">{detailData.surcharge || 0}%</p>
+                                        </div>
+                                        {detailData.reseller_type === "infrastructure" && (
+                                            <>
+                                                <div className="bg-muted/50 rounded-lg px-3 py-2">
+                                                    <p className="text-muted-foreground">Subscription</p>
+                                                    <p className="font-medium text-foreground">${detailData.subscription_fee || 0}/mo</p>
+                                                </div>
+                                                <div className="bg-muted/50 rounded-lg px-3 py-2">
+                                                    <p className="text-muted-foreground">Expires</p>
+                                                    <p className="font-medium text-foreground">{detailData.subscription_expires_at ? new Date(detailData.subscription_expires_at).toLocaleDateString() : "—"}</p>
+                                                </div>
+                                                <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
+                                                    <p className="text-muted-foreground">API Key</p>
+                                                    <p className="font-mono text-foreground text-[10px] truncate">{detailData.dedicated_api_key || "Not set"}</p>
+                                                </div>
+                                                <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
+                                                    <p className="text-muted-foreground">Customer Email</p>
+                                                    <p className="font-medium text-foreground">{detailData.customer_email || "Not set"}</p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
+                                {detailData.webhooks && detailData.webhooks.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-foreground mb-2">Webhooks</h4>
+                                        <div className="space-y-1.5">
+                                            {detailData.webhooks.map((w: { id: string; url: string; events: string[] }) => (
+                                                <div key={w.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
+                                                    <span className="text-foreground font-mono truncate max-w-[200px]">{w.url}</span>
+                                                    <span className="text-muted-foreground">{w.events?.length || 0} events</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
             {/* Create Modal */}
-            <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={actionLoading}>
-                <Field label="Email"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-                <Field label="Username"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
-                <Field label="Company Name"><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
-                <Field label="Password"><input className={inputClasses} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
+            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); }} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={createReseller.isLoading}>
+                <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+                <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
+                <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+                <Field label="Password" error={formErrors.password}><input className={inputClasses} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>
@@ -419,10 +404,10 @@ export default function ResellersTab() {
             </FormModal>
 
             {/* Edit Modal */}
-            <FormModal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Reseller" onSubmit={handleUpdate} submitLabel="Update" loading={actionLoading}>
-                <Field label="Email"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-                <Field label="Username"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
-                <Field label="Company Name"><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+            <FormModal open={!!editTarget} onClose={() => { setEditTarget(null); setFormErrors({}); }} title="Edit Reseller" onSubmit={handleUpdate} submitLabel="Update" loading={updateReseller.isLoading}>
+                <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+                <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
+                <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
                 <Field label="Tier">
                     <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
                         <option value="api_only">API Only</option>
@@ -439,7 +424,7 @@ export default function ResellersTab() {
                 title={`Configure ${configTarget?.company_name || configTarget?.username}`}
                 onSubmit={handleConfigure}
                 submitLabel="Apply"
-                loading={actionLoading}
+                loading={configureReseller.isLoading}
             >
                 <Field label="Reseller Tier">
                     <select className={selectClasses} value={configForm.reseller_type} onChange={(e) => setConfigForm({ ...configForm, reseller_type: e.target.value })}>
@@ -451,12 +436,9 @@ export default function ResellersTab() {
                 <Field label="Infrastructure Surcharge (%)">
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
                 </Field>
-
                 <Field label="Dedicated API Key">
                     <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
                 </Field>
-
-                {/* Enterprise-only fields */}
                 {configForm.reseller_type === "infrastructure" && (
                     <>
                         <div className="border-t border-border pt-3 mt-2">
@@ -473,8 +455,6 @@ export default function ResellersTab() {
                         </Field>
                     </>
                 )}
-
-                {/* Single Product fields */}
                 {configForm.reseller_type === "single_product" && (
                     <>
                         <div className="border-t border-border pt-3 mt-2">
@@ -487,7 +467,15 @@ export default function ResellersTab() {
                 )}
             </FormModal>
 
-            <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Reseller" message={`Delete ${deleteTarget?.company_name || deleteTarget?.email}? This removes all data.`} confirmLabel="Delete" loading={actionLoading} />
+            <ConfirmModal
+                open={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDelete}
+                title="Delete Reseller"
+                message={`Delete ${deleteTarget?.company_name || deleteTarget?.email}? This removes all data.`}
+                confirmLabel="Delete"
+                loading={deleteReseller.isLoading}
+            />
         </div>
     );
 }

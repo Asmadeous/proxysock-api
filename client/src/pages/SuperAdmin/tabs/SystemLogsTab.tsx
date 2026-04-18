@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
     DocumentTextIcon, ServerIcon,
     ArrowPathIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon,
@@ -7,12 +7,10 @@ import {
 } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { fetchAuditLogs, fetchSystemLogs, fetchErrorLogs } from "../../../services/adminApi";
+import { useSystemLogs, useAuditLogs, useErrorLogs } from "../queries/systemLogs.queries";
 import { toast } from "react-hot-toast";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyObj = Record<string, any>;
-
+type AnyObj = Record<string, unknown>;
 type SubTab = "system" | "audit" | "errors";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -72,39 +70,20 @@ export default function SystemLogsTab() {
     );
 }
 
-/* ─── System Log Panel (Rails / Sidekiq log files) ─────────────── */
+/* ─── System Log Panel ─────────────────────────────────────────── */
 function SystemLogPanel() {
-    const [lines, setLines] = useState<AnyObj[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [source, setSource] = useState("rails");
     const [lineCount, setLineCount] = useState("200");
-    const [logFile, setLogFile] = useState("");
     const [autoRefresh, setAutoRefresh] = useState(false);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params: Record<string, string> = { lines: lineCount, source };
-            if (search) params.search = search;
-            const res = await fetchSystemLogs(params);
-            setLines(res.data.lines || []);
-            setLogFile(res.data.file || "");
-            if (res.data.error) toast.error(res.data.error);
-        } catch {
-            toast.error("Failed to load system logs");
-        } finally {
-            setLoading(false);
-        }
-    }, [lineCount, source, search]);
+    const { data, isLoading, refetch } = useSystemLogs(
+        { search, source, lineCount },
+        autoRefresh ? 5000 : false
+    );
 
-    useEffect(() => { load(); }, [load]);
-
-    useEffect(() => {
-        if (!autoRefresh) return;
-        const interval = setInterval(load, 5000);
-        return () => clearInterval(interval);
-    }, [autoRefresh, load]);
+    const lines: AnyObj[] = data?.lines || [];
+    const logFile: string = data?.file || "";
 
     return (
         <div className="space-y-3">
@@ -118,7 +97,7 @@ function SystemLogPanel() {
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && load()}
+                            onKeyDown={(e) => e.key === "Enter" && refetch()}
                             placeholder="Filter logs..."
                             className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary"
                         />
@@ -155,25 +134,23 @@ function SystemLogPanel() {
                     {autoRefresh ? "● Live" : "○ Live"}
                 </button>
                 <button
-                    onClick={load}
-                    disabled={loading}
+                    onClick={() => refetch()}
+                    disabled={isLoading}
                     className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition"
                 >
-                    <ArrowPathIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    <ArrowPathIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </button>
             </div>
 
-            {/* Log file path */}
             {logFile && (
                 <p className="text-xs text-muted-foreground font-mono px-1">
                     {logFile} — {lines.length} lines
                 </p>
             )}
 
-            {/* Log Output */}
             <div className="bg-[#0d1117] rounded-xl border border-border overflow-hidden">
                 <div className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0">
-                    {loading ? (
+                    {isLoading ? (
                         <div className="flex justify-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
                         </div>
@@ -182,10 +159,10 @@ function SystemLogPanel() {
                     ) : (
                         lines.map((line) => (
                             <div
-                                key={line.id}
-                                className={`py-0.5 px-2 rounded hover:bg-white/5 whitespace-pre-wrap break-all leading-5 ${SEVERITY_COLORS[line.severity] || "text-muted-foreground"}`}
+                                key={String(line.id)}
+                                className={`py-0.5 px-2 rounded hover:bg-white/5 whitespace-pre-wrap break-all leading-5 ${SEVERITY_COLORS[String(line.severity)] || "text-muted-foreground"}`}
                             >
-                                {line.text}
+                                {String(line.text)}
                             </div>
                         ))
                     )}
@@ -197,34 +174,17 @@ function SystemLogPanel() {
 
 /* ─── Audit Log Panel ──────────────────────────────────────────── */
 function AuditLogPanel() {
-    const [logs, setLogs] = useState<AnyObj[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
-    const PER = 50;
     const [actionFilter, setActionFilter] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
+    const PER = 50;
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params: Record<string, string> = { page: String(page), per: String(PER) };
-            if (actionFilter) params.action_filter = actionFilter;
-            if (typeFilter) params.auditable_type = typeFilter;
-            const res = await fetchAuditLogs(params);
-            setLogs(res.data.logs || []);
-            setTotal(res.data.total || 0);
-        } catch {
-            toast.error("Failed to load audit logs");
-        } finally {
-            setLoading(false);
-        }
-    }, [page, actionFilter, typeFilter]);
+    const { data, isLoading, refetch } = useAuditLogs({ page, per: PER, actionFilter, typeFilter });
 
-    useEffect(() => { load(); }, [load]);
-
+    const logs: AnyObj[] = data?.logs || [];
+    const total: number = data?.total || 0;
     const totalPages = Math.ceil(total / PER);
 
     const getActionColor = (action: string) => {
@@ -236,14 +196,14 @@ function AuditLogPanel() {
         {
             key: "action", label: "Action",
             render: (row: AnyObj) => (
-                <span className={`text-sm font-mono ${getActionColor(row.action)}`}>{row.action}</span>
+                <span className={`text-sm font-mono ${getActionColor(String(row.action))}`}>{String(row.action)}</span>
             ),
         },
         {
             key: "user_type", label: "Actor",
             render: (row: AnyObj) => (
                 <div>
-                    <p className="text-sm text-foreground">{row.user_type || "System"}</p>
+                    <p className="text-sm text-foreground">{String(row.user_type || "System")}</p>
                     <p className="text-xs text-muted-foreground font-mono">{row.user_id ? `#${String(row.user_id).slice(0, 8)}` : "—"}</p>
                 </div>
             ),
@@ -252,21 +212,21 @@ function AuditLogPanel() {
             key: "auditable_type", label: "Target",
             render: (row: AnyObj) => (
                 <div>
-                    <StatusBadge status={row.auditable_type || "unknown"} />
+                    <StatusBadge status={String(row.auditable_type || "unknown")} />
                     <p className="text-xs text-muted-foreground font-mono mt-0.5">#{String(row.auditable_id).slice(0, 8)}</p>
                 </div>
             ),
         },
         {
             key: "ip_address", label: "IP",
-            render: (row: AnyObj) => <span className="text-xs font-mono text-muted-foreground">{row.ip_address || "—"}</span>,
+            render: (row: AnyObj) => <span className="text-xs font-mono text-muted-foreground">{String(row.ip_address || "—")}</span>,
         },
         {
             key: "created_at", label: "Time",
             render: (row: AnyObj) => (
                 <div>
-                    <p className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleDateString()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleTimeString()}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(String(row.created_at)).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(String(row.created_at)).toLocaleTimeString()}</p>
                 </div>
             ),
         },
@@ -275,10 +235,14 @@ function AuditLogPanel() {
             render: (row: AnyObj) =>
                 row.object_changes ? (
                     <div className="flex gap-1">
-                        <button onClick={() => setExpandedLog(expandedLog === row.id ? null : row.id)} className="text-xs text-blue-400 hover:underline">
-                            {expandedLog === row.id ? "Hide" : "View"}
+                        <button onClick={() => setExpandedLog(expandedLog === String(row.id) ? null : String(row.id))} className="text-xs text-blue-400 hover:underline">
+                            {expandedLog === String(row.id) ? "Hide" : "View"}
                         </button>
-                        <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(row.object_changes, null, 2)); toast.success("Copied"); }} className="p-0.5 text-muted-foreground hover:text-foreground" title="Copy">
+                        <button
+                            onClick={() => { navigator.clipboard.writeText(JSON.stringify(row.object_changes, null, 2)); toast.success("Copied"); }}
+                            className="p-0.5 text-muted-foreground hover:text-foreground"
+                            aria-label="Copy changes"
+                        >
                             <ClipboardIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
@@ -291,11 +255,14 @@ function AuditLogPanel() {
             <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{total.toLocaleString()} audit entries</p>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${showFilters ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground border border-border hover:text-foreground"}`}>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${showFilters ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground border border-border hover:text-foreground"}`}
+                    >
                         <FunnelIcon className="h-4 w-4" />Filters
                     </button>
-                    <button onClick={() => { setLoading(true); load(); }} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
-                        <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+                    <button onClick={() => refetch()} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
+                        <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
                     </button>
                 </div>
             </div>
@@ -326,12 +293,12 @@ function AuditLogPanel() {
                     </div>
                     {(actionFilter || typeFilter) && (
                         <button onClick={() => { setActionFilter(""); setTypeFilter(""); setPage(1); }}
-                            className="px-3 py-1.5 text-xs text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20">Clear</button>
+                            className="px-3 py-1.5 text-xs text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20">Clear</button>
                     )}
                 </div>
             )}
 
-            <DataTable columns={columns} data={logs} loading={loading} emptyMessage="No audit logs found" />
+            <DataTable columns={columns} data={logs} loading={isLoading} emptyMessage="No audit logs found" />
 
             {expandedLog && (
                 <div className="bg-card rounded-xl border border-border p-4">
@@ -363,25 +330,12 @@ function AuditLogPanel() {
 
 /* ─── Error Log Panel ──────────────────────────────────────────── */
 function ErrorLogPanel() {
-    const [errors, setErrors] = useState<AnyObj[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
     const [expanded, setExpanded] = useState<number | null>(null);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetchErrorLogs({ lines: "1000" });
-            setErrors(res.data.errors || []);
-            setTotal(res.data.total || 0);
-        } catch {
-            toast.error("Failed to load error logs");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const { data, isLoading, refetch } = useErrorLogs({ lines: "1000" });
 
-    useEffect(() => { load(); }, [load]);
+    const errors: AnyObj[] = data?.errors || [];
+    const total: number = data?.total || 0;
 
     return (
         <div className="space-y-3">
@@ -389,12 +343,12 @@ function ErrorLogPanel() {
                 <p className="text-sm text-muted-foreground">
                     {total} error{total !== 1 ? "s" : ""} found (scanning last 1000 lines)
                 </p>
-                <button onClick={load} disabled={loading} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
-                    <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+                <button onClick={() => refetch()} disabled={isLoading} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
+                    <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
                 </button>
             </div>
 
-            {loading ? (
+            {isLoading ? (
                 <div className="flex justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
                 </div>
@@ -415,18 +369,18 @@ function ErrorLogPanel() {
                                 <div className="flex items-start gap-2">
                                     <ExclamationTriangleIcon className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-sm text-red-400 font-mono truncate">{err.message}</p>
+                                        <p className="text-sm text-red-400 font-mono truncate">{String(err.message)}</p>
                                         <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                                            {err.timestamp && <span>{err.timestamp}</span>}
-                                            {err.trace?.length > 0 && <span>{err.trace.length} trace lines</span>}
+                                            {err.timestamp ? <span>{String(err.timestamp)}</span> : null}
+                                            {Array.isArray(err.trace) && err.trace.length > 0 ? <span>{(err.trace as unknown[]).length} trace lines</span> : null}
                                         </div>
                                     </div>
                                 </div>
                             </button>
-                            {expanded === idx && err.trace?.length > 0 && (
+                            {expanded === idx && Array.isArray(err.trace) && err.trace.length > 0 && (
                                 <div className="border-t border-border bg-[#0d1117] p-3">
                                     <pre className="text-xs font-mono text-muted-foreground overflow-x-auto max-h-48 space-y-0.5">
-                                        {err.trace.map((line: string, i: number) => (
+                                        {(err.trace as string[]).map((line, i) => (
                                             <div key={i} className="py-0.5">{line}</div>
                                         ))}
                                     </pre>

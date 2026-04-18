@@ -53,11 +53,11 @@ interface CartItem {
 
 const ITEMS_PER_PAGE = 12;
 
-const FallbackComponent = ({ error }: { error: Error }) => (
+const FallbackComponent = ({ error }: { error: unknown }) => (
   <Card className="border-l-4 border-l-destructive bg-destructive/5">
     <CardContent className="flex items-center gap-3 py-6">
       <X className="w-5 h-5 text-destructive" />
-      <p className="text-destructive font-medium">Error: {error.message}</p>
+      <p className="text-destructive font-medium">Error: {error instanceof Error ? error.message : "An unexpected error occurred"}</p>
     </CardContent>
   </Card>
 );

@@ -1,11 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
+import { PencilIcon, TrashIcon, PlusIcon, EyeIcon, EyeSlashIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { required, hasErrors, type ValidationErrors } from "../utils/validation";
+import Button from "../components/Button";
+import { useTabFilters } from "../hooks/useTabFilters";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
-import { fetchAdminBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, publishBlogPost, unpublishBlogPost } from "../../../services/adminApi";
-import { toast } from "react-hot-toast";
+import EmptyState from "../components/EmptyState";
+import {
+    useAdminBlogPosts,
+    useCreateBlogPost,
+    useUpdateBlogPost,
+    useDeleteBlogPost,
+    usePublishBlogPost,
+    useUnpublishBlogPost,
+} from "../queries/blog.queries";
 
 interface BlogRow {
     id: number;
@@ -20,150 +30,159 @@ interface BlogRow {
     created_at: string;
 }
 
-const EMPTY_FORM = { title: "", slug: "", excerpt: "", content: "", category: "Proxies", author: "Tech Team", read_time: "5 min", tags: "", featured: false };
+const EMPTY_FORM = {
+    title: "", slug: "", excerpt: "", content: "", category: "Proxies",
+    author: "Tech Team", read_time: "5 min", tags: "", featured: false,
+};
 
 export default function BlogTab() {
-    const [posts, setPosts] = useState<BlogRow[]>([]);
-    const [categories, setCategories] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState("");
-
+    const { get, update } = useTabFilters();
+    const search = get("search");
     const [showCreate, setShowCreate] = useState(false);
     const [editTarget, setEditTarget] = useState<BlogRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<BlogRow | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
-    const [actionLoading, setActionLoading] = useState(false);
+    const [formErrors, setFormErrors] = useState<ValidationErrors>({});
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetchAdminBlogPosts(search ? { q: search } : undefined);
-            setPosts(res.data.posts || res.data || []);
-            if (res.data.categories) setCategories(res.data.categories);
-        } catch { toast.error("Failed to load blog posts"); }
-        finally { setLoading(false); }
-    }, [search]);
+    const { data, isLoading } = useAdminBlogPosts({ search });
+    const posts: BlogRow[] = data?.posts ?? data ?? [];
 
-    useEffect(() => { load(); }, [load]);
+    const createPost = useCreateBlogPost();
+    const updatePost = useUpdateBlogPost();
+    const deletePost = useDeleteBlogPost();
+    const publishPost = usePublishBlogPost();
+    const unpublishPost = useUnpublishBlogPost();
+
+    const validateForm = (): ValidationErrors => ({
+        title: required(form.title, "Title"),
+        slug: required(form.slug, "Slug"),
+        content: required(form.content, "Content"),
+    });
 
     const handleCreate = async () => {
-        setActionLoading(true);
-        try {
-            const data = { ...form, tags: form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) };
-            await createBlogPost(data);
-            toast.success("Post created");
-            setShowCreate(false);
-            setForm(EMPTY_FORM);
-            load();
-        } catch { toast.error("Failed to create post"); }
-        finally { setActionLoading(false); }
+        const errors = validateForm();
+        if (hasErrors(errors)) { setFormErrors(errors); return; }
+        const payload = { ...form, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) };
+        await createPost.mutateAsync(payload);
+        setShowCreate(false);
+        setForm(EMPTY_FORM);
+        setFormErrors({});
     };
 
     const handleUpdate = async () => {
         if (!editTarget) return;
-        setActionLoading(true);
-        try {
-            const data = { ...form, tags: form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) };
-            await updateBlogPost(editTarget.slug, data);
-            toast.success("Post updated");
-            setEditTarget(null);
-            load();
-        } catch { toast.error("Failed to update"); }
-        finally { setActionLoading(false); }
+        const errors = validateForm();
+        if (hasErrors(errors)) { setFormErrors(errors); return; }
+        const payload = { ...form, tags: typeof form.tags === "string" ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : form.tags };
+        await updatePost.mutateAsync({ slug: editTarget.slug, data: payload });
+        setEditTarget(null);
+        setFormErrors({});
     };
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
-        setActionLoading(true);
-        try { await deleteBlogPost(deleteTarget.slug); toast.success("Post deleted"); setDeleteTarget(null); load(); }
-        catch { toast.error("Failed to delete"); }
-        finally { setActionLoading(false); }
+        await deletePost.mutateAsync(deleteTarget.slug);
+        setDeleteTarget(null);
     };
 
-    const handleTogglePublish = async (post: BlogRow) => {
-        try {
-            post.published ? await unpublishBlogPost(post.slug) : await publishBlogPost(post.slug);
-            toast.success(post.published ? "Unpublished" : "Published");
-            load();
-        } catch { toast.error("Failed"); }
-    };
-
-    const openEdit = (p: BlogRow) => {
-        setEditTarget(p);
-        setForm({ title: p.title, slug: p.slug, excerpt: "", content: "", category: p.category, author: p.author, read_time: p.read_time || "", tags: "", featured: p.featured });
+    const openEdit = (post: BlogRow) => {
+        setEditTarget(post);
+        setForm({ title: post.title, slug: post.slug, excerpt: "", content: "", category: post.category, author: post.author, read_time: post.read_time, tags: "", featured: post.featured });
     };
 
     const columns = [
-        {
-            key: "title", label: "Title", sortable: true,
-            render: (row: BlogRow) => (
-                <div>
-                    <p className="text-sm font-medium text-foreground truncate max-w-xs">{row.title}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{row.slug}</p>
-                </div>
-            ),
-        },
-        { key: "category", label: "Category" },
+        { key: "title", label: "Title", sortable: true, render: (row: BlogRow) => <span className="text-sm font-medium text-foreground">{row.title}</span> },
+        { key: "category", label: "Category", sortable: true },
         { key: "author", label: "Author" },
+        { key: "read_time", label: "Read Time" },
+        { key: "published", label: "Status", render: (row: BlogRow) => <StatusBadge status={row.published ? "published" : "draft"} /> },
         {
-            key: "published", label: "Status",
-            render: (row: BlogRow) => <StatusBadge status={row.published ? "published" : "draft"} />,
+            key: "created_at", label: "Created", sortable: true,
+            render: (row: BlogRow) => <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleDateString()}</span>,
         },
-        { key: "featured", label: "Featured", render: (row: BlogRow) => row.featured ? <span className="text-xs text-yellow-400">★ Featured</span> : <span className="text-xs text-muted-foreground">—</span> },
-        { key: "created_at", label: "Created", render: (row: BlogRow) => <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleDateString()}</span> },
     ];
-
-    const formFields = (
-        <>
-            <Field label="Title"><input className={inputClasses} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
-            <Field label="Slug"><input className={inputClasses} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="auto-generated-from-title" /></Field>
-            <Field label="Category">
-                <select className={selectClasses} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-            </Field>
-            <Field label="Author"><input className={inputClasses} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></Field>
-            <Field label="Excerpt"><textarea className={`${inputClasses} h-20 resize-none`} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} /></Field>
-            <Field label="Content (HTML)"><textarea className={`${inputClasses} h-32 resize-y font-mono text-xs`} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></Field>
-            <Field label="Read Time"><input className={inputClasses} value={form.read_time} onChange={(e) => setForm({ ...form, read_time: e.target.value })} placeholder="5 min" /></Field>
-            <Field label="Tags (comma separated)"><input className={inputClasses} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} /></Field>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                <input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="rounded border-border bg-background text-red-500" />
-                Featured post
-            </label>
-        </>
-    );
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-foreground">Blog Posts</h2>
+                    <h2 className="text-2xl font-bold text-foreground">Blog CMS</h2>
                     <p className="text-sm text-muted-foreground mt-1">{posts.length} posts</p>
                 </div>
-                <button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-foreground rounded-xl text-sm font-medium hover:bg-red-600 transition-colors">
+                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
                     <PlusIcon className="h-4 w-4" /> New Post
-                </button>
+                </Button>
             </div>
 
             <DataTable
-                columns={columns} data={posts} loading={loading}
-                searchPlaceholder="Search blog posts..." onSearch={(q) => setSearch(q)}
-                emptyMessage="No blog posts"
+                columns={columns}
+                data={posts}
+                loading={isLoading}
+                searchPlaceholder="Search posts..."
+                onSearch={(q) => update({ search: q })}
+                emptyMessage={<EmptyState icon={DocumentTextIcon} title="No blog posts" description="Create your first post to get started." action={{ label: "New Post", onClick: () => setShowCreate(true) }} />}
                 actions={(row: BlogRow) => (
                     <>
-                        <button onClick={() => handleTogglePublish(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title={row.published ? "Unpublish" : "Publish"}>
-                            {row.published ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        <button onClick={() => openEdit(row)} aria-label="Edit post" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                            <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title="Edit"><PencilIcon className="h-4 w-4" /></button>
-                        <button onClick={() => setDeleteTarget(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                        {row.published ? (
+                            <button onClick={() => unpublishPost.mutate(row.slug)} aria-label="Unpublish post" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10">
+                                <EyeSlashIcon className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <button onClick={() => publishPost.mutate(row.slug)} aria-label="Publish post" className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10">
+                                <EyeIcon className="h-4 w-4" />
+                            </button>
+                        )}
+                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete post" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <TrashIcon className="h-4 w-4" />
+                        </button>
                     </>
                 )}
             />
 
-            <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Create Blog Post" onSubmit={handleCreate} submitLabel="Create" loading={actionLoading} wide>{formFields}</FormModal>
-            <FormModal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Blog Post" onSubmit={handleUpdate} submitLabel="Update" loading={actionLoading} wide>{formFields}</FormModal>
-            <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Post" message={`Delete "${deleteTarget?.title}"?`} confirmLabel="Delete" loading={actionLoading} />
+            {/* Create Modal */}
+            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); }} title="New Blog Post" onSubmit={handleCreate} submitLabel="Create" loading={createPost.isLoading} wide>
+                <Field label="Title" error={formErrors.title}><input className={inputClasses} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
+                <Field label="Slug" error={formErrors.slug}><input className={inputClasses} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></Field>
+                <Field label="Category">
+                    <select className={selectClasses} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                        {["Proxies", "VPN", "eSIM", "RDP", "VPS", "Security", "News"].map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                </Field>
+                <Field label="Author"><input className={inputClasses} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></Field>
+                <Field label="Read Time"><input className={inputClasses} value={form.read_time} onChange={(e) => setForm({ ...form, read_time: e.target.value })} placeholder="e.g. 5 min" /></Field>
+                <Field label="Excerpt"><textarea className={inputClasses} rows={2} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} /></Field>
+                <Field label="Content (Markdown)" error={formErrors.content}><textarea className={inputClasses} rows={8} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></Field>
+                <Field label="Tags (comma separated)"><input className={inputClasses} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="proxy, vpn, guide" /></Field>
+            </FormModal>
+
+            {/* Edit Modal */}
+            <FormModal open={!!editTarget} onClose={() => { setEditTarget(null); setFormErrors({}); }} title="Edit Blog Post" onSubmit={handleUpdate} submitLabel="Update" loading={updatePost.isLoading} wide>
+                <Field label="Title" error={formErrors.title}><input className={inputClasses} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
+                <Field label="Slug" error={formErrors.slug}><input className={inputClasses} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></Field>
+                <Field label="Category">
+                    <select className={selectClasses} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                        {["Proxies", "VPN", "eSIM", "RDP", "VPS", "Security", "News"].map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                </Field>
+                <Field label="Author"><input className={inputClasses} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></Field>
+                <Field label="Read Time"><input className={inputClasses} value={form.read_time} onChange={(e) => setForm({ ...form, read_time: e.target.value })} /></Field>
+                <Field label="Excerpt"><textarea className={inputClasses} rows={2} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} /></Field>
+                <Field label="Content (Markdown)" error={formErrors.content}><textarea className={inputClasses} rows={8} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></Field>
+                <Field label="Tags (comma separated)"><input className={inputClasses} value={form.tags as string} onChange={(e) => setForm({ ...form, tags: e.target.value })} /></Field>
+            </FormModal>
+
+            <ConfirmModal
+                open={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDelete}
+                title="Delete Post"
+                message={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+                confirmLabel="Delete"
+                loading={deletePost.isLoading}
+            />
         </div>
     );
 }

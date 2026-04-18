@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { PlayIcon, TableCellsIcon, CircleStackIcon, ExclamationTriangleIcon, NumberedListIcon, CodeBracketIcon, ChevronLeftIcon, ChevronRightIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { fetchDatabaseTables, executeDatabaseQuery } from "../../../services/adminApi";
+import { getApiError } from "../utils/errors";
 
 interface DBTable {
     name: string;
@@ -51,8 +52,8 @@ export default function DatabaseTab() {
         try {
             const res = await executeDatabaseQuery(`SELECT * FROM ${table.name} LIMIT ${DATA_PER_PAGE} OFFSET ${offset};`);
             setResults({ columns: res.data.columns, rows: res.data.rows });
-        } catch (err: any) {
-            setError(err.response?.data?.error || err.message || "Query failed");
+        } catch (err) {
+            setError(getApiError(err, "Query failed"));
         } finally {
             setExecutionTime(performance.now() - startTime);
             setLoading(false);
@@ -74,8 +75,8 @@ export default function DatabaseTab() {
         try {
             const res = await executeDatabaseQuery(customQuery);
             setResults({ columns: res.data.columns, rows: res.data.rows });
-        } catch (err: any) {
-            setError(err.response?.data?.error || err.message || "Query failed");
+        } catch (err) {
+            setError(getApiError(err, "Query failed"));
         } finally {
             setExecutionTime(performance.now() - startTime);
             setLoading(false);
@@ -250,7 +251,7 @@ export default function DatabaseTab() {
                             <div className="flex flex-col h-full bg-background rounded-xl border border-border p-2">
                                 <div className="flex justify-between items-center mb-2 px-2 shrink-0">
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => handleFetchTableData(selectedTable, dataPage)} className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors">
+                                        <button onClick={() => handleFetchTableData(selectedTable, dataPage)} aria-label="Refresh table data" className="p-1.5 text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors">
                                             <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                                         </button>
                                     </div>

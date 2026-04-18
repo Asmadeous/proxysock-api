@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "../../../components/NotificationBell";
 import { useThemeStore } from "@/store/themeStore";
 import { Home, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
@@ -29,10 +29,17 @@ export interface SidebarItem {
     badge?: string;
 }
 
-interface AdminSidebarProps {
+export interface SidebarGroup {
+    label?: string;
     items: SidebarItem[];
+}
+
+interface AdminSidebarProps {
+    groups?: SidebarGroup[];
+    items?: SidebarItem[];
     activeTab: string;
     onTabChange: (id: string) => void;
+    onOpenCommandPalette?: () => void;
     title: string;
     userName: string;
     userRole: string;
@@ -43,9 +50,11 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({
-    items,
+    groups: groupsProp,
+    items: itemsProp,
     activeTab,
     onTabChange,
+    onOpenCommandPalette,
     title,
     userName,
     userRole,
@@ -53,6 +62,7 @@ export default function AdminSidebar({
     fetchNotifications,
     markNotificationsAsRead,
 }: AdminSidebarProps) {
+    const groups: SidebarGroup[] = groupsProp ?? (itemsProp ? [{ items: itemsProp }] : []);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -148,43 +158,76 @@ export default function AdminSidebar({
                 </div>
             </div>
 
+            {/* Command Palette Trigger */}
+            {onOpenCommandPalette && (
+                <div className="px-3 pt-2 pb-1">
+                    <SidebarTooltip content="Search (⌘K)" show={!isMobile && isCollapsed}>
+                        <button
+                            onClick={onOpenCommandPalette}
+                            aria-label="Open command palette"
+                            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-muted/40 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground
+                                ${isCollapsed ? "justify-center p-2" : "px-3 py-2"}`}
+                        >
+                            <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                            {!isCollapsed && (
+                                <>
+                                    <span className="flex-1 text-left text-xs">Search...</span>
+                                    <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-[10px] font-mono select-none">
+                                        ⌘K
+                                    </kbd>
+                                </>
+                            )}
+                        </button>
+                    </SidebarTooltip>
+                </div>
+            )}
+
             {/* Nav */}
-            <nav className={`flex-1 px-3 py-3 overflow-y-auto custom-scrollbar ${isCollapsed ? "space-y-1" : "space-y-0.5"}`}>
-                {items.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                        <SidebarTooltip key={item.id} content={item.name} show={!isMobile && isCollapsed}>
-                            <button
-                                onClick={() => handleTabClick(item.id)}
-                                className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
-                                ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}
-                                ${isCollapsed ? "justify-center px-1" : "px-3"}`}
-                            >
-                                <div className="relative flex items-center justify-center">
-                                    <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
-                                    {item.count != null && isCollapsed && (
-                                        <span className="absolute -top-1.5 -right-1.5 bg-destructive text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background">
-                                            {Number(item.count) > 9 ? "9+" : item.count}
-                                        </span>
-                                    )}
-                                </div>
-                                {!isCollapsed && (
-                                    <>
-                                        <span className="flex-1 text-left truncate ml-3">{item.name}</span>
-                                        {item.count != null && (
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{item.count}</span>
+            <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar space-y-4">
+                {groups.map((group, gi) => (
+                    <div key={gi} className="space-y-0.5">
+                        {group.label && !isCollapsed && (
+                            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">
+                                {group.label}
+                            </p>
+                        )}
+                        {group.items.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                                <SidebarTooltip key={item.id} content={item.name} show={!isMobile && isCollapsed}>
+                                    <button
+                                        onClick={() => handleTabClick(item.id)}
+                                        className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
+                                        ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}
+                                        ${isCollapsed ? "justify-center px-1" : "px-3"}`}
+                                    >
+                                        <div className="relative flex items-center justify-center">
+                                            <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
+                                            {item.count != null && isCollapsed && (
+                                                <span className="absolute -top-1.5 -right-1.5 bg-destructive text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background">
+                                                    {Number(item.count) > 9 ? "9+" : item.count}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {!isCollapsed && (
+                                            <>
+                                                <span className="flex-1 text-left truncate ml-3">{item.name}</span>
+                                                {item.count != null && (
+                                                    <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{item.count}</span>
+                                                )}
+                                                {item.badge && (
+                                                    <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </>
                                         )}
-                                        {item.badge && (
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                    </>
-                                )}
-                            </button>
-                        </SidebarTooltip>
-                    );
-                })}
+                                    </button>
+                                </SidebarTooltip>
+                            );
+                        })}
+                    </div>
+                ))}
             </nav>
 
             {/* Profile & Footer Actions */}
