@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
 import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2, Bitcoin } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ export default function ResWallet() {
             setEarningsBalance(balRes.data.earnings_balance || 0);
             setTransactions(transRes.data.transactions || []);
         } catch (error) {
-            console.error("Failed to fetch wallet data", error);
+            toast.error(getApiError(error, "Failed to load wallet data"));
         } finally {
             setLoading(false);
         }
@@ -68,8 +69,8 @@ export default function ResWallet() {
                 toast.success("Deposit initiated! Please follow the instructions.");
             }
             setIsDepositModalOpen(false);
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || "Deposit failed");
+        } catch (error) {
+            toast.error(getApiError(error, "Deposit failed"));
         } finally {
             setIsProcessing(false);
         }
@@ -98,8 +99,8 @@ export default function ResWallet() {
             setWithdrawAmount("");
             setWithdrawDetails({});
             fetchData();
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || "Withdrawal failed");
+        } catch (error) {
+            toast.error(getApiError(error, "Withdrawal failed"));
         } finally {
             setIsProcessing(false);
         }

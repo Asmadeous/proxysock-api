@@ -18,6 +18,7 @@ import {
 
 
 import AdminSidebar from "../SuperAdmin/components/AdminSidebar";
+import ResellerErrorBoundary from "./components/ResellerErrorBoundary";
 import { formatImageUrl } from "../../services/api";
 
 // Directly imported components for core tabs
@@ -248,9 +249,11 @@ export default function ResellerDashboard() {
                 )}
 
                 <div className="p-8">
-                    <Suspense fallback={<TabLoader />}>
-                        {renderContent()}
-                    </Suspense>
+                    <ResellerErrorBoundary key={activeTab}>
+                        <Suspense fallback={<TabLoader />}>
+                            {renderContent()}
+                        </Suspense>
+                    </ResellerErrorBoundary>
                 </div>
             </main>
         </div>

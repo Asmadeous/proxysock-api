@@ -3,6 +3,8 @@ import { toast } from "react-hot-toast";
 import { Copy, Eye, EyeOff, RefreshCw, Key, ShieldCheck, Code } from "lucide-react";
 
 import { rotateResellerApiKey } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import ConfirmModal from "../../SuperAdmin/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,19 +12,13 @@ export default function ResApiKeys() {
     const [resellerUser, setResellerUser] = useState(() => JSON.parse(localStorage.getItem("resellerUser") || "{}"));
     const [showKey, setShowKey] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
+    const [showRotateConfirm, setShowRotateConfirm] = useState(false);
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
     const apiKey = isEnterprise ? resellerUser?.dedicated_api_key : resellerUser?.permanent_api_key;
     const username = resellerUser?.username;
 
     const handleRotate = async () => {
-        if (!isEnterprise) {
-            toast.error("API Only resellers use permanent keys. Rotation is for Enterprise only.");
-            return;
-        }
-
-        if (!confirm("Are you sure you want to rotate your dedicated API key? All applications using the current key will stop working immediately.")) return;
-
         setIsRotating(true);
         try {
             const { data } = await rotateResellerApiKey(resellerUser.id);
@@ -31,8 +27,8 @@ export default function ResApiKeys() {
             setResellerUser(updatedUser);
             toast.success("API Key rotated successfully");
             globalThis.dispatchEvent(new CustomEvent("reseller-user-updated", { detail: updatedUser }));
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to rotate API key");
+        } catch (err) {
+            toast.error(getApiError(err, "Failed to rotate API key"));
         } finally {
             setIsRotating(false);
         }
@@ -45,6 +41,7 @@ export default function ResApiKeys() {
     };
 
     return (
+        <>
         <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center border border-blue-600/20">
@@ -78,7 +75,7 @@ export default function ResApiKeys() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleRotate}
+                                    onClick={() => setShowRotateConfirm(true)}
                                     disabled={isRotating}
                                     className="rounded-xl border-blue-600/20 hover:bg-blue-600/5 text-blue-600 font-bold px-4 py-5"
                                 >
@@ -103,6 +100,7 @@ export default function ResApiKeys() {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => copyToClipboard(username)}
+                                            aria-label="Copy username"
                                             className="absolute right-2 top-2 bottom-2 rounded-xl hover:bg-background"
                                         >
                                             <Copy className="w-4 h-4" />
@@ -128,6 +126,7 @@ export default function ResApiKeys() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => setShowKey(!showKey)}
+                                            aria-label={showKey ? "Hide API key" : "Show API key"}
                                             className="h-full px-4 rounded-xl hover:bg-background shadow-none"
                                         >
                                             {showKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -136,6 +135,7 @@ export default function ResApiKeys() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => copyToClipboard(apiKey)}
+                                            aria-label="Copy API key"
                                             className="h-full px-4 rounded-xl hover:bg-background shadow-none"
                                         >
                                             <Copy className="w-5 h-5" />
@@ -194,6 +194,18 @@ export default function ResApiKeys() {
                 </div>
             </div>
         </div>
+
+        <ConfirmModal
+            open={showRotateConfirm}
+            onClose={() => setShowRotateConfirm(false)}
+            onConfirm={() => { setShowRotateConfirm(false); handleRotate(); }}
+            title="Rotate API Key"
+            message="Are you sure you want to rotate your dedicated API key? All applications using the current key will stop working immediately."
+            confirmLabel="Rotate Key"
+            loading={isRotating}
+            destructive={false}
+        />
+        </>
     );
 }
 

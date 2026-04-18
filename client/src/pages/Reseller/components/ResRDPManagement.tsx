@@ -10,6 +10,8 @@ import {
 import { fetchResellerVms } from "@/services/resellerApi";
 import { startVm, stopVm, rebootVm } from "@/services/api";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface RDPInstance {
     id: string | number;
@@ -44,7 +46,7 @@ export default function ResRDPManagement() {
             const response = await fetchResellerVms({ vm_type: 'rdp' });
             setInstances(response.data.vms || []);
         } catch (error) {
-            console.error('Failed to fetch reseller RDP:', error);
+            toast.error(getApiError(error, "Failed to load RDP instances"));
         } finally {
             setLoading(false);
         }
@@ -58,12 +60,36 @@ export default function ResRDPManagement() {
             if (action === 'reboot') await rebootVm(id);
             toast.success(`${action} initiated`);
             setTimeout(loadInstances, 2000);
-        } catch (error) { } finally {
+        } catch (error) {
+            toast.error(getApiError(error, `${action} failed`));
+        } finally {
             setRefreshing(prev => ({ ...prev, [id]: false }));
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse text-muted-foreground">Loading RDP Instances...</div>;
+    if (loading) return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-card rounded-xl border p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-lg" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-36" />
+                            <Skeleton className="h-3 w-24" />
+                        </div>
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                    <Skeleton className="h-3 w-2/3" />
+                    <div className="grid grid-cols-3 gap-2 pt-2">
+                        <Skeleton className="h-8 rounded-lg" />
+                        <Skeleton className="h-8 rounded-lg" />
+                        <Skeleton className="h-8 rounded-lg" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <div className="space-y-6">
@@ -98,7 +124,10 @@ export default function ResRDPManagement() {
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Pass:</span>
                                 <span>{showPassword[rdp.id] ? rdp.rdp_password : '••••••••'}</span>
-                                <button onClick={() => setShowPassword(p => ({ ...p, [rdp.id]: !p[rdp.id] }))}>
+                                <button
+                                    onClick={() => setShowPassword(p => ({ ...p, [rdp.id]: !p[rdp.id] }))}
+                                    aria-label={showPassword[rdp.id] ? "Hide password" : "Show password"}
+                                >
                                     {showPassword[rdp.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                 </button>
                             </div>

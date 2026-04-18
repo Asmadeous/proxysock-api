@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchResellerOrderStats } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import { toast } from "react-hot-toast";
 
 interface ProductStats {
     vps: { total: number; active: number; expired: number; pending: number; failed: number };
@@ -30,6 +32,14 @@ interface ProductStats {
     proxy: { total: number; active: number; expired: number; pending: number };
     vpn: { total: number; active: number; expired: number; pending: number };
 }
+
+const COLOR_MAP: Record<string, { bg: string; text: string }> = {
+    blue:   { bg: "bg-blue-500/10",   text: "text-blue-500" },
+    purple: { bg: "bg-purple-500/10", text: "text-purple-500" },
+    green:  { bg: "bg-green-500/10",  text: "text-green-500" },
+    orange: { bg: "bg-orange-500/10", text: "text-orange-500" },
+    red:    { bg: "bg-red-500/10",    text: "text-red-500" },
+};
 
 interface ResManagementProps {
     onNavigate: (tab: string) => void;
@@ -58,7 +68,7 @@ export default function ResManagement({ onNavigate }: ResManagementProps) {
                 vpn: ts.vpn || { total: 0, active: 0, expired: 0, pending: 0 },
             });
         } catch (error) {
-            console.error('Failed to fetch reseller stats:', error);
+            toast.error(getApiError(error, "Failed to load service stats"));
         } finally {
             setLoading(false);
         }
@@ -146,8 +156,8 @@ export default function ResManagement({ onNavigate }: ResManagementProps) {
                         <Card className="cursor-pointer border-border hover:border-primary/50 transition-all hover:shadow-lg">
                             <CardHeader>
                                 <div className="flex items-center justify-between mb-2">
-                                    <div className={`p-3 rounded-lg bg-${product.color}-500/10`}>
-                                        <product.icon className={`h-6 w-6 text-${product.color}-500`} />
+                                    <div className={`p-3 rounded-lg ${COLOR_MAP[product.color]?.bg ?? "bg-muted"}`}>
+                                        <product.icon className={`h-6 w-6 ${COLOR_MAP[product.color]?.text ?? "text-muted-foreground"}`} />
                                     </div>
                                     <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                                 </div>

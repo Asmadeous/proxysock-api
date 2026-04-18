@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 import { ShoppingCart, Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
 
 import { fetchResellerProducts, fetchResellerBalance, createResellerOrder } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -86,8 +87,8 @@ export default function ResProducts({ type }: ResProductsProps) {
             // Refresh balance
             const balRes = await fetchResellerBalance();
             setBalance(balRes.data.balance || 0);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Purchase failed");
+        } catch (err) {
+            toast.error(getApiError(err, "Purchase failed"));
         } finally {
             setIsBuying(false);
         }
