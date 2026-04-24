@@ -8,7 +8,7 @@ RSpec.describe 'api/v1/orders', type: :request do
       tags 'Orders'
       security [{ Bearer: [] }]
       produces 'application/json'
-      
+
       parameter name: :product_type, in: :query, type: :string, description: 'Filter by product type (e.g., vps, proxy, esim)', required: false
 
       response(200, 'successful') do
@@ -30,7 +30,7 @@ RSpec.describe 'api/v1/orders', type: :request do
                  }
                }
 
-        let(:reseller) { Reseller.create!(username: 'partner_order_tracking', email: 'partner_orders@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_order_tracking', email: 'partner_orders@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -59,27 +59,31 @@ RSpec.describe 'api/v1/orders', type: :request do
         required: %w[product_id quantity]
       }
 
-      response(201, 'api only order created') do
-        let(:reseller) { r = Reseller.create!(username: 'partner_api_fulfillment', email: 'api_fulfillment@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only'); r.main_wallet.credit!(100.0, 'Initial'); r }
+      response(202, 'api only order created') do
+        let(:reseller) do
+          r = Reseller.create!(username: 'partner_api_fulfillment', email: 'api_fulfillment@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only', country_code: 'US', city: 'New York')
+          r.main_wallet.credit!(100.0, 'Initial')
+          r
+        end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        
+
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard VPN', product_type: 'vpn', provider_type: 'local') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
         let(:order) { { product_id: product.id, quantity: 1, metadata: { country_code: 'US' } } }
-        
+
         run_test!
       end
 
       response(202, 'enterprise order initiated') do
-        let(:reseller) { Reseller.create!(username: 'enterprise_gateway_session', email: 'enterprise_billing@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure') }
+        let(:reseller) { Reseller.create!(username: 'enterprise_gateway_session', email: 'enterprise_billing@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        
+
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Infrastructure Resource', product_type: 'vpn', provider_type: 'local') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
         let(:order) { { product_id: product.id, quantity: 1, customer_email: 'client@example.com' } }
-        
+
         run_test!
       end
     end
@@ -95,15 +99,15 @@ RSpec.describe 'api/v1/orders', type: :request do
       description 'Returns technical credentials (IP, Port, Username, Password, ICCID, etc.) for the provisioned resource.'
 
       response(202, 'resource not yet provisioned') do
-        let(:reseller) { Reseller.create!(username: 'partner_resource_access', email: 'resource_access@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_resource_access', email: 'resource_access@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        
+
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Static ISP Proxy', product_type: 'proxy', provider_type: 'myproxyapi') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
         let(:order_obj) { Order.create!(orderable: reseller, product: product, status: 'active', total_amount: 1.0, product_pricing: pricing) }
         let(:id) { order_obj.id }
-        
+
         run_test!
       end
     end
@@ -116,7 +120,7 @@ RSpec.describe 'api/v1/orders', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_analytics', email: 'analytics@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_analytics', email: 'analytics@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -142,12 +146,12 @@ RSpec.describe 'api/v1/orders', type: :request do
       }
 
       response(202, 'accepted') do
-        let(:reseller) { Reseller.create!(username: 'enterprise_checkout_user', email: 'bulk_billing@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure') }
+        let(:reseller) { Reseller.create!(username: 'enterprise_checkout_user', email: 'bulk_billing@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Static ISP Proxy', product_type: 'proxy', provider_type: 'myproxyapi') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
-        let(:checkout_data) { { gateway: 'paystack', customer_email: 'client@example.com', items: [{product_id: product.id, quantity: 1}] } }
+        let(:checkout_data) { { gateway: 'paystack', customer_email: 'client@example.com', items: [{ product_id: product.id, quantity: 1 }] } }
 
         run_test!
       end
@@ -163,7 +167,11 @@ RSpec.describe 'api/v1/orders', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { r = Reseller.create!(username: 'partner_renewal_service', email: 'renewals@example.com', password: 'password', company_name: 'Test Company'); r.main_wallet.credit!(100.0, 'Initial'); r }
+        let(:reseller) do
+          r = Reseller.create!(username: 'partner_renewal_service', email: 'renewals@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York')
+          r.main_wallet.credit!(100.0, 'Initial')
+          r
+        end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard VM Instance', product_type: 'vm', provider_type: 'proxmox') }
@@ -186,7 +194,7 @@ RSpec.describe 'api/v1/orders', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_termination_service', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_termination_service', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Proxy', product_type: 'proxy', provider_type: 'myproxyapi') }

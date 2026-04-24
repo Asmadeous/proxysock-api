@@ -174,7 +174,7 @@ module Web
 
         if promo_code_input.present?
           promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
-          
+
           if promo_code_record.present?
             if !promo_code_record.usable?
               order.destroy
@@ -314,30 +314,28 @@ module Web
         # ── Apply Promo Code or Affiliate discount ──────────────────────────────
         promo_discount = 0
         promo_code_record = nil
-        affiliate_record = nil
+        nil
         applied_code_string = nil
 
         if promo_code_input.present?
           promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
-          
+
           if promo_code_record.present?
-            if !promo_code_record.usable?
-              return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity
-            else
-              promo_discount = promo_code_record.calculate_discount(total_amount)
-              applied_code_string = promo_code_record.code
-            end
+            return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity unless promo_code_record.usable?
+
+            promo_discount = promo_code_record.calculate_discount(total_amount)
+            applied_code_string = promo_code_record.code
+
           else
             affiliate_record = Affiliate.active.find_by('UPPER(referral_code) = ?', promo_code_input)
-            if affiliate_record.present?
-              if current_actor.respond_to?(:affiliate_referrals) && current_actor.affiliate_referrals.pending.exists?
-                return render json: { error: 'You are already receiving an affiliate discount automatically.' }, status: :unprocessable_entity
-              end
-              promo_discount = affiliate_record.calculate_discount(total_amount)
-              applied_code_string = affiliate_record.referral_code
-            else
-              return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity
+            return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity unless affiliate_record.present?
+            if current_actor.respond_to?(:affiliate_referrals) && current_actor.affiliate_referrals.pending.exists?
+              return render json: { error: 'You are already receiving an affiliate discount automatically.' }, status: :unprocessable_entity
             end
+
+            promo_discount = affiliate_record.calculate_discount(total_amount)
+            applied_code_string = affiliate_record.referral_code
+
           end
         end
 
@@ -636,9 +634,9 @@ module Web
           end
         end
 
-        render json: { 
-          message: 'Subscription settings updated successfully', 
-          order: serialize_order(order.reload) 
+        render json: {
+          message: 'Subscription settings updated successfully',
+          order: serialize_order(order.reload)
         }
       end
 
@@ -835,7 +833,7 @@ module Web
             )
             NotificationService.notify_staff(
               category: 'warning',
-              title: "Crypto Refund Intercepted",
+              title: 'Crypto Refund Intercepted',
               message: "#{current_actor.email} attempted crypto refund for processed external order ##{order.order_number}.",
               metadata: { order_id: order.id, ticket_id: ticket.id }
             )
@@ -844,11 +842,12 @@ module Web
 
           # Dispatch actual crypto withdrawal
           begin
-            if checkout.gateway == 'plisio'
+            case checkout.gateway
+            when 'plisio'
               PlisioService.new.withdraw(order.total_amount, network || 'USDT', address, "REFUND-#{order.order_number}")
-            elsif checkout.gateway == 'payvra'
+            when 'payvra'
               PayvraService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
-            elsif checkout.gateway == 'hundredpay'
+            when 'hundredpay'
               return render json: { error: 'HundredPay refunds must be claimed via support momentarily.' }, status: :unprocessable_entity
             end
 
@@ -869,7 +868,7 @@ module Web
         order = current_actor.orders.find(params[:id])
 
         unless order.failed?
-          return render json: { error: "Order is not in a failed state. Only failed orders can be refunded." }, status: :unprocessable_entity
+          return render json: { error: 'Order is not in a failed state. Only failed orders can be refunded.' }, status: :unprocessable_entity
         end
 
         is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
@@ -888,17 +887,17 @@ module Web
                 sender: current_actor,
                 body: "Automated Refund Request: This order failed locally but was processed by the external API (Provider Order ID: #{order.provider_order_id}). Manual review required."
               )
-              
+
               NotificationService.notify_staff(
                 category: 'warning',
-                title: "Manual User Refund Required",
+                title: 'Manual User Refund Required',
                 message: "#{current_actor.email} requested refund for processed external order ##{order.order_number}.",
                 metadata: { order_id: order.id, ticket_id: ticket.id }
               )
             end
 
-            return render json: { 
-              error: 'This order was processed by our external provider before failing locally. A high-priority support ticket has been created for manual refund review.' 
+            return render json: {
+              error: 'This order was processed by our external provider before failing locally. A high-priority support ticket has been created for manual refund review.'
             }, status: :unprocessable_entity
           rescue StandardError => e
             return render json: { error: "Failed to generate support ticket: #{e.message}" }, status: :unprocessable_entity
@@ -943,7 +942,11 @@ module Web
           amount: order.total_amount,
           currency: order.product_pricing&.currency || 'USD',
           currency_code: order.product_pricing&.currency || 'USD',
-          status: %w[vps rdp vm].include?(order.product.product_type) ? order.status : (order.status == 'active' ? 'completed' : order.status),
+          status: if %w[vps rdp vm].include?(order.product.product_type)
+                    order.status
+                  else
+                    (order.status == 'active' ? 'completed' : order.status)
+                  end,
           created_at: order.created_at,
           expires_at: resource.try(:expires_at) || order.expires_at || (order.created_at + 30.days),
           reorderable: order.reorderable?(current_actor),
