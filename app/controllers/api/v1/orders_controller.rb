@@ -438,6 +438,57 @@ module Api
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
+      # POST /api/v1/orders/:id/refund
+      # Resellers can refund failed orders to their wallet, except for external API products that have already been processed.
+      def refund
+        order = order_scope.find(params[:id])
+
+        unless order.failed?
+          return render json: { error: "Order is not in a failed state. You can only refund failed orders." }, status: :unprocessable_entity
+        end
+
+        is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+
+        if is_external_api_product && order.provider_order_id.present?
+          # The external API processed this order before the local failure. Halt automated refund and generate a ticket.
+          begin
+            ActiveRecord::Base.transaction do
+              ticket = current_reseller.tickets.create!(
+                subject: "Refund Request for External Order ##{order.order_number}",
+                priority: 'high',
+                order_id: order.id,
+                user_type: 'reseller'
+              )
+              ticket.ticket_messages.create!(
+                sender: current_reseller,
+                body: "Automated Refund Request: This order could not be automatically refunded because the external API has already processed it (Provider Order ID: #{order.provider_order_id}). Please investigate and process manually."
+              )
+              
+              NotificationService.notify_staff(
+                category: 'warning',
+                title: "Manual Refund Required",
+                message: "Reseller requested refund for processed external order ##{order.order_number}.",
+                metadata: { order_id: order.id, ticket_id: ticket.id }
+              )
+            end
+
+            return render json: { 
+              error: 'External provider processed this order before local failure. A high-priority support ticket has been created for manual admin review.' 
+            }, status: :unprocessable_entity
+          rescue StandardError => e
+            return render json: { error: "Failed to generate support ticket for refund: #{e.message}" }, status: :unprocessable_entity
+          end
+        end
+
+        # Safe to refund locally
+        begin
+          RefundService.new(order).process!(refund_method: 'wallet')
+          render json: { message: 'Order successfully refunded to wallet', order: serialize_order(order.reload) }
+        rescue StandardError => e
+          render json: { error: "Refund failed: #{e.message}" }, status: :unprocessable_entity
+        end
+      end
+
       # POST /api/v1/orders/:id/reorder
       def reorder
         original_order = order_scope.find(params[:id])

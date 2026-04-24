@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useLocation } from "react-router-dom";
-import { fetchTickets, createTicket, replyTicket } from "../../services/api";
+import { fetchTickets, createTicket, replyTicket, fetchResellerTickets, createResellerTicket, replyResellerTicket } from "../../services/api";
 import { getCableConsumer } from "../../services/cable";
 import type { Subscription } from "@rails/actioncable";
 import DataTable from "../SuperAdmin/components/DataTable";
@@ -16,7 +16,11 @@ interface TicketRow {
     updated_at: string;
 }
 
-export default function Tickets() {
+interface TicketsProps {
+    role?: "User" | "Reseller";
+}
+
+export default function Tickets({ role = "User" }: TicketsProps) {
     const [tickets, setTickets] = useState<TicketRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
@@ -32,7 +36,8 @@ export default function Tickets() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetchTickets();
+            const fetchFn = role === "User" ? fetchTickets : fetchResellerTickets;
+            const res = await fetchFn();
             setTickets(res.data.tickets || []);
         } catch {
             toast.error("Failed to load tickets");
@@ -92,11 +97,8 @@ export default function Tickets() {
                 deposit_id: createData.deposit_id || null,
                 body: createData.body,
             };
-            // Our createTicket function structure: api.post("/web/api/tickets", { ticket: data });
-            // Let's adapt our createTicket to accept body at root:
-            await createTicket({ ...payload }); // Wait, the controller does `ticket.ticket_messages.create!(..., body: params[:body])` 
-            // So if createTicket wraps in { ticket: data }, params[:body] might be nil unless we modify `api.ts` or the component. By default Rails parses nested JSON.
-            // Actually, if we pass { ticket: data, body: "text" }, api.ts wraps it just like `ticket: data`. Let's just create a custom post here to be safe.
+            const createFn = role === "User" ? createTicket : createResellerTicket;
+            await createFn({ ...payload }); 
             toast.success("Ticket created");
             setShowCreate(false);
             setCreateData({ subject: "", priority: "normal", order_id: "", deposit_id: "", body: "" });
@@ -112,7 +114,8 @@ export default function Tickets() {
         if (!activeTicket || !replyMsg.trim()) return;
         setReplyLoading(true);
         try {
-            await replyTicket(activeTicket.id, replyMsg);
+            const replyFn = role === "User" ? replyTicket : replyResellerTicket;
+            await replyFn(activeTicket.id, replyMsg);
             toast.success("Replied");
             setReplyMsg("");
             setActiveTicket(null);

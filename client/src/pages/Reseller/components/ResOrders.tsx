@@ -7,9 +7,10 @@ import {
     ExclamationTriangleIcon,
     EyeIcon,
     XMarkIcon,
-    ArrowPathIcon
+    ArrowPathIcon,
+    CurrencyDollarIcon
 } from "@heroicons/react/24/outline";
-import { fetchResellerOrderStats, fetchResellerOrders, cancelResellerOrder, fetchOrderCredentials } from "../../../services/resellerApi";
+import { fetchResellerOrderStats, fetchResellerOrders, cancelResellerOrder, fetchOrderCredentials, refundResellerOrder } from "../../../services/resellerApi";
 import { toast } from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,9 @@ export default function ResOrders() {
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+    const [refundingId, setRefundingId] = useState<string | null>(null);
+    const [showRefundDialog, setShowRefundDialog] = useState(false);
+    const [orderToRefund, setOrderToRefund] = useState<Order | null>(null);
     const [credentialsModal, setCredentialsModal] = useState<{ open: boolean; data: any; loading: boolean }>({
         open: false, data: null, loading: false
     });
@@ -104,6 +108,30 @@ export default function ResOrders() {
             setCancellingId(null);
             setShowCancelDialog(false);
             setOrderToCancel(null);
+        }
+    };
+
+    const handleRefundClick = (order: Order) => {
+        setOrderToRefund(order);
+        setShowRefundDialog(true);
+    };
+
+    const confirmRefund = async () => {
+        if (!orderToRefund) return;
+        setRefundingId(orderToRefund.id);
+        try {
+            const r = await refundResellerOrder(orderToRefund.id);
+            toast.success(r.data.message || "Order refunded successfully");
+            fetchOrders(page);
+            fetchStats();
+        } catch (e: any) {
+            toast.error(e.response?.data?.error || "Refund failed. A support ticket may have been created.", { duration: 5000 });
+            // Fetch orders in case state changed
+            fetchOrders(page);
+        } finally {
+            setRefundingId(null);
+            setShowRefundDialog(false);
+            setOrderToRefund(null);
         }
     };
 
@@ -249,6 +277,18 @@ export default function ResOrders() {
                                                     Cancel
                                                 </Button>
                                             )}
+                                            {order.status === "failed" && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
+                                                    disabled={refundingId === order.id}
+                                                    onClick={() => handleRefundClick(order)}
+                                                >
+                                                    {refundingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CurrencyDollarIcon className="w-3 h-3" />}
+                                                    Refund
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </motion.tr>
@@ -292,6 +332,37 @@ export default function ResOrders() {
                         <Button variant="destructive" onClick={confirmCancel} disabled={!!cancellingId}>
                             {cancellingId ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                             Confirm Cancel
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Refund Confirmation Dialog */}
+            <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-amber-500">
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            Refund Failed Order
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-4">
+                        <p className="text-sm text-muted-foreground">
+                            Are you sure you want to request a refund for failed order <span className="font-mono font-bold">#{orderToRefund?.id?.slice(0, 8)}</span>?
+                        </p>
+                        <p className="text-sm font-medium">
+                            <strong>${Number(orderToRefund?.total_amount || 0).toFixed(2)}</strong> will be credited to your wallet if successful.
+                        </p>
+                        <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                            <p className="font-bold mb-1">Important for Proxies & VPNs:</p>
+                            <p>If the external provider successfully processed this order before the local failure, an automated refund will be halted and a high-priority support ticket will be opened for manual review to ensure funds aren't leaked.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowRefundDialog(false)}>Cancel</Button>
+                        <Button variant="default" className="bg-amber-500 hover:bg-amber-600 text-white" onClick={confirmRefund} disabled={!!refundingId}>
+                            {refundingId ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Request Refund
                         </Button>
                     </DialogFooter>
                 </DialogContent>

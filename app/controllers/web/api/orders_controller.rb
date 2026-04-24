@@ -819,6 +819,29 @@ module Web
             return render json: { error: 'This order does not qualify for a crypto refund.' }, status: :unprocessable_entity
           end
 
+          # Failsafe for external API products
+          is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+          if is_external_api_product && order.provider_order_id.present?
+            # API processed it, block crypto withdrawal and open ticket
+            ticket = current_actor.tickets.create!(
+              subject: "Crypto Refund Request Intercepted - External Order ##{order.order_number}",
+              priority: 'high',
+              order_id: order.id,
+              user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
+            )
+            ticket.ticket_messages.create!(
+              sender: current_actor,
+              body: "Automated Crypto Refund Blocked: Order failed locally but was processed externally (Provider Order ID: #{order.provider_order_id}). Attempted crypto address: #{address} (#{network}). Please review manually."
+            )
+            NotificationService.notify_staff(
+              category: 'warning',
+              title: "Crypto Refund Intercepted",
+              message: "#{current_actor.email} attempted crypto refund for processed external order ##{order.order_number}.",
+              metadata: { order_id: order.id, ticket_id: ticket.id }
+            )
+            return render json: { error: 'This order was processed by our external provider. For security, automated crypto refunds are blocked. A support ticket has been created for manual review.' }, status: :unprocessable_entity
+          end
+
           # Dispatch actual crypto withdrawal
           begin
             if checkout.gateway == 'plisio'
@@ -837,6 +860,57 @@ module Web
           rescue StandardError => e
             render json: { error: "Failed to dispatch crypto refund: #{e.message}" }, status: :service_unavailable
           end
+        end
+      end
+
+      # POST /web/api/orders/:id/refund
+      # Allows users to refund failed orders. External API products are intercepted if already processed.
+      def refund
+        order = current_actor.orders.find(params[:id])
+
+        unless order.failed?
+          return render json: { error: "Order is not in a failed state. Only failed orders can be refunded." }, status: :unprocessable_entity
+        end
+
+        is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+
+        if is_external_api_product && order.provider_order_id.present?
+          # Intercept: API processed it, we can't auto-refund without manual check
+          begin
+            ActiveRecord::Base.transaction do
+              ticket = current_actor.tickets.create!(
+                subject: "Refund Request for Processed External Order ##{order.order_number}",
+                priority: 'high',
+                order_id: order.id,
+                user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
+              )
+              ticket.ticket_messages.create!(
+                sender: current_actor,
+                body: "Automated Refund Request: This order failed locally but was processed by the external API (Provider Order ID: #{order.provider_order_id}). Manual review required."
+              )
+              
+              NotificationService.notify_staff(
+                category: 'warning',
+                title: "Manual User Refund Required",
+                message: "#{current_actor.email} requested refund for processed external order ##{order.order_number}.",
+                metadata: { order_id: order.id, ticket_id: ticket.id }
+              )
+            end
+
+            return render json: { 
+              error: 'This order was processed by our external provider before failing locally. A high-priority support ticket has been created for manual refund review.' 
+            }, status: :unprocessable_entity
+          rescue StandardError => e
+            return render json: { error: "Failed to generate support ticket: #{e.message}" }, status: :unprocessable_entity
+          end
+        end
+
+        # Proceed with standard refund
+        begin
+          RefundService.new(order).process!(refund_method: 'wallet')
+          render json: { message: 'Order successfully refunded to your wallet balance.', order: serialize_order(order.reload) }
+        rescue StandardError => e
+          render json: { error: "Refund failed: #{e.message}" }, status: :unprocessable_entity
         end
       end
 

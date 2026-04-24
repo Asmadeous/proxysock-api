@@ -1,0 +1,63 @@
+<h2>Payout Request — Manual Processing Required</h2>
+
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Reference</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.reference %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Amount</td>
+    <td style="padding: 8px; border: 1px solid #ddd; color: #e53935; font-weight: bold;">$<%= number_with_precision(@payout.amount, precision: 2) %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Gateway</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.gateway %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Status</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.status %></td>
+  </tr>
+</table>
+
+<h3>Reseller Details</h3>
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Company</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @reseller.company_name %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Username</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @reseller.username %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Email</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @reseller.email %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Country</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @reseller.country || @reseller.country_code || 'N/A' %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Type</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @reseller.reseller_type %></td>
+  </tr>
+</table>
+
+<h3>Payment Details</h3>
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <% @payment_details.each do |key, value| %>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;"><%= key.to_s.humanize %></td>
+      <td style="padding: 8px; border: 1px solid #ddd;"><%= value %></td>
+    </tr>
+  <% end %>
+  <% if @payment_details.empty? %>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd;" colspan="2"><em>No payment details provided</em></td>
+    </tr>
+  <% end %>
+</table>
+
+<p style="margin-top: 20px; font-size: 14px; color: #666;">
+  This payout is awaiting manual processing. Please process it via the admin panel or mark it as completed.
+</p>

@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
-import { fetchUserSupportChat, sendUserSupportMessage } from "../../services/api";
+import { fetchUserSupportChat, sendUserSupportMessage, fetchResellerSupportChat, sendResellerSupportMessage } from "../../services/api";
 import { getCableConsumer } from "../../services/cable";
 import { toast } from "react-hot-toast";
 import type { Subscription } from "@rails/actioncable";
 
-export default function SupportChat() {
+interface SupportChatProps {
+    role?: "User" | "Reseller";
+}
+
+export default function SupportChat({ role = "User" }: SupportChatProps) {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(true);
@@ -14,7 +18,8 @@ export default function SupportChat() {
 
     const loadChat = useCallback(async () => {
         try {
-            const { data } = await fetchUserSupportChat();
+            const fetchFn = role === "User" ? fetchUserSupportChat : fetchResellerSupportChat;
+            const { data } = await fetchFn();
             setMessages(data.messages || []);
             setChatMeta(data.chat || {});
             return data.chat;
@@ -61,7 +66,8 @@ export default function SupportChat() {
         const msg = input;
         setInput("");
         try {
-            await sendUserSupportMessage(msg);
+            const sendFn = role === "User" ? sendUserSupportMessage : sendResellerSupportMessage;
+            await sendFn(msg);
             // No need to loadChat() here as WebSocket will broadcast it
         } catch { toast.error("Failed to send message"); }
     };

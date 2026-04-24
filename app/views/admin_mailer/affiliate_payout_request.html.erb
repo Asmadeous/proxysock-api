@@ -1,0 +1,63 @@
+<h2>Affiliate Payout Request — Manual Processing Required</h2>
+
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Payout ID</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.id %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Amount</td>
+    <td style="padding: 8px; border: 1px solid #ddd; color: #e53935; font-weight: bold;">$<%= number_with_precision(@payout.amount, precision: 2) %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Method</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.payment_method %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Status</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @payout.status %></td>
+  </tr>
+</table>
+
+<h3>Affiliate Details</h3>
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Referral Code</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @affiliate.referral_code %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Owner Email</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @owner&.email || 'Standalone Affiliate' %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Owner Type</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @owner&.class&.name || 'N/A' %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Country</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><%= @owner&.try(:country) || @owner&.try(:country_code) || 'N/A' %></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;">Total Earned</td>
+    <td style="padding: 8px; border: 1px solid #ddd;">$<%= number_with_precision(@affiliate.total_earned, precision: 2) %></td>
+  </tr>
+</table>
+
+<h3>Payment Details</h3>
+<table style="border-collapse: collapse; width: 100%; max-width: 600px; font-family: Arial, sans-serif;">
+  <% @payment_details.each do |key, value| %>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f5f5f5;"><%= key.to_s.humanize %></td>
+      <td style="padding: 8px; border: 1px solid #ddd;"><%= value %></td>
+    </tr>
+  <% end %>
+  <% if @payment_details.empty? %>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd;" colspan="2"><em>No payment details provided</em></td>
+    </tr>
+  <% end %>
+</table>
+
+<p style="margin-top: 20px; font-size: 14px; color: #666;">
+  This affiliate payout is awaiting manual processing. Please process it and mark as paid in the admin panel.
+</p>

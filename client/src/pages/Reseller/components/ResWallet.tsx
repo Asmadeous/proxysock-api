@@ -88,10 +88,22 @@ export default function ResWallet() {
 
         setIsProcessing(true);
         try {
+            let details: Record<string, string> = {};
+            if (withdrawMethod === "crypto") {
+                details = { crypto_currency: withdrawDetails.crypto_currency || "USDT", crypto_address: withdrawDetails.crypto_address };
+            } else if (withdrawMethod === "manual") {
+                details = { 
+                    account_name: withdrawDetails.account_name, 
+                    account_number: withdrawDetails.account_number, 
+                    bank_name: withdrawDetails.bank_name,
+                    country: withdrawDetails.country
+                };
+            }
+
             await requestResellerPayout({
                 amount,
                 payment_method: withdrawMethod,
-                payment_details: withdrawDetails
+                payment_details: details
             });
             toast.success("Withdrawal request submitted for approval!");
             setIsWithdrawModalOpen(false);
@@ -106,9 +118,27 @@ export default function ResWallet() {
     };
 
     const renderWithdrawFields = () => {
-        if (withdrawMethod === "bank_transfer") {
+        if (withdrawMethod === "manual") {
             return (
                 <div className="grid gap-4 pt-2">
+                    <div className="grid gap-2">
+                        <Label className="text-sm font-bold">Account Name</Label>
+                        <Input
+                            placeholder="Full name"
+                            value={withdrawDetails.account_name || ""}
+                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, account_name: e.target.value })}
+                            className="rounded-xl border-border/50"
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label className="text-sm font-bold">Account Number</Label>
+                        <Input
+                            placeholder="Account number or IBAN"
+                            value={withdrawDetails.account_number || ""}
+                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, account_number: e.target.value })}
+                            className="rounded-xl border-border/50"
+                        />
+                    </div>
                     <div className="grid gap-2">
                         <Label className="text-sm font-bold">Bank Name</Label>
                         <Input
@@ -119,14 +149,15 @@ export default function ResWallet() {
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label className="text-sm font-bold">Account Number</Label>
+                        <Label className="text-sm font-bold">Country</Label>
                         <Input
-                            placeholder="xxxx xxxx xxxx"
-                            value={withdrawDetails.account_number || ""}
-                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, account_number: e.target.value })}
+                            placeholder="e.g. USA"
+                            value={withdrawDetails.country || ""}
+                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, country: e.target.value })}
                             className="rounded-xl border-border/50"
                         />
                     </div>
+                    <p className="text-xs text-blue-400">ℹ️ Manual payouts are reviewed by our team and processed in 1-3 days.</p>
                 </div>
             );
         }
@@ -134,26 +165,29 @@ export default function ResWallet() {
             return (
                 <div className="grid gap-4 pt-2">
                     <div className="grid gap-2">
-                        <Label className="text-sm font-bold">Network</Label>
-                        <Select value={withdrawDetails.network} onValueChange={(v) => setWithdrawDetails({ ...withdrawDetails, network: v })}>
+                        <Label className="text-sm font-bold">Currency</Label>
+                        <Select value={withdrawDetails.crypto_currency || "USDT"} onValueChange={(v) => setWithdrawDetails({ ...withdrawDetails, crypto_currency: v })}>
                             <SelectTrigger className="rounded-xl border-border/50">
-                                <SelectValue placeholder="Select network" />
+                                <SelectValue placeholder="Select currency" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="trc20">USDT (TRC20)</SelectItem>
-                                <SelectItem value="erc20">USDT (ERC20)</SelectItem>
+                                <SelectItem value="BTC">Bitcoin (BTC)</SelectItem>
+                                <SelectItem value="USDC">USD Coin (USDC)</SelectItem>
+                                <SelectItem value="ETH">Ethereum (ETH)</SelectItem>
+                                <SelectItem value="USDT">Tether (USDT ERC20)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="grid gap-2">
                         <Label className="text-sm font-bold">Wallet Address</Label>
                         <Input
-                            placeholder="Paste your USDT address"
-                            value={withdrawDetails.address || ""}
-                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, address: e.target.value })}
+                            placeholder={`Paste your ${withdrawDetails.crypto_currency || "USDT"} address`}
+                            value={withdrawDetails.crypto_address || ""}
+                            onChange={(e) => setWithdrawDetails({ ...withdrawDetails, crypto_address: e.target.value })}
                             className="rounded-xl border-border/50"
                         />
                     </div>
+                    <p className="text-xs text-amber-500">⚠️ Ensure the address is correct. Crypto transfers are non-reversible.</p>
                 </div>
             );
         }
@@ -403,7 +437,7 @@ export default function ResWallet() {
                             <DialogTitle className="text-2xl font-black tracking-tight">Request Payout</DialogTitle>
                             <DialogDescription className="font-medium text-muted-foreground">Withdraw your accumulated earnings to your preferred destination.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-6 py-6">
+                        <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                             <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between">
                                 <div>
                                     <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Withdrawable</p>
@@ -421,8 +455,8 @@ export default function ResWallet() {
                                         <SelectValue placeholder="Select method" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-2xl">
-                                        <SelectItem value="bank_transfer" className="font-bold">Traditional Bank Wire</SelectItem>
-                                        <SelectItem value="crypto" className="font-bold">Cryptocurrency (USDT)</SelectItem>
+                                        <SelectItem value="manual" className="font-bold">Traditional Bank / Other</SelectItem>
+                                        <SelectItem value="crypto" className="font-bold">Cryptocurrency</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

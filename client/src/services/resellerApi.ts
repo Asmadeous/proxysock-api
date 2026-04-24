@@ -110,6 +110,8 @@ export const sendSupportMessage = (message: string) =>
 // ── Order Actions ─────────────────────────────────
 export const cancelResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/cancel`);
+export const refundResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/refund`);
 export const fetchOrderCredentials = (id: string) =>
     resellerApi.get(`/orders/${id}/credentials`);
 export const updateProxyCredentials = (id: string, data: { username?: string; password?: string }) =>

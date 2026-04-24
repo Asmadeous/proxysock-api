@@ -37,6 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Refresh session function
   const refreshSession = async (): Promise<boolean> => {
+    if (window.location.pathname.startsWith('/reseller') || window.location.pathname.startsWith('/super-admin')) {
+      return false;
+    }
+    
     try {
       const token = getSession();
       if (!token) {
@@ -63,6 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       setIsLoading(true);
+
+      if (window.location.pathname.startsWith('/reseller') || window.location.pathname.startsWith('/super-admin')) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const token = getSession();
