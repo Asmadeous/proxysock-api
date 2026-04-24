@@ -19,6 +19,7 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
     @proxy_client_mock.stubs(:place_order).returns({ 'data' => { 'order_id' => 'test_order_123' } })
     @proxy_client_mock.stubs(:view_order).returns({ 'data' => { 'ip' => '1.2.3.4', 'port' => 8080, 'username' => 'u', 'password' => 'p' } })
     @proxy_client_mock.stubs(:get_or_create_user).returns('user123')
+    @proxy_client_mock.stubs(:reseller_user_id).returns('37199')
 
     @vm_product = products(:one)
     @vm_pricing = product_pricings(:pricing_one)

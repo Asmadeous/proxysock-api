@@ -255,7 +255,6 @@ Country: ${order.country || "Global"}
             a.remove();
             URL.revokeObjectURL(url);
         }
-        }
     };
 
     const handleWalletRefund = async (order: ProxyOrder) => {
