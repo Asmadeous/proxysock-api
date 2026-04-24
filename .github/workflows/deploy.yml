@@ -107,6 +107,15 @@ jobs:
           tags: tag:ci
 
       # ─── Deploy to VM ──────────────────────────────────
+      - name: Verify Secrets Presence
+        run: |
+          if [ -z "${{ secrets.PRODUCTION_SSH_PASSWORD }}" ]; then
+            echo "❌ PRODUCTION_SSH_PASSWORD is EMPTY"
+            exit 1
+          else
+            echo "✅ PRODUCTION_SSH_PASSWORD is SET"
+          fi
+
       - name: Copy docker-compose config and monitoring
         uses: appleboy/scp-action@v0.1.7
         with:
