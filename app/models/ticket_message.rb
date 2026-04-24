@@ -49,15 +49,13 @@ class TicketMessage < ApplicationRecord
         metadata: { ticket_id: ticket.id }
       )
     else
-      # If unassigned, notify staff
-      Employee.where(role: %w[admin support]).each do |staff|
-        NotificationService.notify(
-          recipient: staff,
-          category: 'info',
-          title: "New Ticket: ##{ticket.id}",
-          message: "A new ticket requires attention: #{ticket.subject}"
-        )
-      end
+      # If unassigned, notify staff efficiently without N+1 queries
+      NotificationService.notify_staff(
+        category: 'info',
+        title: "New Ticket: ##{ticket.id}",
+        message: "A new ticket requires attention: #{ticket.subject}",
+        metadata: { ticket_id: ticket.id }
+      )
     end
   end
 end

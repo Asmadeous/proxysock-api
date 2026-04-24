@@ -7,8 +7,16 @@ export const fetchAffiliateProfile = () =>
 export const enrollAffiliate = () =>
     api.post("/web/api/affiliate");
 
-export const requestPayout = (amount: number, paymentMethod = "wallet") =>
-    api.post("/web/api/affiliate/request_payout", { amount, payment_method: paymentMethod });
+export const requestPayout = (
+    amount: number,
+    paymentMethod = "wallet",
+    paymentDetails: Record<string, string> = {}
+) =>
+    api.post("/web/api/affiliate/request_payout", {
+        amount,
+        payment_method: paymentMethod,
+        payment_details: paymentDetails,
+    });
 
 export const fetchReferrals = (page = 1) =>
     api.get("/web/api/affiliate_referrals", { params: { page } });

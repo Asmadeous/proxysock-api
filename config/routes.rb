@@ -38,6 +38,7 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :cancel
+          post :refund
           post :reorder
           post :update_subscription
         end
@@ -158,6 +159,7 @@ Rails.application.routes.draw do
         member do
           get :credentials
           post :renew
+          post :refund
           post :reorder
           post :update_subscription
           get :download_ovpn

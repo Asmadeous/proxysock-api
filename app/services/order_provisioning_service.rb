@@ -269,7 +269,7 @@ class OrderProvisioningService
       # Execute MyProxyApi Purchase
       begin
         client = MyProxyApiClient.new
-        user_id = client.get_or_create_user(@actor, @order.metadata['client_ip'])
+        user_id = client.reseller_user_id
         
         order_response = client.place_order(
           user_id: user_id,
@@ -359,7 +359,7 @@ class OrderProvisioningService
       api_id    = @product.provider_product_id
       
       client = MyProxyApiClient.new
-      user_id = client.get_or_create_user(@actor, client_ip)
+      user_id = client.reseller_user_id
 
       # 'locationId' is the numeric city/ISP ID the API expects.
       # 'locationsString' is the human-readable label (e.g. "Dallas, Texas") — NOT for the API.
@@ -685,7 +685,7 @@ class OrderProvisioningService
       api_id    = @product.provider_product_id
       
       client = MyProxyApiClient.new
-      user_id = client.get_or_create_user(@actor, client_ip)
+      user_id = client.reseller_user_id
 
       # Determine debug label from payment method used
       payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')

@@ -14,12 +14,12 @@ class ResellerEarningsService
     return unless reseller
 
     pricing = order.product_pricing
-    api_cost = (pricing&.api_price.to_f || 0) * order.quantity
-    profit = order.total_amount - api_cost
-
-    # "those utilizing our system should get half profit"
-    # Reseller gets half the markup profit.
-    commission = [0, profit / 2.0].max.round(2)
+    
+    # Reseller's wholesale cost
+    reseller_cost = (pricing&.reseller_selling_price.to_f || 0) * order.quantity
+    
+    # Reseller earns whatever they charged their sub-user minus their wholesale cost
+    commission = [0, order.total_amount - reseller_cost].max.round(2)
 
     return if commission <= 0
 

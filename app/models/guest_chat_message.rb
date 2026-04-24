@@ -38,15 +38,12 @@ class GuestChatMessage < ApplicationRecord
         metadata: { guest_chat_id: guest_chat.id, session_token: guest_chat.session_token }
       )
     else
-      Employee.where(role: 'admin').each do |admin|
-        NotificationService.notify(
-          recipient: admin,
-          category: 'info',
-          title: "Guest Chat Update: #{guest_chat.guest_name}",
-          message: body.truncate(50),
-          metadata: { guest_chat_id: guest_chat.id, session_token: guest_chat.session_token }
-        )
-      end
+      NotificationService.notify_staff(
+        category: 'info',
+        title: "Guest Chat Update: #{guest_chat.guest_name}",
+        message: body.truncate(50),
+        metadata: { guest_chat_id: guest_chat.id, session_token: guest_chat.session_token }
+      )
     end
   end
 

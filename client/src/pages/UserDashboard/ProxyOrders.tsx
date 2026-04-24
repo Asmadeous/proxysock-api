@@ -23,6 +23,7 @@ import {
   Filter,
   ArrowLeft,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
@@ -253,6 +254,25 @@ IPs Included: ${order.ips_included || 0}
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+  
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
+
+  const handleWalletRefund = async (order: ProxyOrder) => {
+    if (!confirm("Are you sure you want to refund this order to your wallet? If the order was already processed externally, a support ticket will be created instead.")) return;
+    
+    try {
+      setRefundingOrderId(order.id);
+      const response = await api.post(`/web/api/orders/${order.id}/refund`);
+      toast.success(response.data.message || "Order successfully refunded to wallet.");
+      fetchProxyOrders();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || "Failed to refund order.";
+      toast.error(msg, { duration: 5000 });
+      fetchProxyOrders();
+    } finally {
+      setRefundingOrderId(null);
+    }
   };
 
   if (!accessToken || !user) {
@@ -729,6 +749,17 @@ IPs Included: ${order.ips_included || 0}
                       >
                         <FileText className="h-4 w-4" />
                       </Button>
+                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleWalletRefund(order)}
+                          className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                          disabled={refundingOrderId === order.id}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                        </Button>
+                      )}
                       {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
                         <Button
                           variant="destructive"

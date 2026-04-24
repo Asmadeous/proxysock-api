@@ -89,11 +89,9 @@ class AffiliateService
     affiliate = explicit_affiliate || pending_referral&.affiliate
     return unless affiliate
 
-    # Calculate commission
-    pricing = order.product_pricing
-    api_cost = pricing.api_price.to_f * order.quantity
-    profit = order.total_amount - api_cost
-    commission = [0, profit / 2.0].max.round(2)
+    # Calculate commission based on the affiliate's exact commission_rate percentage
+    rate = affiliate.commission_rate.to_f / 100.0
+    commission = (order.total_amount * rate).round(2)
 
     # Process Referral Record
     if pending_referral && pending_referral.affiliate_id == affiliate.id
@@ -129,7 +127,8 @@ class AffiliateService
   # Payouts
   # ─────────────────────────────────────
 
-  # Request a payout for the current entity's affiliate account, automatically dispatching to gateways
+  # Request a payout for the current entity's affiliate account.
+  # Crypto payouts are dispatched automatically; non-crypto go to admin for manual processing.
   def request_payout!(amount:, method: 'wallet', details: {})
     affiliate = @entity.affiliate
     raise 'Not enrolled in affiliate program' unless affiliate
@@ -138,57 +137,66 @@ class AffiliateService
     affiliate.with_lock do
       raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
 
-      payout = AffiliatePayout.create!(
-        affiliate: affiliate,
-        amount: amount,
-        payment_method: method,
-        payment_details: details,
-        status: 'processing' # Start at processing so pending_balance instantly excludes this amount
-      )
-
-      # Fast path for internal balance wallets
+      # Wallet payouts are instant internal transfers
       if method == 'wallet'
         owner = affiliate.affiliatable
         raise 'Standalone affiliates cannot payout to internal wallet' unless owner
+
+        payout = AffiliatePayout.create!(
+          affiliate: affiliate,
+          amount: amount,
+          payment_method: 'wallet',
+          payment_details: details,
+          status: 'processing'
+        )
 
         wallet = owner.main_wallet || owner.create_main_wallet!(wallet_type: 'main')
         wallet.credit!(amount, "Affiliate payout ##{payout.id}")
         payout.mark_paid!
         return payout
       end
-    end
 
-    # 2-Phase Commit Gateway Dispatch for external providers
-    begin
-      case payout.payment_method
-      when 'bank_transfer'
-        recipient = payout.payment_details['recipient_code']
-        raise 'Missing recipient_code in payment details' if recipient.blank?
-
-        PaystackService.new.initiate_transfer(payout.amount, recipient, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
-        payout.update!(metadata: { gateway: 'paystack' })
-        # Paystack webhooks will handle verify_transaction to mark it paid,
-        # but for instant architectures we mark it paid now or let webhooks handle it.
-        # We will optimistically mark it paid.
-        payout.mark_paid!
-        
-      when 'crypto'
-        address = payout.payment_details['crypto_address']
-        currency = payout.payment_details['crypto_currency'] || 'USDT'
+      # Crypto payouts are auto-dispatched
+      if method == 'crypto'
+        address = details['crypto_address']
+        currency = details['crypto_currency'] || 'USDT'
         raise 'Missing crypto_address in payment details' if address.blank?
 
-        # Prefer Plisio for affiliate crypto payouts natively, fallback to Payvra logic if needed matching PayoutService
-        PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
-        payout.update!(metadata: { gateway: 'plisio' })
-        payout.mark_paid!
-        
-      else
-        raise "Unsupported payout method: #{payout.payment_method}"
+        payout = AffiliatePayout.create!(
+          affiliate: affiliate,
+          amount: amount,
+          payment_method: 'crypto',
+          payment_details: details,
+          status: 'processing'
+        )
+
+        begin
+          PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
+          payout.update!(metadata: { gateway: 'plisio' })
+          payout.mark_paid!
+        rescue StandardError => e
+          payout.update!(status: 'failed', metadata: { error: e.message })
+          raise e
+        end
+
+        return payout
       end
-    rescue StandardError => e
-      # Gateway crashed or rejected payload -> safely fail the payout so the user's balance is unfrozen!
-      payout.update!(status: 'failed', metadata: { error: e.message })
-      raise e
+
+      # All other methods (manual) → create pending payout and notify admin
+      payout = AffiliatePayout.create!(
+        affiliate: affiliate,
+        amount: amount,
+        payment_method: method.presence || 'manual',
+        payment_details: details,
+        status: 'pending'
+      )
+
+      # Notify admin for manual processing
+      begin
+        AdminMailer.affiliate_payout_request(payout).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("Failed to notify admin for affiliate payout #{payout.id}: #{e.message}")
+      end
     end
 
     payout

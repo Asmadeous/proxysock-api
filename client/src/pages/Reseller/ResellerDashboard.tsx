@@ -14,7 +14,9 @@ import {
     Loader2,
     Webhook,
     BookOpen,
-    DollarSign
+    DollarSign,
+    MessageSquare,
+    Ticket
 } from "lucide-react";
 
 
@@ -40,6 +42,8 @@ const ResUserManagement = lazy(() => import("./components/ResUserManagement"));
 const ResApiDocs = lazy(() => import("./components/ResApiDocs"));
 const ResWebhookConfig = lazy(() => import("./components/ResWebhookConfig"));
 const ResSettings = lazy(() => import("./components/ResSettings"));
+const SupportChat = lazy(() => import("../UserDashboard/SupportChat"));
+const Tickets = lazy(() => import("../UserDashboard/Tickets"));
 
 
 // User dashboard buy pages (reused for full product configuration)
@@ -60,6 +64,8 @@ const API_ONLY_TABS = [
     { id: "orders", label: "Orders", icon: ListTodo },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "developer", label: "Developer", icon: Code },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -70,6 +76,8 @@ const SINGLE_PRODUCT_TABS = [
     { id: "orders", label: "Orders", icon: ListTodo },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "developer", label: "Developer", icon: Code },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -82,6 +90,8 @@ const ENTERPRISE_TABS = [
     { id: "earnings", label: "Earnings", icon: DollarSign },
     { id: "developer", label: "Developer", icon: Code },
     { id: "users", label: "Users", icon: Users },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -211,6 +221,8 @@ export default function ResellerDashboard() {
             case "wallet": return <ResWallet />;
             case "earnings": return <ResWallet />;
             case "users": return <ResUserManagement />;
+            case "support": return <SupportChat role="Reseller" />;
+            case "tickets": return <Tickets role="Reseller" />;
             case "settings": return <ResSettings />;
             case "checkout": return (
                 <ResellerCheckout
@@ -250,7 +262,7 @@ export default function ResellerDashboard() {
     };
 
     return (
-        <div className="min-h-screen flex bg-background">
+        <div className="h-screen flex bg-background overflow-hidden">
             <AdminSidebar
                 items={tabs.map(t => ({
                     ...t,
