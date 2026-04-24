@@ -92,7 +92,7 @@ jobs:
             - name: Copy docker-compose config and monitoring
               uses: appleboy/scp-action@v0.1.7
               with:
-                  host: ${{ secrets.PRODUCTION_TAILSCALE_IP }}
+                  host: ${{ secrets.PRODUCTION_HOST }}
                   username: ${{ secrets.PRODUCTION_USER }}
                   password: ${{ secrets.PRODUCTION_SSH_PASSWORD }}
                   source: "docker-compose.yml,monitoring/"
@@ -101,7 +101,7 @@ jobs:
             - name: Deploy to Production Server
               uses: appleboy/ssh-action@v1.0.3
               with:
-                  host: ${{ secrets.PRODUCTION_TAILSCALE_IP }}
+                  host: ${{ secrets.PRODUCTION_HOST }}
                   username: ${{ secrets.PRODUCTION_USER }}
                   password: ${{ secrets.PRODUCTION_SSH_PASSWORD }}
                   script: |
@@ -145,7 +145,7 @@ jobs:
             - name: Install Ansible dependencies in containers
               uses: appleboy/ssh-action@v1.0.3
               with:
-                  host: ${{ secrets.PRODUCTION_TAILSCALE_IP }}
+                  host: ${{ secrets.PRODUCTION_HOST }}
                   username: ${{ secrets.PRODUCTION_USER }}
                   password: ${{ secrets.PRODUCTION_SSH_PASSWORD }}
                   script: |
