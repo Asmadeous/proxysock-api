@@ -373,7 +373,7 @@ module Api
 
         if order.save
           # Propagate to provisioned resource if applicable
-          if order.provisioned_resource&.respond_to?(:update!)
+          if order.provisioned_resource.respond_to?(:update!)
             resource_meta = order.provisioned_resource.metadata.to_h
             resource_meta['service_renewal_metadata'] ||= {}
             resource_meta['service_renewal_metadata']['auto_renew'] = order.metadata['auto_renew']
@@ -444,7 +444,7 @@ module Api
         order = order_scope.find(params[:id])
 
         unless order.failed?
-          return render json: { error: "Order is not in a failed state. You can only refund failed orders." }, status: :unprocessable_entity
+          return render json: { error: 'Order is not in a failed state. You can only refund failed orders.' }, status: :unprocessable_entity
         end
 
         is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
@@ -463,17 +463,17 @@ module Api
                 sender: current_reseller,
                 body: "Automated Refund Request: This order could not be automatically refunded because the external API has already processed it (Provider Order ID: #{order.provider_order_id}). Please investigate and process manually."
               )
-              
+
               NotificationService.notify_staff(
                 category: 'warning',
-                title: "Manual Refund Required",
+                title: 'Manual Refund Required',
                 message: "Reseller requested refund for processed external order ##{order.order_number}.",
                 metadata: { order_id: order.id, ticket_id: ticket.id }
               )
             end
 
-            return render json: { 
-              error: 'External provider processed this order before local failure. A high-priority support ticket has been created for manual admin review.' 
+            return render json: {
+              error: 'External provider processed this order before local failure. A high-priority support ticket has been created for manual admin review.'
             }, status: :unprocessable_entity
           rescue StandardError => e
             return render json: { error: "Failed to generate support ticket for refund: #{e.message}" }, status: :unprocessable_entity
@@ -497,13 +497,12 @@ module Api
 
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
 
+        metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
         if current_reseller.balance_based?
           # Re-create the order with original metadata (removing IDs)
-          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
           create_api_only_order(product, pricing, metadata)
         else
           # infrastructure: Return a checkout link for the same product
-          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
           create_infrastructure_order(product, pricing, metadata)
         end
       rescue StandardError => e
@@ -524,7 +523,7 @@ module Api
           quantity: order.quantity,
           total_amount: order.total_amount,
           status: order.status,
-          auto_renew: !!order.metadata.to_h['auto_renew'],
+          auto_renew: !order.metadata.to_h['auto_renew'].nil?,
           renewal_method: order.metadata.to_h['renewal_method'] || 'wallet',
           resource_status: resource&.status,
           # Conditional attributes based on resource availability
