@@ -391,7 +391,7 @@ export default function ResellersTab() {
             )}
 
             {/* Create Modal */}
-            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); }} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={createReseller.isLoading}>
+            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); setShowPassword(false); }} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={createReseller.isLoading}>
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
