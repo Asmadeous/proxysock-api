@@ -36,7 +36,7 @@ module Web
       test 'should fail if wallet balance insufficient' do
         # Create fresh user with low balance
         low_balance_user = User.create!(first_name: 'Low', last_name: 'Balance', username: 'low_balance',
-                                        email: 'low@test.com', password: 'password123')
+                                        email: 'low@test.com', password: 'password123', country_code: 'US', city: 'New York')
         wallet = low_balance_user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: low_balance_user,
                                                                                          wallet_type: 'main')
         txn = Transaction.create!(transactable: low_balance_user, reference: low_balance_user, amount: 5.0,

@@ -48,6 +48,8 @@ interface ProxyOrder {
   traffic_used?: number;
   traffic_limit?: number;
   subscription_active?: boolean;
+  auto_renew?: boolean;
+  renewal_method?: string;
 }
 
 interface ResidentialProxyAccount {
@@ -67,7 +69,7 @@ export default function ProxyManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'details' | 'credentials' | 'whitelist' | 'extend' | 'residential-account'>('details');
+  const [modalType, setModalType] = useState<'details' | 'credentials' | 'whitelist' | 'extend' | 'subscription' | 'residential-account'>('details');
   const [formData, setFormData] = useState<any>({});
 
   // Filters
@@ -106,7 +108,9 @@ export default function ProxyManagement() {
           created_at: order.created_at,
           traffic_used: order.proxy_details?.traffic_used,
           traffic_limit: order.bandwidth_gb,
-          subscription_active: order.status === 'completed'
+          subscription_active: order.status === 'completed',
+          auto_renew: order.auto_renew,
+          renewal_method: order.renewal_method
         }));
 
         setProxyOrders(transformedOrders);
@@ -368,12 +372,22 @@ export default function ProxyManagement() {
             <CogIcon className="h-4 w-4" />
           </button>
           {order.status === 'active' && (
-            <button
-              onClick={() => openModal('extend', order)}
-              className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
-            >
-              <ArrowPathIcon className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => openModal('extend', order)}
+                className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
+                title="Extend Manually"
+              >
+                <ArrowPathIcon className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => openModal('subscription', order)}
+                className="py-2 px-3 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <RotateIcon className="h-4 w-4" />
+                Subscription
+              </button>
+            </>
           )}
           {order.status === 'expired' && (
             <button
@@ -407,6 +421,7 @@ export default function ProxyManagement() {
                 {modalType === 'credentials' && 'Connection Credentials'}
                 {modalType === 'whitelist' && 'IP Whitelist Management'}
                 {modalType === 'extend' && 'Extend Subscription'}
+                {modalType === 'subscription' && 'Manage Auto-Renewal'}
                 {modalType === 'residential-account' && 'Residential Proxy Account'}
               </h3>
               <button
@@ -698,6 +713,96 @@ export default function ProxyManagement() {
                     className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 px-4 rounded-lg font-medium transition-colors"
                   >
                     Extend Subscription
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {modalType === 'subscription' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-semibold text-lg">Auto-Renew Status</h4>
+                      <p className="text-sm text-muted-foreground">Automatically renew this service using your preferred method</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const newState = !selectedOrder.auto_renew;
+                        try {
+                          await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { auto_renew: newState });
+                          toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
+                          setSelectedOrder({ ...selectedOrder, auto_renew: newState });
+                          fetchProxyData();
+                        } catch (e) {
+                          toast.error('Failed to update auto-renewal');
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${selectedOrder.auto_renew ? 'bg-primary' : 'bg-muted'
+                        }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${selectedOrder.auto_renew ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-semibold">Renewal Payment Method</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      {[
+                        { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
+                        { id: 'paystack', name: 'Saved Card (Paystack)', icon: KeyIcon },
+                        // { id: 'fastspring', name: 'FastSpring Subscription', icon: ShoppingCartIcon }
+                      ].map((method) => (
+                        <button
+                          key={method.id}
+                          onClick={async () => {
+                            try {
+                              await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { renewal_method: method.id });
+                              toast.success(`Payment method updated to ${method.name}`);
+                              setSelectedOrder({ ...selectedOrder, renewal_method: method.id });
+                              fetchProxyData();
+                            } catch (e) {
+                              toast.error('Failed to update payment method');
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${selectedOrder.renewal_method === method.id
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                            : 'border-border hover:bg-muted'
+                            }`}
+                        >
+                          <method.icon className="h-5 w-5 text-muted-foreground" />
+                          <div className="text-left">
+                            <p className="font-medium">{method.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {method.id === 'wallet' ? 'Debits your USD balance every month' : 'Uses securely saved payment token'}
+                            </p>
+                          </div>
+                          {selectedOrder.renewal_method === method.id && (
+                            <CheckCircleIcon className="h-5 w-5 text-primary ml-auto" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3">
+                  <ClockIcon className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-yellow-500/90">
+                    Next renewal attempt will be on <strong>{formatDate(selectedOrder.expires_at)}</strong>. 
+                    Ensure you have sufficient funds or a valid payment method.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="w-full py-3 px-4 rounded-xl bg-muted hover:bg-muted/80 font-medium transition-colors"
+                  >
+                    Close
                   </button>
                 </div>
               </div>

@@ -33,8 +33,8 @@ module Api
              params: { product_id: @vm_product.id },
              headers: auth_header(@reseller)
 
-        flunk "FAILED: #{response.body}" if response.status != 201
-        assert_response :created
+        flunk "FAILED: #{response.body}" if response.status != 202
+        assert_response :accepted
         assert_not_nil json_response['id']
       end
 

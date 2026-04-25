@@ -1,4 +1,6 @@
 import api from "./api";
+import adminApi from "./adminApi";
+import resellerApi from "./resellerApi";
 
 export interface Notification {
   id: number;
@@ -11,22 +13,47 @@ export interface Notification {
   created_at: string;
 }
 
+/**
+ * Helper to determine which API client and prefix to use based on location
+ */
+const getApiClient = () => {
+  const path = window.location.pathname;
+  const isAdmin = path.startsWith('/admin') || path.startsWith('/sadmin') || path.startsWith('/employee');
+  const isReseller = path.startsWith('/reseller');
+  
+  if (isAdmin) {
+    return { client: adminApi, prefix: "" };
+  }
+  
+  if (isReseller) {
+    return { client: resellerApi, prefix: "" };
+  }
+  
+  return { client: api, prefix: "/web/api" };
+};
+
+
 export const getNotifications = async (page = 1) => {
-  const response = await api.get("/web/api/notifications", { params: { page } });
+  const { client, prefix } = getApiClient();
+  const response = await client.get(`${prefix}/notifications`, { params: { page } });
   return response.data;
 };
 
 export const getUnreadCount = async () => {
-  const response = await api.get("/web/api/notifications/unread_count");
+  const { client, prefix } = getApiClient();
+  const response = await client.get(`${prefix}/notifications/unread_count`);
   return response.data.unread_count ?? 0;
 };
 
 export const markAsRead = async (id: number) => {
-  const response = await api.put(`/web/api/notifications/${id}/read`);
+  const { client, prefix } = getApiClient();
+  const response = await client.put(`${prefix}/notifications/${id}/read`);
   return response.data;
 };
 
 export const markAllAsRead = async () => {
-  const response = await api.put("/web/api/notifications/read_all");
+  const { client, prefix } = getApiClient();
+  const response = await client.put(`${prefix}/notifications/read_all`);
   return response.data;
 };
+

@@ -6,7 +6,7 @@ class CheckoutSession < ApplicationRecord
 
   include AASM
 
-  PAYMENT_METHODS = %w[wallet paystack plisio payvra hundredpay].freeze
+  PAYMENT_METHODS = %w[wallet paystack plisio payvra hundredpay fastspring].freeze
 
   validates :total_amount, presence: true, numericality: { greater_than: 0 }
   validates :payment_method, presence: true, inclusion: { in: PAYMENT_METHODS }
@@ -77,6 +77,11 @@ class CheckoutSession < ApplicationRecord
           if is_reseller && metadata['customer_email'].present?
             order_metadata['customer_email'] = metadata['customer_email']
             order_metadata['credentials_email'] = metadata['customer_email']
+          end
+
+          # Propagate gateway tokens for recurring billing
+          %w[paystack_auth_code fastspring_sub_id].each do |key|
+            order_metadata[key] = metadata[key] if metadata[key].present?
           end
 
           order = Order.create!(

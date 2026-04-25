@@ -40,7 +40,7 @@ module Web
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                          payvra hundredpay].include?(gateway)
+                                                                                          payvra hundredpay fastspring].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
@@ -133,6 +133,18 @@ module Web
           deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
           deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
+
+        when 'fastspring'
+          service = FastspringService.new
+          ref = deposit.metadata['transaction_ref']
+          product_path = service.create_dynamic_product(ref, amount, "Proxysock Deposit (#{ref})")
+          fs_session_id = service.create_session(current_actor.email, product_path, {
+            deposit_id: deposit.id,
+            reference: ref,
+            user_id: current_actor.id
+          })
+          store_url = ENV['FASTSPRING_STORE_URL'] || 'https://proxysock.onfastspring.com'
+          { url: "#{store_url.chomp('/')}/session/#{fs_session_id}", amount: amount, currency: 'USD' }
         end
       end
     end

@@ -11,11 +11,23 @@ import {
   Minus,
   Plus,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { getLocationDisplayName } from "@/hooks/useESIMPackages";
+import { useState } from "react";
 
 interface ItemDetailsProps {
   item: CartItem;
@@ -24,7 +36,60 @@ interface ItemDetailsProps {
   calculateItemTotalSync: (item: CartItem) => number;
   exchangeRate: number | null;
   updateESIMQuantity?: (index: number, quantity: number) => void;
+  updateItemAutoRenew?: (index: number, auto_renew: boolean) => void;
 }
+
+const AutoRenewToggle = ({ item, index, updateItemAutoRenew }: { item: CartItem, index: number, updateItemAutoRenew?: (index: number, auto_renew: boolean) => void }) => {
+    const [showWarning, setShowWarning] = useState(false);
+
+    const handleToggle = (checked: boolean) => {
+        if (checked) {
+            setShowWarning(true);
+        } else {
+            updateItemAutoRenew?.(index, false);
+        }
+    };
+
+    const confirmEnable = () => {
+        updateItemAutoRenew?.(index, true);
+        setShowWarning(false);
+    };
+
+    return (
+        <div className="mt-4 pt-4 border-t flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Checkbox
+                    id={`auto-renew-${index}`}
+                    checked={!!item.auto_renew}
+                    onCheckedChange={(checked) => handleToggle(checked as boolean)}
+                />
+                <Label
+                    htmlFor={`auto-renew-${index}`}
+                    className="text-sm font-medium cursor-pointer flex items-center gap-1.5"
+                >
+                    <RefreshCw className={`w-3.5 h-3.5 ${item.auto_renew ? "text-primary animate-spin-slow" : "text-muted-foreground"}`} />
+                    Auto-Renew Subscription
+                </Label>
+            </div>
+
+            <Dialog open={showWarning} onOpenChange={setShowWarning}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Enable Auto-Renewal?</DialogTitle>
+                        <DialogDescription className="pt-2">
+                            <p className="font-semibold text-foreground mb-2">Notice: You are about to enable a subscription for this service.</p>
+                            By enabling auto-renew, this product will be automatically renewed using your default payment method (Wallet Balance or Saved Card) upon expiry. You can cancel this at any time from your dashboard.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => setShowWarning(false)}>Cancel</Button>
+                        <Button onClick={confirmEnable}>I Understand, Enable</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+};
 
 const ProxyItemDetails = ({
   item,
@@ -32,6 +97,7 @@ const ProxyItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.plan) return null;
   const selectedCity = item.locations?.city;
@@ -121,6 +187,7 @@ const ProxyItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -133,6 +200,7 @@ const EsimItemDetails = ({
   calculateItemTotalSync,
   exchangeRate,
   updateESIMQuantity,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.esimPackage) return null;
   return (
@@ -224,6 +292,7 @@ const EsimItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -235,6 +304,7 @@ const ResidentialItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.plan) return null;
   const cfg = item.residentalRotatingConfig;
@@ -339,6 +409,7 @@ const ResidentialItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -350,6 +421,7 @@ const VpsItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.vpsPlan) return null;
   return (
@@ -427,6 +499,7 @@ const VpsItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -438,6 +511,7 @@ const RdpItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.rdpPlan) return null;
   return (
@@ -515,6 +589,7 @@ const RdpItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -527,6 +602,7 @@ const UsaEsimItemDetails = ({
   calculateItemTotalSync,
   exchangeRate,
   updateESIMQuantity,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.usaEsimPlan) return null;
   return (
@@ -617,6 +693,7 @@ const UsaEsimItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -628,6 +705,7 @@ const VpnItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
+  updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.vpnPlan) return null;
   const vpnCity = item.locations?.city;
@@ -705,6 +783,7 @@ const VpnItemDetails = ({
             </p>
           )}
         </div>
+        <AutoRenewToggle item={item} index={index} updateItemAutoRenew={updateItemAutoRenew} />
       </CardContent>
     </Card>
   );
@@ -717,6 +796,7 @@ export const RenderCartItemDetails = ({
   removeItem,
   exchangeRate,
   updateESIMQuantity,
+  updateItemAutoRenew,
 }: {
   item: CartItem;
   index: number;
@@ -724,6 +804,7 @@ export const RenderCartItemDetails = ({
   removeItem: (index: number) => void;
   exchangeRate: number | null;
   updateESIMQuantity: (index: number, quantity: number) => void;
+  updateItemAutoRenew: (index: number, auto_renew: boolean) => void;
 }) => {
   const { calculateItemTotalSync } = useCalculateOrderItems({
     cartItems,
@@ -736,6 +817,7 @@ export const RenderCartItemDetails = ({
     removeItem,
     calculateItemTotalSync,
     exchangeRate,
+    updateItemAutoRenew,
   };
 
   switch (item.productType) {

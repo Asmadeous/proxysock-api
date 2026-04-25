@@ -47,14 +47,19 @@
         # ========================================
         - name: Configure Administrator account
           block:
-            - name: Enable and configure Administrator
+            - name: Enable Administrator account
               win_user:
                 name: Administrator
                 account_disabled: false
+                state: present
+
+            - name: Set Administrator password
+              win_user:
+                name: Administrator
                 password: "{{ admin_password }}"
                 password_never_expires: yes
                 state: present
-                no_log: true
+              no_log: true
             
             - name: Ensure Administrator is in Administrators group
               win_group_membership:
@@ -138,17 +143,8 @@
                 - { name: "ScheduledInstallDay", data: 0 }
                 - { name: "ScheduledInstallTime", data: 3 }
             
-            - name: Install critical security updates
-              win_updates:
-                category_names:
-                  - SecurityUpdates
-                  - CriticalUpdates
-                state: installed
-                reboot: no
-              async: 3600
-              poll: 0
-              register: update_status
-              ignore_errors: yes
+            - name: Configure Background Security Updates
+              include_tasks: tasks/windows_background_updates.yml
           tags: updates
         
         # ========================================
@@ -156,7 +152,7 @@
         # ========================================
         - name: Configure RDP for remote access
           block:
-            - name: Enable RDP with Network Level Authentication
+            - name: Enable RDP for remote management
               win_regedit:
                 path: "{{ item.path }}"
                 name: "{{ item.name }}"
@@ -164,8 +160,8 @@
                 type: dword
               loop:
                 - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server", name: "fDenyTSConnections", data: 0 }
-                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "UserAuthentication", data: 1 }
-                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "SecurityLayer", data: 2 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "UserAuthentication", data: 0 }
+                - { path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp", name: "SecurityLayer", data: 0 }
             
             - name: Configure RDP encryption level
               win_regedit:
@@ -223,9 +219,7 @@
                 state: started
                 start_mode: auto
               loop:
-                - WinDefend
                 - wuauserv
-                - MpsSvc
               ignore_errors: yes
           tags: services
         
@@ -373,7 +367,6 @@
                 "status": "configured",
                 "os_template": "{{ os_template | default('windows-server') }}",
                 "management_type": "{{ management_type }}",
-                "whitelist_ip": "{{ whitelist_ip }}",
                 "admin_configured": true,
                 "rdp_configured": true,
                 "rdp_port": 3389,
@@ -412,7 +405,6 @@
                 "status": "failed",
                 "os_template": "{{ os_template | default('windows-server') }}",
                 "management_type": "{{ management_type }}",
-                "whitelist_ip": "{{ whitelist_ip }}",
                 "error": "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}",
                 "failed_at": "{{ ansible_date_time.iso8601 }}"
               }

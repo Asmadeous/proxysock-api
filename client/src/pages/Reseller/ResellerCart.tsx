@@ -143,6 +143,13 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));
     globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: updatedCart.length } }));
   };
+  const updateItemAutoRenew = (index: number, auto_renew: boolean) => {
+    const updatedCart = cartItems.map((item, i) =>
+      i === index ? { ...item, auto_renew } : item
+    );
+    setCartItems(updatedCart);
+    localStorage.setItem("cartItems", JSON.stringify(updatedCart));
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -230,6 +237,7 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
                     index={index}
                     cartItems={cartItems}
                     removeItem={removeItem}
+                    updateItemAutoRenew={updateItemAutoRenew}
                     exchangeRate={exchangeRate}
                     updateESIMQuantity={updateESIMQuantity}
                   />

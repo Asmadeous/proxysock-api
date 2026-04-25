@@ -68,7 +68,9 @@ module ActiveSupport
         username: "reseller_#{SecureRandom.hex(4)}",
         email: "reseller_#{SecureRandom.hex(4)}@test.com",
         password_digest: BCrypt::Password.create('password123'),
-        reseller_type: 'api_only'
+        reseller_type: 'api_only',
+        country_code: 'US',
+        city: 'New York'
       )
       wallet = reseller.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: reseller, wallet_type: 'main')
       if balance.positive?
@@ -93,7 +95,9 @@ module ActiveSupport
         last_name: 'User',
         username: "user_#{SecureRandom.hex(4)}",
         email: "user_#{SecureRandom.hex(4)}@test.com",
-        password_digest: BCrypt::Password.create('password123')
+        password_digest: BCrypt::Password.create('password123'),
+        country_code: 'US',
+        city: 'New York'
       )
       wallet = user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: user, wallet_type: 'main')
       if balance.positive?

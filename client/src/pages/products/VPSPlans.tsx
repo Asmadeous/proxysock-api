@@ -14,7 +14,8 @@ import {
   Shield,
   Star,
   Sparkles,
-  Flame
+  Flame,
+  Loader2
 } from "lucide-react";
 import { conversionTracker } from "@/utils/redditPixel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,10 +70,17 @@ interface OSMetadata {
   description: string;
 }
 
-export default function VPSPlans() {
+interface VPSPlansProps {
+  country?: string;
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function VPSPlans({ country, onBack, isDirectBuy, onDirectBuy }: VPSPlansProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const countryParam = searchParams.get("country") || "";
+  const countryParam = country || searchParams.get("country") || "";
 
   const [plans, setPlans] = useState<VPSPlan[]>([]);
   const [managementOptions, setManagementOptions] = useState<ManagementOption[]>([]);
@@ -84,6 +92,7 @@ export default function VPSPlans() {
   const [selectedManagement, setSelectedManagement] = useState("unmanaged");
   const [selectedCountry, setSelectedCountry] = useState(countryParam);
   const [showModal, setShowModal] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState(false);
 
   const { data: plansData = [], isLoading, error: queryError } = useQuery(
     ['vpsPlans'],
@@ -229,13 +238,28 @@ export default function VPSPlans() {
 
   const handleAddToCart = async () => {
     if (!selectedPlan || !selectedOS || !selectedCountry) {
-      // alert("Please select a location and operating system");
       toast.info("Please select a location and operating system")
-
       return;
     }
 
     const hostname = `vps-${Math.random().toString(36).substring(2, 8)}`;
+
+    if (isDirectBuy && onDirectBuy) {
+        setIsProvisioning(true);
+        try {
+            await onDirectBuy(selectedPlan.id, 1, {
+                os_template: selectedOS,
+                country_code: selectedCountry,
+                management_type: selectedManagement,
+                hostname,
+                period: selectedDuration
+            });
+            setShowModal(false);
+        } finally {
+            setIsProvisioning(false);
+        }
+        return;
+    }
 
     const cartItem = {
       vpsPlan: selectedPlan,
@@ -397,8 +421,8 @@ export default function VPSPlans() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Button variant="ghost" onClick={() => navigate('/dashboard/vps-plans')} className="mb-2 -ml-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to VPS Types
+          <Button variant="ghost" onClick={() => onBack ? onBack() : navigate('/dashboard/vps-plans')} className="mb-2 -ml-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> {onBack ? 'Back to Store' : 'Back to VPS Types'}
           </Button>
           <div className="flex items-center gap-3">
             <Cpu className="w-8 h-8 text-primary" />
@@ -698,15 +722,18 @@ export default function VPSPlans() {
               {/* Action Buttons */}
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">
-                  Cancel
+                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type === "infrastructure" ? "Close" : "Cancel"}
                 </Button>
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={!selectedOS || !selectedCountry}
-                  className="flex-1 gap-2"
-                >
-                  <ShoppingCart className="h-4 w-4" /> Add to Cart
-                </Button>
+                {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                    <Button
+                    onClick={handleAddToCart}
+                    disabled={!selectedOS || !selectedCountry || isProvisioning}
+                    className="flex-1 gap-2"
+                    >
+                    {isProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : isDirectBuy ? <Zap className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                    {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                    </Button>
+                )}
               </div>
             </div>
           )}

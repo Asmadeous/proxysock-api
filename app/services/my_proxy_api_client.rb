@@ -305,6 +305,30 @@ class MyProxyApiClient
     []
   end
 
+  # ==========================================================================
+  # Reseller User ID (static from .env)
+  # ==========================================================================
+
+  RESELLER_USER_ID = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '').freeze
+
+  # Returns the single reseller user ID configured in .env.
+  # All orders are placed under this master reseller account.
+  # @return [String] the MyProxyApi reseller user ID
+  def reseller_user_id
+    raise 'MY_PROXY_RESELLER_USER_ID is not set in .env' if RESELLER_USER_ID.blank?
+
+    RESELLER_USER_ID
+  end
+
+  # ---- Deprecated dynamic sub-user creation (kept for reference) -----------
+  # The MyProxyApi create-user endpoint is not supported for our products.
+  # All orders now use the static RESELLER_USER_ID from .env.
+  #
+  # def fetch_invoice_countries ...
+  # def create_user(actor, ip_address) ...
+  # def get_or_create_user(actor, ip_address) ...
+  # --------------------------------------------------------------------------
+
   private
 
   # The per-category endpoints return:

@@ -7,11 +7,12 @@ import {
     EyeSlashIcon,
     XCircleIcon
 } from "@heroicons/react/24/outline";
-import { fetchResellerVms } from "@/services/resellerApi";
+import resellerApi, { fetchResellerVms } from "@/services/resellerApi";
 import { startVm, stopVm, rebootVm } from "@/services/api";
 import { toast } from "react-hot-toast";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 
 interface RDPInstance {
     id: string | number;
@@ -28,6 +29,9 @@ interface RDPInstance {
     rdp_port: number;
     expires_at: string;
     plan_name?: string;
+    order_id?: string | number;
+    auto_renew?: boolean;
+    renewal_method?: string;
 }
 
 export default function ResRDPManagement() {
@@ -35,6 +39,7 @@ export default function ResRDPManagement() {
     const [loading, setLoading] = useState(true);
     const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
     const [_refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
+    const [subscriptionRdp, setSubscriptionRdp] = useState<RDPInstance | null>(null);
 
     useEffect(() => {
         loadInstances();
@@ -133,14 +138,31 @@ export default function ResRDPManagement() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <button onClick={() => handleAction(rdp.id, 'start')} className="p-2 rounded-lg bg-green-500/10 text-green-500"><ArrowPathIcon className="w-4 h-4 mx-auto" /></button>
                             <button onClick={() => handleAction(rdp.id, 'stop')} className="p-2 rounded-lg bg-red-500/10 text-red-500"><XCircleIcon className="w-4 h-4 mx-auto" /></button>
                             <button onClick={() => handleAction(rdp.id, 'reboot')} className="p-2 rounded-lg bg-blue-500/10 text-blue-500"><ArrowPathIcon className="w-4 h-4 mx-auto" /></button>
+                            {rdp.order_id && (
+                                <button onClick={() => setSubscriptionRdp(rdp)} className="p-2 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20">
+                                    <ArrowPathIcon className="w-4 h-4 mx-auto" />
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 ))}
             </div>
+
+            <ManageSubscriptionModal
+                isOpen={!!subscriptionRdp}
+                onClose={() => setSubscriptionRdp(null)}
+                orderId={subscriptionRdp?.order_id || ''}
+                autoRenew={!!subscriptionRdp?.auto_renew}
+                renewalMethod={subscriptionRdp?.renewal_method || 'wallet'}
+                expiresAt={subscriptionRdp?.expires_at || ''}
+                onUpdate={loadInstances}
+                api={resellerApi}
+                apiPrefix=""
+            />
         </div>
     );
 }

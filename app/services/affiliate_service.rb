@@ -73,23 +73,54 @@ class AffiliateService
   def self.record_commission!(order)
     return if halted?
 
-    entity   = order.orderable
-    referral = entity.affiliate_referrals.pending.first
-    return unless referral
+    entity = order.orderable
+    
+    # 1. Did the user manually enter an affiliate code at checkout?
+    explicit_code = order.metadata&.dig('promo_code')
+    explicit_affiliate = nil
+    if explicit_code.present?
+      explicit_affiliate = Affiliate.active.find_by('UPPER(referral_code) = ?', explicit_code.upcase)
+    end
 
-    pricing = order.product_pricing
-    api_cost = pricing.api_price.to_f * order.quantity
-    profit = order.total_amount - api_cost
-    commission = [0, profit / 2.0].max.round(2)
+    # 2. Does the user have a pending signup referral?
+    pending_referral = entity.respond_to?(:affiliate_referrals) ? entity.affiliate_referrals.pending.first : nil
 
-    referral.update!(commission_amount: commission)
-    referral.convert!(order)
+    # Prioritize explicitly entered code at checkout, fallback to signup referral
+    affiliate = explicit_affiliate || pending_referral&.affiliate
+    return unless affiliate
 
-    # Credit earnings wallet
-    owner = referral.affiliate.affiliatable
-    wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
+    # Calculate commission based on the affiliate's exact commission_rate percentage
+    rate = affiliate.commission_rate.to_f / 100.0
+    commission = (order.total_amount * rate).round(2)
 
-    wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
+    # Process Referral Record
+    if pending_referral && pending_referral.affiliate_id == affiliate.id
+      # We are converting the implicitly tracked signup referral
+      pending_referral.update!(commission_amount: commission)
+      pending_referral.convert!(order)
+    else
+      # User explicitly typed an affiliate code at checkout (or it's the 2nd time).
+      # Create a new direct converted referral so the affiliate gets paid for this order.
+      AffiliateReferral.create!(
+        affiliate:       affiliate,
+        referred:        entity,
+        order:           order,
+        status:          'converted',
+        converted_at:    Time.current,
+        commission_amount: commission,
+        referee_discount_applied: order.metadata&.dig('promo_discount').to_f
+      )
+      affiliate.increment!(:total_earned, commission)
+    end
+
+    # Credit earnings wallet (only for linked affiliates with a platform account)
+    owner = affiliate.affiliatable
+    if owner.present?
+      wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
+      wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
+    end
+    # For standalone affiliates, the commission is tracked in total_earned
+    # and paid out manually via the admin payout flow
   end
 
   # ─────────────────────────────────────
@@ -97,64 +128,78 @@ class AffiliateService
   # ─────────────────────────────────────
 
   # Request a payout for the current entity's affiliate account.
+  # Crypto payouts are dispatched automatically; non-crypto go to admin for manual processing.
   def request_payout!(amount:, method: 'wallet', details: {})
     affiliate = @entity.affiliate
     raise 'Not enrolled in affiliate program' unless affiliate
-    raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
 
-    AffiliatePayout.create!(
-      affiliate: affiliate,
-      amount: amount,
-      payment_method: method,
-      payment_details: details,
-      status: 'pending'
-    )
-  end
+    payout = nil
+    affiliate.with_lock do
+      raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
 
-  # Transfer balance from earnings wallet to main wallet
-  def transfer_to_main_wallet!(amount)
-    main_wallet = @entity.main_wallet || @entity.create_main_wallet!(wallet_type: 'main')
-    earnings_wallet = @entity.earnings_wallet
+      # Wallet payouts are instant internal transfers
+      if method == 'wallet'
+        owner = affiliate.affiliatable
+        raise 'Standalone affiliates cannot payout to internal wallet' unless owner
 
-    raise 'No earnings wallet found' unless earnings_wallet
-    raise InsufficientBalanceError, 'Insufficient earnings balance' if earnings_wallet.balance < amount
+        payout = AffiliatePayout.create!(
+          affiliate: affiliate,
+          amount: amount,
+          payment_method: 'wallet',
+          payment_details: details,
+          status: 'processing'
+        )
 
-    ActiveRecord::Base.transaction do
-      earnings_wallet.debit!(amount, 'Transfer to main wallet', { target: 'main_wallet' })
-      main_wallet.credit!(amount, 'Transfer from earnings wallet', { source: 'earnings_wallet' })
-    end
-  end
-
-  # Admin: process a pending payout.
-  def self.process_payout!(payout)
-    raise 'Payout already processed' unless payout.status == 'pending'
-
-    payout.update!(status: 'processing')
-
-    begin
-      case payout.payment_method
-      when 'wallet'
-        wallet = payout.affiliate.affiliatable.main_wallet || payout.affiliate.affiliatable.create_main_wallet!(wallet_type: 'main')
-        wallet.credit!(payout.amount, "Affiliate payout ##{payout.id}")
+        wallet = owner.main_wallet || owner.create_main_wallet!(wallet_type: 'main')
+        wallet.credit!(amount, "Affiliate payout ##{payout.id}")
         payout.mark_paid!
-      when 'bank_transfer'
-        # Integration with Paystack Transfer
-        # PaystackService.new.initiate_transfer(payout)
-        payout.update!(status: 'processing', metadata: { gateway: 'paystack' })
-        # For now, mark as paid if mock or automated
-        payout.mark_paid!
-      when 'crypto'
-        # Integration with Plisio or Payvra
-        # PlisioService.new.withdraw(payout)
-        payout.update!(status: 'processing', metadata: { gateway: 'plisio' })
-        payout.mark_paid!
-      else
-        raise "Unsupported payout method: #{payout.payment_method}"
+        return payout
       end
-    rescue StandardError => e
-      payout.update!(status: 'failed', metadata: { error: e.message })
-      raise e
+
+      # Crypto payouts are auto-dispatched
+      if method == 'crypto'
+        address = details['crypto_address']
+        currency = details['crypto_currency'] || 'USDT'
+        raise 'Missing crypto_address in payment details' if address.blank?
+
+        payout = AffiliatePayout.create!(
+          affiliate: affiliate,
+          amount: amount,
+          payment_method: 'crypto',
+          payment_details: details,
+          status: 'processing'
+        )
+
+        begin
+          PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
+          payout.update!(metadata: { gateway: 'plisio' })
+          payout.mark_paid!
+        rescue StandardError => e
+          payout.update!(status: 'failed', metadata: { error: e.message })
+          raise e
+        end
+
+        return payout
+      end
+
+      # All other methods (manual) → create pending payout and notify admin
+      payout = AffiliatePayout.create!(
+        affiliate: affiliate,
+        amount: amount,
+        payment_method: method.presence || 'manual',
+        payment_details: details,
+        status: 'pending'
+      )
+
+      # Notify admin for manual processing
+      begin
+        AdminMailer.affiliate_payout_request(payout).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("Failed to notify admin for affiliate payout #{payout.id}: #{e.message}")
+      end
     end
+
+    payout
   end
 
   private

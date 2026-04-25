@@ -10,7 +10,10 @@ class WebhooksController < ApplicationController
     return head :bad_request unless Rack::Utils.secure_compare(expected, signature.to_s)
 
     event = JSON.parse(payload)
-    handle_payment(event['data'], 'paystack') if event['event'] == 'charge.success'
+    if event['event'] == 'charge.success'
+      # Pass full data to handle_payment to allow token extraction
+      handle_payment(event['data'], 'paystack') 
+    end
     head :ok
   end
 
@@ -112,6 +115,52 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
+  def fastspring
+    payload = request.raw_post
+    signature = request.headers['X-FS-Signature']
+    secret = ENV['FASTSPRING_WEBHOOK_SECRET']
+
+    if secret.present? && signature.present?
+      expected = Base64.strict_encode64(OpenSSL::HMAC.digest('sha256', secret, payload))
+      unless Rack::Utils.secure_compare(expected, signature)
+        Rails.logger.warn('[Webhook] FastSpring signature mismatch — rejecting')
+        return head :unauthorized
+      end
+    end
+
+    data = JSON.parse(payload) rescue {}
+    events = data['events'] || []
+
+    events.each do |event|
+      if event['type'] == 'order.completed'
+        fs_data = event['data']
+        # Extract tags from the session/order if present
+        metadata = fs_data['tags'] || {}
+        
+        # Determine reference from tags or product path (e.g. checkout-xyz)
+        reference = metadata['reference']
+        if reference.nil? && fs_data['items'].present?
+          product_path = fs_data['items'].first['product'].to_s
+          if product_path.start_with?('checkout-')
+            reference = product_path.sub('checkout-', '').upcase
+          end
+        end
+
+        payment_data = {
+          'reference' => reference,
+          'amount' => fs_data['total'],
+          'currency' => fs_data['currency'],
+          'metadata' => metadata.merge('fastspring_order_id' => fs_data['order']),
+          'raw_data' => fs_data # Pass raw data to handle_payment for token extraction
+        }
+
+        handle_payment(payment_data, 'fastspring')
+      end
+    end
+
+    head :ok
+  end
+
   private
 
   def handle_payment(data, gateway)
@@ -196,13 +245,25 @@ class WebhooksController < ApplicationController
     order&.update(status: 'failed')
   end
 
-  def handle_checkout_session(reference, _data, gateway, _metadata)
+  def handle_checkout_session(reference, data, gateway, _metadata)
     session = CheckoutSession.find_by(gateway_reference: reference)
     return unless session&.pending?
 
     Rails.logger.info("[Webhook] Processing checkout session #{session.id} via #{gateway}")
 
     ActiveRecord::Base.transaction do
+      # Capture gateway tokens for recurring billing
+      if gateway == 'paystack'
+        auth_code = data.dig('authorization', 'authorization_code')
+        session.metadata['paystack_auth_code'] = auth_code if auth_code
+      elsif gateway == 'fastspring'
+        # Extract subscription ID from the first item if available
+        # Webhook 'order.completed' data structure: data -> items -> [ { subscription: "..." }, ... ]
+        raw_fs = data['raw_data'] || data
+        sub_id = raw_fs.dig('items', 0, 'subscription')
+        session.metadata['fastspring_sub_id'] = sub_id if sub_id
+      end
+
       session.mark_paid!
 
       Transaction.create!(

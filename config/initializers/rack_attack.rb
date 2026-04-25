@@ -6,9 +6,19 @@ module Rack
   class Attack
     ### Throttle Spammy Clients ###
 
-    # General API: 60 requests per minute per IP
+    # Reseller API (V1): 60 requests per minute per IP
     throttle('api/ip', limit: 60, period: 60) do |req|
       req.ip if req.path.start_with?('/api/')
+    end
+
+    # Web Dashboard API: 100 requests per minute per IP
+    throttle('web_api/ip', limit: 100, period: 60) do |req|
+      req.ip if req.path.start_with?('/web/api/')
+    end
+
+    # Admin Management API: 100 requests per minute per IP
+    throttle('admin_api/ip', limit: 100, period: 60) do |req|
+      req.ip if req.path.start_with?('/admin/api/')
     end
 
     # Webhooks: 30 requests per minute per IP (payment callbacks)
@@ -16,25 +26,36 @@ module Rack
       req.ip if req.path.start_with?('/webhooks/')
     end
 
-    # Auth endpoints: 5 attempts per 20 seconds per IP (login brute-force protection)
-    throttle('auth/ip', limit: 5, period: 20) do |req|
-      req.ip if req.path.include?('/auth/login') && req.post?
+    # Authenticated logins (Brute-force protection)
+    # 5 attempts per 5 minutes per IP
+    throttle('login/ip/hardened', limit: 5, period: 300) do |req|
+      if req.post? && (req.path.include?('/auth/login') || req.path == '/admin/api/auth/login')
+        req.ip
+      end
     end
 
-    # Admin login: 5 attempts per minute per IP
-    throttle('admin_auth/ip', limit: 5, period: 60) do |req|
-      req.ip if req.path == '/admin/api/auth/login' && req.post?
+    # Checkout/Orders: 10 per minute per IP/Token
+    throttle('checkout/action', limit: 10, period: 60) do |req|
+      if (req.path.include?('/checkout') || req.path.include?('/checkout_cart')) && req.post?
+        req.env['HTTP_AUTHORIZATION']&.gsub('Bearer ', '') || req.ip
+      end
     end
 
-    # Checkout/Orders: 10 per minute per user token
-    throttle('checkout/token', limit: 10, period: 60) do |req|
-      req.env['HTTP_AUTHORIZATION']&.gsub('Bearer ', '') if req.path.include?('/checkout') && req.post?
+    # Resource Heavy Endpoints: 10 per minute per IP
+    # Prevents scraping of documents or intensive tools
+    throttle('heavy_resources/ip', limit: 10, period: 60) do |req|
+      if req.path.end_with?('/download_invoice') || 
+         req.path.end_with?('/download_ovpn') || 
+         req.path.end_with?('/download_rdp_config') ||
+         req.path.include?('/tools/ip_checker')
+        req.ip
+      end
     end
 
-    # VM operations: 5 per minute per user
-    throttle('vm_ops/token', limit: 5, period: 60) do |req|
-      if req.path.start_with?('/web/api/vms') && (req.post? || req.put? || req.patch?)
-        req.env['HTTP_AUTHORIZATION']&.gsub('Bearer ', '')
+    # VM operations: 5 per minute per user/IP
+    throttle('vm_ops/action', limit: 5, period: 60) do |req|
+      if req.path.include?('/vms/') && (req.post? || req.put? || req.patch? || req.delete?)
+        req.env['HTTP_AUTHORIZATION']&.gsub('Bearer ', '') || req.ip
       end
     end
 
@@ -44,9 +65,9 @@ module Rack
     end
 
     ### Blocklist Repeat Offenders ###
-    # Block IP if throttled 5+ times in 5 minutes
+    # Block IP if throttled 10+ times in 5 minutes
     blocklist('fail2ban/aggressive') do |req|
-      Rack::Attack::Allow2Ban.filter(req.ip, maxretry: 5, findtime: 300, bantime: 3600) do
+      Rack::Attack::Allow2Ban.filter(req.ip, maxretry: 10, findtime: 300, bantime: 3600) do
         false # Only triggered when other throttles trigger
       end
     end

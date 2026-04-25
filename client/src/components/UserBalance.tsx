@@ -21,7 +21,7 @@ interface BalanceProps {
   variant?: "default" | "sidebar";
 }
 
-type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_payvra' | 'crypto_hundredpay';
+type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_payvra' | 'crypto_hundredpay' | 'fastspring';
 
 const PaymentMethodCard = ({
   title,
@@ -247,6 +247,16 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     colorClass="cyan"
                     loading={loading}
                   />
+{/* <PaymentMethodCard
+                    id="fastspring"
+                    title="Pay with Card (FastSpring)"
+                    description="Global Cards, PayPal & More"
+                    icon={CreditCard}
+                    isSelected={paymentMethod === 'fastspring'}
+                    onClick={() => setPaymentMethod('fastspring')}
+                    colorClass="blue"
+                    loading={loading}
+                  /> */}
                   <PaymentMethodCard
                     id="crypto_hundredpay"
                     title="100Pay (Card & Crypto)"

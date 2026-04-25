@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 
 import api from "../../services/api";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 interface VPNOrder {
     id: string;
     order_number: string;
@@ -52,6 +53,8 @@ interface VPNOrder {
     };
     traffic_used?: number;
     traffic_limit?: number;
+    auto_renew?: boolean;
+    renewal_method?: string;
 }
 
 export default function VPNManagement() {
@@ -60,6 +63,7 @@ export default function VPNManagement() {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<VPNOrder | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
     const { user, accessToken } = useAuth();
 
     useEffect(() => {
@@ -89,6 +93,8 @@ export default function VPNManagement() {
                         credentials: order.credentials || {},
                         traffic_used: order.vpn_details?.traffic_used || 0,
                         traffic_limit: Number(order.bandwidth_gb) || 0,
+                        auto_renew: order.auto_renew,
+                        renewal_method: order.renewal_method,
                     }));
 
                 // Filter based on active tab
@@ -225,23 +231,37 @@ export default function VPNManagement() {
                         )}
                     </div>
 
-                    <div className="flex gap-2">
-                        <Button
-                            className="flex-1 gap-2"
-                            onClick={() => openDetails(order)}
-                        >
-                            <Eye className="h-4 w-4" /> Manage
-                        </Button>
-                        {order.status === "expired" && (
-                            <Button
-                                className="flex-1 gap-2"
-                                variant="outline"
-                                onClick={() => handleReorder(order.id)}
-                            >
-                                <ShoppingCart className="h-4 w-4" /> Reorder
-                            </Button>
-                        )}
-                    </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <Button
+                                    className="flex-1 gap-2"
+                                    onClick={() => openDetails(order)}
+                                >
+                                    <Eye className="h-4 w-4" /> Manage
+                                </Button>
+                                {order.status === "active" && (
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1 gap-2"
+                                        onClick={() => {
+                                            setSelectedOrder(order);
+                                            setIsSubscriptionOpen(true);
+                                        }}
+                                    >
+                                        <Clock className="h-4 w-4" /> Auto-Renew
+                                    </Button>
+                                )}
+                            </div>
+                            {order.status === "expired" && (
+                                <Button
+                                    className="w-full gap-2"
+                                    variant="outline"
+                                    onClick={() => handleReorder(order.id)}
+                                >
+                                    <ShoppingCart className="h-4 w-4" /> Reorder
+                                </Button>
+                            )}
+                        </div>
                 </CardContent>
             </Card>
         </motion.div>
@@ -448,6 +468,16 @@ export default function VPNManagement() {
                     )}
                 </DialogContent>
             </Dialog>
+            <ManageSubscriptionModal
+                isOpen={isSubscriptionOpen}
+                onClose={() => setIsSubscriptionOpen(false)}
+                orderId={selectedOrder?.id || ''}
+                autoRenew={!!selectedOrder?.auto_renew}
+                renewalMethod={selectedOrder?.renewal_method || 'wallet'}
+                expiresAt={selectedOrder?.expires_at || ''}
+                onUpdate={fetchVPNData}
+                api={api}
+            />
         </div>
     );
 }

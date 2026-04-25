@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, memo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Wifi,
@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Package,
   ArrowLeft,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import {
   useESIMPackages,
@@ -44,12 +46,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface CartItem {
-  esimPackage?: ESIMPackage | null;
-  quantity?: number;
-  productType: "esim";
-}
 
 const ITEMS_PER_PAGE = 12;
 
@@ -111,7 +107,15 @@ const ESIMCardSkeleton = () => (
   </Card>
 );
 
-function ESIMPackagesPageContent() {
+function ESIMPackagesPageContent({ 
+  onBack, 
+  isDirectBuy, 
+  onDirectBuy 
+}: { 
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const [selectedLocation, setSelectedLocation] = useState("all");
@@ -120,7 +124,8 @@ function ESIMPackagesPageContent() {
   const [dataType, setDataType] = useState<number | undefined>(undefined);
   const [packageScope, setPackageScope] = useState<PackageScope | "">("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<Array<{ esimPackage: ESIMPackage; quantity: number }>>([]);
+  const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
   const filters = useMemo(
@@ -183,7 +188,17 @@ function ESIMPackagesPageContent() {
     return () => globalThis.removeEventListener("cart-updated", handleCartUpdate);
   }, []);
 
-  const addToCart = (pkg: ESIMPackage) => {
+  const addToCart = async (pkg: ESIMPackage) => {
+    if (isDirectBuy && onDirectBuy) {
+        setProvisioningPkgId(pkg.id);
+        try {
+            await onDirectBuy(pkg.id, 1, {});
+        } finally {
+            setProvisioningPkgId(null);
+        }
+        return;
+    }
+
     const storedCart = localStorage.getItem("cartItems");
     let currentCart = [];
 
@@ -370,7 +385,7 @@ function ESIMPackagesPageContent() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => globalThis.history.back()}
+            onClick={() => onBack ? onBack() : globalThis.history.back()}
               className="p-2"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -562,7 +577,7 @@ function ESIMPackagesPageContent() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => globalThis.history.back()}
+            onClick={() => onBack ? onBack() : globalThis.history.back()}
             className="p-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -838,60 +853,63 @@ function ESIMPackagesPageContent() {
                       </CardContent>
                     </Card>
 
-                    {inCart ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg border border-primary/30">
-                          <Button
-                            onClick={() =>
-                              updateQuantity(
-                                pkg.id,
-                                (cartItem?.quantity || 1) - 1,
-                              )
-                            }
-                            variant="default"
-                            size="sm"
-                            className="h-9 w-9 p-0"
-                          >
-                            −
-                          </Button>
-                          <div className="flex-1 text-center">
-                            <span className="text-lg font-bold">
-                              {cartItem?.quantity || 0}
-                            </span>
-                            <div className="text-primary text-xs font-medium">
-                              in cart
+                    {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                        inCart ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg border border-primary/30">
+                                <Button
+                                  onClick={() =>
+                                    updateQuantity(
+                                      pkg.id,
+                                      (cartItem?.quantity || 1) - 1,
+                                    )
+                                  }
+                                  variant="default"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                >
+                                  −
+                                </Button>
+                                <div className="flex-1 text-center">
+                                  <span className="text-lg font-bold">
+                                    {cartItem?.quantity || 0}
+                                  </span>
+                                  <div className="text-primary text-xs font-medium">
+                                    in cart
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() =>
+                                    updateQuantity(
+                                      pkg.id,
+                                      (cartItem?.quantity || 0) + 1,
+                                    )
+                                  }
+                                  variant="default"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                >
+                                  +
+                                </Button>
+                              </div>
+                              <Button
+                                onClick={() => removeFromCart(pkg.id)}
+                                variant="destructive"
+                                className="w-full"
+                              >
+                                Remove from Cart
+                              </Button>
                             </div>
-                          </div>
-                          <Button
-                            onClick={() =>
-                              updateQuantity(
-                                pkg.id,
-                                (cartItem?.quantity || 0) + 1,
-                              )
-                            }
-                            variant="default"
-                            size="sm"
-                            className="h-9 w-9 p-0"
-                          >
-                            +
-                          </Button>
-                        </div>
-                        <Button
-                          onClick={() => removeFromCart(pkg.id)}
-                          variant="destructive"
-                          className="w-full"
-                        >
-                          Remove from Cart
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => addToCart(pkg)}
-                        className="w-full gap-2"
-                      >
-                        <ShoppingCart className="h-5 w-5" />
-                        Add to Cart
-                      </Button>
+                          ) : (
+                            <Button
+                              onClick={() => addToCart(pkg)}
+                              disabled={provisioningPkgId === pkg.id}
+                              className="w-full gap-2"
+                            >
+                              {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                              {provisioningPkgId === pkg.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                            </Button>
+                          )
                     )}
                   </CardContent>
                 </Card>
@@ -910,10 +928,16 @@ function ESIMPackagesPageContent() {
   );
 }
 
-export default memo(function ESIMPackagesPage() {
+interface ESIMPackagesProps {
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function ESIMPackages({ onBack, isDirectBuy, onDirectBuy }: ESIMPackagesProps = {}) {
   return (
     <ErrorBoundary FallbackComponent={FallbackComponent}>
-      <ESIMPackagesPageContent />
+      <ESIMPackagesPageContent onBack={onBack} isDirectBuy={isDirectBuy} onDirectBuy={onDirectBuy} />
     </ErrorBoundary>
   );
-});
+}

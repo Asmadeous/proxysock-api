@@ -17,18 +17,19 @@ class HundredpayService
 
     response = request(:post, '/pay/charge', {
                          ref_id: internal_ref,
+                         userId: @user_id,
                          customer: {
-                           user_id: order_number, # Section 4: Unique ID of the customer
+                           user_id: order_number,
                            name: email || 'Customer',
                            email: email || '',
                            phone: phone.presence || '+11111111111'
                          },
                          billing: {
-                           amount: amount.to_f, # Section 5: amount (number)
+                           amount: amount.to_s,
                            currency: currency || 'USD',
                            country: country.presence || 'US',
                            description: description || "Payment for Order #{order_number}",
-                           pricing_type: 'fixed' # Section 4: 'fixed' or 'variable'
+                           pricing_type: 'fixed_or_partial_price'
                          },
                          metadata: {
                            order_id: order_number,

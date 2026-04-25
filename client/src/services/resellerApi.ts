@@ -110,6 +110,8 @@ export const sendSupportMessage = (message: string) =>
 // ── Order Actions ─────────────────────────────────
 export const cancelResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/cancel`);
+export const refundResellerOrder = (id: string) =>
+    resellerApi.post(`/orders/${id}/refund`);
 export const fetchOrderCredentials = (id: string) =>
     resellerApi.get(`/orders/${id}/credentials`);
 export const updateProxyCredentials = (id: string, data: { username?: string; password?: string }) =>
@@ -134,5 +136,19 @@ export const deleteResellerWebhook = (id: string) =>
     resellerApi.delete(`/webhook_endpoints/${id}`);
 export const verifyResellerWebhook = (id: string) =>
     resellerApi.post(`/webhook_endpoints/${id}/verify`);
+
+// ── User Management (Managed Users) ───────────────
+export const fetchResellerUsers = (params?: Record<string, string>) =>
+    resellerApi.get("/users", { params });
+export const createResellerUser = (data: Record<string, unknown>) =>
+    resellerApi.post("/users", { user: data, password: data.password });
+export const updateResellerUser = (id: number | string, data: Record<string, unknown>) =>
+    resellerApi.patch(`/users/${id}`, { user: data });
+export const deleteResellerUser = (id: number | string) =>
+    resellerApi.delete(`/users/${id}`);
+export const fetchResellerUserOrders = (id: number | string, params?: Record<string, string>) =>
+    resellerApi.get(`/users/${id}/orders`, { params });
+export const fetchResellerUserTransactions = (id: number | string, params?: Record<string, string>) =>
+    resellerApi.get(`/users/${id}/transactions`, { params });
 
 export default resellerApi;

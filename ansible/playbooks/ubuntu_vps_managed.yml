@@ -2,6 +2,7 @@
 - name: Configure Ubuntu VPS MANAGED
   hosts: linux
   become: yes
+  gather_facts: no
 
   pre_tasks:
     - name: Ensure root_password is defined
@@ -9,142 +10,99 @@
         msg: "root_password must be defined for security reasons."
       when: root_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
+    new_user: "{{ hostname | default('vps-user') }}"
     new_root_password: "{{ root_password }}"
-    api_url: "{{ api_url | default('http://localhost:5000') }}"
-    proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
-    no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
-    proxy_username: "{{ proxy_config.proxy_username | default('') }}"
-    proxy_password: "{{ proxy_config.proxy_password | default('') }}"
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
+    node_exporter_port: 59100
+
   tasks:
     - block:
-        - name: Verify basic connectivity
-          ping:
-          register: connectivity_check
+        - name: Establish SSH connection with extended wait
+          wait_for_connection:
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
-        - name: Gather system facts after connectivity verified
+        - name: Gather facts after connectivity verified
           setup:
-
-        - name: Install proxychains
-          apt:
-            name: proxychains4
-            state: present
-          when: proxy_config is defined
-
-        - name: Configure proxychains
-          copy:
-            content: |
-              # proxychains.conf  VER 4.x
-              #
-              #        HTTP, SOCKS4a, SOCKS5 tunneling proxifier with DNS.
-              #
-
-              # The option below identifies how the ProxyList is treated.
-              # only one option should be uncommented at time,
-              # otherwise the last appearing option will be accepted
-              #
-              #dynamic_chain
-              #
-              # Dynamic - Each connection will be done via chained proxies
-              # all proxies chained in the order as they appear in the list
-              # at least one proxy must be online to play in chain
-              # (dead proxies are skipped)
-              # otherwise EINTR is returned to the app
-              #
-              strict_chain
-              #
-              # Strict - Each connection will be done via chained proxies
-              # all proxies chained in the order as they appear in the list
-              # all proxies must be online to play in chain
-              # otherwise EINTR is returned to the app
-              #
-              #round_robin_chain
-              #
-              # Round Robin - Each connection will be done via chained proxies
-              # of chain_len length
-              # all proxies chained in the order as they appear in the list
-              # at least one proxy must be online to play in chain
-              # (dead proxies are skipped).
-              # the start of the current proxy chain is the proxy after the last
-              # proxy in the previously invoked proxy chain.
-              # if the end of the proxy chain is reached while looking for proxies
-              # start at the beginning again.
-              # otherwise EINTR is returned to the app
-              # These semantics are not guaranteed in a multithreaded environment.
-              #
-              #random_chain
-              #
-              # Random - Each connection will be done via random proxy
-              # (or proxy chain, see  chain_len) from the list.
-              # this option is good to test your IDS :)
-
-              # Make sense only if random_chain or round_robin_chain
-              #chain_len = 2
-
-              # Quiet mode (no output from library)
-              #quiet_mode
-
-              ## Proxy DNS requests - no leak for DNS data
-              proxy_dns
-
-              # Some timeouts in milliseconds
-              tcp_read_time_out 15000
-              tcp_connect_time_out 8000
-
-              ### Examples for ProxyList format:
-              ###               type  host  port [user pass]
-              ###               (values separated by 'tab' or 'blank')
-              ###
-              ### Examples:
-              ###
-              ###               socks5  192.168.67.78   1080    lamer   secret
-              ###               http    192.168.89.3    8080    justu   hidden
-              ###               socks4  192.168.1.49    1080
-              ###               http    192.168.39.93   8080
-              ###
-              ###
-              ###       proxy types: http, socks4, socks5
-              ###        ( auth types supported: "basic"-http  "user/pass"-socks )
-              ###
-              [ProxyList]
-              # add proxy here ...
-              # meanwile
-              # defaults set to "tor"
-              {{ proxy_config.protocol }} {{ proxy_config.proxy_ip }} {{ proxy_config.proxy_port }} {{ proxy_username }} {{ proxy_password }}
-            dest: /etc/proxychains4.conf
-            mode: '0644'
-            backup: yes
-          when: proxy_config is defined
-
-        - name: Create proxychains wrapper script
-          copy:
-            content: |
-              #!/bin/bash
-              # Wrapper script to use proxychains4 by default
-              exec proxychains4 "$@"
-            dest: /usr/local/bin/proxy
-            mode: '0755'
-          when: proxy_config is defined
 
         - name: Update package cache
           apt:
             update_cache: yes
             cache_valid_time: 3600
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 5
+          delay: 10
 
-        - name: Install security updates
+        - name: Install essential packages and monitoring tools
           apt:
-            name: "*"
-            state: latest
-            only_upgrade: yes
-          register: update_result
+            name:
+              - curl
+              - wget
+              - vim
+              - git
+              - net-tools
+              - openssh-client
+              - openssh-server
+              - fail2ban
+              - unattended-upgrades
+              - apt-listchanges
+              - prometheus-node-exporter
+            state: present
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 3
+          delay: 10
 
-        - name: Set root password securely
+        - name: Create user account
+          user:
+            name: "{{ new_user }}"
+            password: "{{ new_root_password | password_hash('sha512') }}"
+            shell: /bin/bash
+            state: present
+            groups: sudo
+            append: yes
+          no_log: true
+
+        - name: Enable passwordless sudo for user
+          copy:
+            content: "{{ new_user }} ALL=(ALL) NOPASSWD:ALL\n"
+            dest: "/etc/sudoers.d/{{ new_user }}"
+            mode: '0440'
+            validate: 'visudo -cf %s'
+
+        - name: Set root password
           user:
             name: root
             password: "{{ new_root_password | password_hash('sha512') }}"
             update_password: always
           no_log: true
 
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
+          systemd:
+            name: ssh.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: yes
+
+        # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port
           lineinfile:
             path: /etc/ssh/sshd_config
@@ -152,190 +110,82 @@
             line: "Port {{ custom_port | default(22) }}"
           notify: restart_ssh
 
-        - name: Create hostname user with root password
-          user:
-            name: "{{ hostname }}"
-            password: "{{ new_root_password | password_hash('sha512') }}"
-            groups: sudo
-            shell: /bin/bash
-            create_home: yes
-            state: present
-            no_log: true
-          when: hostname is defined
-
-        - name: Set hostname if provided
+        - name: Set hostname
           hostname:
-            name: "{{ hostname }}"
+            name: "{{ hostname | default('ubuntu-vps') }}"
           when: hostname is defined
 
         - name: Update /etc/hosts with hostname
           lineinfile:
             path: /etc/hosts
             regexp: '^127\.0\.1\.1'
-            line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
           when: hostname is defined
 
-        - name: Install essential packages
-          apt:
-            name:
-              - htop
-              - curl
-              - wget
-              - vim
-              - git
-              - net-tools
-              - unattended-upgrades
-              - apt-listchanges
-              - prometheus-node-exporter
-              - fail2ban
-            state: present
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
 
-        - name: Configure unattended upgrades
+        # Monitoring
+        - name: Configure Prometheus Node Exporter to listen on custom port
           copy:
             content: |
-              // Unattended-Upgrade::Origins-Pattern controls which packages are
-              // upgraded.
-              Unattended-Upgrade::Origins-Pattern {
-                  // Codename based matching:
-                  // This will follow the migration of a release through different
-                  // archives (e.g. from testing to stable and later oldstable).
-                  "origin=Ubuntu,archive=${distro_codename}-security,label=Ubuntu";
-                  "o=Ubuntu,a=${distro_codename}-updates";
-              };
-
-              // Python regular expressions, matching packages to exclude from upgrading
-              Unattended-Upgrade::Package-Blacklist {
-                  // The following matches all packages starting with linux-
-              //  "linux-";
-
-                  // Use $ to explicitely define the end of a package name. Without
-                  // the $, "libc6" would match all of them.
-              //  "libc6$";
-              //  "libc6-dev$";
-              //  "libc6-i686$";
-
-                  // Special characters need escaping
-              //  "libstdc\+\+6$";
-
-                  // The following matches packages like xen-system-amd64, xen-utils-4.1,
-                  // xenstore-utils and libxenstore3.0
-              //  "*(lib)?xen(store)?*";
-
-                  // For more information about Python regular expressions, see
-                  // https://docs.python.org/3/howto/regex.html
-              };
-
-              // This option allows you to control if on a unclean dpkg exit
-              // unattended-upgrades will automatically run 
-              //   dpkg --force-confold --configure -a
-              // The default is true, to ensure updates keep getting installed
-              Unattended-Upgrade::AutoFixInterruptedDpkg "true";
-
-              // Split the upgrade into the smallest possible chunks so that
-              // they can be interrupted with SIGTERM. This makes the upgrade
-              // a bit slower but it has the benefit that shutdown while a upgrade
-              // is running is possible (with a small delay)
-              Unattended-Upgrade::MinimalSteps "true";
-
-              // Install all updates when the machine is shutting down
-              // instead of doing it in the background while the machine is running.
-              // This will (obviously) make shutdown slower.
-              // Unattended-upgrades increases logind's InhibitDelayMaxSec to 30s.
-              // This allows more time for unattended-upgrades to shut down gracefully
-              // or even install a few packages in InstallOnShutdown mode, but is still a
-              // big step back from the 30 minutes allowed for InstallOnShutdown previously.
-              // Users enabling InstallOnShutdown mode are advised to increase
-              // InhibitDelayMaxSec even further, possibly to 30 minutes.
-              Unattended-Upgrade::InstallOnShutdown "false";
-
-              // Send email to this address for problems or packages upgrades
-              // If empty or unset then no email is sent, make sure that you
-              // have a working mail setup on your system. A package that provides
-              // 'mailx' must be installed. E.g. "user@example.com"
-              //Unattended-Upgrade::Mail "";
-
-              // Set this value to one of:
-              //    "always", "only-on-error" or "on-change"
-              // If this is not set, then any legacy MailOnlyOnError (boolean) value
-              // is used to chose between "only-on-error" and "on-change"
-              //Unattended-Upgrade::MailReport "on-change";
-
-              // Remove unused automatically installed kernel-related packages
-              // (kernel images, kernel headers and kernel version locked tools).
-              Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-
-              // Do automatic removal of newly unused dependencies after the upgrade
-              Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
-
-              // Do automatic removal of unused packages after the upgrade
-              // (equivalent to apt autoremove)
-              Unattended-Upgrade::Remove-Unused-Dependencies "true";
-
-              // Automatically reboot *WITHOUT CONFIRMATION* if
-              //  the file /var/run/reboot-required is found after the upgrade
-              Unattended-Upgrade::Automatic-Reboot "false";
-
-              // Automatically reboot even if there are users currently logged in
-              // when Unattended-Upgrade::Automatic-Reboot is set to true
-              Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
-
-              // If automatic reboot is enabled and needed, reboot at the specific
-              // time instead of immediately
-              //  Default: "now"
-              Unattended-Upgrade::Automatic-Reboot-Time "02:00";
-
-              // Use apt bandwidth limit feature, this example limits the download
-              // speed to 70kb/sec
-              //Acquire::http::Dl-Limit "70";
-
-              // Enable logging to syslog. Default is False
-              Unattended-Upgrade::SyslogEnable "true";
-
-              // Specify syslog facility. Default is daemon
-              // Unattended-Upgrade::SyslogFacility "daemon";
-
-              // Download and install upgrades only on AC power
-              // (i.e. skip or gracefully stop updates on battery)
-              // Unattended-Upgrade::OnlyOnACPower "true";
-
-              // Download and install upgrades only on non-metered connection
-              // (i.e. skip or gracefully stop updates on a metered connection)
-              // Unattended-Upgrade::Skip-Updates-On-Metered-Connections "true";
-
-              // Verbose logging
-              // Unattended-Upgrade::Verbose "false";
-
-              // Print debugging information both in unattended-upgrades and
-              // in unattended-upgrade-shutdown
-              // Unattended-Upgrade::Debug "false";
-            dest: /etc/apt/apt.conf.d/50unattended-upgrades
+              ARGS="--web.listen-address=:{{ node_exporter_port }}"
+            dest: /etc/default/prometheus-node-exporter
             mode: '0644'
-            backup: yes
-
-        - name: Configure node exporter to listen on non-standard port
-          lineinfile:
-            path: /etc/default/prometheus-node-exporter
-            regexp: '^ARGS='
-            line: 'ARGS="--web.listen-address=:59100"'
           notify: restart_node_exporter
 
-        - name: Enable unattended upgrades
-          lineinfile:
-            path: /etc/apt/apt.conf.d/20auto-upgrades
-            regexp: "{{ item.regexp }}"
-            line: "{{ item.line }}"
-            create: yes
-          loop:
-            - { regexp: '^APT::Periodic::Update-Package-Lists', line: 'APT::Periodic::Update-Package-Lists "1";' }
-            - { regexp: '^APT::Periodic::Unattended-Upgrade', line: 'APT::Periodic::Unattended-Upgrade "1";' }
-            - { regexp: '^APT::Periodic::AutocleanInterval', line: 'APT::Periodic::AutocleanInterval "7";' }
+        - name: Create custom VM metrics script
+          copy:
+            content: |
+              #!/bin/bash
+              METRICS_FILE="/var/lib/prometheus/node-exporter/vm_info.prom"
+              cat > "${METRICS_FILE}.tmp" <<EOF
+              # HELP vm_info VM identity information
+              # TYPE vm_info gauge
+              vm_info{vm_id="{{ vm_id }}",hostname="{{ hostname }}",os_template="{{ os_template | default('ubuntu') }}",management_type="managed"} 1
+              # HELP vm_ssh_port SSH port configured on this VM
+              # TYPE vm_ssh_port gauge
+              vm_ssh_port{vm_id="{{ vm_id }}"} {{ custom_port | default(22) }}
+              EOF
+              mv "${METRICS_FILE}.tmp" "${METRICS_FILE}"
+            dest: /usr/local/bin/vm_metrics.sh
+            mode: '0755'
 
-        - name: Configure fail2ban
+        - name: Create systemd timer for custom metrics
+          copy:
+            content: |
+              [Unit]
+              Description=Refresh custom VM metrics every 5 minutes
+
+              [Timer]
+              OnBootSec=1min
+              OnUnitActiveSec=5min
+
+              [Install]
+              WantedBy=timers.target
+            dest: /etc/systemd/system/vm-metrics.timer
+            mode: '0644'
+
+        - name: Enable and start monitoring services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+          loop:
+            - prometheus-node-exporter
+            - vm-metrics.timer
+            - fail2ban
+            - unattended-upgrades
+
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
           copy:
             content: |
               [sshd]
               enabled = true
-              port = ssh
+              port = {{ custom_port | default(22) }}
               filter = sshd
               logpath = /var/log/auth.log
               maxretry = 3
@@ -345,36 +195,11 @@
             mode: '0644'
           notify: restart_fail2ban
 
-        - name: Ensure monitoring and security services are running
-          systemd:
-            name: "{{ item }}"
-            enabled: yes
-            state: started
-          loop:
-            - prometheus-node-exporter
-            - fail2ban
-            - unattended-upgrades
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
 
-        - name: Check if reboot is required (info only)
-          stat:
-            path: /var/run/reboot-required
-          register: reboot_required_file
-
-        - name: Reboot if needed
-          reboot:
-          when: update_result.changed and reboot_required_file.stat.exists
-
-        - name: Verify services are running
-          systemd:
-            name: "{{ item }}"
-            state: started
-          loop:
-            - prometheus-node-exporter
-            - fail2ban
-            - unattended-upgrades
-          register: service_verification
-
-        - name: Send status to management API
+        - name: Notify API - Success
           uri:
             url: "{{ api_url }}/vm/{{ vm_id }}/status"
             method: POST
@@ -383,43 +208,19 @@
               Content-Type: "application/json"
             body_format: json
             body:
-              status: "configured"
               vm_id: "{{ vm_id }}"
-              hostname: "{{ hostname | default(ansible_hostname) }}"
-              os_template: "{{ os_template }}"
-              management_type: "{{ management_type }}"
-              connectivity_status: "working"
-              services_verified: "{{ service_verification.results | map(attribute='name') | list }}"
-              configuration_timestamp: "{{ ansible_date_time.iso8601 }}"
-              proxy_configured: "{{ proxy_config is defined }}"
-              monitoring_enabled: true
-              unattended_upgrades_enabled: true
+              status: "configured"
+              os_template: "{{ os_template | default('ubuntu') }}"
+              management_type: "{{ management_type | default('managed') }}"
             status_code: [200, 201]
             validate_certs: yes
             timeout: 30
-            no_log: true
-          when: 
+          no_log: true
+          when:
             - api_url is defined
             - vm_id is defined
-          register: api_response
-          failed_when: false
-
-        - name: Log configuration completion
-          debug:
-            msg: |
-              VPS Configuration Complete:
-              - VM ID: {{ vm_id | default('Unknown') }}
-              - Hostname: {{ hostname | default(ansible_hostname) }}
-              - User created: {{ hostname | default('None') }}
-              - Connectivity: Working
-              - Proxy Configured: {{ proxy_config is defined }}
-              - Services: {{ service_verification.results | map(attribute='name') | list }}
-              - Monitoring: Enabled (prometheus-node-exporter, fail2ban)
-              - Unattended Updates: Enabled
-              - API Response: {{ api_response.status | default('No response') }}
-
-        - name: Final configuration step
-          command: echo "Configuration complete"
+          delegate_to: localhost
+          become: no
 
       rescue:
         - name: Notify API - Failure
@@ -433,13 +234,16 @@
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template }}"
-              management_type: "{{ management_type }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
             validate_certs: yes
-            no_log: true
+          no_log: true
           delegate_to: localhost
+          become: no
           ignore_errors: yes
+
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
     - name: restart_fail2ban
@@ -447,12 +251,14 @@
         name: fail2ban
         state: restarted
 
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
-
     - name: restart_node_exporter
       systemd:
         name: prometheus-node-exporter
         state: restarted
+
+    - name: restart_ssh
+      systemd:
+        name: ssh
+        state: restarted
+      async: 10
+      poll: 0

@@ -13,6 +13,13 @@ class User < ApplicationRecord
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
 
   after_create :initialize_wallet
+  before_validation :normalize_location_data
+
+  def normalize_location_data
+    self.country_code = country_code.to_s.strip.upcase if country_code.present?
+    self.country = country.to_s.strip if country.present?
+    self.city = city.to_s.strip if city.present?
+  end
 
   def wallet
     main_wallet || create_main_wallet!(wallet_type: 'main')
@@ -44,6 +51,10 @@ class User < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :password, presence: true, length: { minimum: 8 }, if: :password_required?
+
+  # Ensure location is available for MyProxyApi integrations
+  validates :country_code, presence: true
+  validates :city, presence: true
 
   validate :avatar_security_checks
 
@@ -95,6 +106,16 @@ class User < ApplicationRecord
       iat: Time.current.to_i
     }
     JWT.encode(payload, Rails.application.secret_key_base)
+  end
+
+  def profile_picture_url
+    if avatar.attached?
+      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
+    elsif super.present? && (super.start_with?('http') || super.start_with?('/'))
+      super
+    else
+      nil
+    end
   end
 
   private

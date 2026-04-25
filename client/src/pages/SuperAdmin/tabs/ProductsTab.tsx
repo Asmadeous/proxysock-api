@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon,
     GlobeAltIcon, CpuChipIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, ShieldCheckIcon,
-    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon
+    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon,
+    PhotoIcon, DocumentChartBarIcon, CheckCircleIcon, XCircleIcon
 } from "@heroicons/react/24/outline";
 
 import DataTable from "../components/DataTable";
@@ -52,6 +53,19 @@ interface ProductRow {
     product_category_name?: string;
     product_category_id?: number;
     created_at: string;
+}
+
+interface UsaCredentialRow {
+    id: string;
+    iccid: string;
+    provider: string;
+    status: string;
+    has_qr_image: boolean;
+    qr_image_url?: string;
+    qr_activation_code?: string;
+    created_at: string;
+    assigned_at?: string;
+    order_id?: string;
 }
 
 const STORE_CATEGORIES = [
@@ -151,17 +165,30 @@ export default function ProductsTab() {
             });
         } else {
             setSelectedProduct(null);
+            
+            let defaultMetadata = {};
+            if (activeCatData?.id === 'esim') {
+                defaultMetadata = {
+                    esim_type: "data_only",
+                    data_gb: 10,
+                    duration_days: 30,
+                    country_code: "US",
+                    network_operator: "Lyca Mobile"
+                };
+            }
+
             setFormData({
                 name: "",
                 description: "",
                 product_type: activeCatData?.types[0] || "proxy",
-                provider: "",
+                provider: "inhouse", // Manual products are in-house
                 stock_status: "in_stock",
                 is_active: true,
-                metadataString: "{}"
+                metadataString: JSON.stringify(defaultMetadata, null, 2)
             });
         }
     };
+
 
     const handleSubmit = async () => {
         let parsedMetadata = {};
@@ -194,6 +221,54 @@ export default function ProductsTab() {
         syncProducts.mutate(activeCatData.syncType);
     };
 
+    const handleImport = async () => {
+        if (!excelFile) {
+            toast.error("Please select an Excel file");
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", excelFile);
+            formData.append("provider", "lyca");
+            imageFiles.forEach((file) => {
+                formData.append("images[]", file);
+            });
+
+            const res = await importUsaCredentials(formData);
+            const { imported, updated, image_matched } = res.data;
+
+            toast.success(`Imported: ${imported}, Updated: ${updated}, Matched ${image_matched} images.`);
+            
+            setImportModalOpen(false);
+            setExcelFile(null);
+            setImageFiles([]);
+            loadCredits();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Failed to import credentials");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDeleteCred = async (id: string) => {
+        if (!window.confirm("Are you sure?")) return;
+        try {
+            await deleteAdminUsaCredential(id);
+            toast.success("Credential deleted");
+            loadCredits();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Failed to delete");
+        }
+    };
+
+    const toggleInventory = () => {
+        const next = !showInventory;
+        setShowInventory(next);
+        if (next) loadCredits();
+    };
+
     const columns = [
         { key: "id", label: "ID", render: (row: ProductRow) => <span className="text-muted-foreground">#{row.id}</span> },
         {
@@ -220,16 +295,23 @@ export default function ProductsTab() {
                 </div>
             )
         },
-        {
-            key: "product_type", label: "Sub-Type", sortable: true, render: (row: ProductRow) => (
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase bg-muted text-muted-foreground border border-border">
-                    {row.product_category_name || row.product_type}
+        { key: "product_type", label: "Type", render: (row: ProductRow) => (
+            <div className="flex flex-col gap-1">
+                <span className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-bold uppercase w-fit">{row.product_type}</span>
+                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase w-fit tracking-tighter shadow-sm border ${
+                    row.provider === 'inhouse' 
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                        : 'bg-green-500/10 text-green-400 border-green-500/20'
+                }`}>
+                    {row.provider === 'inhouse' ? 'In-House' : row.provider}
                 </span>
-            )
-        },
+            </div>
+        )},
         { key: "stock_status", label: "Stock", render: (row: ProductRow) => <StatusBadge status={row.stock_status === "in_stock" ? "success" : "warning"} /> },
         { key: "is_active", label: "Active", render: (row: ProductRow) => <StatusBadge status={row.is_active ? "active" : "inactive"} /> },
     ];
+
+
 
     return (
         <div className="space-y-6">
@@ -249,9 +331,7 @@ export default function ProductsTab() {
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-foreground">Service Store</h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Select a category to browse, manage, and synchronize our premium services.
-                                </p>
+                                <p className="text-sm text-muted-foreground">Select a category to browse and manage services.</p>
                             </div>
                         </div>
 
@@ -280,7 +360,7 @@ export default function ProductsTab() {
                                             Manage <ArrowRightIcon className="w-4 h-4 ml-1.5" />
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </div>
                     </motion.div>
@@ -306,8 +386,8 @@ export default function ProductsTab() {
                                     {activeCatData && <activeCatData.icon className={`h-5 w-5 ${COLOR_MAP[activeCatData.color]?.text}`} />}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-foreground leading-tight">{activeCatData?.name}</h2>
-                                    <span className="text-xs text-muted-foreground">{filteredProducts.length} items configured</span>
+                                    <h2 className="text-xl font-bold text-foreground">{activeCatData?.name}</h2>
+                                    <span className="text-xs text-muted-foreground">{showInventory ? "Inventory Management" : "Product Configuration"}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -353,40 +433,47 @@ export default function ProductsTab() {
                 onSubmit={handleSubmit} submitLabel={modalMode === "create" ? "Create" : "Save Changes"}
                 loading={createProduct.isLoading || updateProduct.isLoading}
             >
+                {modalMode === "create" && (
+                    <div className="bg-blue-500/5 border border-blue-500/10 p-3 rounded-xl mb-4 text-xs text-blue-400">
+                        <strong>Note:</strong> You are creating a custom <strong>In-House</strong> product. 
+                        API-based products (like Global eSIMs) should be managed via the <strong>Sync</strong> tool.
+                    </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Name *">
-                        <input className={inputClasses} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-                    </Field>
-                    <Field label="Specific Type *">
+                    <Field label="Name *"><input className={inputClasses} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required /></Field>
+                    <Field label="Type *">
                         <select className={inputClasses} value={formData.product_type} onChange={e => setFormData({ ...formData, product_type: e.target.value })} required>
-                            {activeCatData?.types.map(t => (
-                                <option key={t} value={t}>{t.replace('_', ' ').toUpperCase()}</option>
-                            ))}
+                            {activeCatData?.types.map(t => <option key={t} value={t}>{t.replace('_', ' ').toUpperCase()}</option>)}
                         </select>
                     </Field>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Backend Provider">
-                        <input className={inputClasses} value={formData.provider} onChange={e => setFormData({ ...formData, provider: e.target.value })} placeholder="e.g. inhouse, proxmox" />
-                    </Field>
-                    <Field label="Stock Status">
+                    <Field label="Provider"><input className={inputClasses} value={formData.provider} onChange={e => setFormData({ ...formData, provider: e.target.value })} /></Field>
+                    <Field label="Stock">
                         <select className={inputClasses} value={formData.stock_status} onChange={e => setFormData({ ...formData, stock_status: e.target.value })}>
-                            <option value="in_stock">In Stock</option>
-                            <option value="out_of_stock">Out of Stock</option>
-                            <option value="discontinued">Discontinued</option>
+                            <option value="in_stock">In Stock</option><option value="out_of_stock">Out of Stock</option>
                         </select>
                     </Field>
                 </div>
-                <Field label="Description">
-                    <textarea className={`${inputClasses} h-20 resize-y`} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                </Field>
-                <Field label="Metadata (JSON Object)">
-                    <textarea className={`${inputClasses} font-mono text-xs h-32 resize-y`} value={formData.metadataString} onChange={e => setFormData({ ...formData, metadataString: e.target.value })} />
-                </Field>
-                <label className="flex items-center gap-2 cursor-pointer mt-2 w-fit">
-                    <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded bg-muted border-border text-primary focus:ring-primary cursor-pointer" />
-                    <span className="text-sm font-medium text-foreground">Is Active?</span>
-                </label>
+                <Field label="Description"><textarea className={inputClasses} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></Field>
+                <Field label="Metadata (JSON)"><textarea className={`${inputClasses} font-mono text-xs h-32`} value={formData.metadataString} onChange={e => setFormData({ ...formData, metadataString: e.target.value })} /></Field>
+                <label className="flex items-center gap-2 cursor-pointer mt-2 text-sm font-medium"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} /> Active</label>
+            </FormModal>
+
+            {/* USA Import Modal */}
+            <FormModal open={importModalOpen} onClose={() => setImportModalOpen(false)} title="Bulk Import (Lyca)" onSubmit={handleImport} loading={actionLoading}>
+                <div className="space-y-4">
+                    <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer ${excelFile ? 'border-green-500 bg-green-500/5' : 'border-border'}`}>
+                        <DocumentChartBarIcon className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm mt-2">{excelFile ? excelFile.name : "Select Excel File (.xlsx)"}</span>
+                        <input type="file" ref={fileRef} className="hidden" accept=".xlsx" onChange={(e) => setExcelFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <div onClick={() => imageRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer ${imageFiles.length > 0 ? 'border-green-500 bg-green-500/5' : 'border-border'}`}>
+                        <PhotoIcon className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm mt-2">{imageFiles.length > 0 ? `${imageFiles.length} Images Selected` : "Select QR Code Images"}</span>
+                        <input type="file" ref={imageRef} className="hidden" multiple accept="image/png" onChange={(e) => setImageFiles(Array.from(e.target.files || []))} />
+                    </div>
+                </div>
             </FormModal>
 
             <ConfirmModal

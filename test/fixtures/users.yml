@@ -6,6 +6,8 @@ one:
   password_digest: <%= BCrypt::Password.create('password123') %>
   provider: ~
   uid: ~
+  country_code: 'US'
+  city: 'New York'
 
 two:
   first_name: Jane
@@ -15,3 +17,5 @@ two:
   password_digest: <%= BCrypt::Password.create('password123') %>
   provider: google_oauth2
   uid: "123456789"
+  country_code: 'US'
+  city: 'Los Angeles'

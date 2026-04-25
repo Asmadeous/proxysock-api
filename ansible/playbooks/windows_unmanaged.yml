@@ -23,17 +23,22 @@
         - name: Gather facts
           setup:
 
-        - name: Install Critical Security Updates
-          win_updates:
-            category_names:
-              - SecurityUpdates
-              - CriticalUpdates
-            state: installed
-          register: update_result
+        - name: Configure Background Security Updates
+          include_tasks: tasks/windows_background_updates.yml
           tags: security
+
 
         - name: Configure Administrator account
           block:
+            - name: Ensure critical services are running
+              win_service:
+                name: "{{ item }}"
+                state: started
+                start_mode: auto
+              loop:
+                - wuauserv
+              ignore_errors: yes
+
             - name: Enable Administrator account
               win_user:
                 name: Administrator
@@ -46,7 +51,7 @@
                 password: "{{ admin_password }}"
                 password_never_expires: yes
                 state: present
-                no_log: true
+              no_log: true
 
             - name: Ensure Administrator is in Administrators group
               win_group_membership:
@@ -67,6 +72,9 @@
               data: 0
             - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
               name: "UserAuthentication"
+              data: 0
+            - path: "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp"
+              name: "SecurityLayer"
               data: 0
 
         - name: Configure RDP Port in Registry
@@ -89,21 +97,20 @@
             state: present
             enabled: yes
 
-        - name: Restart Remote Desktop Service to apply port change
-          win_service:
-            name: TermService
-            state: restarted
-          ignore_errors: yes
-
         - name: Set hostname
           win_hostname:
             name: "{{ hostname }}"
           register: hostname_result
           when: hostname is defined
 
-        - name: Reboot if needed
+        - name: Reboot to apply all changes
           win_reboot:
-          when: (hostname_result is defined and hostname_result.reboot_required) or (update_result is defined and update_result.reboot_required)
+            reboot_timeout: 600
+            post_reboot_delay: 30
+          when: >
+            (hostname_result is defined and hostname_result.reboot_required) or
+            (update_result is defined and update_result.reboot_required) or
+            true
 
         - name: Notify API - Success
           uri:
@@ -119,7 +126,7 @@
               os_template: "{{ os_template | default('windows-server') }}"
               management_type: "unmanaged"
             validate_certs: yes
-            no_log: true
+          no_log: true
           delegate_to: localhost
           when: api_url != "" and api_key != "" and vm_id is defined
 
@@ -138,7 +145,7 @@
               os_template: "{{ os_template | default('windows-server') }}"
               error: "{{ ansible_failed_task.name | default('Unknown task') }}: {{ ansible_failed_result.msg | default('No error') }}"
             validate_certs: yes
-            no_log: true
+          no_log: true
           delegate_to: localhost
           ignore_errors: yes
           when: vm_id is defined

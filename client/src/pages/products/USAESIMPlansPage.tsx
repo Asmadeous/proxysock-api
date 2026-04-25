@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowLeft, X, Loader2, Zap } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,9 +115,16 @@ const USAESIMCardSkeleton = () => (
   </Card>
 );
 
-export default function USAESIMPlansPage() {
+interface USAESIMPlansPageProps {
+  onBack?: () => void;
+  isDirectBuy?: boolean;
+  onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
+}
+
+export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +184,17 @@ export default function USAESIMPlansPage() {
     return () => globalThis.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
 
-  const addToCart = (plan: USAESIMPlan) => {
+  const addToCart = async (plan: USAESIMPlan) => {
+    if (isDirectBuy && onDirectBuy) {
+        setProvisioningPkgId(plan.id);
+        try {
+            await onDirectBuy(plan.id, plan.moq || 1, {});
+        } finally {
+            setProvisioningPkgId(null);
+        }
+        return;
+    }
+
     const storedCart = localStorage.getItem('cartItems');
     let currentCart = [];
 
@@ -294,7 +311,7 @@ export default function USAESIMPlansPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => globalThis.history.back()}
+              onClick={() => onBack ? onBack() : globalThis.history.back()}
               className="p-2"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -340,7 +357,7 @@ export default function USAESIMPlansPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => globalThis.history.back()}
+            onClick={() => onBack ? onBack() : globalThis.history.back()}
             className="p-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -478,47 +495,49 @@ export default function USAESIMPlansPage() {
                 </Card>
 
                 {/* Add to Cart Section */}
-                {inCart ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center gap-3 bg-muted/50 rounded-lg p-3 border border-primary/30">
-                      <Button
-                        onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)}
-                        variant="default"
-                        size="sm"
-                        className="h-9 w-9 p-0"
-                      >
-                        −
-                      </Button>
-                      <div className="flex-1 text-center">
-                        <span className="text-lg font-bold">{cartItem?.quantity || 0}</span>
-                        <div className="text-primary text-xs font-medium">in cart</div>
-                      </div>
-                      <Button
-                        onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)}
-                        variant="default"
-                        size="sm"
-                        className="h-9 w-9 p-0"
-                      >
-                        +
-                      </Button>
-                    </div>
-                    <Button
-                      onClick={() => removeFromCart(plan.id)}
-                      variant="destructive"
-                      className="w-full"
-                    >
-                      Remove from Cart
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => addToCart(plan)}
-                    className="w-full gap-2"
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                    Add to Cart
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
+                {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                    inCart ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-center gap-3 bg-muted/50 rounded-lg p-3 border border-primary/30">
+                            <Button
+                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)}
+                              variant="default"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                            >
+                              −
+                            </Button>
+                            <div className="flex-1 text-center">
+                              <span className="text-lg font-bold">{cartItem?.quantity || 0}</span>
+                              <div className="text-primary text-xs font-medium">in cart</div>
+                            </div>
+                            <Button
+                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)}
+                              variant="default"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                            >
+                              +
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={() => removeFromCart(plan.id)}
+                            variant="destructive"
+                            className="w-full"
+                          >
+                            Remove from Cart
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => addToCart(plan)}
+                          disabled={provisioningPkgId === plan.id}
+                          className="w-full gap-2"
+                        >
+                          {provisioningPkgId === plan.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                          {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                        </Button>
+                      )
                 )}
               </CardContent>
             </Card>

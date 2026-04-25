@@ -167,6 +167,7 @@ class Order < ApplicationRecord
     state :expired
     state :cancelled
     state :failed
+    state :refunded
 
     event :await_payment do
       transitions from: :pending, to: :awaiting_payment
@@ -189,7 +190,22 @@ class Order < ApplicationRecord
     end
 
     event :fail do
-      transitions from: %i[pending processing], to: :failed
+      transitions from: %i[pending processing], to: :failed, after: :notify_staff_on_failure
     end
+
+    event :refund do
+      transitions from: %i[active failed cancelled], to: :refunded
+    end
+  end
+
+  private
+
+  def notify_staff_on_failure
+    NotificationService.notify_staff(
+      category: 'error',
+      title: "Order Provisioning Failed",
+      message: "Order ##{order_number} for #{product&.name} failed during provisioning.",
+      metadata: { order_id: id, order_number: order_number }
+    )
   end
 end

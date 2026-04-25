@@ -1,0 +1,171 @@
+---
+# tasks/proxy_config.yml
+# Shared proxy configuration task — included by all OS playbooks when proxy_config is defined.
+# Supports: ubuntu, debian, alma, rocky, fedora (any systemd + apt/dnf Linux VM)
+#
+# Expected proxy_config dict (passed via extra_vars from VmProvisioningService):
+#   proxy_config.protocol      — http | https | socks5  (default: http)
+#   proxy_config.proxy_ip      — proxy server IP/hostname
+#   proxy_config.proxy_port    — proxy port
+#   proxy_config.proxy_username — (optional) auth username
+#   proxy_config.proxy_password — (optional) auth password
+#   proxy_config.no_proxy       — (optional) custom no_proxy list
+
+- name: "[Proxy] Assemble proxy URL"
+  set_fact:
+    _proxy_auth: >-
+      {%- if proxy_config.proxy_username | default('') != '' -%}
+      {{ proxy_config.proxy_username }}:{{ proxy_config.proxy_password | default('') }}@
+      {%- endif -%}
+    _no_proxy_list: >-
+      {{ proxy_config.no_proxy | default('localhost,127.0.0.1,127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,::1') }},{{ ansible_facts['default_ipv4']['address'] | default('') }}
+
+- name: "[Proxy] Build final proxy URL"
+  set_fact:
+    _proxy_url: "{{ proxy_config.protocol | default('http') }}://{{ _proxy_auth | trim }}{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
+
+# ── /etc/environment ──────────────────────────────────────────────────────────
+
+- name: "[Proxy] Set system-wide proxy in /etc/environment"
+  blockinfile:
+    path: /etc/environment
+    marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
+    block: |
+      HTTP_PROXY={{ _proxy_url }}
+      HTTPS_PROXY={{ _proxy_url }}
+      http_proxy={{ _proxy_url }}
+      https_proxy={{ _proxy_url }}
+      NO_PROXY={{ _no_proxy_list }}
+      no_proxy={{ _no_proxy_list }}
+    create: yes
+
+# ── /etc/profile.d/proxy.sh (login shells) ────────────────────────────────────
+
+- name: "[Proxy] Configure login shell proxy exports"
+  copy:
+    dest: /etc/profile.d/proxy.sh
+    mode: '0644'
+    content: |
+      export HTTP_PROXY="{{ _proxy_url }}"
+      export HTTPS_PROXY="{{ _proxy_url }}"
+      export http_proxy="{{ _proxy_url }}"
+      export https_proxy="{{ _proxy_url }}"
+      export NO_PROXY="{{ _no_proxy_list }}"
+      export no_proxy="{{ _no_proxy_list }}"
+
+# ── APT (Debian/Ubuntu) ───────────────────────────────────────────────────────
+
+- name: "[Proxy] Configure APT proxy (Debian/Ubuntu)"
+  blockinfile:
+    path: /etc/apt/apt.conf.d/95proxies
+    marker: "# {mark} ANSIBLE MANAGED APT PROXY BLOCK"
+    block: |
+      Acquire::http::Proxy "{{ _proxy_url }}";
+      Acquire::https::Proxy "{{ _proxy_url }}";
+      Acquire::http::Proxy::localhost "DIRECT";
+      Acquire::https::Proxy::localhost "DIRECT";
+      Acquire::http::Proxy::127.0.0.1 "DIRECT";
+      Acquire::https::Proxy::127.0.0.1 "DIRECT";
+    create: yes
+  when: ansible_facts['os_family'] == 'Debian'
+
+# ── DNF/YUM (RHEL family) ─────────────────────────────────────────────────────
+
+- name: "[Proxy] Configure DNF/YUM proxy (RHEL family)"
+  lineinfile:
+    path: /etc/dnf/dnf.conf
+    regexp: '^proxy='
+    line: "proxy={{ _proxy_url }}"
+    create: yes
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# ── wget ─────────────────────────────────────────────────────────────────────
+
+- name: "[Proxy] Configure wget proxy"
+  blockinfile:
+    path: /etc/wgetrc
+    marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
+    block: |
+      https_proxy = {{ _proxy_url }}
+      http_proxy = {{ _proxy_url }}
+      no_proxy = {{ _no_proxy_list }}
+      use_proxy = on
+    create: yes
+
+# ── curl ──────────────────────────────────────────────────────────────────────
+
+- name: "[Proxy] Configure curl proxy"
+  blockinfile:
+    path: /etc/curlrc
+    marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
+    block: |
+      proxy = {{ _proxy_url }}
+      noproxy = {{ _no_proxy_list }}
+    create: yes
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+
+- name: "[Proxy] Configure git global proxy"
+  blockinfile:
+    path: /etc/gitconfig
+    marker: "# {mark} ANSIBLE MANAGED GIT PROXY BLOCK"
+    block: |
+      [http]
+          proxy = {{ _proxy_url }}
+      [https]
+          proxy = {{ _proxy_url }}
+    create: yes
+
+# ── systemd DefaultEnvironment ────────────────────────────────────────────────
+
+- name: "[Proxy] Create systemd proxy config directory"
+  file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+    mode: '0755'
+
+- name: "[Proxy] Set proxy in systemd DefaultEnvironment"
+  copy:
+    dest: /etc/systemd/system.conf.d/proxy.conf
+    mode: '0644'
+    content: |
+      [Manager]
+      DefaultEnvironment="HTTP_PROXY={{ _proxy_url }}" "HTTPS_PROXY={{ _proxy_url }}" "NO_PROXY={{ _no_proxy_list }}"
+  notify: reload systemd
+
+# ── Exclude RDP/XRDP services from proxy ─────────────────────────────────────
+
+- name: "[Proxy] Create xrdp systemd override directories"
+  file:
+    path: "/etc/systemd/system/{{ item }}.service.d"
+    state: directory
+    mode: '0755'
+  loop:
+    - xrdp
+    - xrdp-sesman
+  when: "'xrdp' in ansible_facts.packages or true"
+  ignore_errors: true
+
+- name: "[Proxy] Exclude RDP services from proxy"
+  copy:
+    dest: "/etc/systemd/system/{{ item }}.service.d/no-proxy.conf"
+    mode: '0644'
+    content: |
+      [Service]
+      Environment="HTTP_PROXY="
+      Environment="HTTPS_PROXY="
+      Environment="http_proxy="
+      Environment="https_proxy="
+      Environment="NO_PROXY=*"
+      Environment="no_proxy=*"
+  loop:
+    - xrdp
+    - xrdp-sesman
+  ignore_errors: true
+  notify: reload systemd
+
+# ── Reload systemd to pick up overrides ──────────────────────────────────────
+
+- name: "[Proxy] Reload systemd daemon"
+  systemd:
+    daemon_reload: yes

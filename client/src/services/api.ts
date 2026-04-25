@@ -14,8 +14,10 @@ const api = axios.create({
 
 export const formatImageUrl = (url?: string) => {
   if (!url) return undefined;
+  if (url.startsWith('http')) return url;
   if (url.startsWith('/')) return `${API_HOST}${url}`;
-  return url;
+  // If it's a raw filename that doesn't start with / or http, it's likely broken historical data
+  return undefined;
 };
 
 // Request interceptor for API calls
@@ -34,7 +36,23 @@ api.interceptors.request.use(
 
 // Response interceptor for API calls
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Dynamically use 'reseller_selling_price' instead of retail 'price' if rendering inside the reseller dashboard
+    if (
+      window.location.pathname.startsWith('/reseller') &&
+      response.config.url?.includes('/web/api/products') &&
+      response.data &&
+      Array.isArray(response.data.products)
+    ) {
+      response.data.products = response.data.products.map((p: any) => {
+        if (p.pricings && p.pricings.length > 0 && p.pricings[0].reseller_selling_price !== undefined) {
+          p.price = p.pricings[0].reseller_selling_price;
+        }
+        return p;
+      });
+    }
+    return response;
+  },
   (error) => {
     const message = error.response?.data?.error || error.response?.data?.message || "An error occurred";
     // We handle toasts manually in login/register components so we don't spam here for auth failures
@@ -69,8 +87,15 @@ export const fetchTickets = (params?: Record<string, string>) => api.get("/web/a
 export const createTicket = (data: Record<string, unknown>) => api.post("/web/api/tickets", { ticket: data });
 export const replyTicket = (id: number, body: string) => api.post(`/web/api/tickets/${id}/reply`, { body });
 
+export const fetchResellerTickets = (params?: Record<string, string>) => api.get("/api/v1/tickets", { params });
+export const createResellerTicket = (data: Record<string, unknown>) => api.post("/api/v1/tickets", { ticket: data });
+export const replyResellerTicket = (id: number, body: string) => api.post(`/api/v1/tickets/${id}/reply`, { body });
+
 export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
+
+export const fetchResellerSupportChat = () => api.get("/api/v1/support_chats");
+export const sendResellerSupportMessage = (message: string) => api.post("/api/v1/support_chats/messages", { message });
 
 // VM Management Services
 export const fetchVms = (params?: Record<string, string>) => api.get("/web/api/vms", { params });
@@ -86,6 +111,9 @@ export const changeVmPassword = (id: string | number, password: string) =>
 
 export const updateProxyCredentials = (id: string | number, data: { username?: string, password?: string }) =>
   api.post(`/web/api/orders/${id}/update_credentials`, data);
+
+export const refundOrder = (id: string | number) =>
+  api.post(`/web/api/orders/${id}/refund`);
 
 export const rotateProxyIp = (id: string | number) =>
   api.post(`/web/api/orders/${id}/rotate_ip`);

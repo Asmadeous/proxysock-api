@@ -46,15 +46,12 @@ class SupportChatMessage < ApplicationRecord
         metadata: { support_chat_id: support_chat.id, session_token: support_chat.session_token }
       )
     else
-      Employee.where(role: %w[admin support]).each do |staff|
-        NotificationService.notify(
-          recipient: staff,
-          category: 'info',
-          title: "Support Chat Update: #{support_chat.chatable_type}",
-          message: body.truncate(50),
-          metadata: { support_chat_id: support_chat.id, session_token: support_chat.session_token }
-        )
-      end
+      NotificationService.notify_staff(
+        category: 'info',
+        title: "Support Chat Update: #{support_chat.chatable_type}",
+        message: body.truncate(50),
+        metadata: { support_chat_id: support_chat.id, session_token: support_chat.session_token }
+      )
     end
   end
 

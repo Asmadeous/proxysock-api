@@ -1,0 +1,115 @@
+---
+# Tailscale VPN configuration for Linux VMs (Unified Entry Point)
+#
+# CRITICAL DESIGN CONSTRAINT:
+#   `raw` is the ONLY Ansible task type that runs without uploading a
+#   Python helper to /tmp/.ansible/tmp. Every other task type requires that temp dir.
+#
+#   Once the Tailscale exit-node activates, the routing table changes
+#   and SSH can no longer reach /tmp to create that directory.
+#
+#   Rule: the exit-node activation MUST use `raw`, not `shell`.
+#         Nothing may follow it.
+
+# -----------------------------------------------------------------------
+# 0. Fix remote_tmp warning and prepare for Python tasks
+# -----------------------------------------------------------------------
+- name: "[System] Pre-create Ansible temporary directory"
+  raw: mkdir -p /tmp/.ansible/tmp && chmod 1777 /tmp/.ansible/tmp
+  changed_when: false
+
+# -----------------------------------------------------------------------
+# 1. OS-specific Installation
+# -----------------------------------------------------------------------
+- name: "[OS Family] Include Debian specific tasks"
+  include_tasks: tailscale_debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "[OS Family] Include RedHat specific tasks"
+  include_tasks: tailscale_redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# -----------------------------------------------------------------------
+# 2. Shared Configuration
+# -----------------------------------------------------------------------
+- name: Reload systemd manager
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start tailscaled
+  service:
+    name: tailscaled
+    enabled: yes
+    state: started
+
+- name: Authenticate Tailscale
+  command: >
+    tailscale up
+    --reset
+    --auth-key={{ tailscale_config.auth_key }}
+    --hostname={{ hostname | default(inventory_hostname) }}
+  retries: 3
+  delay: 5
+  no_log: true
+
+- name: Enable Tailscale SSH
+  command: tailscale set --ssh
+  ignore_errors: true
+
+- name: Whitelist Tailscale CGNAT in fail2ban
+  blockinfile:
+    path: /etc/fail2ban/jail.d/sshd.conf
+    marker: "# {mark} ANSIBLE TAILSCALE BLOCK"
+    create: yes
+    block: |
+      ignoreip = 127.0.0.1/8 ::1 100.64.0.0/10
+  notify: restart_fail2ban
+  ignore_errors: true
+
+- name: Write ssh-policy-route systemd service
+  shell: |
+    cat > /etc/systemd/system/ssh-policy-route.service << 'UNIT_EOF'
+    [Unit]
+    Description=Ensure symmetric routing for public IP
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
+    ExecStartPre=/bin/sh -c 'mkdir -p /etc/iproute2 && (grep -q "200 public_ip" /etc/iproute2/rt_tables 2>/dev/null || echo "200 public_ip" >> /etc/iproute2/rt_tables)'
+    ExecStart=/bin/sh -c 'ip rule add from {{ ip_address | default(ansible_facts.default_ipv4.address) }} table public_ip priority 100 || true'
+    ExecStart=/bin/sh -c 'ip route add default via {{ ansible_facts.default_ipv4.gateway }} dev {{ ansible_facts.default_ipv4.interface }} table public_ip || true'
+    ExecStop=/bin/sh -c 'ip rule del from {{ ip_address | default(ansible_facts.default_ipv4.address) }} table public_ip || true'
+    ExecStop=/bin/sh -c 'ip route del default via {{ ansible_facts.default_ipv4.gateway }} dev {{ ansible_facts.default_ipv4.interface }} table public_ip || true'
+
+    [Install]
+    WantedBy=multi-user.target
+    UNIT_EOF
+    chmod 0644 /etc/systemd/system/ssh-policy-route.service
+  changed_when: true
+
+- name: "[SELinux] restorecon on policy routing service"
+  shell: restorecon /etc/systemd/system/ssh-policy-route.service || true
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'].status == "enabled"
+
+- name: Enable and start ssh-policy-route
+  systemd:
+    name: ssh-policy-route
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+# -----------------------------------------------------------------------
+# 3. EXIT NODE — raw only, absolutely last task.
+# -----------------------------------------------------------------------
+- name: Apply Tailscale exit node (raw — no temp dir — FINAL TASK)
+  raw: >
+    tailscale set
+    --exit-node={{ tailscale_config.exit_node_ip }}
+    --exit-node-allow-lan-access=true
+    &
+  ignore_errors: true

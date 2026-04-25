@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_support/core_ext/integer/time'
+$stdout.sync = true
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -22,6 +23,7 @@ Rails.application.configure do
 
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
+  config.active_storage.variant_processor = :mini_magick
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
@@ -33,8 +35,21 @@ Rails.application.configure do
   config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
   # Log to STDOUT with the current request id as a default log tag.
-  config.log_tags = [:request_id]
-  config.logger   = ActiveSupport::TaggedLogging.logger($stdout)
+  if ENV["RAILS_LOG_TO_STDOUT"].present?
+    config.log_tags = [:request_id]
+    
+    # Create STDOUT logger
+    stdout_logger = ActiveSupport::Logger.new(STDOUT)
+    stdout_logger.formatter = config.log_formatter
+    
+    # Create File logger
+    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}.log"))
+    file_logger.formatter = config.log_formatter
+    
+    # Broadcast to both
+    config.logger = ActiveSupport::BroadcastLogger.new(stdout_logger, file_logger)
+    config.logger = ActiveSupport::TaggedLogging.new(config.logger)
+  end
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch('RAILS_LOG_LEVEL', 'info')
