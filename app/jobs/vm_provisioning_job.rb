@@ -3,7 +3,6 @@
 class VmProvisioningJob < ApplicationJob
   queue_as :default
 
-
   def perform(vm_id, params = {})
     vm = Vm.find_by(id: vm_id)
     unless vm
@@ -16,7 +15,7 @@ class VmProvisioningJob < ApplicationJob
     vm.start_provisioning! if vm.may_start_provisioning?
 
     service = VmProvisioningService.new(nil, logger)
-    
+
     # Merge existing metadata with any overrides from params
     # Ensure nested keys like proxy_config are preserved if not provided in params
     provision_params = {
@@ -35,10 +34,13 @@ class VmProvisioningJob < ApplicationJob
 
     logger.info "[VmProvisioningJob] Executing VmProvisioningService for VM #{vm_id} with hostname: #{provision_params['hostname']}"
     result = service.provision(provision_params)
-    
+
     logger.info "[VmProvisioningJob] Provisioning service returned: #{result[:status]} (IP: #{result[:ip_address]})"
 
-    # Update VM with results including credentials
+    # Reload VM to capture any updates made by the Ansible callback
+    vm.reload
+
+    # Save the provisioned VM details
     vm.update!(
       proxmox_vm_id: result[:pve_vmid].to_s,
       proxmox_node: VmProvisioningService::PROXMOX_NODE,
@@ -49,10 +51,14 @@ class VmProvisioningJob < ApplicationJob
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],
       hostname: result[:hostname],
+      dns_name: result[:dns_name],
       api_response: result.to_json
     )
 
     vm.mark_active!
+
+    order = vm.vm_order&.order
+    order.activate! if order&.may_activate?
 
     # Clear status cache
     Rails.cache.delete("vm_status_#{vm_id}")
@@ -71,6 +77,8 @@ class VmProvisioningJob < ApplicationJob
           order_id: vm.vm_order.order_id,
           vm_id: vm.id,
           ip_address: vm.ip_address,
+          link: vm.dns_name,
+          host: vm.dns_name.presence || vm.ip_address,
           status: 'active',
           credentials: {
             username: vm.ssh_username,
@@ -80,13 +88,13 @@ class VmProvisioningJob < ApplicationJob
         }
         WebhookDispatchWorker.perform_later(owner.id, 'credentials.ready', payload)
       end
-      
+
       NotificationService.notify(
         recipient: owner,
         category: 'success',
         title: 'VM Provisioned',
         message: "Your VM ##{vm.proxmox_vm_id || vm.hostname} is ready.",
-        metadata: { vm_id: vm.id, ip_address: vm.ip_address }
+        metadata: { vm_id: vm.id, ip_address: vm.ip_address, link: vm.dns_name, host: vm.dns_name.presence || vm.ip_address }
       )
     end
   rescue AASM::InvalidTransition => e
@@ -96,6 +104,9 @@ class VmProvisioningJob < ApplicationJob
     logger.error "[VmProvisioningJob] Provisioning failed for VM #{vm_id}: #{e.message}"
 
     vm.fail! if vm.may_fail?
+
+    order = vm.vm_order&.order
+    order.fail! if order&.may_fail?
 
     # Notify failure
     owner = vm&.vm_order&.order&.orderable

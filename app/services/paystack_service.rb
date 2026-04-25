@@ -52,6 +52,28 @@ class PaystackService
             })
   end
 
+  def refund(transaction_reference, amount)
+    response = request(:post, '/refund', {
+                         transaction: transaction_reference,
+                         amount: (amount * 100).to_i # Paystack expects kobo
+                       })
+
+    unless response['status']
+      raise "Paystack Refund Failed: #{response['message']}"
+    end
+
+    response
+  end
+
+  def charge_authorization(email, amount_kobo, authorization_code, reference)
+    request(:post, '/transaction/charge_authorization', {
+              email: email,
+              amount: amount_kobo,
+              authorization_code: authorization_code,
+              reference: reference
+            })
+  end
+
   private
 
   def request(method, endpoint, body = nil)

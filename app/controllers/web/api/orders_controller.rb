@@ -138,6 +138,7 @@ module Web
         product = Product.for_ecommerce.find(params[:product_id])
         pricing = product.product_pricings.find_by(active: true)
         payment_method = params[:payment_method] || 'wallet' # 'wallet' or 'gateway'
+        promo_code_input = params[:promo_code]&.strip&.upcase
 
         # Extract frontend parameters
         meta = params[:metadata] || {}
@@ -163,24 +164,78 @@ module Web
 
         return render json: { errors: order.errors }, status: :unprocessable_entity unless order.save
 
-        total = order.total_amount
+        original_total = order.total_amount.to_f
+
+        # ── Apply Promo Code or Affiliate discount ──────────────────────────────
+        promo_discount = 0
+        promo_code_record = nil
+        affiliate_record = nil
+        applied_code_string = nil
+
+        if promo_code_input.present?
+          promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
+
+          if promo_code_record.present?
+            if !promo_code_record.usable?
+              order.destroy
+              return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity
+            else
+              promo_discount = promo_code_record.calculate_discount(original_total)
+              applied_code_string = promo_code_record.code
+            end
+          else
+            affiliate_record = Affiliate.active.find_by('UPPER(referral_code) = ?', promo_code_input)
+            if affiliate_record.present?
+              if current_actor.respond_to?(:affiliate_referrals) && current_actor.affiliate_referrals.pending.exists?
+                order.destroy
+                return render json: { error: 'You are already receiving an affiliate discount automatically.' }, status: :unprocessable_entity
+              end
+              promo_discount = affiliate_record.calculate_discount(original_total)
+              applied_code_string = affiliate_record.referral_code
+            else
+              order.destroy
+              return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity
+            end
+          end
+        end
+
+        final_amount = [original_total - promo_discount, 0].max.round(2)
+
+        # Update order total and metadata to reflect discount
+        if promo_discount.positive?
+          order.update_columns(
+            total_amount: final_amount,
+            metadata: order.metadata.merge(
+              'promo_code' => applied_code_string,
+              'promo_discount' => promo_discount,
+              'original_total' => original_total
+            )
+          )
+        end
 
         if payment_method == 'wallet'
           # Pay from wallet balance
           wallet = current_actor.wallet
 
-          if wallet.nil? || wallet.balance < total
+          if wallet.nil? || wallet.balance < final_amount
             order.update(status: 'failed')
-            return render json: { error: "Insufficient balance. Required: #{total}, Available: #{wallet&.balance || 0}" },
+            return render json: { error: "Insufficient balance. Required: $#{final_amount}, Available: $#{wallet&.balance || 0}" },
                           status: :payment_required
           end
 
           # Deduct balance and provision
           begin
-            # Service handles debit and provisioning
+            ActiveRecord::Base.transaction do
+              # Record promo code usage
+              promo_code_record&.record_use! if promo_discount.positive?
+            end
+
+            # Service handles debit and provisioning (uses order.total_amount which now reflects discount)
             OrderProvisioningService.new(order, current_actor).process!
-            render json: serialize_order(order.reload).merge(available_balance: current_actor.wallet&.balance.to_f),
-                   status: :created
+            render json: serialize_order(order.reload).merge(
+              available_balance: current_actor.wallet&.balance.to_f,
+              promo_discount: promo_discount.positive? ? promo_discount : nil
+            ), status: :created
           rescue StandardError => e
             order.fail! if order.may_fail?
             render json: { error: e.message }, status: :unprocessable_entity
@@ -189,13 +244,18 @@ module Web
         else
           # Redirect to payment gateway
           gateway = params[:gateway] || 'paystack'
-          payment_data = generate_order_payment_link(gateway, order, total)
+
+          # Record promo code usage for gateway payments
+          promo_code_record&.record_use! if promo_discount.positive?
+
+          payment_data = generate_order_payment_link(gateway, order, final_amount)
 
           render json: {
             order: serialize_order(order),
             payment_url: payment_data[:url],
             payment_amount: payment_data[:amount],
             payment_currency: payment_data[:currency],
+            promo_discount: promo_discount.positive? ? promo_discount : nil,
             message: 'Complete payment to activate order'
           }, status: :accepted
         end
@@ -235,7 +295,8 @@ module Web
               'target_section_id' => item[:target_section_id] || item['target_section_id'],
               'target_id' => item[:target_id] || item['target_id'],
               'resi' => item[:resi] || item['resi'],
-              'selected_country_id' => item[:selected_country_id] || item['selected_country_id']
+              'selected_country_id' => item[:selected_country_id] || item['selected_country_id'],
+              'auto_renew' => item[:metadata]&.[](:auto_renew) || item['metadata']&.[]('auto_renew')
             ).compact,
             status: 'pending'
           )
@@ -250,32 +311,52 @@ module Web
                         status: :unprocessable_entity
         end
 
-        # ── Apply Promo Code discount ──────────────────────────────
+        # ── Apply Promo Code or Affiliate discount ──────────────────────────────
         promo_discount = 0
         promo_code_record = nil
+        nil
+        applied_code_string = nil
+
         if promo_code_input.present?
           promo_code_record = PromoCode.find_by('UPPER(code) = ?', promo_code_input)
-          if promo_code_record.nil?
-            return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity
-          elsif !promo_code_record.usable?
-            return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity
-          else
+
+          if promo_code_record.present?
+            return render json: { error: 'This promo code has expired or reached its usage limit' }, status: :unprocessable_entity unless promo_code_record.usable?
+
             promo_discount = promo_code_record.calculate_discount(total_amount)
+            applied_code_string = promo_code_record.code
+
+          else
+            affiliate_record = Affiliate.active.find_by('UPPER(referral_code) = ?', promo_code_input)
+            return render json: { error: 'Invalid promo code' }, status: :unprocessable_entity unless affiliate_record.present?
+            if current_actor.respond_to?(:affiliate_referrals) && current_actor.affiliate_referrals.pending.exists?
+              return render json: { error: 'You are already receiving an affiliate discount automatically.' }, status: :unprocessable_entity
+            end
+
+            promo_discount = affiliate_record.calculate_discount(total_amount)
+            applied_code_string = affiliate_record.referral_code
+
           end
         end
 
-        # ── Apply Affiliate Referral discount ──────────────────────
+        # ── Affiliate Referral discount (informational) ───────────
+        # NOTE: PricingService.calculate_total already applies the affiliate
+        # discount to each order's total_amount, so we do NOT subtract it again.
+        # We only track the referral for commission recording and display.
         affiliate_discount = 0
         referral = current_actor.affiliate_referrals.pending.first if current_actor.respond_to?(:affiliate_referrals)
         if referral && !AffiliateService.halted?
           affiliate = referral.affiliate
           discount_pct = affiliate.discount_rate / 100.0
-          affiliate_discount = (total_amount * discount_pct).round(2)
+          # Calculate what the affiliate discount was (for display/metadata)
+          # This amount is already baked into total_amount by PricingService
+          affiliate_discount = (total_amount * discount_pct / (1.0 - discount_pct)).round(2)
         end
 
-        # Calculate final amount
-        total_discount = promo_discount + affiliate_discount
-        final_amount = [total_amount - total_discount, 0].max.round(2)
+        # Calculate final amount — only promo discount is subtracted here
+        # (affiliate discount is already in each order's total_amount)
+        total_discount = promo_discount
+        final_amount = [total_amount - promo_discount, 0].max.round(2)
 
         if payment_method == 'wallet'
           wallet = current_actor.wallet
@@ -289,17 +370,35 @@ module Web
             # Create all orders
             orders_to_create.each(&:save!)
 
-            # Record promo code usage
-            if promo_code_record && promo_discount.positive?
-              promo_code_record.record_use!
-              # Store promo info on orders
-              orders_to_create.each do |order|
-                order.update_columns(metadata: order.metadata.merge(
-                  'promo_code' => promo_code_record.code,
-                  'promo_discount' => promo_discount
-                ))
+            # Distribute discounts proportionally across orders so each order's
+            # total_amount reflects the discounted price the system should use.
+            if total_discount.positive?
+              remaining_discount = total_discount
+              orders_to_create.each_with_index do |order, idx|
+                if idx == orders_to_create.size - 1
+                  # Last order gets the remainder to avoid rounding drift
+                  order_discount = remaining_discount
+                else
+                  proportion = order.total_amount.to_f / total_amount
+                  order_discount = (total_discount * proportion).round(2)
+                  remaining_discount -= order_discount
+                end
+
+                new_total = [order.total_amount.to_f - order_discount, 0].max.round(2)
+                order.update_columns(
+                  total_amount: new_total,
+                  metadata: order.metadata.merge(
+                    'promo_code' => applied_code_string,
+                    'promo_discount' => promo_discount.positive? ? promo_discount : nil,
+                    'affiliate_discount' => affiliate_discount.positive? ? affiliate_discount : nil,
+                    'original_total' => order.total_amount_before_type_cast
+                  ).compact
+                )
               end
             end
+
+            # Record promo code usage
+            promo_code_record&.record_use! if promo_discount.positive?
 
             # Record affiliate referral conversion
             if referral && affiliate_discount.positive?
@@ -514,6 +613,33 @@ module Web
         end
       end
 
+      # POST /web/api/orders/:id/update_subscription
+      def update_subscription
+        order = current_actor.orders.find(params[:id])
+        auto_renew = params[:auto_renew]
+        renewal_method = params[:renewal_method]
+
+        ActiveRecord::Base.transaction do
+          # Update order metadata
+          order.metadata['auto_renew'] = ActiveRecord::Type::Boolean.new.cast(auto_renew) if params.key?(:auto_renew)
+          order.metadata['renewal_method'] = renewal_method if renewal_method.present?
+          order.save!
+
+          # Update all provisioned resources metadata
+          order.all_provisioned_resources.each do |resource|
+            resource.metadata ||= {}
+            resource.metadata['auto_renew'] = order.metadata['auto_renew'] if params.key?(:auto_renew)
+            resource.metadata['renewal_method'] = order.metadata['renewal_method'] if renewal_method.present?
+            resource.save!
+          end
+        end
+
+        render json: {
+          message: 'Subscription settings updated successfully',
+          order: serialize_order(order.reload)
+        }
+      end
+
       # GET /web/api/orders/:id/download_ovpn
       def download_ovpn
         order = current_actor.orders.find(params[:id])
@@ -673,6 +799,120 @@ module Web
         end
       end
 
+      # POST /web/api/orders/:id/claim_crypto_refund
+      def claim_crypto_refund
+        order = current_actor.orders.find(params[:id])
+        address = params[:address]
+        network = params[:network]
+
+        return render json: { error: 'Address is required' }, status: :unprocessable_entity if address.blank?
+
+        order.with_lock do
+          if order.status != 'failed'
+            return render json: { error: 'Order must be failed to claim refund' }, status: :unprocessable_entity
+          end
+
+          checkout = order.checkout_session
+          unless %w[plisio payvra hundredpay].include?(checkout&.gateway)
+            return render json: { error: 'This order does not qualify for a crypto refund.' }, status: :unprocessable_entity
+          end
+
+          # Failsafe for external API products
+          is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+          if is_external_api_product && order.provider_order_id.present?
+            # API processed it, block crypto withdrawal and open ticket
+            ticket = current_actor.tickets.create!(
+              subject: "Crypto Refund Request Intercepted - External Order ##{order.order_number}",
+              priority: 'high',
+              order_id: order.id,
+              user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
+            )
+            ticket.ticket_messages.create!(
+              sender: current_actor,
+              body: "Automated Crypto Refund Blocked: Order failed locally but was processed externally (Provider Order ID: #{order.provider_order_id}). Attempted crypto address: #{address} (#{network}). Please review manually."
+            )
+            NotificationService.notify_staff(
+              category: 'warning',
+              title: 'Crypto Refund Intercepted',
+              message: "#{current_actor.email} attempted crypto refund for processed external order ##{order.order_number}.",
+              metadata: { order_id: order.id, ticket_id: ticket.id }
+            )
+            return render json: { error: 'This order was processed by our external provider. For security, automated crypto refunds are blocked. A support ticket has been created for manual review.' }, status: :unprocessable_entity
+          end
+
+          # Dispatch actual crypto withdrawal
+          begin
+            case checkout.gateway
+            when 'plisio'
+              PlisioService.new.withdraw(order.total_amount, network || 'USDT', address, "REFUND-#{order.order_number}")
+            when 'payvra'
+              PayvraService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
+            when 'hundredpay'
+              return render json: { error: 'HundredPay refunds must be claimed via support momentarily.' }, status: :unprocessable_entity
+            end
+
+            # Atomically mark refunded
+            order.refund!
+            record_audit_log('order.crypto_refund_claimed', order, { address: address, network: network })
+
+            render json: { message: 'Crypto refund successfully claimed and dispatched.' }
+          rescue StandardError => e
+            render json: { error: "Failed to dispatch crypto refund: #{e.message}" }, status: :service_unavailable
+          end
+        end
+      end
+
+      # POST /web/api/orders/:id/refund
+      # Allows users to refund failed orders. External API products are intercepted if already processed.
+      def refund
+        order = current_actor.orders.find(params[:id])
+
+        unless order.failed?
+          return render json: { error: 'Order is not in a failed state. Only failed orders can be refunded.' }, status: :unprocessable_entity
+        end
+
+        is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+
+        if is_external_api_product && order.provider_order_id.present?
+          # Intercept: API processed it, we can't auto-refund without manual check
+          begin
+            ActiveRecord::Base.transaction do
+              ticket = current_actor.tickets.create!(
+                subject: "Refund Request for Processed External Order ##{order.order_number}",
+                priority: 'high',
+                order_id: order.id,
+                user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
+              )
+              ticket.ticket_messages.create!(
+                sender: current_actor,
+                body: "Automated Refund Request: This order failed locally but was processed by the external API (Provider Order ID: #{order.provider_order_id}). Manual review required."
+              )
+
+              NotificationService.notify_staff(
+                category: 'warning',
+                title: 'Manual User Refund Required',
+                message: "#{current_actor.email} requested refund for processed external order ##{order.order_number}.",
+                metadata: { order_id: order.id, ticket_id: ticket.id }
+              )
+            end
+
+            return render json: {
+              error: 'This order was processed by our external provider before failing locally. A high-priority support ticket has been created for manual refund review.'
+            }, status: :unprocessable_entity
+          rescue StandardError => e
+            return render json: { error: "Failed to generate support ticket: #{e.message}" }, status: :unprocessable_entity
+          end
+        end
+
+        # Proceed with standard refund
+        begin
+          RefundService.new(order).process!(refund_method: 'wallet')
+          render json: { message: 'Order successfully refunded to your wallet balance.', order: serialize_order(order.reload) }
+        rescue StandardError => e
+          render json: { error: "Refund failed: #{e.message}" }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       # Extract the provider's order ID from stored metadata.
@@ -701,11 +941,21 @@ module Web
           total_amount: order.total_amount,
           amount: order.total_amount,
           currency: order.product_pricing&.currency || 'USD',
-          status: order.status == 'active' ? 'completed' : order.status,
+          currency_code: order.product_pricing&.currency || 'USD',
+          status: if %w[vps rdp vm].include?(order.product.product_type)
+                    order.status
+                  else
+                    (order.status == 'active' ? 'completed' : order.status)
+                  end,
           created_at: order.created_at,
-          expires_at: resource.try(:expires_at),
+          expires_at: resource.try(:expires_at) || order.expires_at || (order.created_at + 30.days),
           reorderable: order.reorderable?(current_actor),
-          payment_method: 'wallet'
+          payment_method: order.checkout_session&.gateway || 'wallet',
+          auto_renew: resource.try(:metadata)&.dig('auto_renew') || order.metadata['auto_renew'],
+          renewal_method: resource.try(:metadata)&.dig('renewal_method') || order.metadata['payment_debug'] || order.metadata['renewal_method'] || 'wallet',
+          metadata: order.metadata.merge(order.product.metadata || {}),
+          duration: order.product_pricing&.duration_value ? (order.product_pricing.duration_value / 30.0).ceil : 1,
+          transaction_id: order.metadata&.dig('transaction_id') || order.id
         }
 
         # Include product-specific details
@@ -770,45 +1020,71 @@ module Web
               server: resource&.try(:server)
             }
           end
-        when 'vps', 'rdp'
+        when 'vps', 'rdp', 'vm'
           base[:vm_details] = resource&.as_json || {}
+          base[:vm_id] = resource&.proxmox_vm_id&.to_i
+          base[:hostname] = resource&.hostname || "vm-#{resource&.id}"
+          base[:node] = resource&.proxmox_node || 'N/A'
+          base[:os_template] = order.product.metadata&.dig('os_template') || 'ubuntu-22.04'
+          base[:service_type] = order.product.metadata&.dig('vm_type') || 'residential'
+          base[:management_type] = 'unmanaged'
+          base[:ip_address] = resource&.ip_address
+          base[:ssh_port] = resource&.ssh_port || 22
+          base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)
+          base[:concurrent_users] = order.product.metadata&.dig('concurrent_users') || 1
+          base[:activated_at] = resource&.try(:provisioned_at) || resource&.created_at
           base[:credentials] = {
-            username: resource&.try(:ssh_username),
-            password: resource&.try(:ssh_password),
+            username: resource&.try(:ssh_username) || resource&.try(:rdp_username) || 'root',
+            password: resource&.try(:root_password) || resource&.try(:ssh_password) || resource&.try(:rdp_password_encrypted),
             ip: resource&.try(:ip_address),
-            port: resource&.try(:ssh_port)
+            port: resource&.try(:ssh_port) || resource&.try(:rdp_port) || 22
           }
         when 'esim'
-          base[:esim_details] = resource&.as_json || {}
-          base[:credentials_list] = resource&.esims&.map do |esim|
+          base[:esim_order_no] = resource&.provider_order_no
+          base[:package_code] = resource&.package_code
+          base[:package_slug] = order.product.product_category&.slug
+          base[:package_name] = order.product.name
+          base[:quantity] = 1 # Default for standard eSIM
+
+          base[:profiles] = resource&.esims&.map do |esim|
             {
               id: esim.id,
               iccid: esim.iccid,
-              qr_code: esim.qr_code_data,
+              qr_code_data: esim.qr_code_data,
+              qr_code_url: esim.qr_code_data,
               activation_code: esim.activation_code,
               pin1: esim.pin1,
               puk1: esim.puk1,
+              total_volume: (esim.data_total_bytes.to_i / (1024 * 1024)).to_i, # MB
+              used_volume: (esim.data_used_bytes.to_i / (1024 * 1024)).to_i,
+              location_name: resource.country_code || 'Global',
+              expired_time: esim.expires_at,
               status: esim.status
             }
           end
-          # Keep legacy field for backwards compatibility if needed
-          base[:credentials] = base[:credentials_list]&.first
+          base[:credentials_list] = base[:profiles]
         when 'usa_esim'
-          base[:credentials_list] = resource&.usa_esim_credentials&.map do |credential|
+          base[:package_name] = order.product.name
+          base[:quantity] = 1
+          base[:profiles] = resource&.usa_esim_credentials&.map do |credential|
             {
               id: credential.id,
               iccid: credential.iccid,
               qr_code: credential.qr_code,
-              qr_activation_code: credential.qr_activation_code,
+              qr_code_data: credential.qr_code,
+              activation_code: credential.qr_activation_code,
               pin1: credential.send('PIN1'),
               pin2: credential.send('PIN2'),
               puk1: credential.send('PUK1'),
               puk2: credential.send('PUK2'),
               zip_code: credential.zip_code,
-              status: credential.status
+              status: credential.status,
+              total_volume: 0, # Unlimited or not tracked per-cred
+              location_name: 'USA',
+              expired_time: order.expires_at
             }
           end
-          base[:credentials] = base[:credentials_list]&.first
+          base[:credentials_list] = base[:profiles]
         end
 
         # Download availability flags

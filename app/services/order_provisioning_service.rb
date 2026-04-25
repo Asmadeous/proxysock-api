@@ -16,6 +16,13 @@ class OrderProvisioningService
     ActiveRecord::Base.transaction do
       # 1. Price Calculation
       @order.calculate_total_amount
+
+      # Re-apply promo discount if one was applied at checkout
+      promo_discount = @order.metadata&.dig('promo_discount').to_f
+      if promo_discount.positive?
+        @order.total_amount = [@order.total_amount.to_f - promo_discount, 0].max.round(2)
+      end
+
       total = @order.total_amount
 
       # 2. Payment / Balance Check (Resellers always use wallet)
@@ -35,7 +42,7 @@ class OrderProvisioningService
 
     # 3a. Send Invoice — MUST be outside the transaction so the Order
     #     is committed and visible to Sidekiq when the mailer job runs.
-    InvoiceMailer.with(order: @order).invoice_email.deliver_now
+    InvoiceMailer.with(order: @order).invoice_email.deliver_later
 
     # 4. Provision based on product type
     provision_product!
@@ -50,13 +57,18 @@ class OrderProvisioningService
     # 6. Record reseller profit share (replaced affiliate commission)
     ResellerEarningsService.record_profit_share!(@order)
 
-    NotificationService.notify(
-      recipient: @actor,
-      category: 'success',
-      title: 'Order Completed',
-      message: "Order ##{@order.order_number} has been successfully provisioned.",
-      metadata: { order_id: @order.id }
-    )
+    # Notify Admins and Support on success ONLY (as per requirements)
+    [Employee.admins, Employee.support_agents].each do |scope|
+      scope.find_each do |employee|
+        NotificationService.notify(
+          recipient: employee,
+          category: 'success',
+          title: 'Order Completed',
+          message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} has been successfully provisioned.",
+          metadata: { order_id: @order.id }
+        )
+      end
+    end
 
     true
   rescue StandardError => e
@@ -73,23 +85,57 @@ class OrderProvisioningService
     Rails.logger.error("[OrderProvisioningService] Failed: #{e.message}")
     @order.fail! if @order.may_fail?
 
-    NotificationService.notify(
-      recipient: @actor,
-      category: 'error',
-      title: 'Order Failed',
-      message: "Order ##{@order.order_number} failed to provision. Support has been notified.",
-      metadata: { order_id: @order.id, error: e.message }
-    )
+    begin
+      RefundService.new(@order).process!
+    rescue RefundService::DeferredCryptoRefund => re
+      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{re.message}")
+    rescue StandardError => re
+      Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{re.message}")
+    end
 
-    # Notify Employees (System Alert)
-    Employee.where(active: true).find_each do |employee|
+    # Notify the Actor (Customer or Reseller)
+    if @actor.is_a?(Reseller)
+      # Direct Resellers get detailed failure info
       NotificationService.notify(
-        recipient: employee,
-        category: 'system_alert',
-        title: 'Provisioning Failure',
-        message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} failed: #{e.message}",
-        metadata: { order_id: @order.id, actor_id: @actor.id, actor_type: @actor.class.name }
+        recipient: @actor,
+        category: 'error',
+        title: 'Provisioning Failed',
+        message: "Your order ##{@order.order_number} failed to provision: #{e.message}",
+        metadata: { order_id: @order.id, error: e.message }
       )
+    elsif @actor.is_a?(User)
+      # Regular customers get a generic failure message
+      NotificationService.notify(
+        recipient: @actor,
+        category: 'error',
+        title: 'Provisioning Failed',
+        message: "Your order ##{@order.order_number} failed to provision. Support has been notified.",
+        metadata: { order_id: @order.id }
+      )
+
+      # If this user belongs to an Infrastructure Reseller, notify the reseller with details
+      if @actor.reseller.present?
+        NotificationService.notify(
+          recipient: @actor.reseller,
+          category: 'error',
+          title: 'Managed User Provisioning Failed',
+          message: "Managed user #{@actor.username}'s order ##{@order.order_number} failed: #{e.message}",
+          metadata: { order_id: @order.id, user_id: @actor.id, error: e.message }
+        )
+      end
+    end
+
+    # Notify Admins and Support ONLY on failure
+    [Employee.admins, Employee.support_agents].each do |scope|
+      scope.find_each do |employee|
+        NotificationService.notify(
+          recipient: employee,
+          category: 'system_alert',
+          title: 'Provisioning Failure',
+          message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} failed: #{e.message}",
+          metadata: { order_id: @order.id, actor_id: @actor.id, actor_type: @actor.class.name }
+        )
+      end
     end
 
     raise e
@@ -137,6 +183,15 @@ class OrderProvisioningService
     end
   end
 
+  def service_renewal_metadata
+    {
+      'auto_renew' => @order.metadata['auto_renew'],
+      'renewal_method' => @order.metadata['payment_debug'],
+      'paystack_auth_code' => @order.metadata['paystack_auth_code'],
+      'fastspring_sub_id' => @order.metadata['fastspring_sub_id']
+    }.compact
+  end
+
   # ========== VM Provisioning ==========
   def provision_vm!
     # Extract explicit user country selection or fallback to product default
@@ -168,7 +223,8 @@ class OrderProvisioningService
     vm = Vm.create!(
       vm_order: vm_order,
       status: 'pending',
-      vm_type: vm_order.vm_type
+      vm_type: vm_order.vm_type,
+      metadata: service_renewal_metadata
     )
 
     job_params = {
@@ -177,6 +233,8 @@ class OrderProvisioningService
       'cpu_cores' => vm_order.cpu_cores,
       'ram_gb' => vm_order.ram_gb,
       'storage_gb' => vm_order.disk_gb,
+      'hostname' => @order.metadata&.dig('hostname').presence,
+      'management_type' => @order.metadata&.dig('management_type') || @product.metadata&.dig('management_type') || 'unmanaged',
       'country_code' => vm_order.country_code
     }
 
@@ -209,9 +267,10 @@ class OrderProvisioningService
       end
 
       # Execute MyProxyApi Purchase
-      user_id = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
       begin
         client = MyProxyApiClient.new
+        user_id = client.reseller_user_id
+        
         order_response = client.place_order(
           user_id: user_id,
           product_api_id: proxy_pr.provider_product_id,
@@ -274,6 +333,10 @@ class OrderProvisioningService
     when 'myproxyapi'
       category_slug = @product.product_category&.slug
 
+      # NOTE: residential rotating and global-isp are different in a way.
+      # Global ISP targets specific ISP/City IDs for a fixed duration (7d/30d),
+      # while Residential Rotating uses traffic-based plans (GB) and dynamic pool rotations.
+
       # Extract provisioning params from order metadata.
       # 'period' = months/days string for static IPs, GB for residential rotating, IPs count for mobile
       raw_period = @order.metadata['period'] || @product.metadata&.dig('duration_value') || 1
@@ -294,7 +357,9 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol  = @order.metadata['protocol'] || 'http'
       api_id    = @product.provider_product_id
-      user_id   = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
+      
+      client = MyProxyApiClient.new
+      user_id = client.reseller_user_id
 
       # 'locationId' is the numeric city/ISP ID the API expects.
       # 'locationsString' is the human-readable label (e.g. "Dallas, Texas") — NOT for the API.
@@ -305,8 +370,6 @@ class OrderProvisioningService
                     loc = @order.metadata['locationId'] || @order.metadata['locationsString']
                     loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating' ? loc : nil
                   end
-
-      client = MyProxyApiClient.new
 
       # Determine debug label from payment method used
       payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
@@ -329,8 +392,8 @@ class OrderProvisioningService
       end
 
       # Handle Residential Rotating V2 (resi: 1)
-      if category_slug == 'residential-rotating' && (@order.metadata['resi'].present? || @product.metadata&.dig('resi').present?)
-        provisioning_params[:resi] = @order.metadata['resi'] || @product.metadata&.dig('resi')
+      if category_slug == 'residential-rotating'
+        provisioning_params[:resi] = 1 # Force V2 API strictly
       end
 
       response = client.place_order(**provisioning_params)
@@ -339,8 +402,11 @@ class OrderProvisioningService
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
+        # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials
+        sleep(60)
+
         begin
-          # Use the appropriate view endpoint based on product category
+          # Re-fetch full details (IPs, credentials) from the provider
           full_details = if category_slug == 'mobile'
                            client.view_mobile_order(provider_order_id)
                          elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
@@ -348,8 +414,8 @@ class OrderProvisioningService
                          else
                            client.view_order(provider_order_id)
                          end
-          # Support multiple proxies across all categories where a list is returned
-          response = full_details['data'] || full_details
+          # Support both Array and Hash formats returned by the API
+          response = full_details['data'].is_a?(Array) ? full_details['data'].first : (full_details['data'] || full_details)
         rescue StandardError => e
           Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
         end
@@ -381,19 +447,19 @@ class OrderProvisioningService
                         end
 
             proxy_creds = client.generate_v2_res_rot_proxy(
-              user_id:        user_id,
-              hostname:       proxy_hostname,
-              username:       proxy_username,
-              password:       proxy_password,
+              user_id: user_id,
+              hostname: proxy_hostname,
+              username: proxy_username,
+              password: proxy_password,
               proxy_rotation: proxy_rotation.to_s,
-              protocol:       protocol,
-              quantity:       1,
-              format:         'hostname:port:username:password',
-              country:        @order.metadata['residentalRotatingConfig']&.dig('country'),
-              state:          @order.metadata['residentalRotatingConfig']&.dig('state'),
-              city:           @order.metadata['residentalRotatingConfig']&.dig('city'),
-              isp:            @order.metadata['residentalRotatingConfig']&.dig('isp'),
-              targeting:      targeting
+              protocol: protocol,
+              quantity: 1,
+              format: 'hostname:port:username:password',
+              country: @order.metadata['residentalRotatingConfig']&.dig('country'),
+              state: @order.metadata['residentalRotatingConfig']&.dig('state'),
+              city: @order.metadata['residentalRotatingConfig']&.dig('city'),
+              isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              targeting: targeting
             )
             all_credentials << proxy_creds
           end
@@ -431,7 +497,7 @@ class OrderProvisioningService
           owner: owner,
           api_response: response,
           target_email: target_email
-        ).api_proxy_credentials_email.deliver_now
+        ).api_proxy_credentials_email.deliver_later
       end
 
     when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
@@ -481,7 +547,8 @@ class OrderProvisioningService
       order: @order,
       status: 'active',
       country_code: @product.metadata&.dig('country_code'),
-      quantity: @order.quantity || 1
+      quantity: @order.quantity || 1,
+      metadata: service_renewal_metadata
     )
 
     # Generate credentials
@@ -493,7 +560,8 @@ class OrderProvisioningService
       username: username,
       password: password,
       order_id: @order.id,
-      proxy_order_foreign_key => proxy_order.id
+      proxy_order_foreign_key => proxy_order.id,
+      metadata: (proxy.metadata || {}).merge(service_renewal_metadata)
     )
 
     proxy
@@ -509,7 +577,7 @@ class OrderProvisioningService
         proxy: proxy,
         order: saved_order,
         target_email: target_email
-      ).credentials_email.deliver_now
+      ).credentials_email.deliver_later
     end
   end
 
@@ -534,13 +602,14 @@ class OrderProvisioningService
     if provider == 'colt'
       # Colt requires manual fulfillment
       UsaEsimOrder.transaction do
-        UsaEsimOrder.create!(
-          order: @order,
-          status: 'pending', # Manual fulfillment starts as pending
-          provider: provider,
-          quantity: quantity,
-          total_amount: @order.total_amount || 0.0
-        )
+          UsaEsimOrder.create!(
+            order: @order,
+            status: 'pending',
+            provider: provider,
+            quantity: quantity,
+            total_amount: @order.total_amount || 0.0,
+            metadata: service_renewal_metadata
+          )
       end
 
       @order.update!(status: 'processing')
@@ -552,11 +621,11 @@ class OrderProvisioningService
         UsaEsimMailer.with(
           owner: saved_actor,
           order: saved_order
-        ).manual_order_notification.deliver_now
+        ).manual_order_notification.deliver_later
 
         UsaEsimMailer.with(
           order: saved_order
-        ).admin_manual_order_alert.deliver_now
+        ).admin_manual_order_alert.deliver_later
       end
       return
     end
@@ -601,7 +670,7 @@ class OrderProvisioningService
           credentials: saved_creds,
           order: saved_order,
           target_email: target_email
-        ).credentials_email.deliver_now
+        ).credentials_email.deliver_later
       end
     end
   end
@@ -614,9 +683,9 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol  = @order.metadata['protocol'] || 'http'
       api_id    = @product.provider_product_id
-      user_id   = ENV.fetch('MY_PROXY_RESELLER_USER_ID', '1')
-
+      
       client = MyProxyApiClient.new
+      user_id = client.reseller_user_id
 
       # Determine debug label from payment method used
       payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
@@ -694,7 +763,7 @@ class OrderProvisioningService
       owner = @actor || @order.orderable
       saved_order = @order
       ActiveRecord.after_all_transactions_commit do
-        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_now
+        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
       end
       return
     end
@@ -719,7 +788,7 @@ class OrderProvisioningService
       vpn_username: username,
       vpn_password: password,
       status: 'active',
-      metadata: { server: @product.metadata&.dig('server') }
+      metadata: { server: @product.metadata&.dig('server') }.merge(service_renewal_metadata)
     )
 
     target_email = @order.metadata&.dig('credentials_email').presence
@@ -730,7 +799,7 @@ class OrderProvisioningService
         owner: owner,
         vpn_account: saved_vpn_account,
         target_email: target_email
-      ).credentials_email.deliver_now
+      ).credentials_email.deliver_later
     end
 
     @order.activate!
@@ -745,6 +814,7 @@ class OrderProvisioningService
         o.myproxyapi_order_id = provider_order_id
         o.target_section_id = @order.metadata['target_section_id'] || @order.metadata['targetSectionId'] || @product.metadata&.dig('target_section_id')
         o.target_id         = @order.metadata['target_id'] || @order.metadata['targetId'] || @product.metadata&.dig('target_id')
+        o.metadata          = service_renewal_metadata
       end
 
       if response['ips'].is_a?(Array)
@@ -765,7 +835,7 @@ class OrderProvisioningService
               original_cred: cred_string,
               info: response.dig('ips_info', idx),
               config: response['config']
-            }
+            }.merge(service_renewal_metadata)
           )
         end
       else
@@ -783,7 +853,7 @@ class OrderProvisioningService
             city: p_data['city'],
             isp_name: p_data['isp'] || p_data['isp_name'],
             expires_at: p_data['expires_at'],
-            metadata: p_data
+            metadata: p_data.merge(service_renewal_metadata)
           )
         end
       end
@@ -793,6 +863,7 @@ class OrderProvisioningService
           mo.myproxyapi_order_id = provider_order_id
           mo.quantity = response['ips'].size
           mo.status = 'active'
+          mo.metadata = service_renewal_metadata
         end
         response['ips'].each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
@@ -809,7 +880,7 @@ class OrderProvisioningService
               original_cred: cred_string,
               info: response.dig('ips_info', idx),
               config: response['config']
-            }
+            }.merge(service_renewal_metadata)
           )
         end
       else
@@ -820,6 +891,7 @@ class OrderProvisioningService
             mo.myproxyapi_order_id = provider_order_id
             mo.quantity = proxies_data.size
             mo.status = 'active'
+            mo.metadata = service_renewal_metadata
           end
 
           MobileProxy.create!(
@@ -831,41 +903,69 @@ class OrderProvisioningService
             password: p_data['password'],
             port: p_data['port'],
             status: 'active',
-            metadata: p_data
+            metadata: p_data.merge(service_renewal_metadata)
           )
         end
       end
-    when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential'
-      if response['ips'].is_a?(Array)
-        # Handle new Static IP format: ["ip:port:user:pass", ...]
-        response['ips'].each_with_index do |cred_string, idx|
+    when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential', 'premium_isp'
+      proxy_order_class = case category_slug
+                          when 'datacenter' then StaticDatacenterProxyOrder
+                          when 'premium_isp', 'premium-isp' then PremiumIspProxyOrder
+                          when 'static-residential', 'static_residential' then StaticResidentialProxyOrder
+                          else StaticIspProxyOrder
+                          end
+
+      proxy_class = case category_slug
+                    when 'datacenter' then StaticDatacenterProxy
+                    when 'premium_isp', 'premium-isp' then PremiumIspProxy
+                    when 'static-residential', 'static_residential' then StaticResidentialProxy
+                    else StaticIspProxy
+                    end
+
+      # Create parent order record
+      po = proxy_order_class.find_or_create_by!(order: @order) do |o|
+        o.status = 'active' if o.respond_to?(:status=)
+        o.metadata = service_renewal_metadata
+      end
+      fk = proxy_order_class.name.underscore + "_id"
+
+      # Handle both Array and Hash responses
+      records = response['ips'] || (response.is_a?(Array) ? response : [response])
+
+      if records.is_a?(Array) && records.first.is_a?(String) && records.first.include?(':')
+        records.each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
-          StaticIspProxy.create!(
-            order: @order,
-            ip_address: parts[0],
-            port: parts[1],
-            username: parts[2],
-            password: parts[3],
+          # Sometimes IP is missing from string ("::user:pass"), use top-level fields
+          ip = parts[0].presence || response['ip'] || response['ip_address']
+          port = parts[1].presence || response['port'] || response['http_port'] || response['socks5_port']
+
+          proxy_class.create!(
+            order_id: @order.id,
+            fk => po.id,
+            ip_address: ip,
+            port: port,
+            username: parts[2] || response['username'],
+            password: parts[3] || response['password'],
             status: 'active',
             metadata: {
               original_cred: cred_string,
-              info: response.dig('ips_info', idx),
+              info: response.dig('ips_info', idx) || response['info'],
               config: response['config']
-            }
+            }.merge(service_renewal_metadata)
           )
         end
       else
-        # Fallback to old format
         proxies_data = response.is_a?(Array) ? response : [response]
         proxies_data.each do |p_data|
-          StaticIspProxy.create!(
-            order: @order,
+          proxy_class.create!(
+            order_id: @order.id,
+            fk => po.id,
             ip_address: p_data['ip'] || p_data['ip_address'],
             port: p_data['port'] || p_data['http_port'] || p_data['socks5_port'],
             username: p_data['username'],
             password: p_data['password'],
             status: 'active',
-            metadata: p_data
+            metadata: p_data.merge(service_renewal_metadata)
           )
         end
       end
@@ -878,6 +978,7 @@ class OrderProvisioningService
         o.traffic_gb_used     = 0
         o.status              = 'active'
         o.traffic_expires_at  = order_data['end_time'] || order_data['expires_at']
+        o.metadata            = service_renewal_metadata
       end
 
       # Use credentials generated by generate_v2_res_rot_proxy (v2 flow),
@@ -887,36 +988,36 @@ class OrderProvisioningService
       if creds_array.any?
         creds_array.each_with_index do |creds, idx|
           ResidentialRotatingProxy.create!(
-            order:                            @order,
+            order: @order,
             residential_rotating_proxy_order: ro,
-            myproxyapi_order_id:              provider_order_id,
-            main_username:                    creds['username'],
-            main_password:                    creds['password'],
-            hostname:                         creds['hostname'],
-            port:                             creds['port'],
-            traffic_gb_total:                 ro.traffic_gb_total,
-            traffic_gb_used:                  0,
-            status:                           'active',
+            myproxyapi_order_id: provider_order_id,
+            main_username: creds['username'],
+            main_password: creds['password'],
+            hostname: creds['hostname'],
+            port: creds['port'],
+            traffic_gb_total: ro.traffic_gb_total,
+            traffic_gb_used: 0,
+            status: 'active',
             metadata: {
-              credential_set:    idx + 1,
+              credential_set: idx + 1,
               rotation_strategy: @order.metadata&.dig('rotation_strategy'),
-              proxy_region:      @order.metadata&.dig('proxy_region'),
-              isp:               @order.metadata['residentalRotatingConfig']&.dig('isp'),
-              country:           @order.metadata['residentalRotatingConfig']&.dig('country'),
+              proxy_region: @order.metadata&.dig('proxy_region'),
+              isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
+              country: @order.metadata['residentalRotatingConfig']&.dig('country'),
               original_response: creds
-            }
+            }.merge(service_renewal_metadata)
           )
         end
       else
         # v1 / non-v2 fallback: single placeholder representing pool access
         ResidentialRotatingProxy.create!(
-          order:                            @order,
+          order: @order,
           residential_rotating_proxy_order: ro,
-          myproxyapi_order_id:              provider_order_id,
-          traffic_gb_total:                 ro.traffic_gb_total,
-          traffic_gb_used:                  0,
-          status:                           'active',
-          metadata:                         order_data
+          myproxyapi_order_id: provider_order_id,
+          traffic_gb_total: ro.traffic_gb_total,
+          traffic_gb_used: 0,
+          status: 'active',
+          metadata: order_data.merge(service_renewal_metadata)
         )
       end
     end

@@ -1,8 +1,8 @@
 ---
-- name: Configure Ubuntu Desktop RDP with Management
+- name: Configure Ubuntu Desktop RDP MANAGED
   hosts: linux
-  become: yes
-  gather_facts: no
+  become: true
+  gather_facts: false
 
   pre_tasks:
     - name: Ensure rdp_password is defined
@@ -10,524 +10,260 @@
         msg: "rdp_password must be defined for security reasons."
       when: rdp_password is not defined
 
+    - name: Wait for system to stabilize
+      pause:
+        seconds: 30
+      run_once: true
+
   vars:
-    ciuser: "{{ hostname | default('rdp-user') }}"
+    admin_username: "{{ hostname | default('rdp-user') }}"
     admin_password: "{{ rdp_password }}"
-
-    # Kept only for API/status text; no firewall use
-
-    provisioning_api_url: "{{ api_url | default('http://localhost:5000') }}"
-    provisioning_api_key: "{{ api_key | default('your_api_key') }}"
-    ansible_become_password: "{{ rdp_password }}"
-
-    proxy_server: "{% if proxy_config is defined %}{{ proxy_config.protocol | default('http') }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip | default('') }}:{{ proxy_config.proxy_port | default('') }}{% else %}''{% endif %}"
-    no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,::1,*.local') if proxy_config is defined else 'localhost,127.0.0.1,127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,::1,*.local' }}"
-    proxy_username: "{{ proxy_config.proxy_username | default('') if proxy_config is defined else '' }}"
-    proxy_password: "{{ proxy_config.proxy_password | default('') if proxy_config is defined else '' }}"
-
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
     ansible_python_interpreter: /usr/bin/python3
-    vm_id: "{{ vm_id | default('vm123') }}"
-    hostname: "{{ hostname | default('ubuntu-rdp') }}"
-    management_type: "{{ management_type | default('ansible') }}"
+    ansible_ssh_timeout: 120
+    ansible_command_timeout: 1200
+    node_exporter_port: 59100
 
   tasks:
     - block:
-        - name: Wait for SSH
+        - name: Establish SSH connection with extended wait
           wait_for_connection:
-            timeout: 300
-            delay: 10
+            timeout: 900
+            delay: 30
+            connect_timeout: 30
 
-        - name: Gather facts after connection is established
+        - name: Gather facts after connectivity verified
           setup:
+
+        - name: Update package cache
+          apt:
+            update_cache: true
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 5
+          delay: 10
+
+        - name: Install RDP packages
+          apt:
+            name:
+              - xrdp
+              - curl
+              - wget
+              - vim
+              - fail2ban
+              - prometheus-node-exporter
+              - ssl-cert
+            state: present
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          retries: 3
+          delay: 10
 
         - name: Create Administrator user for RDP
           user:
-            name: "{{ ciuser }}"
-            password: "{{ admin_password | password_hash('sha512') }}"
+            name: "{{ admin_username }}"
             groups: sudo
             shell: /bin/bash
-            create_home: yes
-            no_log: true
-          tags: users
-          tags: users
+            create_home: true
+            state: present
+          no_log: true
+
+        - name: Set Administrator password via OS native chpasswd
+          shell: "echo '{{ admin_username }}:{{ admin_password }}' | chpasswd"
+          no_log: true
+
+        - name: Add users to ssl-cert group
+          user:
+            name: "{{ item }}"
+            groups: ssl-cert
+            append: true
+          loop:
+            - "{{ admin_username }}"
+            - xrdp
+          ignore_errors: true
 
         - name: Enable passwordless sudo for Administrator user
           copy:
-            content: "{{ ciuser }} ALL=(ALL) NOPASSWD:ALL"
-            dest: "/etc/sudoers.d/{{ ciuser }}"
+            content: "{{ admin_username }} ALL=(ALL) NOPASSWD:ALL\n"
+            dest: "/etc/sudoers.d/{{ admin_username }}"
             mode: '0440'
             validate: 'visudo -cf %s'
-          tags: users
 
-        - name: Configure system proxy settings for user environment
-          block:
-            - name: Set system-wide proxy in /etc/environment
-              blockinfile:
-                path: /etc/environment
-                block: |
-                  HTTP_PROXY={{ proxy_server }}
-                  HTTPS_PROXY={{ proxy_server }}
-                  http_proxy={{ proxy_server }}
-                  https_proxy={{ proxy_server }}
-                  NO_PROXY={{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}
-                  no_proxy={{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}
-                marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
-                create: yes
-
-            - name: Configure APT proxy settings
-              blockinfile:
-                path: /etc/apt/apt.conf.d/95proxies
-                block: |
-                  Acquire::http::Proxy "{{ proxy_server }}";
-                  Acquire::https::Proxy "{{ proxy_server }}";
-                  Acquire::http::Proxy::localhost "DIRECT";
-                  Acquire::https::Proxy::localhost "DIRECT";
-                  Acquire::http::Proxy::127.0.0.1 "DIRECT";
-                  Acquire::https::Proxy::127.0.0.1 "DIRECT";
-                marker: "# {mark} ANSIBLE MANAGED APT PROXY BLOCK"
-                create: yes
-
-            - name: Configure wget proxy settings
-              blockinfile:
-                path: /etc/wgetrc
-                block: |
-                  http_proxy = {{ proxy_server }}
-                  https_proxy = {{ proxy_server }}
-                  no_proxy = {{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}
-                  use_proxy = on
-                  proxy_user = {{ proxy_username }}
-                  proxy_password = {{ proxy_password }}
-                marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
-                create: yes
-
-            - name: Configure curl proxy settings
-              blockinfile:
-                path: /etc/curlrc
-                block: |
-                  proxy = {{ proxy_server }}
-                  noproxy = {{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}
-                  proxy-user = {{ proxy_username }}:{{ proxy_password }}
-                marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
-                create: yes
-
-            - name: Configure Git proxy settings
-              blockinfile:
-                path: /etc/gitconfig
-                block: |
-                  [http]
-                      proxy = {{ proxy_server }}
-                  [https]
-                      proxy = {{ proxy_server }}
-                marker: "# {mark} ANSIBLE MANAGED GIT PROXY BLOCK"
-                create: yes
-
-            - name: Create systemd proxy configuration directory
-              file:
-                path: /etc/systemd/system.conf.d
-                state: directory
-                mode: '0755'
-
-            - name: Configure systemd services proxy settings
-              copy:
-                content: |
-                  [Manager]
-                  DefaultEnvironment="HTTP_PROXY={{ proxy_server }}" "HTTPS_PROXY={{ proxy_server }}" "NO_PROXY={{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}"
-                dest: /etc/systemd/system.conf.d/proxy.conf
-                mode: '0644'
-              notify: reload systemd
-
-            - name: Create systemd override directories for RDP services
-              file:
-                path: "/etc/systemd/system/{{ item }}.service.d"
-                state: directory
-                mode: '0755'
-              loop:
-                - xrdp
-                - xrdp-sesman
-              tags: proxy_fix
-
-            - name: Configure RDP services to bypass proxy completely
-              copy:
-                content: |
-                  [Service]
-                  Environment="HTTP_PROXY="
-                  Environment="HTTPS_PROXY="
-                  Environment="http_proxy="
-                  Environment="https_proxy="
-                  Environment="NO_PROXY=*"
-                  Environment="no_proxy=*"
-                  Environment="XRDP_SOCKET_PATH=/var/run/xrdp"
-                dest: "/etc/systemd/system/{{ item }}.service.d/no-proxy.conf"
-                mode: '0644'
-              loop:
-                - xrdp
-                - xrdp-sesman
-              notify:
-                - reload systemd
-                - restart xrdp
-              tags: proxy_fix
-
-            - name: Configure GNOME proxy settings for desktop users
-              blockinfile:
-                path: /etc/profile.d/proxy.sh
-                block: |
-                  export HTTP_PROXY="{{ proxy_server }}"
-                  export HTTPS_PROXY="{{ proxy_server }}"
-                  export http_proxy="{{ proxy_server }}"
-                  export https_proxy="{{ proxy_server }}"
-                  export NO_PROXY="{{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}"
-                  export no_proxy="{{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}"
-                marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
-                create: yes
-                mode: '0644'
-
-          when: proxy_config is defined
-          tags: proxy
-
-        - name: Configure bash proxy environment for Administrator user
-          blockinfile:
-            path: "/home/{{ ciuser }}/.bashrc"
-            block: |
-              export HTTP_PROXY="{{ proxy_server }}"
-              export HTTPS_PROXY="{{ proxy_server }}"
-              export http_proxy="{{ proxy_server }}"
-              export https_proxy="{{ proxy_server }}"
-              export NO_PROXY="{{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}"
-              export no_proxy="{{ no_proxy }},{{ ansible_default_ipv4.address | default('') }}"
-            marker: "# {mark} ANSIBLE MANAGED PROXY BLOCK"
-            create: yes
-            owner: "{{ ciuser }}"
-            group: "{{ ciuser }}"
-            mode: '0644'
-          when: proxy_config is defined
-          tags: proxy
-
-        - name: Install desktop and RDP packages
-          apt:
-            name:
-              - ubuntu-desktop-minimal
-              - xrdp
-              - xorgxrdp
-              - curl
-              - wget
-              - firefox
-              - libreoffice
-              - thunderbird
-              - gimp
-              - vlc
-              - fail2ban
-            state: present
-            update_cache: yes
-          retries: 3
-          delay: 30
-          environment:
-            HTTP_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
-            HTTPS_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
-            NO_PROXY: "{{ no_proxy + ',' + ansible_default_ipv4.address | default('') if proxy_config is defined else '' }}"
-          tags: packages
-
-        - name: Configure complete xrdp.ini
-          copy:
-            content: |
-              [Globals]
-              ini_version=1
-              fork=true
-              port={{ custom_port | default(3389) }}
-              tcp_nodelay=true
-              tcp_keepalive=true
-              security_layer=tls
-              certificate=/etc/xrdp/cert.pem
-              key_file=/etc/xrdp/key.pem
-              ssl_protocols=TLSv1.2, TLSv1.3
-              autorun=
-              allow_channels=true
-              allow_multimon=true
-              bitmap_cache=true
-              bitmap_compression=true
-              bulk_compression=true
-              max_bpp=32
-              new_cursors=true
-              use_fastpath=both
-              use_vsock=false
-              rdp_compress_type=1
-              implicit_user=true
-
-              [Logging]
-              LogFile=xrdp.log
-              LogLevel=INFO
-              EnableSyslog=true
-              SyslogLevel=INFO
-
-              [Channels]
-              rdpdr=true
-              rdpsnd=true
-              drdynvc=true
-              cliprdr=true
-              rail=true
-              xrdpvr=true
-              tcutils=true
-
-              [Xorg]
-              name=Xorg
-              lib=libxup.so
-              username=ask
-              password=ask
-              ip=127.0.0.1
-              port=-1
-              code=20
-
-              [Xvnc]
-              name=Xvnc
-              lib=libvnc.so
-              username=ask
-              password=ask
-              ip=127.0.0.1
-              port=-1
-              xserverbpp=24
-              code=10
-
-              [vnc-any]
-              name=vnc-any
-              lib=libvnc.so
-              ip=ask
-              port=ask5900
-              username=na
-              password=ask
-              code=10
-
-              [sesman-any]
-              name=sesman-any
-              lib=libvnc.so
-              ip=ask
-              port=ask3350
-              username=ask
-              password=ask
-              code=10
-
-              [neutrinordp-any]
-              name=neutrinordp-any
-              lib=libneutrinordp.so
-              ip=ask
-              port=ask3389
-              username=ask
-              password=ask
-              code=10
-            dest: /etc/xrdp/xrdp.ini
-            backup: yes
-          notify: restart xrdp
-          tags: xrdp_config
-
-        - name: Reload systemd daemon after proxy configurations
+        # Step 1 — release port 22 from systemd socket control
+        - name: Disable ssh.socket (use ssh service directly)
           systemd:
-            daemon_reload: yes
-          when: proxy_config is defined
-          tags: proxy_fix
+            name: ssh.socket
+            state: stopped
+            enabled: false
+          ignore_errors: true
+
+        # Step 2 — ensure the service itself is active
+        - name: Ensure ssh service is enabled
+          systemd:
+            name: ssh
+            enabled: true
+
+
+
+        - name: Configure xrdp service (ini settings)
+          ini_file:
+            path: /etc/xrdp/xrdp.ini
+            section: Globals
+            option: "{{ item.option }}"
+            value: "{{ item.value }}"
+            backup: true
+          loop:
+            - { option: 'port', value: "{{ custom_port | default(3389) }}" }
+            - { option: 'max_bpp', value: '32' }
+            - { option: 'use_vsock', value: 'false' }
+            - { option: 'tcp_nodelay', value: 'true' }
+            - { option: 'tcp_keepalive', value: 'true' }
+          notify: restart xrdp
 
         - name: Enable and start xrdp services
           systemd:
             name: "{{ item }}"
-            enabled: yes
-            state: restarted
+            enabled: true
+            state: started
           loop:
             - xrdp
             - xrdp-sesman
-          tags: services
 
-        - name: Install Prometheus Node Exporter
-          block:
-            - name: Install Prometheus Node Exporter from Ubuntu repos
-              apt:
-                name: prometheus-node-exporter
-                state: present
-                update_cache: yes
-              register: node_exporter_install
-              retries: 3
-              delay: 5
-              environment:
-                HTTP_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
-                HTTPS_PROXY: "{{ proxy_server if proxy_config is defined else '' }}"
-                NO_PROXY: "{{ no_proxy + ',' + ansible_default_ipv4.address | default('') if proxy_config is defined else '' }}"
-
-            - name: Enable and start node exporter
-              systemd:
-                name: prometheus-node-exporter
-                enabled: yes
-                state: started
-          tags: monitoring
-
-        - name: Create custom metrics script
+        - name: Create .xsession file for RDP user
           copy:
             content: |
-              #!/bin/bash
-              echo "# HELP vm_info VM information"
-              echo "# TYPE vm_info gauge"
-              echo "vm_info{vm_id=\"{{ vm_id }}\",hostname=\"{{ hostname }}\",os_template=\"{{ os_template | default('ubuntu') }}\"} 1"
-              echo "# HELP vm_rdp_port RDP port number"
-              echo "# TYPE vm_rdp_port gauge"
-              echo "vm_rdp_port {{ rdp_port | default(3389) }}"
-            dest: /usr/local/bin/vm_metrics.sh
+              #!/bin/sh
+              export GNOME_SHELL_SESSION_MODE=ubuntu
+              export XDG_CURRENT_DESKTOP=ubuntu:GNOME
+              export XDG_SESSION_TYPE=x11
+              export XDG_SESSION_DESKTOP=ubuntu
+              export XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg
+              exec env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS gnome-session --session=ubuntu
+            dest: "/home/{{ admin_username }}/.xsession"
+            owner: "{{ admin_username }}"
+            group: "{{ admin_username }}"
             mode: '0755'
-          tags: monitoring
 
-        - name: Create systemd service for custom metrics
+        - name: Configure Polkit to allow color management over RDP (modern rules)
           copy:
+            dest: /etc/polkit-1/rules.d/45-allow-colord.rules
             content: |
-              [Unit]
-              Description=Generate custom VM metrics
-              [Service]
-              Type=oneshot
-              ExecStart=/usr/local/bin/vm_metrics.sh
-              User=root
-              Group=root
-            dest: /etc/systemd/system/vm-metrics.service
-          tags: monitoring
+              polkit.addRule(function(action, subject) {
+                  if ((action.id == "org.freedesktop.color-manager.create-device" ||
+                       action.id == "org.freedesktop.color-manager.create-profile" ||
+                       action.id == "org.freedesktop.color-manager.delete-device" ||
+                       action.id == "org.freedesktop.color-manager.delete-profile" ||
+                       action.id == "org.freedesktop.color-manager.modify-device" ||
+                       action.id == "org.freedesktop.color-manager.modify-profile") &&
+                      subject.isInGroup("ssl-cert")) {
+                      return polkit.Result.YES;
+                  }
+              });
+            mode: '0644'
+          ignore_errors: true
 
-        - name: Create systemd timer for custom metrics
-          copy:
-            content: |
-              [Unit]
-              Description=Generate custom VM metrics every 5 minutes
-              [Timer]
-              OnBootSec=1min
-              OnUnitActiveSec=5min
-              [Install]
-              WantedBy=timers.target
-            dest: /etc/systemd/system/vm-metrics.timer
-          tags: monitoring
+        - name: Allow RDP port in UFW
+          ufw:
+            rule: allow
+            port: "{{ custom_port | default(3389) }}"
+            proto: tcp
+          ignore_errors: true
 
-        - name: Enable and start custom metrics timer
+        - name: Enable security services
           systemd:
-            name: vm-metrics.timer
-            enabled: yes
+            name: "{{ item }}"
+            enabled: true
             state: started
-            daemon_reload: yes
-          tags: monitoring
+          loop:
+            - fail2ban
+          ignore_errors: true
 
-        - name: Generate initial custom metrics
-          command: systemctl start vm-metrics.service
-          tags: monitoring
-
-        - name: Configure fail2ban
+        # Security hardening - Fail2ban synchronization
+        - name: Configure fail2ban for SSH
           copy:
             content: |
               [sshd]
               enabled = true
-              port = ssh
+              port = 22
               filter = sshd
               logpath = /var/log/auth.log
-              maxretry = 5
+              maxretry = 3
               bantime = 3600
+              findtime = 600
             dest: /etc/fail2ban/jail.d/sshd.conf
             mode: '0644'
-          tags: security
-
-        - name: Ensure security and monitoring services are running
-          systemd:
-            name: "{{ item }}"
-            enabled: yes
-            state: started
-          loop:
-            - prometheus-node-exporter
-            - fail2ban
-          tags: security
-
-        - name: Configure SSH to use custom port
-          lineinfile:
-            path: /etc/ssh/sshd_config
-            regexp: '^#?Port '
-            line: "Port {{ (custom_port | int - 20000) if (custom_port | int >= 30000) else custom_port | default(22) }}"
-          notify: restart_ssh
+          notify: restart_fail2ban
 
         - name: Set hostname
           hostname:
-            name: "{{ hostname }}"
-          tags: system_config
+            name: "{{ hostname | default('ubuntu-rdp') }}"
+          when: hostname is defined
 
-        - name: Verify RDP configuration
-          shell: |
-            echo "=== Ubuntu RDP Configuration Verification ==="
-            echo "Administrator user: {{ ciuser }}"
-            echo "User exists: $(id {{ ciuser }} &>/dev/null && echo 'YES' || echo 'NO')"
-            echo "XRDP service status: $(systemctl is-active xrdp)"
-            echo "XRDP-sesman service status: $(systemctl is-active xrdp-sesman)"
-            echo "RDP port listening: $(netstat -ln | grep ':3389' &>/dev/null && echo 'YES' || echo 'NO')"
-            echo "Prometheus exporter: $(systemctl is-active prometheus-node-exporter)"
-          register: verification_result
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.1\.1'
+            line: "127.0.1.1 {{ hostname | default(ansible_facts['hostname']) }}"
+          when: hostname is defined
 
-        - name: Display verification results
-          debug:
-            msg: "{{ verification_result.stdout_lines }}"
+        - name: Configure proxy settings
+          include_tasks: tasks/proxy_config.yml
+          when: proxy_config is defined
 
-        - name: Final configuration step
-          shell: |
-            echo "=== Ubuntu RDP with Management Configuration Complete ==="
-            echo "✅ Administrator user '{{ ciuser }}' created"
-            echo "✅ Proxy configuration applied (if enabled)"
-            echo "✅ RDP services EXCLUDED from proxy settings"
-            echo "✅ Ubuntu desktop and RDP packages installed"
-            echo "✅ XRDP configured"
-            echo "✅ Firewall NOT managed by this playbook"
-            echo "Configuration complete"
+        - name: Configure Tailscale VPN
+          include_tasks: tasks/tailscale_linux.yml
+          when: tailscale_config is defined
 
-        - name: Send success status to API
+        - name: Notify API - Success
           uri:
-            url: "{{ provisioning_api_url }}/vm/{{ vm_id }}/status"
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
             method: POST
             headers:
-              Authorization: "Bearer {{ provisioning_api_key }}"
+              Authorization: "Bearer {{ api_key }}"
               Content-Type: "application/json"
             body_format: json
             body:
               vm_id: "{{ vm_id }}"
               status: "configured"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type }}"
-              admin_configured: true
+              os_template: "{{ os_template | default('ubuntu-rdp') }}"
+              management_type: "managed"
               rdp_configured: true
-              rdp_port: 3389
-              monitoring_port: 9100
-              proxy_configured: "{{ proxy_config is defined }}"
-              rdp_proxy_excluded: true
-              metrics_endpoint: "http://{{ inventory_hostname }}:9100/metrics"
-              configuration_completed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
-            validate_certs: no
+            status_code: [200, 201]
+            validate_certs: true
             timeout: 30
+          no_log: true
           when:
-            - provisioning_api_url is defined
-            - provisioning_api_key is defined
-            - provisioning_api_url != 'http://localhost:5000'
-            - provisioning_api_key != 'your_api_key'
-          ignore_errors: yes
-          tags: api_status
+            - api_url is defined
+            - vm_id is defined
+          delegate_to: localhost
+          become: false
+
+        - name: Permanently disable SSH after playbook completion
+          shell: "nohup bash -c 'sleep 5 && systemctl stop ssh && systemctl disable ssh' > /dev/null 2>&1 &"
+          ignore_errors: true
 
       rescue:
-        - name: Send failure status to API
+        - name: Notify API - Failure
           uri:
-            url: "{{ provisioning_api_url }}/vm/{{ vm_id }}/status"
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
             method: POST
             headers:
-              Authorization: "Bearer {{ provisioning_api_key }}"
+              Authorization: "Bearer {{ api_key }}"
               Content-Type: "application/json"
             body_format: json
             body:
               vm_id: "{{ vm_id }}"
               status: "failed"
-              os_template: "{{ os_template | default('ubuntu') }}"
-              management_type: "{{ management_type | default('ansible') }}"
-              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed: {{ ansible_failed_result.msg | default('No error message') }}"
-              failed_at: "{{ ansible_date_time.iso8601 }}"
-            status_code: [200, 201, 202]
-            validate_certs: no
-            timeout: 30
-          when:
-            - provisioning_api_url is defined
-            - provisioning_api_key is defined
-            - provisioning_api_url != 'http://localhost:5000'
-            - provisioning_api_key != 'your_api_key'
-            - ansible_failed_result is defined
-          ignore_errors: yes
-          tags: always
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
+            validate_certs: true
+          no_log: true
+          delegate_to: localhost
+          become: false
+          ignore_errors: true
+
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
     - name: restart xrdp
@@ -538,16 +274,9 @@
         - xrdp
         - xrdp-sesman
 
-    - name: restart node-exporter
+    - name: restart_fail2ban
       systemd:
-        name: prometheus-node-exporter
+        name: fail2ban
         state: restarted
 
-    - name: restart_ssh
-      systemd:
-        name: ssh
-        state: restarted
 
-    - name: reload systemd
-      systemd:
-        daemon_reload: yes

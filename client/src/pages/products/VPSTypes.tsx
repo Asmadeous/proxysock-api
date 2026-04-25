@@ -25,7 +25,11 @@ interface Country {
   flag: string;
 }
 
-export default function VPSTypes() {
+interface VPSTypesProps {
+  onNavigate?: (countryCode: string) => void;
+}
+
+export default function VPSTypes({ onNavigate }: VPSTypesProps = {}) {
   const navigate = useNavigate();
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -67,7 +71,11 @@ export default function VPSTypes() {
   };
 
   const handleCountryClick = (countryCode: string) => {
-    navigate(`/dashboard/vps-plans/residential?country=${countryCode}`);
+    if (onNavigate) {
+      onNavigate(countryCode);
+    } else {
+      navigate(`/dashboard/vps-plans/residential?country=${countryCode}`);
+    }
   };
 
   if (loading) {

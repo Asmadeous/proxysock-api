@@ -23,9 +23,10 @@ import {
   Terminal,
   ArrowLeft,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-
+import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -88,6 +89,11 @@ const VPSOrdersPage = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated' | 'failed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<VPSOrder | null>(null);
+  
+  // Refund states
+  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
+
   const { accessToken } = useAuth();
 
   // Stats
@@ -165,7 +171,7 @@ const VPSOrdersPage = () => {
       o.status === 'terminated' || o.status === 'suspended'
     ).length;
     const failed = orders.filter(o => o.status === 'failed' || o.status === 'cancelled').length;
-    const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+    const totalSpent = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
     const totalVMs = orders.filter(o => o.vm_id).length;
     const totalCores = orders.reduce((sum, o) => sum + (o.plan?.cpu_cores || 0), 0);
     const totalRAM = orders.reduce((sum, o) => sum + (o.plan?.ram_gb || 0), 0);
@@ -273,6 +279,23 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleWalletRefund = async (order: VPSOrder) => {
+    if (!confirm("Are you sure you want to refund this VPS order to your wallet?")) return;
+    
+    try {
+      setRefundingOrderId(order.id);
+      const response = await api.post(`/web/api/orders/${order.id}/refund`);
+      toast.success(response.data.message || "Order successfully refunded to wallet.");
+      fetchVPSOrders();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || "Failed to refund order.";
+      toast.error(msg, { duration: 5000 });
+      fetchVPSOrders();
+    } finally {
+      setRefundingOrderId(null);
+    }
   };
 
   if (!accessToken) {
@@ -677,6 +700,27 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                         <Download className="h-4 w-4" />
                         Download
                       </Button>
+                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleWalletRefund(order)}
+                          className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                          disabled={refundingOrderId === order.id}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                        </Button>
+                      )}
+                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setRefundDialogOrderId(order.id)}
+                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -850,6 +894,13 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
           )}
         </DialogContent>
       </Dialog>
+      {/* Crypto Refund Modal */}
+      <CryptoRefundModal
+        orderId={refundDialogOrderId}
+        isOpen={!!refundDialogOrderId}
+        onClose={() => setRefundDialogOrderId(null)}
+        onSuccess={fetchVPSOrders}
+      />
     </div>
   );
 };

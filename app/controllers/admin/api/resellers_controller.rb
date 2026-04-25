@@ -49,8 +49,6 @@ module Admin
       def create
         require_admin!
         reseller = Reseller.create!(reseller_create_params)
-        reseller.create_main_wallet!(wallet_type: 'main')
-        reseller.create_earnings_wallet!(wallet_type: 'earnings') if reseller.infrastructure?
         record_audit_log('reseller.created', reseller)
         render json: reseller_json(reseller), status: :created
       end
@@ -114,12 +112,15 @@ module Admin
       end
 
       def reseller_params
-        params.permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
-                      :subscription_fee, :dedicated_api_key, :customer_email)
+        params.require(:reseller).permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
+                                         :subscription_fee, :dedicated_api_key, :customer_email, :allowed_product_category_id,
+                                         :country_code, :country, :city)
       end
 
       def reseller_create_params
-        params.permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee)
+        p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee, :country_code, :country, :city)
+        p[:password] ||= params[:password] if params[:password].present?
+        p
       end
 
       def reseller_json(r, full: false)
@@ -138,6 +139,9 @@ module Admin
           customer_email: r.customer_email,
           allowed_product_category_id: r.allowed_product_category_id,
           allowed_product_category_name: r.allowed_product_category&.name,
+          country_code: r.country_code,
+          country: r.country,
+          city: r.city,
           total_orders: r.orders.count,
           has_affiliate: r.affiliate.present?,
           created_at: r.created_at

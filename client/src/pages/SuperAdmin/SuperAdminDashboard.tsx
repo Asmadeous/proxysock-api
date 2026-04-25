@@ -20,6 +20,7 @@ import {
   TicketIcon,
   AdjustmentsHorizontalIcon,
   CircleStackIcon,
+  DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarGroup } from "./components/AdminSidebar";
 import CommandPalette from "./components/CommandPalette";
@@ -48,6 +49,7 @@ const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
 const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
 const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
+const UsaCredentialsTab = lazy(() => import("./tabs/UsaCredentialsTab"));
 
 const sidebarGroups: SidebarGroup[] = [
   {
@@ -88,6 +90,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: "monitoring", name: "Monitoring", icon: CpuChipIcon },
       { id: "database", name: "Database", icon: CircleStackIcon },
+      { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
       { id: "logs", name: "System Logs", icon: ServerStackIcon },
       { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
     ],
@@ -117,8 +120,10 @@ const TAB_COMPONENTS: Record<string, any> = {
   promo_codes: PromoCodesTab,
   settings: SettingsTab,
   database: DatabaseTab,
+  usa_credentials: UsaCredentialsTab,
   logs: SystemLogsTab,
 };
+
 
 const TabLoader = () => (
   <div className="flex h-[60vh] w-full items-center justify-center">

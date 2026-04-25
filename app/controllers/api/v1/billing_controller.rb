@@ -53,43 +53,46 @@ module Api
 
       def request_payout
         amount = params[:amount].to_d
-        method = params[:payment_method] || 'bank_transfer'
-        details = params[:payment_details] || {}
+        method = params[:payment_method] || 'manual'
+        details = params[:payment_details]&.to_unsafe_h || params[:payment_details] || {}
 
         return render json: { error: 'Invalid amount' }, status: :bad_request if amount <= 0
 
         begin
-          earnings_wallet = current_reseller.earnings_wallet
-          raise 'No earnings wallet found' unless earnings_wallet
-          raise 'Insufficient earnings balance' if earnings_wallet.balance < amount
+          # Route through AffiliateService which handles crypto auto-dispatch vs admin notification
+          if current_reseller.affiliate.present?
+            payout = AffiliateService.new(current_reseller).request_payout!(
+              amount: amount,
+              method: method,
+              details: details
+            )
 
-          payout = nil
-          ActiveRecord::Base.transaction do
-            # Debit the earnings wallet
-            earnings_wallet.debit!(amount, "Payout request — #{method}", {
-                                     payment_method: method,
-                                     payment_details: details
-                                   })
+            render json: {
+              message: payout.crypto? ? 'Crypto payout processed' : 'Payout request submitted for review',
+              payout_id: payout.id,
+              amount: amount,
+              method: method,
+              status: payout.status
+            }, status: :created
+          else
+            # Fallback for resellers without affiliate — use PayoutService directly
+            gateway = method == 'crypto' ? 'plisio' : 'manual'
+            payout = PayoutService.new(current_reseller).withdraw!(
+              amount: amount,
+              gateway: gateway,
+              payment_details: details
+            )
 
-            # If the reseller has an affiliate, create a formal AffiliatePayout
-            if current_reseller.affiliate.present?
-              payout = AffiliatePayout.create!(
-                affiliate: current_reseller.affiliate,
-                amount: amount,
-                payment_method: method,
-                payment_details: details,
-                status: 'pending'
-              )
-            end
+            render json: {
+              message: payout.crypto? ? 'Crypto payout processed' : 'Payout request submitted for review',
+              payout_id: payout.id,
+              amount: amount,
+              method: method,
+              status: payout.status
+            }, status: :created
           end
-
-          render json: {
-            message: 'Payout request submitted',
-            payout_id: payout&.id,
-            amount: amount,
-            method: method,
-            status: 'pending'
-          }, status: :created
+        rescue AffiliateService::InsufficientBalanceError, PayoutService::InsufficientBalanceError => e
+          render json: { error: e.message }, status: :unprocessable_entity
         rescue StandardError => e
           render json: { error: e.message }, status: :unprocessable_entity
         end

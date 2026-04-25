@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -81,17 +81,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
 
   create_table "affiliates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "affiliatable_id"
-    t.string "affiliatable_type", null: false
+    t.string "affiliatable_type"
     t.decimal "commission_rate", precision: 5, scale: 2, default: "10.0", null: false
     t.datetime "created_at", null: false
     t.decimal "discount_rate", precision: 5, scale: 2, default: "5.0", null: false
+    t.string "email"
     t.datetime "last_payout_at"
+    t.string "name"
     t.text "notes"
+    t.jsonb "payment_details", default: {}
     t.string "referral_code", null: false
     t.string "status", default: "active", null: false
     t.decimal "total_earned", precision: 10, scale: 2, default: "0.0", null: false
     t.decimal "total_paid_out", precision: 10, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_affiliates_on_email", where: "(email IS NOT NULL)"
     t.index ["referral_code"], name: "index_affiliates_on_referral_code", unique: true
     t.index ["status"], name: "index_affiliates_on_status"
   end
@@ -328,6 +332,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.string "esim_provider"
     t.string "esim_type", default: "data_only", null: false
     t.datetime "expires_at"
+    t.jsonb "metadata", default: {}
     t.integer "moq_quantity", default: 1, null: false
     t.uuid "order_id"
     t.string "package_code"
@@ -787,7 +792,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
   create_table "resellers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "allowed_product_category_id"
     t.string "api_key_hash"
+    t.string "city"
     t.string "company_name"
+    t.string "country"
+    t.string "country_code"
     t.datetime "created_at", null: false
     t.string "current_token_jti"
     t.string "customer_email"
@@ -796,6 +804,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.string "email"
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
     t.datetime "last_seen_at"
+    t.integer "myproxyapi_country_id"
+    t.string "myproxyapi_user_id"
     t.string "password_digest"
     t.string "permanent_api_key"
     t.string "referred_by_code"
@@ -1087,6 +1097,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "city"
     t.string "country"
+    t.string "country_code"
     t.datetime "created_at", null: false
     t.string "email"
     t.string "email_confirmation_token"
@@ -1097,6 +1108,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.string "last_name"
     t.datetime "last_seen_at"
     t.jsonb "metadata"
+    t.integer "myproxyapi_country_id"
+    t.string "myproxyapi_user_id"
     t.string "owner_type", default: "platform", null: false
     t.string "password_digest"
     t.datetime "password_reset_sent_at"
@@ -1141,6 +1154,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.string "hostname"
     t.string "ip_address"
     t.jsonb "metadata"
+    t.string "private_ip_address", comment: "Private IP on vmbr1 for Windows VMs"
     t.string "proxmox_node"
     t.string "proxmox_vm_id"
     t.string "rdp_password_encrypted"
@@ -1155,6 +1169,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_223323) do
     t.datetime "updated_at", null: false
     t.uuid "vm_order_id"
     t.string "vm_type"
+    t.index ["private_ip_address"], name: "index_vms_on_private_ip_address", unique: true
   end
 
   create_table "vpn_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

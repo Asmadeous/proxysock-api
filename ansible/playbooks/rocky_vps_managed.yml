@@ -1,7 +1,7 @@
 ---
 - name: Configure Rocky Linux VPS MANAGED
   hosts: linux
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Ensure root_password is defined
@@ -11,432 +11,321 @@
 
   vars:
     new_root_password: "{{ root_password }}"
-    api_url: "{{ api_url | default('http://localhost:5000') }}"
+    api_url: "{{ api_url | default('http://localhost:4000') }}"
     proxy_server: "{{ proxy_config.protocol }}://{{ proxy_config.proxy_username | default('') }}:{{ proxy_config.proxy_password | default('') }}@{{ proxy_config.proxy_ip }}:{{ proxy_config.proxy_port }}"
     no_proxy: "{{ proxy_config.no_proxy | default('localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12') }}"
     proxy_username: "{{ proxy_config.proxy_username | default('') }}"
     proxy_password: "{{ proxy_config.proxy_password | default('') }}"
+
   tasks:
-    - name: Verify basic connectivity
-      ping:
-      register: connectivity_check
+    - block:
+        - name: Verify basic connectivity
+          ping:
+          register: connectivity_check
 
-    - name: Gather system facts after connectivity verified
-      setup:
+        - name: Gather system facts after connectivity verified
+          setup:
 
-    - name: Install proxychains
-      dnf:
-        name: proxychains-ng
-        state: present
-      when: proxy_config is defined
+        - name: Install proxychains
+          dnf:
+            name: proxychains-ng
+            state: present
+          when: proxy_config is defined
 
-    - name: Configure proxychains
-      copy:
-        content: |
-          # proxychains.conf  VER 4.x
-          #
-          #        HTTP, SOCKS4a, SOCKS5 tunneling proxifier with DNS.
-          #
-
-          # The option below identifies how the ProxyList is treated.
-          # only one option should be uncommented at time,
-          # otherwise the last appearing option will be accepted
-          #
-          #dynamic_chain
-          #
-          # Dynamic - Each connection will be done via chained proxies
-          # all proxies chained in the order as they appear in the list
-          # at least one proxy must be online to play in chain
-          # (dead proxies are skipped)
-          # otherwise EINTR is returned to the app
-          #
-          strict_chain
-          #
-          # Strict - Each connection will be done via chained proxies
-          # all proxies chained in the order as they appear in the list
-          # all proxies must be online to play in chain
-          # otherwise EINTR is returned to the app
-          #
-          #round_robin_chain
-          #
-          # Round Robin - Each connection will be done via chained proxies
-          # of chain_len length
-          # all proxies chained in the order as they appear in the list
-          # at least one proxy must be online to play in chain
-          # (dead proxies are skipped).
-          # the start of the current proxy chain is the proxy after the last
-          # proxy in the previously invoked proxy chain.
-          # if the end of the proxy chain is reached while looking for proxies
-          # start at the beginning again.
-          # otherwise EINTR is returned to the app
-          # These semantics are not guaranteed in a multithreaded environment.
-          #
-          #random_chain
-          #
-          # Random - Each connection will be done via random proxy
-          # (or proxy chain, see  chain_len) from the list.
-          # this option is good to test your IDS :)
-
-          # Make sense only if random_chain or round_robin_chain
-          #chain_len = 2
-
-          # Quiet mode (no output from library)
-          #quiet_mode
-
-          ## Proxy DNS requests - no leak for DNS data
-          proxy_dns
-
-          # Some timeouts in milliseconds
-          tcp_read_time_out 15000
-          tcp_connect_time_out 8000
-
-          ### Examples for ProxyList format:
-          ###               type  host  port [user pass]
-          ###               (values separated by 'tab' or 'blank')
-          ###
-          ### Examples:
-          ###
-          ###               socks5  192.168.67.78   1080    lamer   secret
-          ###               http    192.168.89.3    8080    justu   hidden
-          ###               socks4  192.168.1.49    1080
-          ###               http    192.168.39.93   8080
-          ###
-          ###
-          ###       proxy types: http, socks4, socks5
-          ###        ( auth types supported: "basic"-http  "user/pass"-socks )
-          ###
-          [ProxyList]
-          # add proxy here ...
-          # meanwile
-          # defaults set to "tor"
-          {{ proxy_config.protocol }} {{ proxy_config.proxy_ip }} {{ proxy_config.proxy_port }} {{ proxy_username }} {{ proxy_password }}
-        dest: /etc/proxychains4.conf
-        mode: '0644'
-        backup: yes
-      when: proxy_config is defined
-
-    - name: Create proxychains wrapper script
-      copy:
-        content: |
-          #!/bin/bash
-          # Wrapper script to use proxychains4 by default
-          exec proxychains4 "$@"
-        dest: /usr/local/bin/proxy
-        mode: '0755'
-      when: proxy_config is defined
-
-    - name: Update package cache
-      dnf:
-        update_cache: yes
-
-    - name: Install updates
-      dnf:
-        name: "*"
-        state: latest
-      register: update_result
-
-    - name: Set root password
-      user:
-        name: root
-        password: "{{ new_root_password | password_hash('sha512') }}"
-        update_password: always
-      no_log: true
-
-    - name: Configure SSH to use custom port
-      lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?Port '
-        line: "Port {{ custom_port | default(22) }}"
-      notify: restart_ssh
-
-    - name: Create hostname user with root password
-      user:
-        name: "{{ hostname }}"
-        password: "{{ new_root_password | password_hash('sha512') }}"
-        groups: wheel
-        shell: /bin/bash
-        create_home: yes
-        state: present
-        no_log: true
-      when: hostname is defined
-
-    - name: Set hostname
-      hostname:
-        name: "{{ hostname }}"
-      when: hostname is defined
-
-    - name: Update /etc/hosts with hostname
-      lineinfile:
-        path: /etc/hosts
-        regexp: '^127\.0\.1\.1'
-        line: "127.0.1.1 {{ hostname | default(ansible_hostname) }}"
-      when: hostname is defined
-
-    - name: Enable EPEL repository
-      dnf:
-        name: epel-release
-        state: present
-
-    - name: Install basic packages
-      dnf:
-        name:
-          - htop
-          - curl
-          - wget
-          - vim
-          - git
-          - dnf-automatic
-          - fail2ban
-          - tar
-        state: present
-
-    - name: Create prometheus user
-      user:
-        name: prometheus
-        shell: /sbin/nologin
-        home: /var/lib/prometheus
-        create_home: no
-        system: yes
-
-    - name: Create directories for node exporter
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: prometheus
-        group: prometheus
-        mode: '0755'
-      loop:
-        - /var/lib/prometheus
-        - /etc/prometheus
-
-    - name: Download and install node exporter
-      block:
-        - name: Get latest node exporter version
-          uri:
-            url: https://api.github.com/repos/prometheus/node_exporter/releases/latest
-            return_content: yes
-          register: node_exporter_release
-
-        - name: Set node exporter version
-          set_fact:
-            node_exporter_version: "{{ node_exporter_release.json.tag_name | regex_replace('^v', '') }}"
-
-        - name: Download node exporter
-          get_url:
-            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-            dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-            timeout: 30
-
-        - name: Extract node exporter
-          unarchive:
-            src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-            dest: /tmp
-            remote_src: yes
-
-        - name: Copy node exporter binary
-          copy:
-            src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
-            dest: /usr/local/bin/node_exporter
-            mode: '0755'
-            owner: prometheus
-            group: prometheus
-            remote_src: yes
-
-        - name: Create node exporter systemd service
+        - name: Configure proxychains
           copy:
             content: |
-              [Unit]
-              Description=Node Exporter
-              Wants=network-online.target
-              After=network-online.target
+              # proxychains.conf  VER 4.x
+              strict_chain
+              proxy_dns
+              tcp_read_time_out 15000
+              tcp_connect_time_out 8000
+              [ProxyList]
+              {{ proxy_config.protocol }} {{ proxy_config.proxy_ip }} {{ proxy_config.proxy_port }} {{ proxy_username }} {{ proxy_password }}
+            dest: /etc/proxychains4.conf
+            mode: "0644"
+            backup: yes
+          when: proxy_config is defined
 
-              [Service]
-              User=prometheus
-              Group=prometheus
-              Type=simple
-              ExecStart=/usr/local/bin/node_exporter
-              Restart=always
-              RestartSec=3
+        - name: Create proxychains wrapper script
+          copy:
+            content: |
+              #!/bin/bash
+              exec proxychains4 "$@"
+            dest: /usr/local/bin/proxy
+            mode: "0755"
+          when: proxy_config is defined
 
-              [Install]
-              WantedBy=multi-user.target
-            dest: /etc/systemd/system/node_exporter.service
-            mode: '0644'
+        - name: Update package cache
+          dnf:
+            update_cache: yes
 
-        - name: Reload systemd
+        - name: Set root password
+          user:
+            name: root
+            password: "{{ new_root_password | password_hash('sha512') }}"
+            update_password: always
+          no_log: true
+
+        - name: Install SELinux management tools
+          dnf:
+            name: policycoreutils-python-utils
+            state: present
+          ignore_errors: true
+
+        - name: Disable sshd.socket (use sshd service directly)
           systemd:
-            daemon_reload: yes
+            name: sshd.socket
+            state: stopped
+            enabled: no
+          ignore_errors: true
+
+        - name: Ensure sshd service is enabled
+          systemd:
+            name: sshd
+            enabled: yes
+
+        - name: Add SELinux ssh_port_t with seport
+          seport:
+            ports: "{{ custom_port | default(22) }}"
+            proto: tcp
+            setype: ssh_port_t
+            state: present
+          when: custom_port is defined
+
+        - name: Check if firewalld is running
+          command: systemctl is-active firewalld
+          register: firewalld_status
+          failed_when: false
+          changed_when: false
+
+        - name: Allow custom SSH port in firewalld
+          ansible.posix.firewalld:
+            port: "{{ custom_port | default(22) }}/tcp"
+            permanent: yes
+            state: enabled
+            immediate: yes
+          when: firewalld_status.stdout == 'active' and custom_port is defined
+
+        - name: Configure SSH to use custom port
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: "^#?Port "
+            line: "Port {{ custom_port | default(22) }}"
+          notify: restart_ssh
+
+        - name: Create hostname user with root password
+          user:
+            name: "{{ hostname }}"
+            password: "{{ new_root_password | password_hash('sha512') }}"
+            groups: wheel
+            shell: /bin/bash
+            create_home: yes
+            state: present
+          no_log: true
+          when: hostname is defined
+
+        - name: Set hostname
+          hostname:
+            name: "{{ hostname }}"
+          when: hostname is defined
+
+        - name: Update /etc/hosts with hostname
+          lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.0\.1'
+            line: "127.0.0.1 {{ hostname | default(ansible_facts['hostname']) }} localhost"
+          when: hostname is defined
+
+        - name: Enable EPEL repository
+          dnf:
+            name: epel-release
+            state: present
+
+        - name: Install basic packages
+          dnf:
+            name:
+              - htop
+              - curl
+              - wget
+              - vim
+              - git
+              - dnf-automatic
+              - fail2ban
+              - tar
+            state: present
+
+        - name: Create prometheus user
+          user:
+            name: prometheus
+            shell: /sbin/nologin
+            home: /var/lib/prometheus
+            create_home: no
+            system: yes
+
+        - name: Create directories for node exporter
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: "0755"
+          loop:
+            - /var/lib/prometheus
+            - /etc/prometheus
+
+        - name: Download and install node exporter
+          block:
+            - name: Get latest node exporter version
+              uri:
+                url: https://api.github.com/repos/prometheus/node_exporter/releases/latest
+                return_content: yes
+              register: node_exporter_release
+
+            - name: Set node exporter version
+              set_fact:
+                node_exporter_version: "{{ node_exporter_release.json.tag_name | regex_replace('^v', '') }}"
+
+            - name: Download node exporter
+              get_url:
+                url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+                dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+                timeout: 30
+
+            - name: Extract node exporter
+              unarchive:
+                src: "/tmp/node_exporter-{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+                dest: /tmp
+                remote_src: yes
+
+            - name: Copy node exporter binary
+              copy:
+                src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+                dest: /usr/local/bin/node_exporter
+                mode: "0755"
+                owner: prometheus
+                group: prometheus
+                remote_src: yes
+
+            - name: Create node exporter systemd service
+              copy:
+                content: |
+                  [Unit]
+                  Description=Node Exporter
+                  Wants=network-online.target
+                  After=network-online.target
+
+                  [Service]
+                  User=prometheus
+                  Group=prometheus
+                  Type=simple
+                  ExecStart=/usr/local/bin/node_exporter --web.listen-address=:59100
+                  Restart=always
+                  RestartSec=3
+
+                  [Install]
+                  WantedBy=multi-user.target
+                dest: /etc/systemd/system/node_exporter.service
+                mode: "0644"
+
+            - name: Reload systemd
+              systemd:
+                daemon_reload: yes
+
+          rescue:
+            - name: Log node exporter installation failure
+              debug:
+                msg: "Node exporter installation failed, continuing without it"
+
+        - name: Configure dnf-automatic for unattended upgrades
+          copy:
+            content: |
+              [commands]
+              upgrade_type = security
+              random_sleep = 0
+              network_online_timeout = 60
+              download_updates = yes
+              apply_updates = yes
+              [emitters]
+              emit_via = stdio
+              [email]
+              email_from = root@{{ ansible_hostname }}
+              email_to = root
+              email_host = localhost
+              [base]
+              debuglevel = 1
+            dest: /etc/dnf/automatic.conf
+            mode: "0644"
+            backup: yes
+
+        - name: Configure fail2ban for SSH
+          copy:
+            content: |
+              [sshd]
+              enabled = true
+              port = {{ custom_port | default(22) }}
+              filter = sshd
+              logpath = /var/log/secure
+              maxretry = 3
+              bantime = 3600
+              findtime = 600
+            dest: /etc/fail2ban/jail.d/sshd.conf
+            mode: '0644'
+          notify: restart_fail2ban
+
+        - name: Enable security services
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          loop:
+            - node_exporter
+            - fail2ban
+            - dnf-automatic.timer
+          ignore_errors: true
+
+        - name: Send status to API
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_key }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              status: "configured"
+              vm_id: "{{ vm_id }}"
+            status_code: [200, 201]
+            validate_certs: yes
+          register: api_response
+          failed_when: false
+
+        - name: Log configuration completion
+          debug:
+            msg: "Rocky Linux VPS Configuration Complete"
 
       rescue:
-        - name: Log node exporter installation failure
-          debug:
-            msg: "Node exporter installation failed, continuing without it"
-
-    - name: Configure dnf-automatic for unattended upgrades
-      copy:
-        content: |
-          [commands]
-          #  What kind of upgrade to perform:
-          # default                            = all available upgrades
-          # security                           = only the security upgrades
-          upgrade_type = security
-          random_sleep = 0
-
-          # Maximum time in seconds to wait until the system is on-line and able to
-          # connect to repositories.
-          network_online_timeout = 60
-
-          # To just receive updates use dnf-automatic-notifyonly.timer
-
-          # Whether updates should be downloaded when they are available, by
-          # dnf-automatic.timer. notifyonly.timer, download.timer and
-          # install.timer override this setting.
-          download_updates = yes
-
-          # Whether updates should be applied when they are available, by
-          # dnf-automatic.timer. notifyonly.timer, download.timer and
-          # install.timer override this setting.
-          apply_updates = yes
-
-          [emitters]
-          # Name to use for this system in messages that are emitted.  Default is the
-          # hostname.
-          # system_name = my-host
-
-          # How to send messages.  Valid options are stdio, email and motd.  If
-          # emit_via includes stdio, messages will be sent to stdout; this is useful
-          # to have cron send the messages.  If emit_via includes email, this
-          # program will send email itself according to the configured options.
-          # If emit_via includes motd, /run/motd.d/dnf-automatic will be updated with
-          # the results of the update.
-          emit_via = stdio
-
-          [email]
-          # The address to send email messages from.
-          email_from = root@{{ ansible_hostname }}
-
-          # List of addresses to send messages to.
-          email_to = root
-
-          # Name of the host to connect to to send email messages.
-          email_host = localhost
-
-          [base]
-          # This section overrides dnf.conf
-
-          # Use this to filter DNF core messages
-          debuglevel = 1
-        dest: /etc/dnf/automatic.conf
-        mode: '0644'
-        backup: yes
-
-    - name: Enable dnf-automatic timer
-      systemd:
-        name: dnf-automatic.timer
-        enabled: yes
-        state: started
-
-    - name: Configure fail2ban
-      copy:
-        content: |
-          [sshd]
-          enabled = true
-          port = ssh
-          filter = sshd
-          logpath = /var/log/secure
-          maxretry = 3
-          bantime = 3600
-          findtime = 600
-        dest: /etc/fail2ban/jail.d/sshd.conf
-        mode: '0644'
-      notify: restart_fail2ban
-
-    - name: Start and enable services
-      systemd:
-        name: "{{ item }}"
-        enabled: yes
-        state: started
-      loop:
-        - node_exporter
-        - fail2ban
-        - dnf-automatic.timer
-      ignore_errors: yes
-
-    - name: Check if reboot is required after updates
-      shell: needs-restarting -r
-      register: reboot_required
-      failed_when: false
-      changed_when: reboot_required.rc == 1
-
-    - name: Reboot if needed
-      reboot:
-        reboot_timeout: 300
-        connect_timeout: 20
-        test_command: uptime
-      when: update_result.changed and reboot_required.rc == 1
-
-    - name: Wait for system to be ready after reboot
-      wait_for_connection:
-        connect_timeout: 20
-        sleep: 5
-        delay: 5
-        timeout: 300
-      when: update_result.changed and reboot_required.rc == 1
-
-    - name: Verify services are running
-      systemd:
-        name: "{{ item }}"
-        state: started
-      loop:
-        - node_exporter
-        - fail2ban
-        - dnf-automatic.timer
-      register: service_verification
-      ignore_errors: yes
-
-    - name: Send status to API
-      uri:
-        url: "{{ api_url }}/vm/{{ vm_id }}/status"
-        method: POST
-        headers:
+        - name: Notify API - Failure
+          uri:
+            url: "{{ api_url }}/vm/{{ vm_id }}/status"
+            method: POST
+            headers:
               Authorization: "Bearer {{ api_key }}"
-          Content-Type: "application/json"
-        body_format: json
-        body:
-          status: "configured"
-          vm_id: "{{ vm_id }}"
-          hostname: "{{ hostname | default(ansible_hostname) }}"
-          os_template: "{{ os_template }}"
-          management_type: "{{ management_type }}"
-          connectivity_status: "working"
-          services_verified: "{{ service_verification.results | selectattr('state', 'equalto', 'started') | map(attribute='name') | list }}"
-          configuration_timestamp: "{{ ansible_date_time.iso8601 }}"
-          proxy_configured: "{{ proxy_config is defined }}"
-          monitoring_enabled: true
-          unattended_upgrades_enabled: true
-        status_code: [200, 201]
-        validate_certs: yes
-        timeout: 30
-        no_log: true
-      when: 
-        - api_url is defined
-        - vm_id is defined
-      register: api_response
-      failed_when: false
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              status: "failed"
+              vm_id: "{{ vm_id | default('unknown') }}"
+              error: "{{ ansible_failed_task.name | default('Unknown task') }} failed"
+            status_code: [200, 201]
+            validate_certs: yes
+          delegate_to: localhost
+          become: no
+          ignore_errors: true
 
-    - name: Log configuration completion
-      debug:
-        msg: |
-          Rocky Linux VPS Configuration Complete:
-          - VM ID: {{ vm_id | default('Unknown') }}
-          - Hostname: {{ hostname | default(ansible_hostname) }}
-          - User created: {{ hostname | default('None') }}
-          - Connectivity: Working
-          - Proxy Configured: {{ proxy_config is defined }}
-          - Services: {{ service_verification.results | selectattr('state', 'equalto', 'started') | map(attribute='name') | list }}
-          - Monitoring: Enabled (prometheus-node-exporter, fail2ban)
-          - Unattended Updates: Enabled (dnf-automatic)
-          - API Response: {{ api_response.status | default('No response') }}
+        - name: Force failure after notification
+          fail:
+            msg: "Provisioning failed during task: {{ ansible_failed_task.name | default('Unknown') }}"
 
   handlers:
     - name: restart_fail2ban
@@ -448,3 +337,5 @@
       systemd:
         name: sshd
         state: restarted
+      async: 10
+      poll: 0

@@ -10,12 +10,16 @@ module Admin
 
         products = products.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
         if params[:product_type].present?
-          products = if params[:product_type] == 'proxy'
+          products = case params[:product_type]
+                     when 'proxy'
                        products.where(product_type: Product::PROXY_TYPES)
+                     when 'esim'
+                       products.where(product_type: ['esim', 'usa_esim'])
                      else
                        products.where(product_type: params[:product_type])
                      end
         end
+
         products = products.where(provider: params[:provider]) if params[:provider].present?
         products = products.where(active: params[:active]) if params[:active].present?
 

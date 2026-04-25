@@ -22,9 +22,11 @@ import {
     whitelistAdd, 
     whitelistDelete 
 } from "@/services/resellerApi";
+import resellerApi from "@/services/resellerApi";
 import { toast } from "react-hot-toast";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 
 interface ProxyOrder {
     id: string;
@@ -45,6 +47,8 @@ interface ProxyOrder {
     created_at: string;
     traffic_used?: number;
     traffic_limit?: number;
+    auto_renew?: boolean;
+    renewal_method?: string;
 }
 
 export default function ResProxyManagement() {
@@ -57,6 +61,7 @@ export default function ResProxyManagement() {
     const [newCreds, setNewCreds] = useState({ username: '', password: '' });
     const [newProtocol, setNewProtocol] = useState<'http' | 'socks5'>('http');
     const [newIp, setNewIp] = useState('');
+    const [subscriptionOrder, setSubscriptionOrder] = useState<ProxyOrder | null>(null);
 
     useEffect(() => {
         fetchProxyData();
@@ -257,10 +262,10 @@ export default function ResProxyManagement() {
                                 <EyeIcon className="w-4 h-4" /> Details
                             </button>
                             <button
-                                onClick={() => openModal('extend', order)}
-                                className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 text-sm font-medium transition-colors"
+                                onClick={() => setSubscriptionOrder(order)}
+                                className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 text-sm font-medium transition-colors"
                             >
-                                <ClockIcon className="w-4 h-4" /> Extend
+                                <ArrowPathIcon className="w-4 h-4" /> Renew
                             </button>
                         </div>
                     </motion.div>
@@ -455,6 +460,18 @@ export default function ResProxyManagement() {
                     </motion.div>
                 </div>
             )}
+
+            <ManageSubscriptionModal
+                isOpen={!!subscriptionOrder}
+                onClose={() => setSubscriptionOrder(null)}
+                orderId={subscriptionOrder?.id || ''}
+                autoRenew={!!subscriptionOrder?.auto_renew}
+                renewalMethod={subscriptionOrder?.renewal_method || 'wallet'}
+                expiresAt={subscriptionOrder?.expires_at || ''}
+                onUpdate={fetchProxyData}
+                api={resellerApi}
+                apiPrefix=""
+            />
         </div>
     );
 }

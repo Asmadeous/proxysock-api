@@ -474,7 +474,11 @@ module Admin
       def service_statuses
         services = []
         services << check_service('Redis') { Redis.new(url: ENV['REDIS_URL']).ping == 'PONG' }
-        services << check_service('Sidekiq') { defined?(Sidekiq::Stats) && Sidekiq::Stats.new.processes_size.positive? }
+        services << check_service('Sidekiq') do
+          is_running = defined?(Sidekiq::Stats) && (Sidekiq::Stats.new.processes_size.positive? rescue false)
+          is_configured = ENV['REDIS_URL'].present?
+          is_running && is_configured
+        end
         services << check_service('Database') { ActiveRecord::Base.connection.active? }
         services << check_service('Prometheus') { defined?(PROMETHEUS_REGISTRY) }
         services << check_service('ActionCable') { ActionCable.server.pubsub.respond_to?(:subscribe) }

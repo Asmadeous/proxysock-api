@@ -7,10 +7,9 @@ module Api
 
       # GET /api/v1/orders
       def index
-        # Resellers can see all their orders
-        # Using ResellerOrder as the primary query base to get all products they've purchased for resale
-        scope = current_reseller.orders
-                                .includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
+        # Resellers can see all their orders.
+        # Infrastructure resellers also see orders from all their managed users.
+        scope = order_scope.includes(:product, :vm_order, :vpn_order, :mobile_proxy_order, :static_datacenter_proxy_order, :static_residential_proxy_order, :residential_rotating_proxy_order)
 
         if params[:product_type].present?
           types = params[:product_type].split(',')
@@ -36,13 +35,13 @@ module Api
 
       # GET /api/v1/orders/:id
       def show
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
         render json: serialize_order(order)
       end
 
       # GET /api/v1/orders/stats
       def stats
-        orders = current_reseller.orders
+        orders = order_scope
 
         active_statuses = %w[active processing completed delivered allocated]
         pending_statuses = %w[pending provisioning awaiting_payment]
@@ -255,7 +254,7 @@ module Api
       # GET /api/v1/orders/:id/credentials
       # Returns credentials dynamically based on product type
       def credentials
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
         resource = order.provisioned_resource
 
         unless resource
@@ -291,7 +290,7 @@ module Api
             server_ip: resource.server_ip,
             status: resource.status
           }
-        when 'proxy', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
+        when 'proxy', 'isp', 'datacenter', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
           # Dynamic credential mapping for various proxy models
           # MobileProxy, StaticDatacenterProxy, GlobalIspProxy, etc.
           proxies = if resource.respond_to?(:proxies)
@@ -345,7 +344,7 @@ module Api
 
       # POST /api/v1/orders/:id/renew
       def renew
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
 
         # Double check reseller restriction (already handled by model but safe to be explicit)
         unless order.product.product_type == 'vm'
@@ -364,10 +363,38 @@ module Api
         end
       end
 
+      # POST /api/v1/orders/:id/update_subscription
+      def update_subscription
+        order = order_scope.find(params[:id])
+
+        order.metadata ||= {}
+        order.metadata['auto_renew'] = params[:auto_renew] if params.key?(:auto_renew)
+        order.metadata['renewal_method'] = params[:renewal_method] if params.key?(:renewal_method)
+
+        if order.save
+          # Propagate to provisioned resource if applicable
+          if order.provisioned_resource.respond_to?(:update!)
+            resource_meta = order.provisioned_resource.metadata.to_h
+            resource_meta['service_renewal_metadata'] ||= {}
+            resource_meta['service_renewal_metadata']['auto_renew'] = order.metadata['auto_renew']
+            resource_meta['service_renewal_metadata']['renewal_method'] = order.metadata['renewal_method']
+            order.provisioned_resource.update!(metadata: resource_meta)
+          end
+
+          render json: {
+            message: 'Subscription settings updated successfully',
+            auto_renew: order.metadata['auto_renew'],
+            renewal_method: order.metadata['renewal_method']
+          }
+        else
+          render json: { error: order.errors.full_messages.to_sentence }, status: :unprocessable_entity
+        end
+      end
+
       # POST /api/v1/orders/:id/cancel
       # Resellers can cancel orders within 1 hour of creation
       def cancel
-        order = current_reseller.orders.find(params[:id])
+        order = order_scope.find(params[:id])
 
         # Check if order can be cancelled
         unless %w[pending active processing completed delivered allocated].include?(order.status)
@@ -411,21 +438,71 @@ module Api
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
+      # POST /api/v1/orders/:id/refund
+      # Resellers can refund failed orders to their wallet, except for external API products that have already been processed.
+      def refund
+        order = order_scope.find(params[:id])
+
+        unless order.failed?
+          return render json: { error: 'Order is not in a failed state. You can only refund failed orders.' }, status: :unprocessable_entity
+        end
+
+        is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
+
+        if is_external_api_product && order.provider_order_id.present?
+          # The external API processed this order before the local failure. Halt automated refund and generate a ticket.
+          begin
+            ActiveRecord::Base.transaction do
+              ticket = current_reseller.tickets.create!(
+                subject: "Refund Request for External Order ##{order.order_number}",
+                priority: 'high',
+                order_id: order.id,
+                user_type: 'reseller'
+              )
+              ticket.ticket_messages.create!(
+                sender: current_reseller,
+                body: "Automated Refund Request: This order could not be automatically refunded because the external API has already processed it (Provider Order ID: #{order.provider_order_id}). Please investigate and process manually."
+              )
+
+              NotificationService.notify_staff(
+                category: 'warning',
+                title: 'Manual Refund Required',
+                message: "Reseller requested refund for processed external order ##{order.order_number}.",
+                metadata: { order_id: order.id, ticket_id: ticket.id }
+              )
+            end
+
+            return render json: {
+              error: 'External provider processed this order before local failure. A high-priority support ticket has been created for manual admin review.'
+            }, status: :unprocessable_entity
+          rescue StandardError => e
+            return render json: { error: "Failed to generate support ticket for refund: #{e.message}" }, status: :unprocessable_entity
+          end
+        end
+
+        # Safe to refund locally
+        begin
+          RefundService.new(order).process!(refund_method: 'wallet')
+          render json: { message: 'Order successfully refunded to wallet', order: serialize_order(order.reload) }
+        rescue StandardError => e
+          render json: { error: "Refund failed: #{e.message}" }, status: :unprocessable_entity
+        end
+      end
+
       # POST /api/v1/orders/:id/reorder
       def reorder
-        original_order = current_reseller.orders.find(params[:id])
+        original_order = order_scope.find(params[:id])
         product = original_order.product
         pricing = product.product_pricings.find_by(active: true) || product.product_pricings.first
 
         return render json: { error: 'Product pricing not available' }, status: :not_found unless pricing
 
+        metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
         if current_reseller.balance_based?
           # Re-create the order with original metadata (removing IDs)
-          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
           create_api_only_order(product, pricing, metadata)
         else
           # infrastructure: Return a checkout link for the same product
-          metadata = original_order.metadata.except('order_id', 'provider_order_id', 'my_proxy_api_response')
           create_infrastructure_order(product, pricing, metadata)
         end
       rescue StandardError => e
@@ -438,15 +515,20 @@ module Api
         resource = order.provisioned_resource
         {
           id: order.id,
+          order_number: order.order_number,
           product_id: order.product_id,
           product_name: order.product.name,
           product_type: order.product.product_type,
+          proxy_type: order.metadata.to_h['proxy_type'],
           quantity: order.quantity,
           total_amount: order.total_amount,
           status: order.status,
+          auto_renew: !order.metadata.to_h['auto_renew'].nil?,
+          renewal_method: order.metadata.to_h['renewal_method'] || 'wallet',
           resource_status: resource&.status,
           # Conditional attributes based on resource availability
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
+          expires_at: resource.try(:expires_at) || order.metadata.to_h['expires_at'],
           created_at: order.created_at
         }
       end
@@ -459,11 +541,31 @@ module Api
         }
       end
 
+      # Centralized order scope for hierarchical reseller management
+      def order_scope
+        if current_reseller.infrastructure?
+          # Infrastructure resellers see their own orders + their managed users' orders
+          managed_user_ids = current_reseller.managed_user_ids
+          Order.where(
+            "(orderable_type = 'Reseller' AND orderable_id = ?) OR (orderable_type = 'User' AND orderable_id IN (?))",
+            current_reseller.id, managed_user_ids
+          )
+        else
+          # Standard resellers see ONLY their own direct orders
+          current_reseller.orders
+        end
+      end
+
       # ── api_only: Balance-based order ──
       # Deducts from main_wallet, provisions immediately, returns credentials in JSON.
       def create_api_only_order(product, pricing, custom_metadata = nil)
+        orderable_actor = current_reseller
+        if params[:user_id].present? && custom_metadata.nil?
+          orderable_actor = current_reseller.managed_users.find(params[:user_id])
+        end
+
         @order = Order.new(
-          orderable: current_reseller,
+          orderable: orderable_actor,
           product_id: product.id,
           product_pricing_id: pricing.id,
           quantity: params[:quantity] || 1,
@@ -488,16 +590,15 @@ module Api
           )
         end
 
-        OrderProvisioningService.new(@order, current_reseller).process!
+        OrderProvisioningJob.perform_later(@order.id, current_reseller.id)
 
-        @order.reload
-        resource = @order.provisioned_resource
-
-        render json: serialize_order(@order).merge(
-          message: 'Order completed',
-          credentials: resource ? serialize_credentials(@order, resource) : nil,
+        render json: {
+          id: @order.id,
+          order_number: @order.order_number,
+          status: 'pending',
+          message: 'Order received and provisioning has started. Please wait a minute for credentials to appear.',
           available_balance: current_reseller.main_wallet&.balance.to_f
-        ), status: :created
+        }, status: :accepted
       end
 
       # ── infrastructure: Gateway-based order ──

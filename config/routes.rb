@@ -38,7 +38,9 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :cancel
+          post :refund
           post :reorder
+          post :update_subscription
         end
       end
 
@@ -54,9 +56,17 @@ Rails.application.routes.draw do
         post :reply, on: :member
       end
 
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
+      resources :notifications, only: %i[index show] do
+        member do
+          put :read
+        end
+        collection do
+          get :unread_count
+          put :read_all
+          post :mark_as_read
+        end
       end
+
 
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
@@ -91,6 +101,7 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+
     end
   end
 
@@ -148,7 +159,9 @@ Rails.application.routes.draw do
         member do
           get :credentials
           post :renew
+          post :refund
           post :reorder
+          post :update_subscription
           get :download_ovpn
           get :download_invoice
           get :download_rdp_config
@@ -157,6 +170,7 @@ Rails.application.routes.draw do
           post :rotate_ip
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
+          post :claim_crypto_refund
         end
       end
       resource :wallet, only: [:show] do
@@ -263,9 +277,17 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :notifications, only: [:index] do
-        post :mark_as_read, on: :collection
+      resources :notifications, only: %i[index show] do
+        member do
+          put :read
+        end
+        collection do
+          get :unread_count
+          put :read_all
+          post :mark_as_read
+        end
       end
+
 
       namespace :analytics do
         get :dashboard
@@ -294,6 +316,10 @@ Rails.application.routes.draw do
         post :impersonate, on: :member
         post :onboard,     on: :member
       end
+      resources :usa_esim_credentials, only: %i[index destroy] do
+        post :import, on: :collection
+      end
+
       resources :orders, only: %i[index show] do
         post :refund,   on: :member
         post :rescue,   on: :member
@@ -379,12 +405,14 @@ Rails.application.routes.draw do
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
     post 'hundredpay', to: 'webhooks#hundredpay'
+    post 'fastspring', to: 'webhooks#fastspring'
 
     # Handle accidental browser GET redirects from payment gateways by sending them to frontend
     get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'fastspring', to: redirect { ENV['FRONTEND_URL'] || '/' }
   end
 
   post 'esim', to: 'webhooks/esim_access#webhook'

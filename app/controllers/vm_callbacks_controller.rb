@@ -48,8 +48,7 @@ class VmCallbacksController < ApplicationController
   end
 
   def handle_configured(vm)
-    # Update VM metadata from callback
-    vm.update(
+    updates = {
       metadata: (vm.metadata || {}).merge(
         ansible_status: 'configured',
         services_verified: params[:services_verified],
@@ -57,7 +56,14 @@ class VmCallbacksController < ApplicationController
         monitoring_enabled: params[:monitoring_enabled],
         configuration_timestamp: params[:configuration_timestamp]
       )
-    )
+    }
+
+    if params[:tailscale_ip].present?
+      updates[:ip_address] = params[:tailscale_ip]
+    end
+
+    # Update VM metadata from callback
+    vm.update(updates)
 
     # If still in provisioning state, ansible finished before the job did —
     # don't transition yet, let VmProvisioningJob handle mark_active!
@@ -77,6 +83,9 @@ class VmCallbacksController < ApplicationController
 
     # If still provisioning, fail it
     vm.fail! if vm.may_fail?
+    
+    order = vm.vm_order&.order
+    order.fail! if order&.may_fail?
 
     # Notify owner
     owner = vm.vm_order&.order&.orderable

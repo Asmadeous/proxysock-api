@@ -7,123 +7,131 @@ require 'json'
 class CloudflareDnsService
   BASE_URL = 'https://api.cloudflare.com/client/v4'
 
-  def initialize
-    @api_token = ENV['CLOUDFLARE_API_TOKEN']
-    @zone_id = ENV['CLOUDFLARE_ZONE_ID']
-    @base_domain = ENV['CLOUDFLARE_BASE_DOMAIN'] # e.g., proxysock.net
-    @logger = Rails.logger
+  def initialize(logger = Rails.logger)
+    @api_token = ENV['CLOUDFLARE_API_TOKEN']&.strip&.delete("\"'")
+    @zone_id = ENV['CLOUDFLARE_ZONE_ID']&.strip&.delete("\"'")
+    domain = ENV['CLOUDFLARE_BASE_DOMAIN']&.strip&.delete("\"'")
+    @base_domain = domain.present? ? domain : 'proxysock.com'
+    @logger = logger
   end
 
-  def create_vm_record(vm_id, ip_address, port, protocol)
-    return unless enabled?
+  # Create A record: hostname.proxysock.com -> ip_address
+  # Returns the full DNS name or nil on failure
+  def create_vm_dns(hostname, ip_address)
+    return nil unless enabled?
 
-    subdomain = "vm-#{vm_id}"
-    full_name = "#{subdomain}.#{@base_domain}"
+    full_name = "#{hostname}.#{@base_domain}"
+    @logger.info("[CloudflareDNS] Creating A record: #{full_name} -> #{ip_address}")
 
-    @logger.info("[CloudflareDnsService] Creating DNS record for #{full_name} -> #{ip_address}")
+    # Delete any existing record for this hostname first (idempotent)
+    delete_vm_dns(hostname)
 
-    # 1. Create A Record
-    create_a_record(subdomain, ip_address)
-
-    # 2. Create SRV Record (to "hide" the port)
-    # Service: _ssh or _rdp
-    service_name = protocol == 'rdp' ? '_rdp' : '_ssh'
-    create_srv_record(service_name, subdomain, port)
-
-    full_name
-  end
-
-  def create_a_record(subdomain, ip_address)
-    uri = URI("#{BASE_URL}/zones/#{@zone_id}/dns_records")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri)
-    request['Authorization'] = "Bearer #{@api_token}"
-    request['Content-Type'] = 'application/json'
-
-    request.body = {
+    response = cf_post("/zones/#{@zone_id}/dns_records", {
       type: 'A',
-      name: subdomain,
+      name: hostname,
       content: ip_address,
-      ttl: 3600,
-      proxied: false
-    }.to_json
+      ttl: 120,         # 2 min TTL for fast updates
+      proxied: false     # DNS-only — RDP doesn't work through CF proxy
+    })
 
-    http.request(request)
+    if response['success']
+      record_id = response.dig('result', 'id')
+      @logger.info("[CloudflareDNS] Created A record #{full_name} (ID: #{record_id})")
+      full_name
+    else
+      # If there is a full error hash, extract the messages.
+      errors = response['errors']&.map { |e| "[#{e['code']}] #{e['message']}" }&.join(', ') || response.to_s
+      @logger.error("[CloudflareDNS] Failed to create A record: #{errors}")
+      nil
+    end
+  rescue StandardError => e
+    @logger.error("[CloudflareDNS] Error creating DNS record: #{e.message}")
+    nil
   end
 
-  def create_srv_record(service, subdomain, port)
-    uri = URI("#{BASE_URL}/zones/#{@zone_id}/dns_records")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri)
-    request['Authorization'] = "Bearer #{@api_token}"
-    request['Content-Type'] = 'application/json'
-
-    # SRV format: _service._proto.name
-    request.body = {
-      type: 'SRV',
-      data: {
-        service: service,
-        proto: '_tcp',
-        name: subdomain,
-        priority: 10,
-        weight: 5,
-        port: port,
-        target: "#{subdomain}.#{@base_domain}"
-      }
-    }.to_json
-
-    http.request(request)
-  end
-
-  def delete_vm_record(vm_id)
+  # Delete all DNS records for hostname.proxysock.com
+  def delete_vm_dns(hostname)
     return unless enabled?
 
-    subdomain = "vm-#{vm_id}"
-    @logger.info("[CloudflareDnsService] Deleting DNS records for #{subdomain}")
+    full_name = "#{hostname}.#{@base_domain}"
+    @logger.info("[CloudflareDNS] Deleting DNS records for #{full_name}")
 
-    # Find and delete all records (A and SRV) associated with this subdomain
-    record_ids = find_all_record_ids(subdomain)
+    record_ids = find_records_by_name(full_name)
     record_ids.each do |id|
-      delete_record(id)
+      cf_delete("/zones/#{@zone_id}/dns_records/#{id}")
+      @logger.info("[CloudflareDNS] Deleted record #{id}")
     end
+
     true
+  rescue StandardError => e
+    @logger.error("[CloudflareDNS] Error deleting DNS records: #{e.message}")
+    false
+  end
+
+  def enabled?
+    @api_token.present? && @zone_id.present? && @base_domain.present? &&
+      @api_token != 'your_token_here' && @zone_id != 'your_zone_id_here'
   end
 
   private
 
-  def delete_record(record_id)
-    uri = URI("#{BASE_URL}/zones/#{@zone_id}/dns_records/#{record_id}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    request = Net::HTTP::Delete.new(uri)
-    request['Authorization'] = "Bearer #{@api_token}"
-    http.request(request)
-  end
+  def find_records_by_name(full_name)
+    response = cf_get("/zones/#{@zone_id}/dns_records?name=#{full_name}")
 
-  def find_all_record_ids(subdomain)
-    # Search for any record containing the subdomain
-    uri = URI("#{BASE_URL}/zones/#{@zone_id}/dns_records?name=contains:#{subdomain}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Get.new(uri)
-    request['Authorization'] = "Bearer #{@api_token}"
-
-    response = http.request(request)
-    result = JSON.parse(response.body)
-
-    if result['success']
-      result['result'].map { |r| r['id'] }
+    if response['success']
+      response['result'].map { |r| r['id'] }
     else
       []
     end
   end
 
-  def enabled?
-    @api_token.present? && @zone_id.present? && @base_domain.present?
+  def cf_headers
+    {
+      'Authorization' => "Bearer #{@api_token}",
+      'Content-Type' => 'application/json'
+    }
+  end
+
+  def cf_get(path)
+    uri = URI("#{BASE_URL}#{path}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 10
+
+    request = Net::HTTP::Get.new(uri)
+    cf_headers.each { |k, v| request[k] = v }
+
+    response = http.request(request)
+    JSON.parse(response.body)
+  end
+
+  def cf_post(path, body)
+    uri = URI("#{BASE_URL}#{path}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 10
+
+    request = Net::HTTP::Post.new(uri)
+    cf_headers.each { |k, v| request[k] = v }
+    request.body = body.to_json
+
+    response = http.request(request)
+    JSON.parse(response.body)
+  end
+
+  def cf_delete(path)
+    uri = URI("#{BASE_URL}#{path}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 10
+
+    request = Net::HTTP::Delete.new(uri)
+    cf_headers.each { |k, v| request[k] = v }
+
+    response = http.request(request)
+    JSON.parse(response.body)
   end
 end

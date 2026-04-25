@@ -16,16 +16,30 @@ WORKDIR /rails
 
 # Install base packages
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client ansible sshpass openssh-client python3-passlib && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client \
+      sshpass openssh-client python3-passlib python3-pip python3-venv && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Install Ansible (pinned to match local dev) + Python deps for VM provisioning
+RUN pip3 install --no-cache-dir --break-system-packages \
+      ansible-core==2.20.4 \
+      pywinrm \
+      requests-credssp
+
+# Install Ansible Galaxy collections to system-wide path (accessible by rails user)
+COPY ansible/requirements.yml /tmp/ansible-requirements.yml
+RUN ansible-galaxy collection install -r /tmp/ansible-requirements.yml \
+      -p /usr/share/ansible/collections --force && \
+    rm /tmp/ansible-requirements.yml
 
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development" \
-    LD_PRELOAD="/usr/local/lib/libjemalloc.so"
+    LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
+    RAILS_LOG_TO_STDOUT="true"
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
@@ -64,6 +78,10 @@ USER 1000:1000
 # Copy built artifacts: gems, application
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
+
+# Ensure log and tmp directories exist and are writable
+RUN mkdir -p /rails/log /rails/tmp && \
+    chown -R rails:rails /rails/log /rails/tmp
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

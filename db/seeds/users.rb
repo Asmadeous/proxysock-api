@@ -5,15 +5,15 @@ puts '🌱 Seeding Users, Employees, Resellers, and Affiliates...'
 # ─── Regular Users ───────────────────────────────────────────────────────────
 
 users = [
-  { first_name: 'Demo',    last_name: 'User',      email: 'ndegwaian001@gmail.com',   username: 'demo' },
-  { first_name: 'Alice',   last_name: 'Johnson',   email: 'alice@proxysock.com',      username: 'alice_j' },
-  { first_name: 'Bob',     last_name: 'Smith',     email: 'bob@proxysock.com',        username: 'bob_smith' },
-  { first_name: 'Carol',   last_name: 'Williams',  email: 'carol@proxysock.com',      username: 'carol_w' },
-  { first_name: 'David',   last_name: 'Brown',     email: 'david@proxysock.com',      username: 'david_b' },
-  { first_name: 'Eva',     last_name: 'Martinez',  email: 'eva@proxysock.com',        username: 'eva_m' },
-  { first_name: 'Frank',   last_name: 'Lee',       email: 'frank@proxysock.com',      username: 'frank_lee' },
-  { first_name: 'Grace',   last_name: 'Kim',       email: 'grace@proxysock.com',      username: 'grace_k' },
-  { first_name: 'Test',    last_name: 'Customer',  email: 'test@proxysock.com',       username: 'testcustomer' }
+  { first_name: 'Demo',    last_name: 'User',      email: 'ndegwaian001@gmail.com',   username: 'demo', country_code: 'US', city: 'New York' },
+  { first_name: 'Alice',   last_name: 'Johnson',   email: 'alice@proxysock.com',      username: 'alice_j', country_code: 'GB', city: 'London' },
+  { first_name: 'Bob',     last_name: 'Smith',     email: 'bob@proxysock.com',        username: 'bob_smith', country_code: 'CA', city: 'Toronto' },
+  { first_name: 'Carol',   last_name: 'Williams',  email: 'carol@proxysock.com',      username: 'carol_w', country_code: 'AU', city: 'Sydney' },
+  { first_name: 'David',   last_name: 'Brown',     email: 'david@proxysock.com',      username: 'david_b', country_code: 'DE', city: 'Berlin' },
+  { first_name: 'Eva',     last_name: 'Martinez',  email: 'eva@proxysock.com',        username: 'eva_m', country_code: 'ES', city: 'Madrid' },
+  { first_name: 'Frank',   last_name: 'Lee',       email: 'frank@proxysock.com',      username: 'frank_lee', country_code: 'KR', city: 'Seoul' },
+  { first_name: 'Grace',   last_name: 'Kim',       email: 'grace@proxysock.com',      username: 'grace_k', country_code: 'JP', city: 'Tokyo' },
+  { first_name: 'Test',    last_name: 'Customer',  email: 'test@proxysock.com',       username: 'testcustomer', country_code: 'US', city: 'San Francisco' }
 ]
 
 users.each do |attrs|
@@ -67,12 +67,14 @@ end
 
 begin
   resellers = [
-    { email: 'reseller@proxysock.com',  username: 'testreseller',  company_name: 'Reseller Inc.',
-      discount_percentage: 10.0 },
-    { email: 'reseller2@proxysock.com', username: 'acme_reseller', company_name: 'ACME Proxies Ltd.',
-      discount_percentage: 15.0 },
-    { email: 'reseller3@proxysock.com', username: 'netpro',        company_name: 'NetPro Solutions',
-      discount_percentage: 12.5 }
+    { email: 'reseller@proxysock.com', username: 'testreseller', company_name: 'Reseller Inc.',
+      discount_percentage: 10.0, country_code: 'US', city: 'Delaware', reseller_type: 'api_only' },
+    { email: 'infra_reseller@proxysock.com', username: 'infra_pro', company_name: 'Global Infrastructure Ltd.',
+      discount_percentage: 20.0, country_code: 'GB', city: 'London', reseller_type: 'infrastructure',
+      infrastructure_surcharge_percentage: 5.0, subscription_fee: 499.99 },
+    { email: 'vps_only_reseller@proxysock.com', username: 'vps_expert', company_name: 'VPS Specialty Reseller',
+      discount_percentage: 15.0, country_code: 'CA', city: 'Toronto', reseller_type: 'single_product',
+      allowed_product_category: ProductCategory.find_by(slug: 'vps') }
   ]
 
   resellers.each do |attrs|

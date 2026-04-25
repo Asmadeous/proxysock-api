@@ -2,12 +2,23 @@
 
 # Orchestrates withdrawal from a reseller's earnings wallet via payment gateways.
 # Only available for infrastructure resellers who earn commissions.
+#
+# Payout routing:
+#   - crypto (plisio/payvra): Automatically dispatched to the gateway
+#   - non-crypto (paystack/hundredpay/manual): Creates a pending payout and
+#     notifies admin for manual processing with account details
 class PayoutService
   class InsufficientBalanceError < StandardError; end
   class InvalidGatewayError < StandardError; end
   class PayoutError < StandardError; end
 
   MINIMUM_PAYOUT = 50 # Minimum withdrawal amount in USD
+
+  # Gateways that are automatically dispatched to crypto providers
+  CRYPTO_GATEWAYS = %w[plisio payvra].freeze
+
+  # Gateways that require manual admin processing
+  MANUAL_GATEWAYS = %w[paystack hundredpay manual].freeze
 
   def initialize(reseller)
     @reseller = reseller
@@ -31,17 +42,24 @@ class PayoutService
         { gateway: gateway, payment_details: payment_details }
       )
 
+      initial_status = CRYPTO_GATEWAYS.include?(gateway) ? 'processing' : 'pending'
+
       payout = Payout.create!(
         reseller: @reseller,
         amount: amount,
         gateway: gateway,
-        status: 'processing',
+        status: initial_status,
         payment_details: payment_details
       )
     end
 
-    # Dispatch to gateway (outside transaction — if gateway fails, payout stays in 'processing')
-    dispatch_to_gateway!(payout)
+    if CRYPTO_GATEWAYS.include?(gateway)
+      # Dispatch crypto payouts automatically
+      dispatch_to_gateway!(payout)
+    else
+      # Non-crypto: notify admin for manual processing
+      notify_admin_for_manual_payout!(payout)
+    end
 
     payout
   rescue InsufficientBalanceError, InvalidGatewayError => e
@@ -49,7 +67,11 @@ class PayoutService
   rescue StandardError => e
     Rails.logger.error("PayoutService Error: #{e.message}")
     # If payout was created but gateway dispatch failed, mark it as failed
-    payout&.mark_failed!({ error: e.message })
+    # and refund the earnings wallet
+    if payout&.persisted? && payout.status != 'completed'
+      payout.mark_failed!({ error: e.message })
+      refund_earnings!(payout)
+    end
     raise PayoutError, "Payout failed: #{e.message}"
   end
 
@@ -62,39 +84,40 @@ class PayoutService
 
   def dispatch_to_gateway!(payout)
     response = case payout.gateway
-               when 'paystack'
-                 dispatch_paystack(payout)
                when 'plisio'
                  dispatch_plisio(payout)
                when 'payvra'
                  dispatch_payvra(payout)
-               when 'hundredpay'
-                 # HundredPay doesn't have a payout API yet — mark as pending for manual processing
-                 { status: 'pending_manual', message: 'HundredPay payouts require manual processing' }
                end
 
     payout.update!(gateway_response: response || {})
-
-    if response&.dig(:status) == 'pending_manual'
-      payout.update!(status: 'pending')
-    end
   rescue StandardError => e
     Rails.logger.error("Gateway dispatch failed for payout #{payout.id}: #{e.message}")
     payout.mark_failed!({ error: e.message })
+    refund_earnings!(payout)
     raise
   end
 
-  def dispatch_paystack(payout)
-    service = PaystackService.new
-    # Paystack requires a recipient_code (bank account recipient) in payment_details
-    recipient_code = payout.payment_details['recipient_code']
-    raise PayoutError, 'Paystack payouts require a recipient_code in payment_details' if recipient_code.blank?
+  def notify_admin_for_manual_payout!(payout)
+    AdminMailer.payout_request(payout).deliver_later
+    Rails.logger.info("Admin notified for manual payout #{payout.reference} — $#{payout.amount} via #{payout.gateway}")
+  rescue StandardError => e
+    # Don't fail the payout if email delivery fails — payout is already pending in DB
+    Rails.logger.error("Failed to notify admin for payout #{payout.id}: #{e.message}")
+  end
 
-    service.initiate_transfer(
+  def refund_earnings!(payout)
+    earnings_wallet = @reseller.earnings_wallet
+    return unless earnings_wallet
+
+    earnings_wallet.credit!(
       payout.amount,
-      recipient_code,
-      payout.reference
+      "Refund for failed payout #{payout.reference}",
+      { payout_id: payout.id }
     )
+    Rails.logger.info("Refunded $#{payout.amount} to earnings wallet for failed payout #{payout.reference}")
+  rescue StandardError => e
+    Rails.logger.error("CRITICAL: Failed to refund earnings for payout #{payout.id}: #{e.message}")
   end
 
   def dispatch_plisio(payout)

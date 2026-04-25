@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
     LayoutDashboard,
     ShoppingBag,
@@ -13,7 +14,9 @@ import {
     Loader2,
     Webhook,
     BookOpen,
-    DollarSign
+    DollarSign,
+    MessageSquare,
+    Ticket
 } from "lucide-react";
 
 
@@ -24,7 +27,6 @@ import { formatImageUrl } from "../../services/api";
 // Directly imported components for core tabs
 import ResOverview from "./components/ResOverview";
 import ResOrders from "./components/ResOrders";
-import ResProducts from "./components/ResProducts";
 import ResWallet from "./components/ResWallet";
 import ResellerCheckout from "./ResellerCheckout";
 
@@ -41,6 +43,20 @@ const ResUserManagement = lazy(() => import("./components/ResUserManagement"));
 const ResApiDocs = lazy(() => import("./components/ResApiDocs"));
 const ResWebhookConfig = lazy(() => import("./components/ResWebhookConfig"));
 const ResSettings = lazy(() => import("./components/ResSettings"));
+const SupportChat = lazy(() => import("../UserDashboard/SupportChat"));
+const Tickets = lazy(() => import("../UserDashboard/Tickets"));
+
+
+// User dashboard buy pages (reused for full product configuration)
+const BuyProxies = lazy(() => import("../UserDashboard/BuyProxies"));
+const VPSTypes = lazy(() => import("../products/VPSTypes"));
+const VPSPlans = lazy(() => import("../products/VPSPlans"));
+const RDPTypes = lazy(() => import("../products/RDPTypes"));
+const RDPPlans = lazy(() => import("../products/RDPPlans"));
+const ESIMTypes = lazy(() => import("../products/ESIMTypes"));
+const ESIMPackages = lazy(() => import("../products/EsimPackages"));
+const USAESIMPlans = lazy(() => import("../products/USAESIMPlansPage"));
+const VPNPlans = lazy(() => import("../products/VPNPlans"));
 
 // Tab definitions per reseller tier
 const API_ONLY_TABS = [
@@ -49,6 +65,8 @@ const API_ONLY_TABS = [
     { id: "orders", label: "Orders", icon: ListTodo },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "developer", label: "Developer", icon: Code },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -59,6 +77,8 @@ const SINGLE_PRODUCT_TABS = [
     { id: "orders", label: "Orders", icon: ListTodo },
     { id: "wallet", label: "Wallet", icon: Wallet },
     { id: "developer", label: "Developer", icon: Code },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -71,6 +91,8 @@ const ENTERPRISE_TABS = [
     { id: "earnings", label: "Earnings", icon: DollarSign },
     { id: "developer", label: "Developer", icon: Code },
     { id: "users", label: "Users", icon: Users },
+    { id: "support", label: "Support", icon: MessageSquare },
+    { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -89,6 +111,7 @@ export default function ResellerDashboard() {
     const [activeTab, setActiveTab] = useState("overview");
     const [devSubTab, setDevSubTab] = useState<string | null>(null);
     const [cartCount, setCartCount] = useState(0);
+    const [selectedCountry, setSelectedCountry] = useState("");
     const [resellerUser, setResellerUser] = useState(() => JSON.parse(localStorage.getItem("resellerUser") || "{}"));
     const navigate = useNavigate();
     const location = useLocation();
@@ -141,12 +164,29 @@ export default function ResellerDashboard() {
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
     const isSingleProduct = resellerUser?.reseller_type === "single_product";
+    const isDirectBuy = resellerUser?.reseller_type === "api_only" || resellerUser?.reseller_type === "single_product";
     const tabs = isEnterprise ? ENTERPRISE_TABS : isSingleProduct ? SINGLE_PRODUCT_TABS : API_ONLY_TABS;
 
     const DEVELOPER_SUBTABS = useMemo(() => [
         { id: "api-docs", label: "Protocol Documentation", icon: BookOpen },
         ...(!isEnterprise ? [{ id: "webhook-config", label: "Webhooks", icon: Webhook }] : []),
     ], [isEnterprise]);
+
+    const handleDirectBuy = async (productId: string | number, quantity: number, metadata: any) => {
+        const { createResellerOrder } = await import("../../services/resellerApi");
+        try {
+            toast.loading("Provisioning order...", { id: "direct-buy" });
+            await createResellerOrder({ product_id: productId, quantity, metadata });
+            toast.success("Order provisioned successfully! Check your orders tab.", { id: "direct-buy" });
+            // Let the state settle before redirecting
+            setTimeout(() => {
+                navigate("/reseller/orders");
+            }, 1000);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || error.message || "Failed to provision order", { id: "direct-buy", duration: 5000 });
+            throw error;
+        }
+    };
 
     const handleTab = (id: string) => {
         if (id === "logout") {
@@ -182,6 +222,8 @@ export default function ResellerDashboard() {
             case "wallet": return <ResWallet />;
             case "earnings": return <ResWallet />;
             case "users": return <ResUserManagement />;
+            case "support": return <SupportChat role="Reseller" />;
+            case "tickets": return <Tickets role="Reseller" />;
             case "settings": return <ResSettings />;
             case "checkout": return (
                 <ResellerCheckout
@@ -192,12 +234,23 @@ export default function ResellerDashboard() {
 
 
 
-            // Category Store Views (from ResStore)
-            case "buy-proxies": return <ResProducts type="proxy" />;
-            case "buy-vps": return <ResProducts type="vps" />;
-            case "buy-rdp": return <ResProducts type="rdp" />;
-            case "buy-esim": return <ResProducts type="esim" />;
-            case "buy-vpn": return <ResProducts type="vpn" />;
+            // Category Store Views — reuse full user dashboard buy pages
+            case "buy-proxies": return <BuyProxies isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+
+            // VPS: two-step flow (country selection → plans)
+            case "buy-vps": return <VPSTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-vps-plans"); }} />;
+            case "buy-vps-plans": return <VPSPlans country={selectedCountry} onBack={() => setActiveTab("buy-vps")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+
+            // RDP: two-step flow (country selection → plans)
+            case "buy-rdp": return <RDPTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-rdp-plans"); }} />;
+            case "buy-rdp-plans": return <RDPPlans country={selectedCountry} onBack={() => setActiveTab("buy-rdp")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+
+            // eSIM: three paths (type selection → global packages OR usa plans)
+            case "buy-esim": return <ESIMTypes onNavigateUSA={() => setActiveTab("buy-usa-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />;
+            case "buy-global-esim": return <ESIMPackages onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+            case "buy-usa-esim": return <USAESIMPlans onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+
+            case "buy-vpn": return <VPNPlans isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
             // Management Module Views (from ResManagement)
             case "proxy-management": return <ResProxyManagement />;
@@ -210,7 +263,7 @@ export default function ResellerDashboard() {
     };
 
     return (
-        <div className="min-h-screen flex bg-background">
+        <div className="h-screen flex bg-background overflow-hidden">
             <AdminSidebar
                 items={tabs.map(t => ({
                     ...t,

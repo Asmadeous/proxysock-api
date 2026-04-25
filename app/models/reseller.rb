@@ -21,6 +21,13 @@ class Reseller < ApplicationRecord
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
 
   after_create :initialize_wallet
+  before_validation :normalize_location_data
+
+  def normalize_location_data
+    self.country_code = country_code.to_s.strip.upcase if country_code.present?
+    self.country = country.to_s.strip if country.present?
+    self.city = city.to_s.strip if city.present?
+  end
 
   def wallet
     main_wallet || create_main_wallet!(wallet_type: 'main')
@@ -28,7 +35,7 @@ class Reseller < ApplicationRecord
 
   def initialize_wallet
     wallet
-    earnings_wallet || create_earnings_wallet!(wallet_type: 'earnings')
+    create_earnings_wallet!(wallet_type: 'earnings') if infrastructure?
   end
 
   has_many :api_tokens, dependent: :destroy
@@ -45,6 +52,10 @@ class Reseller < ApplicationRecord
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :username, presence: true, uniqueness: true
   validates :company_name, presence: true
+
+  # Ensure location is available for MyProxyApi integrations
+  validates :country_code, presence: true
+  validates :city, presence: true
 
   # Reseller Tiers
   # api_only:        Balance-based, deposits via gateways (min $1500), rotational JWT, all products
@@ -151,12 +162,21 @@ class Reseller < ApplicationRecord
     end
   end
 
+  def profile_picture_url
+    if avatar.attached?
+      # Use full URL with host/protocol from default_url_options
+      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
+    else
+      nil
+    end
+  end
+
   def as_json(options = {})
     super(options).merge({
                            balance: balance,
                            earnings_balance: earnings_balance,
                            price_multiplier: price_multiplier,
-                           profile_picture_url: avatar.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_path(avatar, only_path: true) : nil
+                           profile_picture_url: profile_picture_url
                          })
   end
 

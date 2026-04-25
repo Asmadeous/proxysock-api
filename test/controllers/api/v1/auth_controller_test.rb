@@ -11,7 +11,9 @@ module Api
           username: 'test_reseller',
           email: 'test@reseller.com',
           password: 'password123',
-          reseller_type: 'api_only'
+          reseller_type: 'api_only',
+          country_code: 'US',
+          city: 'New York'
         )
         # Use the automatically initialized wallet
         wallet = @reseller.wallet

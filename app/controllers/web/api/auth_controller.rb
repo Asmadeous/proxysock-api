@@ -14,18 +14,31 @@ module Web
                                   google_callback twitter_callback failure]
 
       def register
+        # Extract referral_code before creating user (it's not a DB column)
+        referral_code = params[:user][:referral_code]&.strip
+        reseller_id = params[:user][:reseller_id]
+
         user = User.new(register_params)
         user.status = 'active'
         user.ip_address = request.remote_ip
         user.email_confirmation_token = SecureRandom.urlsafe_base64(32)
 
+        # Handle signing up under a reseller (Infrastructure Resellers)
+        if reseller_id.present?
+          reseller = Reseller.find_by(id: reseller_id)
+          if reseller&.infrastructure?
+            user.reseller = reseller
+            user.owner_type = 'reseller_managed'
+          end
+        end
+
         if user.save
           # Track affiliate referral if a referral code was provided
-          if params[:user][:referral_code].present?
+          if referral_code.present?
             begin
-              AffiliateService.track_signup!(user, params[:user][:referral_code])
+              AffiliateService.track_signup!(user, referral_code)
             rescue StandardError => e
-              Rails.logger.warn "Referral tracking failed for code '#{params[:user][:referral_code]}': #{e.message}"
+              Rails.logger.warn "Referral tracking failed for code '#{referral_code}': #{e.message}"
             end
           end
 
@@ -155,7 +168,7 @@ module Web
 
       # PATCH /web/api/auth/update_profile
       def update_profile
-        permitted = params.permit(:username, :first_name, :last_name, :country, :city, :phone, :profile_picture_url, :avatar)
+        permitted = params.permit(:username, :first_name, :last_name, :country, :country_code, :city, :phone, :profile_picture_url, :avatar)
 
         # Check username uniqueness if changed
         if permitted[:username].present? && permitted[:username] != current_user.username && User.where(
@@ -300,7 +313,7 @@ module Web
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
-                                     :country, :city, :username, :profile_picture_url, :referral_code, :avatar)
+                                     :country, :country_code, :city, :username, :profile_picture_url, :avatar)
       end
 
       def login_params
@@ -318,7 +331,7 @@ module Web
           status: user.status,
           country: user.country,
           city: user.city,
-          profile_picture_url: user.avatar.attached? ? rails_storage_proxy_url(user.avatar) : user.profile_picture_url,
+          profile_picture_url: user.profile_picture_url,
           balance: wallet&.balance.to_f || 0.0,
           currency: wallet&.currency || 'USD'
         }

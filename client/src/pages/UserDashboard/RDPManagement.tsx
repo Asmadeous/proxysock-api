@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ComputerDesktopIcon,
@@ -19,7 +19,7 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
-import { fetchVms, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
+import { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
 import { toast } from "react-hot-toast";
 import { PencilIcon } from "@heroicons/react/24/outline";
 
@@ -150,6 +150,7 @@ interface RDPInstanceCardProps {
   downloadRDPFile: (id: string) => Promise<void>;
   downloadingRDP: string | null;
   onShowPasswordModal: (instance: RDPInstance) => void;
+  loadingStats?: Record<string, boolean>;
 }
 
 const RDPInstanceCard = ({
@@ -164,6 +165,7 @@ const RDPInstanceCard = ({
   handleAction,
   refreshing,
   onShowPasswordModal: _onShowPasswordModal,
+  loadingStats = {},
 }: RDPInstanceCardProps & { handleAction: (id: string | number, action: any) => Promise<void>, refreshing: Record<string, boolean> }) => {
   const StatusIcon = getStatusIcon(instance.status);
 
@@ -180,7 +182,7 @@ const RDPInstanceCard = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold">{instance.hostname || `RDP-${instance.vm_id}`}</h3>
-            <p className="text-sm text-muted-foreground">{instance.plan_name || `${instance.service_type} - VM ${instance.vm_id}`}</p>
+            <p className="text-sm text-muted-foreground">{instance.plan_name ? `${instance.plan_name} (VM: ${instance.vm_id})` : `${instance.service_type} - VM ${instance.vm_id}`}</p>
           </div>
         </div>
         <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
@@ -209,42 +211,58 @@ const RDPInstanceCard = ({
       </div>
 
       <div className="space-y-3 mb-4">
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>CPU Usage</span>
-            <span>{instance.resource_usage?.cpu_percent || 0}%</span>
+        {loadingStats[instance.id] ? (
+          <div className="space-y-3 py-1">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="space-y-1">
+                <div className="flex justify-between">
+                  <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-8 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
+              </div>
+            ))}
           </div>
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${instance.resource_usage?.cpu_percent || 0}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>RAM Usage</span>
-            <span>{instance.resource_usage?.ram_percent || 0}%</span>
-          </div>
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${instance.resource_usage?.ram_percent || 0}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Active Sessions</span>
-            <span>{instance.active_sessions}/{instance.concurrent_users}</span>
-          </div>
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${(instance.active_sessions / instance.concurrent_users) * 100}%` }}
-            />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>CPU Usage</span>
+                <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>RAM Usage</span>
+                <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Active Sessions</span>
+                <span>{instance.active_sessions}/{instance.concurrent_users}</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (instance.active_sessions / instance.concurrent_users) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
@@ -551,6 +569,43 @@ const RDPManagement = () => {
 
     setFilteredInstances(filtered);
   }, [rdpInstances, searchTerm, statusFilter, serviceTypeFilter]);
+
+  const [loadingStats, setLoadingStats] = useState<{ [id: string]: boolean }>({});
+  const fetchedStatIds = useRef<Set<string | number>>(new Set());
+
+  // Fetch live stats for visible instances
+  useEffect(() => {
+    filteredInstances.forEach(instance => {
+      // Fetch stats for running or otherwise active instances
+      if (!fetchedStatIds.current.has(instance.id) && instance.status !== 'terminated' && instance.status !== 'failed') {
+        fetchedStatIds.current.add(instance.id);
+        fetchLiveStats(instance.id);
+      }
+    });
+  }, [filteredInstances]);
+
+  const fetchLiveStats = async (id: string | number) => {
+    setLoadingStats(prev => ({ ...prev, [id]: true }));
+    try {
+      const response = await fetchVmStatus(id);
+      if (response.data.resource_usage || response.data.status) {
+        setRdpInstances(prev => prev.map(inst => {
+          if (inst.id === id) {
+            return {
+              ...inst,
+              status: response.data.status || inst.status,
+              resource_usage: response.data.resource_usage || inst.resource_usage
+            };
+          }
+          return inst;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch live stats for', id, error);
+    } finally {
+      setLoadingStats(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
   const loadRDPInstances = async () => {
     try {
@@ -866,6 +921,7 @@ username:s:${instance.rdp_username}`;
               handleAction={handleAction}
               refreshing={refreshing}
               onShowPasswordModal={setShowPasswordModal}
+              loadingStats={loadingStats}
             />
           ))}
         </div>

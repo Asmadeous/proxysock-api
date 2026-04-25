@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TrashIcon, CogIcon, LinkIcon, PlusIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import { validEmail, positiveNumber, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
@@ -16,6 +16,7 @@ import {
     useConfigureAffiliate,
     useProcessAffiliatePayout,
 } from "../queries/affiliates.queries";
+import { fetchAdminUsers, fetchResellers } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 
 interface AffiliateRow {
@@ -33,6 +34,7 @@ interface AffiliateRow {
     total_paid_out: number;
     status: string;
     created_at: string;
+    reseller_type?: string;
 }
 
 interface PayoutRow {
@@ -52,8 +54,11 @@ export default function AffiliatesTab() {
     const [configTarget, setConfigTarget] = useState<AffiliateRow | null>(null);
     const [configForm, setConfigForm] = useState({ commission_rate: "10", discount_rate: "5", status: "active" });
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
+    const [createForm, setCreateForm] = useState({ affiliatable_type: "User", email: "", name: "", commission_rate: "10", discount_rate: "5", affiliatable_id: "" });
     const [createErrors, setCreateErrors] = useState<ValidationErrors>({});
+    const [entities, setEntities] = useState<any[]>([]);
+    const [entitySearch, setEntitySearch] = useState("");
+    const [searching, setSearching] = useState(false);
 
     const { data: affiliatesData, isLoading: affiliatesLoading } = useAdminAffiliates({ search });
     const { data: payoutsData, isLoading: payoutsLoading } = useAdminAffiliatePayouts();
@@ -87,13 +92,46 @@ export default function AffiliatesTab() {
         if (hasErrors(errors)) { setCreateErrors(errors); return; }
         await createAffiliate.mutateAsync({
             affiliatable_type: createForm.affiliatable_type,
+            affiliatable_id: createForm.affiliatable_id || undefined,
             email: createForm.email,
+            name: createForm.name || undefined,
             commission_rate: parseFloat(createForm.commission_rate),
             discount_rate: parseFloat(createForm.discount_rate),
         });
         setShowCreate(false);
-        setCreateForm({ affiliatable_type: "User", email: "", commission_rate: "10", discount_rate: "5" });
+        setCreateForm({ affiliatable_type: "User", email: "", name: "", commission_rate: "10", discount_rate: "5", affiliatable_id: "" });
         setCreateErrors({});
+    };
+
+    useEffect(() => {
+        if (!showCreate || createForm.affiliatable_type === "Standalone") {
+            setEntities([]);
+            return;
+        }
+        const fetchEntities = async () => {
+            setSearching(true);
+            try {
+                const params = { q: entitySearch, per: "10" };
+                if (createForm.affiliatable_type === "User") {
+                    const res = await fetchAdminUsers(params);
+                    setEntities(res.data.users?.filter((u: any) => !u.has_affiliate) || []);
+                } else if (createForm.affiliatable_type === "Reseller") {
+                    const res = await fetchResellers(params);
+                    setEntities(res.data.resellers?.filter((r: any) => !r.has_affiliate) || []);
+                }
+            } catch {
+                toast.error("Error searching entities");
+            } finally {
+                setSearching(false);
+            }
+        };
+        const timer = setTimeout(fetchEntities, 300);
+        return () => clearTimeout(timer);
+    }, [showCreate, createForm.affiliatable_type, entitySearch]);
+
+    const selectEntity = (e: any) => {
+        setCreateForm({ ...createForm, affiliatable_id: e.id, email: e.email, name: e.company_name || `${e.first_name} ${e.last_name}` });
+        setEntitySearch("");
     };
 
     const openConfig = (a: AffiliateRow) => {
@@ -131,6 +169,19 @@ export default function AffiliatesTab() {
                         </div>
                         <p className="text-xs text-muted-foreground">{row.affiliatable_type}: {row.affiliatable_email ?? row.affiliatable_name}</p>
                     </div>
+                </div>
+            ),
+        },
+        {
+            key: "type", label: "Type",
+            render: (row: AffiliateRow) => (
+                <div className="flex flex-col">
+                    <span className="text-sm text-foreground">{row.affiliatable_type || "Standalone"}</span>
+                    {row.reseller_type && (
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-border/50 px-1.5 py-0.5 rounded-md self-start mt-1 font-mono">
+                            {row.reseller_type.replace("_", " ")}
+                        </span>
+                    )}
                 </div>
             ),
         },
@@ -228,13 +279,62 @@ export default function AffiliatesTab() {
             <FormModal open={showCreate} onClose={() => { setShowCreate(false); setCreateErrors({}); }} title="Onboard New Affiliate" onSubmit={handleCreate} submitLabel="Create Affiliate" loading={createAffiliate.isLoading}>
                 <Field label="Entity Type">
                     <select className={selectClasses} value={createForm.affiliatable_type} onChange={(e) => setCreateForm({ ...createForm, affiliatable_type: e.target.value })}>
-                        <option value="User">User</option>
-                        <option value="Reseller">Reseller</option>
+                        <option value="Standalone">Standalone (External Partner)</option>
+                        <option value="User">Existing User</option>
+                        <option value="Reseller">Existing Reseller</option>
                     </select>
                 </Field>
-                <Field label="Email" error={createErrors.email}>
-                    <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="user@example.com" />
-                </Field>
+
+                {createForm.affiliatable_id ? (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-emerald-400 font-medium uppercase tracking-wider">Selected {createForm.affiliatable_type}</p>
+                            <p className="text-sm font-medium text-foreground">{createForm.name}</p>
+                            <p className="text-xs text-muted-foreground">{createForm.email}</p>
+                        </div>
+                        <button onClick={() => setCreateForm({ ...createForm, affiliatable_id: "", email: "", name: "" })} className="text-xs text-red-400 hover:text-red-300">Change</button>
+                    </div>
+                ) : createForm.affiliatable_type !== "Standalone" ? (
+                    <div className="space-y-3 mb-4">
+                        <Field label={`Search ${createForm.affiliatable_type} *`}>
+                            <div className="relative">
+                                <input
+                                    className={inputClasses}
+                                    type="text"
+                                    value={entitySearch}
+                                    onChange={(e) => setEntitySearch(e.target.value)}
+                                    placeholder="Search by email or name..."
+                                />
+                                {searching && <div className="absolute right-3 top-2.5"><div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full"></div></div>}
+                            </div>
+                        </Field>
+                        {entities.length > 0 && (
+                            <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border">
+                                {entities.map((e) => (
+                                    <button key={e.id} onClick={() => selectEntity(e)} className="w-full px-4 py-2.5 text-left hover:bg-emerald-500/5 transition-colors group">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-medium text-foreground group-hover:text-emerald-400">{e.company_name || `${e.first_name} ${e.last_name}`}</p>
+                                            {e.reseller_type && <span className="text-[10px] text-muted-foreground font-mono uppercase">{e.reseller_type}</span>}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{e.email}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {entitySearch && !searching && entities.length === 0 && (
+                            <p className="text-center py-2 text-xs text-muted-foreground">No eligible {createForm.affiliatable_type.toLowerCase()}s found</p>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <Field label="Name *">
+                            <input className={inputClasses} type="text" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Influencer Name or Brand" />
+                        </Field>
+                        <Field label="Email *" error={createErrors.email}>
+                            <input className={inputClasses} type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="partner@example.com" />
+                        </Field>
+                    </>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="Commission Rate (%)" error={createErrors.commission_rate}>
                         <input className={inputClasses} type="number" value={createForm.commission_rate} onChange={(e) => setCreateForm({ ...createForm, commission_rate: e.target.value })} />
