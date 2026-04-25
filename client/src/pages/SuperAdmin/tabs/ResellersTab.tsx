@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
 import { validEmail, required, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
 import { useTabFilters } from "../hooks/useTabFilters";
@@ -7,7 +7,8 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
 import ConfirmModal from "../components/ConfirmModal";
-import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
+import FormModal, { Field, inputClasses } from "../components/FormModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import EmptyState from "../components/EmptyState";
 import { StatsCardSkeleton } from "../components/TableSkeleton";
 import {
@@ -72,6 +73,7 @@ export default function ResellersTab() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
     const [formErrors, setFormErrors] = useState<ValidationErrors>({});
+    const [showPassword, setShowPassword] = useState(false);
     const [configForm, setConfigForm] = useState({
         reseller_type: "api_only",
         surcharge: "0",
@@ -393,13 +395,23 @@ export default function ResellersTab() {
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
-                <Field label="Password" error={formErrors.password}><input className={inputClasses} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
+                <Field label="Password" error={formErrors.password}>
+                    <div className="relative">
+                        <input className={inputClasses} type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? "Hide password" : "Show password"}>
+                            {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        </button>
+                    </div>
+                </Field>
                 <Field label="Tier">
-                    <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
-                        <option value="api_only">API Only</option>
-                        <option value="single_product">Single Product</option>
-                        <option value="infrastructure">Enterprise</option>
-                    </select>
+                    <Select value={form.reseller_type} onValueChange={(v) => setForm({ ...form, reseller_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="api_only">API Only</SelectItem>
+                            <SelectItem value="single_product">Single Product</SelectItem>
+                            <SelectItem value="infrastructure">Enterprise</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </Field>
             </FormModal>
 
@@ -409,11 +421,14 @@ export default function ResellersTab() {
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
                 <Field label="Tier">
-                    <select className={selectClasses} value={form.reseller_type} onChange={(e) => setForm({ ...form, reseller_type: e.target.value })}>
-                        <option value="api_only">API Only</option>
-                        <option value="single_product">Single Product</option>
-                        <option value="infrastructure">Enterprise</option>
-                    </select>
+                    <Select value={form.reseller_type} onValueChange={(v) => setForm({ ...form, reseller_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="api_only">API Only</SelectItem>
+                            <SelectItem value="single_product">Single Product</SelectItem>
+                            <SelectItem value="infrastructure">Enterprise</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </Field>
             </FormModal>
 
@@ -427,11 +442,14 @@ export default function ResellersTab() {
                 loading={configureReseller.isLoading}
             >
                 <Field label="Reseller Tier">
-                    <select className={selectClasses} value={configForm.reseller_type} onChange={(e) => setConfigForm({ ...configForm, reseller_type: e.target.value })}>
-                        <option value="api_only">API Only</option>
-                        <option value="single_product">Single Product</option>
-                        <option value="infrastructure">Enterprise</option>
-                    </select>
+                    <Select value={configForm.reseller_type} onValueChange={(v) => setConfigForm({ ...configForm, reseller_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="api_only">API Only</SelectItem>
+                            <SelectItem value="single_product">Single Product</SelectItem>
+                            <SelectItem value="infrastructure">Enterprise</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </Field>
                 <Field label="Infrastructure Surcharge (%)">
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
