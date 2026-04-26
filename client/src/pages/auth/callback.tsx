@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from "sonner";
 import { useAuth } from '../../context/AuthContext';
 import { storeSession, updateLastActivity } from '../../services/auth';
 import api from '../../services/api';

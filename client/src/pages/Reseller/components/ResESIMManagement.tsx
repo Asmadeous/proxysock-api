@@ -7,7 +7,7 @@ import {
     ClipboardDocumentIcon,
 } from "@heroicons/react/24/outline";
 import { fetchResellerOrders } from "@/services/resellerApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 

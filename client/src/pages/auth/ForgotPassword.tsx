@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ForgotPasswordHeader,

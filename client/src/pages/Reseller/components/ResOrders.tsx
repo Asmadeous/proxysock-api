@@ -12,7 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { fetchResellerOrderStats, fetchResellerOrders, cancelResellerOrder, fetchOrderCredentials, refundResellerOrder } from "../../../services/resellerApi";
 import { getApiError } from "../../SuperAdmin/utils/errors";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

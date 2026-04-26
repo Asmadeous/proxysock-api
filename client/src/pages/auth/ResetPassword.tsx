@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import AuthLogo from "../../components/auth/AuthLogo";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { resetPassword } from "../../services/railsAuth";
 
 export default function ResetPassword() {

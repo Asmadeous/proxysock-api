@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
 import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2, Bitcoin } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
@@ -216,7 +216,7 @@ export default function ResWallet() {
                 {isEnterprise && (
                     <Button
                         onClick={() => setIsWithdrawModalOpen(true)}
-                        className="bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
+                        className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
                     >
                         <ArrowDownLeftIcon className="h-6 w-6" />
                         Request Payout
@@ -248,19 +248,19 @@ export default function ResWallet() {
 
                 {/* Earnings Card - ENTERPRISE ONLY */}
                 {isEnterprise && (
-                    <Card className="border border-border shadow-sm rounded-3xl p-2">
+                    <Card className="border-none shadow-sm rounded-3xl p-2 bg-gradient-to-br from-red-600 via-red-500 to-pink-600 text-white overflow-hidden relative">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-widest">Total Earnings</CardTitle>
-                                <div className="p-2 rounded-xl bg-emerald-500/10">
-                                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                                <CardTitle className="text-xs font-black uppercase tracking-widest opacity-80">Total Earnings</CardTitle>
+                                <div className="p-2 rounded-xl bg-white/10">
+                                    <TrendingUp className="h-5 w-5 text-white" />
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-5xl font-black tracking-tighter">${earningsBalance.toFixed(2)}</div>
-                            <div className="mt-6 flex items-center gap-2 text-[10px] bg-muted w-fit px-4 py-1.5 rounded-full border border-border font-bold uppercase tracking-wider">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                            <div className="mt-6 flex items-center gap-2 text-[10px] bg-white/10 w-fit px-4 py-1.5 rounded-full border border-white/20 font-bold uppercase tracking-wider backdrop-blur-sm">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
                                 Ready for Withdrawal
                             </div>
                         </CardContent>
@@ -484,7 +484,7 @@ export default function ResWallet() {
                             <Button
                                 onClick={handleWithdraw}
                                 disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                                className="rounded-2xl font-black py-6 px-8 bg-emerald-600 shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:scale-[1.02] transition-transform text-white"
+                                className="rounded-2xl font-black py-6 px-8 bg-primary shadow-sm hover:bg-primary/90 hover:scale-[1.02] transition-transform text-primary-foreground"
                             >
                                 {isProcessing ? "Processing..." : "Confirm Payout"}
                             </Button>

@@ -8,7 +8,7 @@ import {
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { useSystemLogs, useAuditLogs, useErrorLogs } from "../queries/systemLogs.queries";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 type AnyObj = Record<string, unknown>;
 type SubTab = "system" | "audit" | "errors";

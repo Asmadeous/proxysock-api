@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { isSessionExpired } from "../../services/auth";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useRedditTracking } from "../../utils/redditPixel";
 
 import AuthLogo from "../../components/auth/AuthLogo";

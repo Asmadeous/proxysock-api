@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import ConfirmModal from "../../SuperAdmin/components/ConfirmModal";
 import {

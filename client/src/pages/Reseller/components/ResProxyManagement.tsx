@@ -23,7 +23,7 @@ import {
     whitelistDelete 
 } from "@/services/resellerApi";
 import resellerApi from "@/services/resellerApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";

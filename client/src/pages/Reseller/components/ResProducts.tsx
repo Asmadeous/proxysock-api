@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
 
 import { fetchResellerProducts, fetchResellerBalance, createResellerOrder } from "../../../services/resellerApi";

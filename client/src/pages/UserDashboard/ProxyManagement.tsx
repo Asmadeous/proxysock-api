@@ -26,7 +26,7 @@ import {
   ArrowPathIcon as RotateIcon
 } from "@heroicons/react/24/outline";
 import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ProxyOrder {
   id: string;

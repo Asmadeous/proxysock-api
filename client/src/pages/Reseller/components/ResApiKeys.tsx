@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { Copy, Eye, EyeOff, RefreshCw, Key, ShieldCheck, Code } from "lucide-react";
 
 import { rotateResellerApiKey } from "../../../services/resellerApi";

@@ -14,7 +14,7 @@ import StatusBadge from "../SuperAdmin/components/StatusBadge";
 import StatsCard from "../SuperAdmin/components/StatsCard";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
 import adminApi, { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { formatImageUrl } from "../../services/api";
 import SupportChatsTab from "../SuperAdmin/tabs/SupportChatsTab";
 

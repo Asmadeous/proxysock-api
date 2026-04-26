@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { PlayIcon, TableCellsIcon, CircleStackIcon, ExclamationTriangleIcon, NumberedListIcon, CodeBracketIcon, ChevronLeftIcon, ChevronRightIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { fetchDatabaseTables, executeDatabaseQuery } from "../../../services/adminApi";
 import { getApiError } from "../utils/errors";

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { fetchUserSupportChat, sendUserSupportMessage, fetchResellerSupportChat, sendResellerSupportMessage } from "../../services/api";
 import { getCableConsumer } from "../../services/cable";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import type { Subscription } from "@rails/actioncable";
 
 interface SupportChatProps {

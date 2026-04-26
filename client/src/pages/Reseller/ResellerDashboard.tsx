@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy, useMemo, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import {
     LayoutDashboard,
     ShoppingBag,
