@@ -144,7 +144,7 @@ export default function ResWebhookConfig() {
     };
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto py-6">
+        <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Webhook Configuration</h1>

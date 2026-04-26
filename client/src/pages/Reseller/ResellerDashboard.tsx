@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy, useMemo } from "react";
+import { useState, useEffect, Suspense, lazy, useMemo, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
@@ -10,13 +10,13 @@ import {
     Users,
     Code,
     Settings as SettingsIcon,
-    LogOut,
     Loader2,
     Webhook,
     BookOpen,
     DollarSign,
     MessageSquare,
-    Ticket
+    Ticket,
+    ArrowLeft,
 } from "lucide-react";
 
 
@@ -68,7 +68,6 @@ const API_ONLY_TABS = [
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
-    { id: "logout", label: "Logout", icon: LogOut },
 ];
 
 const SINGLE_PRODUCT_TABS = [
@@ -80,7 +79,6 @@ const SINGLE_PRODUCT_TABS = [
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
-    { id: "logout", label: "Logout", icon: LogOut },
 ];
 
 const ENTERPRISE_TABS = [
@@ -94,7 +92,6 @@ const ENTERPRISE_TABS = [
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
     { id: "settings", label: "Settings", icon: SettingsIcon },
-    { id: "logout", label: "Logout", icon: LogOut },
 ];
 
 
@@ -204,6 +201,19 @@ export default function ResellerDashboard() {
         navigate(`/reseller/${id}`);
     };
 
+    const withBack = (content: ReactNode) => (
+        <div className="space-y-4">
+            <button
+                onClick={() => setActiveTab("store")}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+            >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                Back to Store
+            </button>
+            {content}
+        </div>
+    );
+
     const renderContent = () => {
         // Developer sub-tabs
         if (activeTab === "developer") {
@@ -235,22 +245,22 @@ export default function ResellerDashboard() {
 
 
             // Category Store Views — reuse full user dashboard buy pages
-            case "buy-proxies": return <BuyProxies isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+            case "buy-proxies": return withBack(<BuyProxies isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />);
 
             // VPS: two-step flow (country selection → plans)
-            case "buy-vps": return <VPSTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-vps-plans"); }} />;
+            case "buy-vps": return withBack(<VPSTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-vps-plans"); }} />);
             case "buy-vps-plans": return <VPSPlans country={selectedCountry} onBack={() => setActiveTab("buy-vps")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
             // RDP: two-step flow (country selection → plans)
-            case "buy-rdp": return <RDPTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-rdp-plans"); }} />;
+            case "buy-rdp": return withBack(<RDPTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-rdp-plans"); }} />);
             case "buy-rdp-plans": return <RDPPlans country={selectedCountry} onBack={() => setActiveTab("buy-rdp")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
             // eSIM: three paths (type selection → global packages OR usa plans)
-            case "buy-esim": return <ESIMTypes onNavigateUSA={() => setActiveTab("buy-usa-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />;
+            case "buy-esim": return withBack(<ESIMTypes onNavigateUSA={() => setActiveTab("buy-usa-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />);
             case "buy-global-esim": return <ESIMPackages onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
             case "buy-usa-esim": return <USAESIMPlans onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
-            case "buy-vpn": return <VPNPlans isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+            case "buy-vpn": return withBack(<VPNPlans isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />);
 
             // Management Module Views (from ResManagement)
             case "proxy-management": return <ResProxyManagement />;
@@ -282,7 +292,7 @@ export default function ResellerDashboard() {
             <main className="flex-1 overflow-y-auto">
                 {/* Developer Sub-tabs */}
                 {activeTab === "developer" && (
-                    <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-8 pt-4">
+                    <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 pt-4 pb-4">
                         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">
                             {DEVELOPER_SUBTABS.map(st => (
                                 <button
@@ -301,7 +311,7 @@ export default function ResellerDashboard() {
                     </div>
                 )}
 
-                <div className="p-8">
+                <div className="p-4 sm:p-6">
                     <ResellerErrorBoundary key={activeTab}>
                         <Suspense fallback={<TabLoader />}>
                             {renderContent()}

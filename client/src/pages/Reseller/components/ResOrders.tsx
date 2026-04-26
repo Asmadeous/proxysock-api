@@ -174,7 +174,7 @@ export default function ResOrders() {
     ];
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
@@ -188,7 +188,7 @@ export default function ResOrders() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((s) => (
-                    <Card key={s.label} className="border-none shadow-lg">
+                    <Card key={s.label} className="border border-border shadow-sm">
                         <CardContent className="p-5">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -221,7 +221,7 @@ export default function ResOrders() {
             </div>
 
             {/* Orders Table */}
-            <Card className="border-none shadow-xl overflow-hidden">
+            <Card className="border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>

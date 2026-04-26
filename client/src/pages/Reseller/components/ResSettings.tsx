@@ -3,6 +3,7 @@ import { UserIcon, BuildingOfficeIcon, EnvelopeIcon, KeyIcon } from "@heroicons/
 import { fetchResellerProfile, updateResellerProfile } from "../../../services/resellerApi";
 import { toast } from "react-hot-toast";
 import { formatImageUrl } from "../../../services/api";
+import CountrySelect from "../../../components/ui/CountrySelect";
 
 export default function ResSettings() {
     const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ export default function ResSettings() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="md:col-span-2 space-y-6">
-                    <div className="bg-card border-none shadow-2xl rounded-3xl p-8 space-y-6">
+                    <div className="bg-card border border-border shadow-sm rounded-3xl p-8 space-y-6">
                         <h3 className="text-xl font-black flex items-center gap-3 uppercase tracking-tighter">
                             <UserIcon className="w-6 h-6 text-primary" /> Profile Information
                         </h3>
@@ -146,28 +147,12 @@ export default function ResSettings() {
                                 </div>
                             </div>
                             
-                            <div className="space-y-2 col-span-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country Code</label>
-                                <div className="relative group">
-                                    <input
-                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                        value={profile.country_code}
-                                        onChange={e => setProfile({ ...profile, country_code: e.target.value })}
-                                        placeholder="US"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 col-span-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country Name</label>
-                                <div className="relative group">
-                                    <input
-                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                        value={profile.country}
-                                        onChange={e => setProfile({ ...profile, country: e.target.value })}
-                                        placeholder="United States"
-                                    />
-                                </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country</label>
+                                <CountrySelect
+                                    value={profile.country_code}
+                                    onSelect={(code, name) => setProfile({ ...profile, country_code: code, country: name })}
+                                />
                             </div>
 
                             <div className="space-y-2 md:col-span-2">
@@ -207,7 +192,7 @@ export default function ResSettings() {
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="bg-primary text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                                className="bg-primary text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                             >
                                 {saving ? "Saving Changes..." : "Save Production Data"}
                             </button>
@@ -229,7 +214,7 @@ export default function ResSettings() {
                 </div>
 
                 <div className="space-y-6">
-                    <div className="bg-card border-none shadow-2xl rounded-3xl p-8 space-y-4">
+                    <div className="bg-card border border-border shadow-sm rounded-3xl p-8 space-y-4">
                         <h4 className="text-sm font-black uppercase tracking-widest">Account Status</h4>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
