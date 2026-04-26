@@ -6,6 +6,7 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
+import CountrySelect from "../../../components/ui/CountrySelect";
 import EmptyState from "../components/EmptyState";
 import {
     useAdminUsers,
@@ -189,8 +190,11 @@ export default function UsersTab() {
                     <input className={inputClasses} type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Country Code">
-                        <input className={inputClasses} value={editForm.country_code} onChange={(e) => setEditForm({ ...editForm, country_code: e.target.value })} placeholder="US" />
+                    <Field label="Country">
+                        <CountrySelect
+                            value={editForm.country_code}
+                            onSelect={(code) => setEditForm({ ...editForm, country_code: code })}
+                        />
                     </Field>
                     <Field label="City">
                         <input className={inputClasses} value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} placeholder="New York" />

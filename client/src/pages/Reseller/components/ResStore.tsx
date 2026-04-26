@@ -110,10 +110,9 @@ export default function ResStore({ onSelectCategory, resellerType, allowedCatego
                         transition={{ type: "spring", stiffness: 300 }}
                     >
                         <Card
-                            className="cursor-pointer hover:shadow-xl transition-all border-border hover:border-primary/50 group overflow-hidden relative"
+                            className="cursor-pointer shadow-sm hover:shadow-md dark:hover:shadow-xl transition-all border-border hover:border-primary/50 group"
                             onClick={() => onSelectCategory(cat.tabId)}
                         >
-                            <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full blur-3xl transition-colors ${COLOR_MAP[cat.color]?.bg ?? ""} ${COLOR_MAP[cat.color]?.bgHover ?? ""}`} />
 
                             <CardHeader>
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${COLOR_MAP[cat.color]?.bg ?? "bg-muted"}`}>

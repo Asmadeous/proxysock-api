@@ -102,7 +102,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                 )}
             </div>
 
-            <div className="flex-1 bg-card rounded-[2rem] border border-border flex flex-col overflow-hidden shadow-2xl relative">
+            <div className="flex-1 bg-card rounded-[2rem] border border-border flex flex-col overflow-hidden shadow-sm relative">
                 {/* Decorative background element */}
                 <div className="absolute top-0 right-0 -trnaslate-y-1/2 translate-x-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 

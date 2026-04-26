@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback, type ComponentType, type SVGProps } f
 import { Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "../../../components/NotificationBell";
 import { useThemeStore } from "@/store/themeStore";
-import { Home, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, Sun, Moon, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "@/store/notificationStore";
 import { formatImageUrl } from "../../../services/api";
+import logoDark from "../../../assets/images/PROXY PNG.webp";
+import logoLight from "../../../assets/images/PROXY SOCKS DARK FONT.webp";
 
 const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
     if (!show) return <>{children}</>;
@@ -137,25 +139,30 @@ export default function AdminSidebar({
                 </button>
             )}
 
-            {/* Logo */}
+            {/* Header */}
             <div className={`px-4 py-4 border-b border-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-                <h1 className={`text-xl font-bold text-foreground transition-all duration-300 ${isCollapsed ? "scale-0 w-0 hidden" : "w-auto"}`}>
-                    {title}
-                </h1>
-                <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : ""}`}>
-                    {fetchNotifications && markNotificationsAsRead && (
-                        <NotificationBell
-                            notifications={notifications}
-                            unreadCount={unreadCount}
-                            markAsRead={markAllAsRead}
-                        />
-                    )}
-                    {isMobile && (
-                        <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
-                            <XMarkIcon className="h-5 w-5" />
-                        </button>
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto flex-shrink-0" />
+                    {!isCollapsed && (
+                        <span className="text-sm font-semibold text-muted-foreground truncate">{title}</span>
                     )}
                 </div>
+                {!isCollapsed && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {fetchNotifications && markNotificationsAsRead && (
+                            <NotificationBell
+                                notifications={notifications}
+                                unreadCount={unreadCount}
+                                markAsRead={markAllAsRead}
+                            />
+                        )}
+                        {isMobile && (
+                            <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Command Palette Trigger */}
@@ -285,6 +292,17 @@ export default function AdminSidebar({
                     </Link>
                 </SidebarTooltip>
 
+                {/* Logout Button */}
+                <SidebarTooltip content="Logout" show={!isMobile && isCollapsed}>
+                    <button
+                        onClick={() => onTabChange("logout")}
+                        className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all ${isCollapsed ? "justify-center" : ""}`}
+                    >
+                        <LogOut className="h-4.5 w-4.5 shrink-0" />
+                        {!isCollapsed && <span className="font-medium">Logout</span>}
+                    </button>
+                </SidebarTooltip>
+
                 {/* User Profile Info */}
                 <div className={`flex items-center bg-muted/80 rounded-xl mt-2 ${isCollapsed ? "justify-center p-2" : "space-x-3 p-3 overflow-hidden"}`}>
                     <SidebarTooltip content={`${userName} (${userRole})`} show={!isMobile && isCollapsed}>
@@ -324,7 +342,10 @@ export default function AdminSidebar({
                     >
                         {isSidebarOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
                     </button>
-                    <h1 className="text-lg font-bold text-foreground">{title}</h1>
+                    <div className="flex items-center gap-2">
+                        <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto" />
+                        <span className="text-sm font-semibold text-muted-foreground">{title}</span>
+                    </div>
                     <div className="flex items-center gap-2">
                         {fetchNotifications && markNotificationsAsRead && (
                             <NotificationBell

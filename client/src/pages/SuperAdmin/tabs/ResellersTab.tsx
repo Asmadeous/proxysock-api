@@ -9,6 +9,7 @@ import StatsCard from "../components/StatsCard";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import CountrySelect from "../../../components/ui/CountrySelect";
 import EmptyState from "../components/EmptyState";
 import { StatsCardSkeleton } from "../components/TableSkeleton";
 import {
@@ -407,14 +408,12 @@ export default function ResellersTab() {
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-1">
-                        <Field label="Country Code"><input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" /></Field>
-                    </div>
-                    <div className="col-span-2">
-                        <Field label="Country"><input className={inputClasses} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="United States" /></Field>
-                    </div>
-                </div>
+                <Field label="Country">
+                    <CountrySelect
+                        value={form.country_code}
+                        onSelect={(code, name) => setForm({ ...form, country_code: code, country: name })}
+                    />
+                </Field>
                 <Field label="City"><input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York" /></Field>
                 <Field label="Password" error={formErrors.password}>
                     <div className="relative">
@@ -441,14 +440,12 @@ export default function ResellersTab() {
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-1">
-                        <Field label="Country Code"><input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" /></Field>
-                    </div>
-                    <div className="col-span-2">
-                        <Field label="Country"><input className={inputClasses} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="United States" /></Field>
-                    </div>
-                </div>
+                <Field label="Country">
+                    <CountrySelect
+                        value={form.country_code}
+                        onSelect={(code, name) => setForm({ ...form, country_code: code, country: name })}
+                    />
+                </Field>
                 <Field label="City"><input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York" /></Field>
                 <Field label="Tier">
                     <Select value={form.reseller_type} onValueChange={(v) => setForm({ ...form, reseller_type: v })}>

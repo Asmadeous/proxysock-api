@@ -56,7 +56,7 @@ export default function ResOverview() {
     };
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto py-4">
+        <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div className="space-y-1">
                     <h2 className="text-4xl font-black text-foreground tracking-tight">Executive Overview</h2>
@@ -84,7 +84,6 @@ export default function ResOverview() {
                             value={`$${stats.balance.toFixed(2)}`}
                             icon={WalletIcon}
                             loading={loading}
-                            className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20"
                         />
                     </motion.div>
                 ) : (
@@ -94,7 +93,6 @@ export default function ResOverview() {
                             value={`$${stats.earnings.toFixed(2)}`}
                             icon={BanknotesIcon}
                             loading={loading}
-                            className="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border-emerald-500/20 text-emerald-600"
                         />
                     </motion.div>
                 )}
@@ -106,7 +104,6 @@ export default function ResOverview() {
                             value={`$${user?.subscription_fee || "0.00"}`}
                             icon={CreditCard}
                             loading={loading}
-                            className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border-blue-500/20"
                         />
                     </motion.div>
                 ) : (
@@ -116,7 +113,6 @@ export default function ResOverview() {
                             value={`$${stats.totalSpent.toFixed(2)}`}
                             icon={Activity}
                             loading={loading}
-                            className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border-blue-500/20 text-blue-600"
                         />
                     </motion.div>
                 )}
@@ -127,7 +123,6 @@ export default function ResOverview() {
                         value={stats.orders}
                         icon={ShoppingCartIcon}
                         loading={loading}
-                        className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-purple-500/20"
                     />
                 </motion.div>
 
@@ -137,7 +132,6 @@ export default function ResOverview() {
                         value="99.9%"
                         icon={Activity}
                         loading={loading}
-                        className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20"
                     />
                 </motion.div>
             </motion.div>
@@ -148,7 +142,7 @@ export default function ResOverview() {
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="grid grid-cols-1 lg:grid-cols-3 gap-8"
             >
-                <Card className="lg:col-span-2 border-none shadow-2xl bg-card border border-border/50 overflow-hidden relative rounded-3xl">
+                <Card className="lg:col-span-2 border border-border shadow-sm bg-card overflow-hidden relative rounded-3xl">
                     <div className="absolute top-0 right-0 p-8 opacity-5">
                         <TrendingUp className="h-40 w-40" />
                     </div>
@@ -169,7 +163,7 @@ export default function ResOverview() {
 
                 <div className="space-y-6">
                     {isEnterprise && (
-                        <Card className="border-none shadow-2xl bg-gradient-to-br from-primary/10 to-indigo-900/10 border border-primary/20 rounded-3xl">
+                        <Card className="border border-border shadow-sm bg-card rounded-3xl">
                             <CardHeader>
                                 <CardTitle className="text-lg font-black text-primary flex items-center gap-2">
                                     <Clock className="w-5 h-5" />
@@ -189,7 +183,7 @@ export default function ResOverview() {
                         </Card>
                     )}
 
-                    <Card className="border-none shadow-2xl bg-card border border-border/50 rounded-3xl">
+                    <Card className="border border-border shadow-sm bg-card rounded-3xl">
                         <CardHeader>
                             <CardTitle className="text-xl font-bold tracking-tight">Account Compliance</CardTitle>
                         </CardHeader>
