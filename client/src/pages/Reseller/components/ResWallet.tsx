@@ -443,13 +443,13 @@ export default function ResWallet() {
                             <DialogDescription className="font-medium text-muted-foreground">Withdraw your accumulated earnings to your preferred destination.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between">
+                            <div className="bg-gradient-to-br from-red-600 via-red-500 to-pink-600 rounded-2xl p-5 flex items-center justify-between text-white">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Withdrawable</p>
-                                    <p className="text-2xl font-black tracking-tighter text-emerald-950">${earningsBalance.toFixed(2)}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">Withdrawable</p>
+                                    <p className="text-2xl font-black tracking-tighter">${earningsBalance.toFixed(2)}</p>
                                 </div>
-                                <div className="h-12 w-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
-                                    <TrendingUp className="h-6 w-6 text-emerald-600" />
+                                <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                                    <TrendingUp className="h-6 w-6 text-white" />
                                 </div>
                             </div>
 
