@@ -240,20 +240,6 @@ export default function ResellersTab() {
 
     return (
         <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {isLoading ? (
-                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
-                ) : (
-                    <>
-                        <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
-                        <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} />
-                        <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} />
-                        <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} />
-                    </>
-                )}
-            </div>
-
             {/* Header + Filter Chips */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
@@ -276,6 +262,20 @@ export default function ResellersTab() {
                 <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
                     <PlusIcon className="h-4 w-4" /> Add Reseller
                 </Button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
+                ) : (
+                    <>
+                        <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
+                        <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} />
+                        <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} />
+                        <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} />
+                    </>
+                )}
             </div>
 
             <DataTable
