@@ -2,7 +2,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useCallback, useRef, useEffect } from "react";
 
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { conversionTracker } from "../../utils/redditPixel";
 import { registerUser } from "../../services/api";
 import AuthLogo from "../../components/auth/AuthLogo";

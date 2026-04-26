@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PaperAirplaneIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage } from "../../../services/resellerApi";
 import { getCableConsumer } from "../../../services/cable";
 

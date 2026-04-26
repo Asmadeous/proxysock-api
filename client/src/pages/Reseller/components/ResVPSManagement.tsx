@@ -11,7 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import resellerApi, { fetchResellerVms } from "@/services/resellerApi";
 import { startVm, stopVm, rebootVm } from "@/services/api";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";

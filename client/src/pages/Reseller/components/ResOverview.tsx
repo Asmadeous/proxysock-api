@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { WalletIcon, ShoppingCartIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { fetchResellerOrderStats } from "../../../services/resellerApi";
 import { getApiError } from "../../SuperAdmin/utils/errors";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import StatsCard from "../../SuperAdmin/components/StatsCard";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

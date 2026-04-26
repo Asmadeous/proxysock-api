@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import {
   fetchResellers,
   fetchResellerDetail,
@@ -42,6 +42,15 @@ export function useResellerDetail(id: string | number | null) {
   });
 }
 
+const apiError = (err: unknown, fallback: string): string => {
+  const e = err as { response?: { data?: { message?: string; error?: string; errors?: Record<string, string[]> } } };
+  const data = e?.response?.data;
+  if (data?.message) return data.message;
+  if (data?.error) return data.error;
+  if (data?.errors) return Object.values(data.errors).flat().join(", ");
+  return fallback;
+};
+
 export function useCreateReseller() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -50,7 +59,7 @@ export function useCreateReseller() {
       toast.success("Reseller created");
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
-    onError: () => toast.error("Failed to create reseller"),
+    onError: (err) => toast.error(apiError(err, "Failed to create reseller")),
   });
 }
 
@@ -68,7 +77,7 @@ export function useUpdateReseller() {
       toast.success("Reseller updated");
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
-    onError: () => toast.error("Failed to update reseller"),
+    onError: (err) => toast.error(apiError(err, "Failed to update reseller")),
   });
 }
 
@@ -80,7 +89,7 @@ export function useDeleteReseller() {
       toast.success("Reseller deleted");
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
-    onError: () => toast.error("Failed to delete reseller"),
+    onError: (err) => toast.error(apiError(err, "Failed to delete reseller")),
   });
 }
 
@@ -92,7 +101,7 @@ export function useOnboardReseller() {
       toast.success("Reseller onboarded");
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
-    onError: () => toast.error("Failed to onboard reseller"),
+    onError: (err) => toast.error(apiError(err, "Failed to onboard reseller")),
   });
 }
 
@@ -111,6 +120,6 @@ export function useConfigureReseller() {
       queryClient.invalidateQueries(adminQueryKeys.resellers.detail(id));
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
-    onError: () => toast.error("Failed to configure reseller"),
+    onError: (err) => toast.error(apiError(err, "Failed to configure reseller")),
   });
 }

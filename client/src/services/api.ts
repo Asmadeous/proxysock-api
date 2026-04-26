@@ -1,5 +1,5 @@
 import axios from "axios";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 // Use just the host as baseURL — different route prefixes (/api/v1, /web/api) are specified per-call
 const API_HOST = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, '');

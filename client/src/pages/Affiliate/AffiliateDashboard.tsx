@@ -5,7 +5,7 @@ import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
 import { enrollAffiliate, fetchAffiliateProfile, fetchReferrals, fetchPayouts, requestPayout } from "../../services/affiliateApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 const CRYPTO_CURRENCIES = [
     { id: "BTC", name: "Bitcoin (BTC)", color: "text-orange-400" },

@@ -33,7 +33,7 @@ import {
     whitelistAdd,
     whitelistDelete
 } from "../../../services/adminApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface OrderRow {
     id: number;

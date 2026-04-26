@@ -17,7 +17,7 @@ import {
     useProcessAffiliatePayout,
 } from "../queries/affiliates.queries";
 import { fetchAdminUsers, fetchResellers } from "../../../services/adminApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface AffiliateRow {
     id: number;

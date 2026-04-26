@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchResellerOrderStats } from "../../../services/resellerApi";
 import { getApiError } from "../../SuperAdmin/utils/errors";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ProductStats {
     vps: { total: number; active: number; expired: number; pending: number; failed: number };

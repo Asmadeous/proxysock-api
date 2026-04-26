@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { UserIcon, BuildingOfficeIcon, EnvelopeIcon, KeyIcon } from "@heroicons/react/24/outline";
 import { fetchResellerProfile, updateResellerProfile } from "../../../services/resellerApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { formatImageUrl } from "../../../services/api";
 import CountrySelect from "../../../components/ui/CountrySelect";
 

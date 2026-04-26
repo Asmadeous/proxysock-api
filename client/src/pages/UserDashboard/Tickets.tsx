@@ -7,7 +7,7 @@ import type { Subscription } from "@rails/actioncable";
 import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface TicketRow {
     id: number;
