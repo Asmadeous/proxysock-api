@@ -205,7 +205,7 @@ export default function AdminSidebar({
                                     <button
                                         onClick={() => handleTabClick(item.id)}
                                         className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
-                                        ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}
+                                        ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"}
                                         ${isCollapsed ? "justify-center px-1" : "px-3"}`}
                                     >
                                         <div className="relative flex items-center justify-center">

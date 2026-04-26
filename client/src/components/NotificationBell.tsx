@@ -53,8 +53,11 @@ export default function NotificationBell({ notifications: propNotifications, unr
             >
                 <BellIcon className="h-5 w-5" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                        {unreadCount > 99 ? '99+' : unreadCount}
+                    <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center">
+                        <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-60" />
+                        <span className="relative flex h-4 w-4 rounded-full bg-red-500 items-center justify-center text-[9px] font-bold text-white">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
                     </span>
                 )}
             </button>

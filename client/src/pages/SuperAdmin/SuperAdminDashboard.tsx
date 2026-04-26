@@ -95,11 +95,6 @@ const sidebarGroups: SidebarGroup[] = [
       { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
     ],
   },
-  {
-    items: [
-      { id: "logout", name: "Logout", icon: ArrowRightOnRectangleIcon },
-    ],
-  },
 ];
 
 const TAB_COMPONENTS: Record<string, any> = {
