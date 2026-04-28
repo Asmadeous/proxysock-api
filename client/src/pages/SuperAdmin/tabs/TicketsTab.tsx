@@ -6,6 +6,7 @@ import OnlineBadge from "../../../components/OnlineBadge";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import { fetchAdminTickets, replyToTicket } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface TicketRow {
     id: number;
@@ -36,7 +37,7 @@ export default function TicketsTab() {
             if (statusFilter) params.status = statusFilter;
             const res = await fetchAdminTickets(params);
             setTickets(res.data.tickets || res.data || []);
-        } catch { toast.error("Failed to load tickets"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load tickets")); }
         finally { setLoading(false); }
     }, [statusFilter]);
 
@@ -51,7 +52,7 @@ export default function TicketsTab() {
             setReplyTarget(null);
             setReplyMsg("");
             load();
-        } catch { toast.error("Failed to reply"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to reply to ticket")); }
         finally { setActionLoading(false); }
     };
 

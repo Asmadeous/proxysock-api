@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getApiError } from "../../../utils/apiError";
 import { motion } from "framer-motion";
 import {
     GlobeAltIcon,
@@ -167,7 +168,7 @@ export default function ResProxyManagement() {
                 setShowModal(false);
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Action failed');
+            toast.error(getApiError(err, "Action failed"));
         } finally {
             setActionLoading(false);
         }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PaperAirplaneIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage } from "../../../services/resellerApi";
 import { getCableConsumer } from "../../../services/cable";
 
@@ -59,7 +60,7 @@ export default function ResSupportChat() {
         try {
             await sendSupportMessage(msg);
             loadChat();
-        } catch { toast.error("Failed to send"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to send message")); }
     };
 
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary" /></div>;

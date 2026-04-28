@@ -3,6 +3,7 @@ import { WalletIcon, CogIcon, ServerStackIcon, PlusIcon, ArrowUpIcon, ArrowDownI
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { adminCreditWallet, adminDebitWallet, fetchAdminProductCategories, createAdminProductCategory, fetchSystemInfo } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface ProductCategory {
     id: number;
@@ -80,7 +81,7 @@ export default function SettingsTab() {
             toast.success(res.data.message);
             setWalletForm({ entity_type: "User", email: "", amount: "", description: "" });
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed");
+            toast.error(getApiError(err, "Failed to apply wallet change"));
         } finally {
             setWalletLoading(false);
         }
@@ -96,7 +97,7 @@ export default function SettingsTab() {
             setCategoryForm({ name: "", slug: "" });
             loadCategories();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed");
+            toast.error(getApiError(err, "Failed to create category"));
         } finally {
             setCategoryLoading(false);
         }

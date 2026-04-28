@@ -6,6 +6,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { fetchEmployees, createEmployee, updateEmployee, deleteEmployee, assignTickets } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface EmployeeRow {
     id: number;
@@ -60,7 +61,7 @@ export default function EmployeesTab() {
             setShowCreate(false);
             setForm(EMPTY_FORM);
             load();
-        } catch { toast.error("Failed to create employee"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to create employee")); }
         finally { setActionLoading(false); }
     };
 
@@ -92,7 +93,7 @@ export default function EmployeesTab() {
             
             setEditTarget(null);
             load();
-        } catch { toast.error("Failed to update"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to update employee")); }
         finally { setActionLoading(false); }
     };
 
@@ -104,7 +105,7 @@ export default function EmployeesTab() {
             toast.success("Employee deactivated");
             setDeleteTarget(null);
             load();
-        } catch { toast.error("Failed to deactivate"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to deactivate employee")); }
         finally { setActionLoading(false); }
     };
 
@@ -117,7 +118,7 @@ export default function EmployeesTab() {
             toast.success("Tickets assigned");
             setAssignTarget(null);
             setAssignTicketIds("");
-        } catch { toast.error("Failed to assign"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to assign tickets")); }
         finally { setActionLoading(false); }
     };
 

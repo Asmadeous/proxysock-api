@@ -19,7 +19,17 @@ adminApi.interceptors.response.use(
         if (err.response?.status === 401) {
             localStorage.removeItem("adminToken");
             localStorage.removeItem("adminUser");
-            window.location.href = "/admin/login";
+            if (window.location.pathname !== "/admin/login") {
+                window.location.href = "/admin/login";
+            }
+        }
+        // Enrich the error message from the backend JSON body so callers can
+        // simply do: catch(err) { toast.error(err.message) }
+        const data = err.response?.data;
+        if (data) {
+            const msg = data.message || data.error ||
+                (Array.isArray(data.errors) ? data.errors.join(", ") : null);
+            if (msg && err instanceof Error) err.message = msg;
         }
         return Promise.reject(err);
     }

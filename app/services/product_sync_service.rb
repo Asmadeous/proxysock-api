@@ -241,9 +241,9 @@ class ProductSyncService
           plan['global_isp_config'] = global_isp_config
         end
         # Force resi = 1 for all residential-rotating plans (provider API doesn't send it)
-        if category_slug == 'residential-rotating'
-          plan['resi'] = 1
-        end
+        # if category_slug == 'residential-rotating'
+        #   plan['resi'] = 1
+        # end
         sync_product(category, plan, isps, product_type)
       end
     rescue StandardError => e

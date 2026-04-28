@@ -103,6 +103,14 @@
           register: hostname_result
           when: hostname is defined
 
+        - name: Enforce Command-Line Interface for VPS (Disable GUI)
+          win_regedit:
+            path: 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+            name: Shell
+            data: 'cmd.exe'
+            type: string
+          when: vm_type is defined and vm_type == 'vps'
+
         - name: Reboot to apply all changes
           win_reboot:
             reboot_timeout: 600

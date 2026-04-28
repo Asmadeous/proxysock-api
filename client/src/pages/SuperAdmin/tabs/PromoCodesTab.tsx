@@ -5,6 +5,7 @@ import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import adminApi from "../../../services/adminApi";
 
 interface PromoCodeRow {
@@ -55,7 +56,7 @@ export default function PromoCodesTab() {
             const res = await adminApi.get("/promo_codes", { params });
             setPromoCodes(res.data.promo_codes || []);
             setTotal(res.data.total || 0);
-        } catch { toast.error("Failed to load promo codes"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load promo codes")); }
         finally { setLoading(false); }
     }, [search]);
 
@@ -114,7 +115,7 @@ export default function PromoCodesTab() {
             toast.success("Promo code deleted");
             setDeleteTarget(null);
             loadPromoCodes();
-        } catch { toast.error("Failed to delete"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to delete promo code")); }
         finally { setActionLoading(false); }
     };
 

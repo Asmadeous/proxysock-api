@@ -793,6 +793,7 @@ class VmProvisioningService
         management_type: management_type,
         os_family: template_config[:os_family],
         os_template: os_template,
+        vm_type: vm_type,
         root_password: root_password,
         rdp_password: root_password,
         ip_address: ansible_connect_ip,
@@ -836,13 +837,14 @@ class VmProvisioningService
   # Linux VMs: Tailscale VPN config (Ansible installs/configures it)
   # Windows VMs: Cloudflare tunnel config (replaces Tailscale)
   def build_extra_vars(vm_id:, hostname:, management_type:, os_family:, root_password:, rdp_password:,
-                       os_template: 'unknown', ip_address: nil, proxy_params: {}, custom_port: 22)
+                       os_template: 'unknown', vm_type: 'vps', ip_address: nil, proxy_params: {}, custom_port: 22)
     vars = {
       vm_id: vm_id,
       hostname: hostname,
       management_type: management_type,
       os_family: os_family,
       os_template: os_template,
+      vm_type: vm_type,
       root_password: root_password,
       rdp_password: rdp_password,
       api_url: ENV.fetch('APP_URL', "http://#{PUBLIC_IP}:3000"),

@@ -12,6 +12,7 @@ import PublicLayout from "./components/landing/layout/PublicLayout";
 import ScrollToTop from "./components/ScrollToTop";
 import AuthLayout from "./components/landing/layout/AuthLayout";
 import { Toaster } from "sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import ChatWidget from "./components/ChatWidget";
 
@@ -119,6 +120,26 @@ export default function App() {
       <HelmetProvider>
         <ScrollToTop />
         <Toaster position="top-right" richColors={true} />
+        <HotToaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "hsl(var(--card))",
+              color: "hsl(var(--foreground))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "0.75rem",
+              fontSize: "0.875rem",
+            },
+            success: {
+              iconTheme: { primary: "#22c55e", secondary: "white" },
+            },
+            error: {
+              iconTheme: { primary: "#ef4444", secondary: "white" },
+              duration: 5000,
+            },
+          }}
+        />
         <AutoSEO
           siteName="ProxySock"
           defaultTitle="ProxySock - Buy Premium Proxies, VPN, RDP, VPS & eSIM Online"

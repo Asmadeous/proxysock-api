@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldCheckIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
 import { adminLogin } from "../../services/adminApi";
+import { getApiError } from "../../utils/apiError";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
@@ -21,8 +22,7 @@ export default function AdminLoginPage() {
             localStorage.setItem("adminUser", JSON.stringify(res.data.employee));
             navigate("/admin");
         } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Login failed";
-            setError(msg);
+            setError(getApiError(err, "Login failed"));
         } finally {
             setLoading(false);
         }

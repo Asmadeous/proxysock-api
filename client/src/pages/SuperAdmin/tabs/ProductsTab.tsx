@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon,
@@ -236,7 +237,7 @@ export default function ProductsTab() {
             setModalMode(null);
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.errors?.[0] || "Failed to save product");
+            toast.error(getApiError(err, "Failed to save product"));
         } finally {
             setActionLoading(false);
         }
@@ -263,7 +264,7 @@ export default function ProductsTab() {
             toast.success(`${activeCatData.name} synced successfully`);
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || `Failed to sync ${activeCatData.name}`);
+            toast.error(getApiError(err, `Failed to sync ${activeCatData.name}`));
         } finally {
             setActionLoading(false);
         }
@@ -294,7 +295,7 @@ export default function ProductsTab() {
             setImageFiles([]);
             loadCredits();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to import credentials");
+            toast.error(getApiError(err, "Failed to import credentials"));
         } finally {
             setActionLoading(false);
         }
@@ -307,7 +308,7 @@ export default function ProductsTab() {
             toast.success("Credential deleted");
             loadCredits();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to delete");
+            toast.error(getApiError(err, "Failed to delete product"));
         }
     };
 

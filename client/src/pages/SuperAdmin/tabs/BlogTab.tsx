@@ -6,6 +6,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { fetchAdminBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, publishBlogPost, unpublishBlogPost } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface BlogRow {
     id: number;
@@ -55,7 +56,7 @@ export default function BlogTab() {
             setShowCreate(false);
             setForm(EMPTY_FORM);
             load();
-        } catch { toast.error("Failed to create post"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to create post")); }
         finally { setActionLoading(false); }
     };
 
@@ -68,7 +69,7 @@ export default function BlogTab() {
             toast.success("Post updated");
             setEditTarget(null);
             load();
-        } catch { toast.error("Failed to update"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to update post")); }
         finally { setActionLoading(false); }
     };
 
@@ -76,7 +77,7 @@ export default function BlogTab() {
         if (!deleteTarget) return;
         setActionLoading(true);
         try { await deleteBlogPost(deleteTarget.slug); toast.success("Post deleted"); setDeleteTarget(null); load(); }
-        catch { toast.error("Failed to delete"); }
+        catch (err) { toast.error(getApiError(err, "Failed to delete post")); }
         finally { setActionLoading(false); }
     };
 
@@ -85,7 +86,7 @@ export default function BlogTab() {
             post.published ? await unpublishBlogPost(post.slug) : await publishBlogPost(post.slug);
             toast.success(post.published ? "Unpublished" : "Published");
             load();
-        } catch { toast.error("Failed"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to toggle publish")); }
     };
 
     const openEdit = (p: BlogRow) => {

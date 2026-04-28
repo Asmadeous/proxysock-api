@@ -6,6 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 import OnlineBadge from "../../../components/OnlineBadge";
 import { fetchSupportChats, fetchSupportChat, replySupportChat, assignSupportChat, closeSupportChat, fetchEmployees } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface Chat {
     id: string;
@@ -41,7 +42,7 @@ export default function SupportChatsTab() {
         try {
             const res = await fetchSupportChats();
             setChats(res.data.chats || []);
-        } catch { toast.error("Failed to load support chats"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load support chats")); }
         setLoading(false);
     }, []);
 
@@ -52,7 +53,7 @@ export default function SupportChatsTab() {
         try {
             const res = await fetchSupportChat(chat.id);
             setMessages(res.data.messages || []);
-        } catch { toast.error("Failed to load messages"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load messages")); }
     };
 
     useEffect(() => {
@@ -88,7 +89,7 @@ export default function SupportChatsTab() {
             const res = await fetchSupportChat(selectedChat.id);
             setMessages(res.data.messages || []);
             loadChats();
-        } catch { toast.error("Failed to send reply"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to send reply")); }
         setSending(false);
     };
 
@@ -99,7 +100,7 @@ export default function SupportChatsTab() {
             setShowAssign(false);
             loadChats();
             toast.success("Chat assigned");
-        } catch { toast.error("Failed to assign"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to assign chat")); }
     };
 
     const handleClose = async () => {
@@ -110,7 +111,7 @@ export default function SupportChatsTab() {
             setMessages([]);
             loadChats();
             toast.success("Chat closed");
-        } catch { toast.error("Failed to close"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to close chat")); }
     };
 
     const loadEmployees = async () => {

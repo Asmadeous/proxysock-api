@@ -38,6 +38,13 @@ class RefundService
 
     # Validate that an actual debit transaction exists for this order before blindly refunding
     debit_txn = Transaction.find_by(reference: @order, transaction_type: 'debit', status: 'success')
+    
+    if debit_txn.nil?
+      # Fallback: check if the order was paid as part of a Cart Checkout (where reference is the owner)
+      debit_txn = Transaction.where(transactable: owner, transaction_type: 'debit', status: 'success')
+                             .where("metadata->>'order_ids' LIKE ?", "%#{@order.id}%").first
+    end
+
     raise RefundError, 'No successful payment transaction found for this order; nothing to refund' unless debit_txn
 
     # This debit!/credit! internally uses with_lock as well
