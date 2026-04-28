@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import { Copy, Eye, EyeOff, RefreshCw, Key, ShieldCheck, Code } from "lucide-react";
 
 import { rotateResellerApiKey } from "../../../services/resellerApi";
@@ -32,7 +33,7 @@ export default function ResApiKeys() {
             toast.success("API Key rotated successfully");
             globalThis.dispatchEvent(new CustomEvent("reseller-user-updated", { detail: updatedUser }));
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to rotate API key");
+            toast.error(getApiError(err, "Failed to rotate API key"));
         } finally {
             setIsRotating(false);
         }

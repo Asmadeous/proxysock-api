@@ -6,6 +6,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import { fetchAdminUsers, deleteAdminUser, onboardUser, impersonateUser, updateAdminUser } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface UserRow {
     id: number;
@@ -60,7 +61,7 @@ export default function UsersTab() {
             toast.success("User deleted");
             setDeleteTarget(null);
             load();
-        } catch { toast.error("Failed to delete user"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to delete user")); }
         finally { setActionLoading(false); }
     };
 
@@ -69,7 +70,7 @@ export default function UsersTab() {
             await onboardUser(id);
             toast.success("User onboarded");
             load();
-        } catch { toast.error("Failed to onboard"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to onboard user")); }
     };
 
     const handleImpersonate = async (id: number) => {
@@ -77,7 +78,7 @@ export default function UsersTab() {
             const res = await impersonateUser(id);
             localStorage.setItem("impersonateToken", res.data.token);
             toast.success("Impersonating user — open a new tab");
-        } catch { toast.error("Failed to impersonate"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to impersonate user")); }
     };
 
     const handleEdit = async () => {
@@ -88,7 +89,7 @@ export default function UsersTab() {
             toast.success("User updated");
             setEditTarget(null);
             load();
-        } catch { toast.error("Failed to update user"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to update user")); }
         finally { setActionLoading(false); }
     };
 

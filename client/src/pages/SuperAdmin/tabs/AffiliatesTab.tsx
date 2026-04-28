@@ -6,6 +6,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { fetchAffiliates, deleteAffiliate, configureAffiliate, processAffiliatePayout, fetchAffiliatePayouts, createAffiliate, fetchAdminUsers, fetchResellers } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface AffiliateRow {
     id: number;
@@ -80,7 +81,7 @@ export default function AffiliatesTab() {
         if (!deleteTarget) return;
         setActionLoading(true);
         try { await deleteAffiliate(deleteTarget.id); toast.success("Affiliate deleted"); setDeleteTarget(null); loadAffiliates(); }
-        catch { toast.error("Failed"); }
+        catch (err) { toast.error(getApiError(err, "Failed to delete affiliate")); }
         finally { setActionLoading(false); }
     };
 
@@ -88,7 +89,7 @@ export default function AffiliatesTab() {
         if (!configTarget) return;
         setActionLoading(true);
         try { await configureAffiliate(configTarget.id, configForm); toast.success("Configured"); setConfigTarget(null); loadAffiliates(); }
-        catch { toast.error("Failed"); }
+        catch (err) { toast.error(getApiError(err, "Failed to configure affiliate")); }
         finally { setActionLoading(false); }
     };
 
@@ -121,7 +122,7 @@ export default function AffiliatesTab() {
             setCreateForm({ affiliatable_type: "Standalone", name: "", email: "", commission_rate: "10", discount_rate: "5", affiliatable_id: "" });
             loadAffiliates();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to create affiliate");
+            toast.error(getApiError(err, "Failed to create affiliate"));
         } finally {
             setActionLoading(false);
         }
@@ -169,7 +170,7 @@ export default function AffiliatesTab() {
 
     const handleProcessPayout = async (id: number) => {
         try { await processAffiliatePayout(id); toast.success("Payout processed"); loadPayouts(); }
-        catch { toast.error("Failed"); }
+        catch (err) { toast.error(getApiError(err, "Failed to process payout")); }
     };
 
     const openConfig = (a: AffiliateRow) => {

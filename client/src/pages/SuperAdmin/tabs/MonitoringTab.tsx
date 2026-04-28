@@ -14,6 +14,7 @@ import {
     clearMonitoringRetries, clearMonitoringDead, retryAllMonitoring,
 } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyObj = Record<string, any>;
@@ -90,7 +91,7 @@ export default function MonitoringTab() {
                 case "dead": res = await fetchMonitoringDeadJobs(); setJobData({ items: res.data.jobs || [], total: res.data.total || 0 }); break;
                 case "scheduled": res = await fetchMonitoringScheduled(); setJobData({ items: res.data.jobs || [], total: res.data.total || 0 }); break;
             }
-        } catch { toast.error("Failed to load job data"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load job data")); }
         finally { setJobLoading(false); }
     }, [jobTab]);
 
@@ -127,7 +128,7 @@ export default function MonitoringTab() {
     const executeConfirm = async () => {
         if (!confirmAction) return;
         setActionLoading(true);
-        try { await confirmAction.action(); } catch { toast.error("Action failed"); }
+        try { await confirmAction.action(); } catch (err) { toast.error(getApiError(err, "Action failed")); }
         finally { setActionLoading(false); setConfirmAction(null); }
     };
 

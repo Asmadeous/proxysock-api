@@ -18,6 +18,7 @@ import {
     fetchResellerUserTransactions
 } from "../../../services/resellerApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import StatusBadge from "../../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../../SuperAdmin/components/FormModal";
 
@@ -93,7 +94,7 @@ export default function ResUserManagement() {
             setForm(EMPTY_FORM);
             loadUsers();
         } catch (err: any) {
-            toast.error(err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : "Failed to create user");
+            toast.error(getApiError(err, "Failed to create user"));
         } finally {
             setActionLoading(false);
         }

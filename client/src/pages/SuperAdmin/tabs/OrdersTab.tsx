@@ -33,6 +33,7 @@ import {
     whitelistDelete
 } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface OrderRow {
     id: number;
@@ -91,7 +92,7 @@ export default function OrdersTab() {
             setOrders(res.data.orders);
             setTotal(res.data.total);
             setStats(res.data.stats);
-        } catch { toast.error("Failed to load orders"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load orders")); }
         finally { setLoading(false); }
     }, [page, search, statusFilter, entityTypeFilter, productTypeFilter]);
 
@@ -106,7 +107,7 @@ export default function OrdersTab() {
             setRescueTarget(null);
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Rescue failed");
+            toast.error(getApiError(err, "Rescue failed"));
         } finally {
             setActionLoading(false);
         }
@@ -165,7 +166,7 @@ export default function OrdersTab() {
             const res = await fetchOrderCredentials(proxyConfigTarget.id);
             setProxyCreds(res.data);
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Action failed");
+            toast.error(getApiError(err, "Action failed"));
         } finally {
             setProxyActionLoading(false);
         }
@@ -181,7 +182,7 @@ export default function OrdersTab() {
             setRefundMethod("wallet");
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Refund failed");
+            toast.error(getApiError(err, "Refund failed"));
         } finally {
             setActionLoading(false);
         }

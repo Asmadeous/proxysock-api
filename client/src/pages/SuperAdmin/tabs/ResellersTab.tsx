@@ -7,6 +7,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { fetchResellers, createReseller, updateReseller, deleteReseller, onboardReseller, configureReseller, fetchResellerDetail } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 
 interface ResellerRow {
     id: string;
@@ -41,7 +42,7 @@ interface Stats {
     total_balance: number;
 }
 
-const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only", country_code: "US", country: "United States", city: "" };
+const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only", country_code: "US", country: "United States", city: "", allowed_product_category_id: "" };
 
 const TYPE_FILTERS = [
     { label: "All", value: "" },
@@ -102,7 +103,7 @@ export default function ResellersTab() {
             setShowCreate(false);
             setForm(EMPTY_FORM);
             load();
-        } catch { toast.error("Failed to create"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to create reseller")); }
         finally { setActionLoading(false); }
     };
 
@@ -115,7 +116,7 @@ export default function ResellersTab() {
             toast.success("Reseller updated");
             setEditTarget(null);
             load();
-        } catch { toast.error("Failed to update"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to update reseller")); }
         finally { setActionLoading(false); }
     };
 
@@ -127,7 +128,7 @@ export default function ResellersTab() {
             toast.success("Reseller deleted");
             setDeleteTarget(null);
             load();
-        } catch { toast.error("Failed to delete"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to delete reseller")); }
         finally { setActionLoading(false); }
     };
 
@@ -136,7 +137,7 @@ export default function ResellersTab() {
             const res = await onboardReseller(id);
             toast.success(res.data.message);
             load();
-        } catch { toast.error("Failed to onboard"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to onboard reseller")); }
     };
 
     const handleConfigure = async () => {
@@ -147,7 +148,7 @@ export default function ResellersTab() {
             toast.success("Reseller configured");
             setConfigTarget(null);
             load();
-        } catch { toast.error("Failed to configure"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to configure reseller")); }
         finally { setActionLoading(false); }
     };
 
@@ -161,7 +162,8 @@ export default function ResellersTab() {
             reseller_type: r.reseller_type || "api_only",
             country_code: r.country_code || "US",
             country: r.country || "United States",
-            city: r.city || ""
+            city: r.city || "",
+            allowed_product_category_id: (r as any).allowed_product_category_id ? String((r as any).allowed_product_category_id) : ""
         });
     };
 
@@ -437,6 +439,16 @@ export default function ResellersTab() {
                         <option value="infrastructure">Enterprise</option>
                     </select>
                 </Field>
+                {form.reseller_type === "single_product" && (
+                    <>
+                        <div className="border-t border-border pt-3 mt-2">
+                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
+                        </div>
+                        <Field label="Allowed Product Category ID">
+                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        </Field>
+                    </>
+                )}
             </FormModal>
 
             {/* Edit Modal */}
@@ -460,6 +472,16 @@ export default function ResellersTab() {
                         <option value="infrastructure">Enterprise</option>
                     </select>
                 </Field>
+                {form.reseller_type === "single_product" && (
+                    <>
+                        <div className="border-t border-border pt-3 mt-2">
+                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
+                        </div>
+                        <Field label="Allowed Product Category ID">
+                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        </Field>
+                    </>
+                )}
             </FormModal>
 
             {/* Configure Modal */}

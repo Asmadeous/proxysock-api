@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { getApiError } from "../../../utils/apiError";
 import { Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
 
 import { fetchResellerProducts, fetchResellerBalance, createResellerOrder } from "../../../services/resellerApi";
@@ -87,7 +88,7 @@ export default function ResProducts({ type }: ResProductsProps) {
             const balRes = await fetchResellerBalance();
             setBalance(balRes.data.balance || 0);
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Purchase failed");
+            toast.error(getApiError(err, "Purchase failed"));
         } finally {
             setIsBuying(false);
         }

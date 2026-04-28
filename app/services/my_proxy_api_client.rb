@@ -56,39 +56,75 @@ class MyProxyApiClient
   end
 
   # ==========================================================================
-  # Residential Rotating V2 Endpoints
+  # Residential Rotating V2 Endpoints (COMMENTED OUT)
   # ==========================================================================
 
-  def fetch_v2_residential_rotating_orders
-    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating")
+  # def fetch_v2_residential_rotating_orders
+  #   request(:get, "#{ROOT_URL}/v2/orders-residential-rotating")
+  # end
+
+  # def fetch_v2_residential_rotating_order(order_id)
+  #   request(:get, "#{ROOT_URL}/v2/orders-residential-rotating/#{order_id}")
+  # end
+
+  # def fetch_v2_res_rot_settings
+  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-settings")
+  # end
+
+  # def fetch_v2_res_rot_countries
+  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")
+  # end
+
+  # def fetch_v2_res_rot_states(country_code)
+  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")
+  # end
+
+  # def fetch_v2_res_rot_cities(country_code, state_slug)
+  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")
+  # end
+
+  # def fetch_v2_res_rot_isp(country_code)
+  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")
+  # end
+
+  # def generate_v2_res_rot_proxy(payload)
+  #   request(:post, "#{ROOT_URL}/v2/residential-rotating/generate-proxy", payload)
+  # end
+
+  # ==========================================================================
+  # Residential Rotating V1 Endpoints (Temp fallback)
+  # ==========================================================================
+
+  def fetch_v1_residential_rotating_orders
+    request(:get, "#{ROOT_URL}/v1/orders-residential-rotating")
   end
 
-  def fetch_v2_residential_rotating_order(order_id)
-    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating/#{order_id}")
+  def fetch_v1_residential_rotating_order(order_id)
+    request(:get, "#{ROOT_URL}/v1/orders-residential-rotating/#{order_id}")
   end
 
-  def fetch_v2_res_rot_settings
-    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-settings")
+  def fetch_v1_res_rot_settings
+    request(:get, "#{ROOT_URL}/v1/residential-rotating/get-settings")
   end
 
-  def fetch_v2_res_rot_countries
-    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")
+  def fetch_v1_res_rot_countries
+    request(:get, "#{ROOT_URL}/v1/residential-rotating/get-countries")
   end
 
-  def fetch_v2_res_rot_states(country_code)
-    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")
+  def fetch_v1_res_rot_states(country_code)
+    request(:get, "#{ROOT_URL}/v1/residential-rotating/get-states/#{country_code}")
   end
 
-  def fetch_v2_res_rot_cities(country_code, state_slug)
-    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")
+  def fetch_v1_res_rot_cities(country_code, state_slug)
+    request(:get, "#{ROOT_URL}/v1/residential-rotating/get-cities/#{country_code}/#{state_slug}")
   end
 
-  def fetch_v2_res_rot_isp(country_code)
-    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")
+  def fetch_v1_res_rot_isp(country_code)
+    request(:get, "#{ROOT_URL}/v1/residential-rotating/get-isp/#{country_code}")
   end
 
-  def generate_v2_res_rot_proxy(payload)
-    request(:post, "#{ROOT_URL}/v2/residential-rotating/generate-proxy", payload)
+  def generate_v1_res_rot_proxy(payload)
+    request(:post, "#{ROOT_URL}/v1/residential-rotating/generate-proxy", payload)
   end
 
   # Place an order on the provider.
@@ -274,7 +310,8 @@ class MyProxyApiClient
   # ==========================================================================
 
   def fetch_residential_rotating_countries
-    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")['data']
+    # data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")['data']
+    data = request(:get, "#{ROOT_URL}/v1/residential-rotating/get-countries")['data']
     data.is_a?(Hash) ? (data['countries'] || []) : (data || [])
   rescue StandardError => e
     Rails.logger.error("Failed to fetch residential rotating countries: #{e.message}")
@@ -282,7 +319,8 @@ class MyProxyApiClient
   end
 
   def fetch_residential_rotating_states(country_code)
-    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")['data']
+    # data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")['data']
+    data = request(:get, "#{ROOT_URL}/v1/residential-rotating/get-states/#{country_code}")['data']
     data.is_a?(Hash) ? (data['states'] || []) : (data || [])
   rescue StandardError => e
     Rails.logger.error("Failed to fetch states for #{country_code}: #{e.message}")
@@ -290,7 +328,8 @@ class MyProxyApiClient
   end
 
   def fetch_residential_rotating_cities(country_code, state_slug)
-    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")['data']
+    # data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")['data']
+    data = request(:get, "#{ROOT_URL}/v1/residential-rotating/get-cities/#{country_code}/#{state_slug}")['data']
     data.is_a?(Hash) ? (data['cities'] || []) : (data || [])
   rescue StandardError => e
     Rails.logger.error("Failed to fetch cities for #{country_code}/#{state_slug}: #{e.message}")
@@ -298,7 +337,8 @@ class MyProxyApiClient
   end
 
   def fetch_residential_rotating_isps(country_code)
-    data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")['data']
+    # data = request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")['data']
+    data = request(:get, "#{ROOT_URL}/v1/residential-rotating/get-isp/#{country_code}")['data']
     data.is_a?(Hash) ? (data['isps'] || data['isp'] || []) : (data || [])
   rescue StandardError => e
     Rails.logger.error("Failed to fetch ISPs for #{country_code}: #{e.message}")
