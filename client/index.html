@@ -78,11 +78,10 @@
         data:;
 
       img-src 'self' data: blob: http://localhost:* https://*.trycloudflare.com
-        https://www.proxysock.com
+        https://*.proxysock.com
         https://www.proxystore.net
         https://upload.wikimedia.org
         https://flagcdn.com
-
         https://www.google-analytics.com
         https://www.googletagmanager.com
         https://googleads.g.doubleclick.net
@@ -100,10 +99,9 @@
         https://img.freepik.com
         https://*.paystack.co
         https://api.dicebear.com
-        https://apitest.proxysock.net
-        https://api.proxysock.com;
+        https://apitest.proxysock.net;
 
-      connect-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com https://*.proxysock.net wss://*.proxysock.net
+      connect-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com https://*.proxysock.net wss://*.proxysock.net https://*.proxysock.com wss://*.proxysock.com
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
