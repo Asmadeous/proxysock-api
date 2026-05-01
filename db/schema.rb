@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_30_205800) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_01_141516) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -1105,6 +1105,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_30_205800) do
     t.string "first_name"
     t.string "ip_address"
     t.boolean "jellyfin_account_created", default: false
+    t.string "jellyfin_password"
+    t.string "jellyfin_username"
     t.datetime "last_login_at"
     t.string "last_name"
     t.datetime "last_seen_at"

@@ -3,42 +3,22 @@
     {
       "warning_type": "Command Injection",
       "warning_code": 14,
-      "fingerprint": "6301ee8e24b4ea8818f2c05f74543077a5e9316c344d6b0f78965801ad127e78",
+      "fingerprint": "cf408bda24456b4f78a8f008fbeaf57d47e167c453605d76046f4933c09b1b1f",
       "check_name": "Execute",
       "message": "Possible command injection",
-      "file": "app/jobs/proxmox_backup_job.rb",
-      "line": 44,
+      "file": "app/services/jellyfin_service.rb",
+      "line": 33,
       "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
-      "code": "Open3.capture3(\"vzdump\", fetch_vm_ids(ENV.fetch(\"PROXMOX_NODE\", \"pve\")).join(\",\"), \"--storage\", ENV.fetch(\"PROXMOX_BACKUP_STORAGE\", \"local\"), \"--compress\", ENV.fetch(\"PROXMOX_BACKUP_COMPRESS\", \"zstd\"), \"--mode\", ENV.fetch(\"PROXMOX_BACKUP_MODE\", \"snapshot\"), \"--prune-backups\", \"keep-last=#{ENV.fetch(\"PROXMOX_BACKUP_KEEP_LAST\", \"3\")}\", \"--mailto\", ENV.fetch(\"PROXMOX_BACKUP_MAILTO\", \"root@pam\"), \"--notes-template\", \"auto-backup-{{guestname}}-{{vmid}}\")",
+      "code": "Open3.capture3(\"curl\", \"-s\", \"--connect-timeout\", \"5\", \"--max-time\", \"15\", \"-X\", \"POST\", \"#{ENV.fetch(\"JELLYFIN_URL\", \"https://media.proxysock.com\")}/Users/New?api_key=#{ENV.fetch(\"JELLYFIN_API_KEY\", \"\")}\", \"-H\", \"Content-Type: application/json\", \"-H\", \"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\", \"-d\", { :Name => user.username, :Password => SecureRandom.hex(12) }.to_json)",
       "render_path": null,
       "location": {
         "type": "method",
-        "class": "ProxmoxBackupJob",
-        "method": "perform"
+        "class": "JellyfinService",
+        "method": "create_user"
       },
-      "user_input": "ENV.fetch(\"PROXMOX_BACKUP_KEEP_LAST\", \"3\")",
+      "user_input": "ENV.fetch(\"JELLYFIN_URL\", \"https://media.proxysock.com\")",
       "confidence": "Medium",
-      "note": "Infrastructure command with environment variables"
-    },
-    {
-      "warning_type": "Command Injection",
-      "warning_code": 14,
-      "fingerprint": "ab23ea3fe7bf1b8c5ce695ce49793731ffe4fdf38b2e20978ffa9516ae5f26bb",
-      "check_name": "Execute",
-      "message": "Possible command injection",
-      "file": "app/jobs/proxmox_backup_job.rb",
-      "line": 88,
-      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
-      "code": "Open3.capture3(\"pvesh\", \"get\", \"/nodes/#{node}/qemu\", \"--output-format\", \"json\")",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "ProxmoxBackupJob",
-        "method": "fetch_vm_ids"
-      },
-      "user_input": "node",
-      "confidence": "Medium",
-      "note": "Infrastructure command with node variable"
+      "note": "Required to bypass Cloudflare JA3 fingerprinting that blocks Ruby Net::HTTP. Safe as it uses array-form of Open3.capture3 (no shell evaluation)."
     },
     {
       "warning_type": "Command Injection",
@@ -101,6 +81,6 @@
       "note": "Admin SQL runner tool. Protected by authentication and restricted to SELECT queries."
     }
   ],
-  "updated": "2026-03-23 04:16:00 +0300",
-  "brakeman_version": "8.0.2"
+  "updated": "2026-05-01 17:11:00 +0300",
+  "brakeman_version": "8.0.4"
 }
