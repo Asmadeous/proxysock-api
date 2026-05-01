@@ -3,6 +3,7 @@
 class EsimMailer < ApplicationMailer
   def delivery_email
     @user = params[:user]
+    @owner = @user
     @esim = params[:esim]
     @order = @esim.esim_order.order
     @type = @esim.esim_provider == 'esim_access' ? 'api' : 'inventory'
