@@ -25,6 +25,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
       %r{https://.+\.proxysock\.com},
       'https://proxysock.com',
       'https://www.proxysock.com',
+      'https://testprod.proxysock.com',
       'http://64.6.175.7',
       'https://64.6.175.7'
     ]
