@@ -33,10 +33,11 @@ class JellyfinService
     stdout, stderr, status = Open3.capture3(*cmd)
 
     if status.success? && stdout.include?('"Id":')
-      user.update!(jellyfin_account_created: true)
-      user.metadata ||= {}
-      user.metadata['jellyfin_password'] = password
-      user.save!
+      user.update!(
+        jellyfin_account_created: true,
+        jellyfin_username: user.username,
+        jellyfin_password: password
+      )
       Rails.logger.info("[JellyfinService] Successfully created user '#{user.username}'")
       true
     else

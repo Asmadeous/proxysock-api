@@ -7,7 +7,7 @@
 <% if @owner.is_a?(User) && @owner.jellyfin_account_created? %>
 <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
     <h3 style="margin-bottom: 16px; font-size: 18px; color: #166534;">Media Portal Access</h3>
-    <% if @owner.metadata&.dig('jellyfin_password').present? %>
+    <% if @owner.jellyfin_password.present? %>
         <p style="margin-bottom: 16px; font-size: 14px; color: #15803d;">We've created a dedicated account for you to access our tutorial library and media content.</p>
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px;">
             <tr>
@@ -16,11 +16,11 @@
             </tr>
             <tr>
                 <td style="padding: 6px 0; color: #374151;">Username</td>
-                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.username %></td>
+                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.jellyfin_username || @owner.username %></td>
             </tr>
             <tr>
                 <td style="padding: 6px 0; color: #374151;">Password</td>
-                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.metadata['jellyfin_password'] %></td>
+                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.jellyfin_password %></td>
             </tr>
         </table>
     <% else %>
