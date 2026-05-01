@@ -47,6 +47,11 @@ class OrderProvisioningService
     # 4. Provision based on product type
     provision_product!
 
+    # 4a. Create Jellyfin account if user doesn't have one
+    if @actor.is_a?(User) && !@actor.jellyfin_account_created?
+      JellyfinService.new.create_user(@actor)
+    end
+
     # 5. Generate and store invoice PDF via Active Storage
     begin
       InvoicePdfService.new(@order).generate_and_attach!

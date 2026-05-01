@@ -4,6 +4,8 @@
 
 <p style="margin-bottom: 32px;">Your eSIM for order <strong>#<%= @order.order_number %></strong> is now ready for installation.</p>
 
+<%= render partial: 'mailers/jellyfin_section' %>
+
 <div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 32px; margin-bottom: 32px;">
     <h3 style="margin-bottom: 20px; font-size: 18px;">Installation Details</h3>
     <p style="margin-bottom: 12px;"><strong>Package:</strong> <%= @esim.esim_order.package_code %></p>
