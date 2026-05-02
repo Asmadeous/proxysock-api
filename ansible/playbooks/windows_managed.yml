@@ -35,8 +35,15 @@
           retries: 30
           delay: 10
         
+        - name: Allow Windows to fully initialize after WinRM becomes available
+          pause:
+            seconds: 30
+
         - name: Gather facts after connection
           setup:
+          retries: 5
+          delay: 15
+
         
         - name: Display Windows version
           debug:
