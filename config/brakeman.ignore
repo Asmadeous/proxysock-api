@@ -3,13 +3,13 @@
     {
       "warning_type": "Command Injection",
       "warning_code": 14,
-      "fingerprint": "cf408bda24456b4f78a8f008fbeaf57d47e167c453605d76046f4933c09b1b1f",
+      "fingerprint": "446f1ba63c433da8a65dc5a7697d35dba86c55f9995d95bfc54a098db24a6f1b",
       "check_name": "Execute",
       "message": "Possible command injection",
       "file": "app/services/jellyfin_service.rb",
-      "line": 33,
+      "line": 34,
       "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
-      "code": "Open3.capture3(\"curl\", \"-s\", \"--connect-timeout\", \"5\", \"--max-time\", \"15\", \"-X\", \"POST\", \"#{ENV.fetch(\"JELLYFIN_URL\", \"https://media.proxysock.com\")}/Users/New?api_key=#{ENV.fetch(\"JELLYFIN_API_KEY\", \"\")}\", \"-H\", \"Content-Type: application/json\", \"-H\", \"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\", \"-d\", { :Name => user.username, :Password => SecureRandom.hex(12) }.to_json)",
+      "code": "Open3.capture3(\"curl\", \"-s\", \"--connect-timeout\", \"5\", \"--max-time\", \"15\", \"-X\", \"POST\", \"#{ENV.fetch(\"JELLYFIN_URL\", \"https://media.proxysock.com\")}/Users/New?api_key=#{ENV.fetch(\"JELLYFIN_API_KEY\", \"\")}\", \"-H\", \"Content-Type: application/json\", \"-H\", \"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\", \"-d\", { :Name => user.username.to_s.strip.gsub(/\\s+/, \"_\"), :Password => SecureRandom.hex(12) }.to_json)",
       "render_path": null,
       "location": {
         "type": "method",
