@@ -8,7 +8,8 @@ module Admin
       private
 
       def authenticate_admin!
-        token = request.headers['Authorization']&.split(' ')&.last
+        token = request.headers['Authorization']&.split(' ')&.last ||
+                params[:token]
         return render_unauthorized unless token
 
         begin

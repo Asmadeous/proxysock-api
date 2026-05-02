@@ -128,10 +128,11 @@ export const fetchAdminUsaCredentials = () =>
     adminApi.get("/usa_esim_credentials");
 export const deleteAdminUsaCredential = (id: string | number) =>
     adminApi.delete(`/usa_esim_credentials/${id}`);
-export const importUsaCredentials = (formData: FormData) =>
-    adminApi.post("/usa_esim_credentials/import", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-    });
+export const importUsaCredentials = (formData: FormData) => {
+    const token = localStorage.getItem("adminToken");
+    const url = `/usa_esim_credentials/import${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    return axios.post(`${ADMIN_API_URL}/admin/api${url}`, formData);
+};
 
 export const changeProxyProtocol = (id: number, protocol: string) =>
     adminApi.post(`/orders/${id}/change_protocol`, { protocol });
