@@ -79,9 +79,9 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Ensure log and tmp directories exist and are writable
-RUN mkdir -p /rails/log /rails/tmp && \
-    chown -R rails:rails /rails/log /rails/tmp
+# Ensure log, tmp and monitoring directories exist and are writable
+RUN mkdir -p /rails/log /rails/tmp /rails/monitoring/prometheus/targets && \
+    chown -R rails:rails /rails/log /rails/tmp /rails/monitoring
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
