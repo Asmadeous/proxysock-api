@@ -6,7 +6,7 @@ scrape_configs:
   - job_name: 'proxysock-api'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['host.docker.internal:3000']
+      - targets: ['proxysock-web:80']
         labels:
           app: 'proxysock-api'
           env: 'production'
