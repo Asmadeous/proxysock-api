@@ -418,10 +418,12 @@ class MyProxyApiClient
 
   # Execute an HTTP request with Bearer auth.
   # Supports :get, :post, and :patch.
-  def request(method, url, body = nil)
+  def request(method, url, body = nil, redirect_limit: 5)
+    raise 'MyProxyApi: Too many redirects' if redirect_limit.zero?
+
     uri  = URI(url)
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl      = true
+    http.use_ssl      = uri.scheme == 'https'
     http.read_timeout = 30
 
     req = case method
@@ -438,6 +440,13 @@ class MyProxyApiClient
     req.body = body.to_json if body
 
     response = http.request(req)
+
+    if response.is_a?(Net::HTTPRedirection)
+      new_url = response['location']
+      new_url = "#{uri.scheme}://#{uri.host}#{new_url}" if new_url.start_with?('/')
+      return request(method, new_url, body, redirect_limit: redirect_limit - 1)
+    end
+
     raise "MyProxyApi Error #{response.code}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)

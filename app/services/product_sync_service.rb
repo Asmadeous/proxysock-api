@@ -94,19 +94,20 @@ class ProductSyncService
     return unless category
 
     begin
-      # Fetch configuration from MyProxyApi
-      countries = fetch_residential_rotating_countries
+      # V1 API has no geographic endpoints (countries/states/cities/isps).
+      # Commented out until V2 is available.
+      # countries = fetch_residential_rotating_countries
       
-      # Build complete config with countries, states, cities, isps
+      # Build complete config with hardcoded options only (V1)
       config = {
-        countries: countries,
+        countries: [],
         rotation_options: ROTATION_OPTIONS,
         hostname_options: HOSTNAME_OPTIONS,
         synced_at: Time.current.iso8601
       }
 
       # Store in ProductCategory metadata
-      category.update!(metadata: category.metadata.merge(residential_rotating_config: config))
+      category.update!(metadata: (category.metadata || {}).merge(residential_rotating_config: config))
       
       @logger.info('[ProductSyncService] Residential Rotating config synced successfully')
     rescue StandardError => e
