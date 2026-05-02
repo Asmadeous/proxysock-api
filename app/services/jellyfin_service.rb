@@ -14,9 +14,10 @@ class JellyfinService
   def create_user(user)
     return if user.jellyfin_account_created?
 
-    # Generate a random password for the user
+    # Sanitize username: Jellyfin rejects names with spaces
+    jellyfin_username = user.username.to_s.strip.gsub(/\s+/, '_')
     password = SecureRandom.hex(12)
-    user_data = { Name: user.username, Password: password }.to_json
+    user_data = { Name: jellyfin_username, Password: password }.to_json
 
     # Use curl to bypass potential Net::HTTP flagging by Cloudflare
     cmd = [
@@ -35,7 +36,7 @@ class JellyfinService
     if status.success? && stdout.include?('"Id":')
       user.update!(
         jellyfin_account_created: true,
-        jellyfin_username: user.username,
+        jellyfin_username: jellyfin_username,
         jellyfin_password: password
       )
       Rails.logger.info("[JellyfinService] Successfully created user '#{user.username}'")
