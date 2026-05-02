@@ -80,5 +80,10 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [:id]
 
   # Action Cable configuration
-  config.action_cable.allowed_request_origins = ['https://proxysock.com', 'https://www.proxysock.com']
+  config.action_cable.allowed_request_origins = [
+    'https://proxysock.com',
+    'https://www.proxysock.com',
+    'https://testprod.proxysock.com',
+    %r{https://.+\.proxysock\.com}
+  ]
 end
