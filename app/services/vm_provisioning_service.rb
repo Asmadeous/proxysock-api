@@ -229,12 +229,11 @@ class VmProvisioningService
         @logger.warn('[VmProvisioningService] Ansible not found in container! Skipping playbook')
       end
 
-      # 8. Windows: Create Cloudflare DNS record (hostname.proxysock.com -> IP)
-      if is_windows
-        dns_service = CloudflareDnsService.new(@logger)
-        dns_name = dns_service.create_vm_dns(hostname, actual_ip)
-        @logger.info("Cloudflare DNS: #{dns_name}") if dns_name
-      end
+      # 8. Create Cloudflare DNS record (hostname.proxysock.com -> IP) for all VMs
+      dns_service = CloudflareDnsService.new(@logger)
+      dns_name = dns_service.create_vm_dns(hostname, actual_ip)
+      @logger.info("Cloudflare DNS: #{dns_name}") if dns_name
+
 
       # 9. Monitoring
       if management_type == 'managed'

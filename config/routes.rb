@@ -257,7 +257,10 @@ Rails.application.routes.draw do
 
       # Admin routes
       resources :employees do
-        post :assign, on: :member
+        member do
+          post :assign
+          post :revoke_tokens
+        end
       end
 
       resources :products do
@@ -310,11 +313,13 @@ Rails.application.routes.draw do
         member do
           post :onboard
           patch :configure
+          post :revoke_tokens
         end
       end
-      resources :users, only: %i[index show update destroy] do
+      resources :users, only: %i[index create show update destroy] do
         post :impersonate, on: :member
         post :onboard,     on: :member
+        post :revoke_tokens, on: :member
       end
       resources :usa_esim_credentials, only: %i[index destroy] do
         post :import, on: :collection

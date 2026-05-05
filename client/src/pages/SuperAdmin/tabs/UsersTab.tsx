@@ -4,7 +4,7 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
-import { fetchAdminUsers, deleteAdminUser, onboardUser, impersonateUser, updateAdminUser } from "../../../services/adminApi";
+import { fetchAdminUsers, deleteAdminUser, createAdminUser, impersonateUser, updateAdminUser, revokeUserTokens } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 import { getApiError } from "../../../utils/apiError";
 
@@ -34,6 +34,8 @@ export default function UsersTab() {
     const [editTarget, setEditTarget] = useState<UserRow | null>(null);
     const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", status: "", country_code: "", city: "" });
     const [actionLoading, setActionLoading] = useState(false);
+    const [createModal, setCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({ first_name: "", last_name: "", email: "", password: "", country_code: "", city: "" });
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -65,12 +67,24 @@ export default function UsersTab() {
         finally { setActionLoading(false); }
     };
 
-    const handleOnboard = async (id: number) => {
+    const handleCreate = async () => {
+        setActionLoading(true);
         try {
-            await onboardUser(id);
-            toast.success("User onboarded");
+            await createAdminUser(createForm);
+            toast.success("User created successfully");
+            setCreateModal(false);
+            setCreateForm({ first_name: "", last_name: "", email: "", password: "", country_code: "", city: "" });
             load();
-        } catch (err) { toast.error(getApiError(err, "Failed to onboard user")); }
+        } catch (err) { toast.error(getApiError(err, "Failed to create user")); }
+        finally { setActionLoading(false); }
+    };
+
+    const handleRevokeTokens = async (id: number) => {
+        if (!confirm("Are you sure you want to revoke all active sessions for this user? They will be logged out everywhere.")) return;
+        try {
+            await revokeUserTokens(id);
+            toast.success("Tokens revoked successfully");
+        } catch (err) { toast.error(getApiError(err, "Failed to revoke tokens")); }
     };
 
     const handleImpersonate = async (id: number) => {
@@ -133,6 +147,13 @@ export default function UsersTab() {
                     <h2 className="text-2xl font-bold text-foreground">Users</h2>
                     <p className="text-sm text-muted-foreground mt-1">{total} total users</p>
                 </div>
+                <button
+                    onClick={() => setCreateModal(true)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                    <UserPlusIcon className="h-4 w-4" />
+                    Onboard User
+                </button>
             </div>
 
             <DataTable
@@ -151,8 +172,8 @@ export default function UsersTab() {
                         <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title="Edit">
                             <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleOnboard(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10" title="Onboard">
-                            <UserPlusIcon className="h-4 w-4" />
+                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                            <span className="text-xs font-medium">Access</span>
                         </button>
                         <button onClick={() => handleImpersonate(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-500/10" title="Impersonate">
                             <FingerPrintIcon className="h-4 w-4" />
@@ -208,6 +229,37 @@ export default function UsersTab() {
                         <option value="suspended">Suspended</option>
                     </select>
                 </Field>
+            </FormModal>
+
+            {/* Create Modal */}
+            <FormModal
+                open={createModal}
+                onClose={() => setCreateModal(false)}
+                title="Onboard New User"
+                onSubmit={handleCreate}
+                submitLabel="Create"
+                loading={actionLoading}
+            >
+                <Field label="First Name">
+                    <input className={inputClasses} required value={createForm.first_name} onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })} />
+                </Field>
+                <Field label="Last Name">
+                    <input className={inputClasses} required value={createForm.last_name} onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })} />
+                </Field>
+                <Field label="Email">
+                    <input className={inputClasses} required type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} />
+                </Field>
+                <Field label="Password">
+                    <input className={inputClasses} type="password" placeholder="Leave blank to auto-generate" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} />
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Country Code">
+                        <input className={inputClasses} value={createForm.country_code} onChange={(e) => setCreateForm({ ...createForm, country_code: e.target.value })} placeholder="US" />
+                    </Field>
+                    <Field label="City">
+                        <input className={inputClasses} value={createForm.city} onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })} placeholder="New York" />
+                    </Field>
+                </div>
             </FormModal>
         </div>
     );

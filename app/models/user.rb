@@ -102,10 +102,15 @@ class User < ApplicationRecord
     payload = {
       user_id: id,
       email: email,
+      token_version: token_version,
       exp: duration,
       iat: Time.current.to_i
     }
     JWT.encode(payload, Rails.application.secret_key_base)
+  end
+
+  def revoke_tokens!
+    update!(token_version: (token_version || 1) + 1)
   end
 
   def profile_picture_url

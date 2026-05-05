@@ -3,7 +3,7 @@
 module Admin
   module Api
     class ResellersController < Admin::Api::BaseController
-      before_action :set_reseller, only: %i[show update destroy onboard configure]
+      before_action :set_reseller, only: %i[show update destroy onboard configure revoke_tokens]
 
       # GET /admin/api/resellers
       def index
@@ -103,6 +103,14 @@ module Admin
         @reseller.update!(updates) if updates.any?
         record_audit_log('reseller.configured', @reseller)
         render json: reseller_json(@reseller)
+      end
+
+      # POST /admin/api/resellers/:id/revoke_tokens
+      def revoke_tokens
+        require_admin!
+        @reseller.revoke_tokens!
+        record_audit_log('reseller.tokens_revoked', @reseller)
+        render json: { message: 'All active sessions and tokens for this reseller have been revoked.' }
       end
 
       private

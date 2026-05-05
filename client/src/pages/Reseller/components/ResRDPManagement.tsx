@@ -20,6 +20,7 @@ interface RDPInstance {
     ram_gb: number;
     storage_gb: number;
     ip_address: string;
+    dns_name?: string;
     proxmox_public_ip: string;
     hostname: string;
     rdp_username: string;
@@ -93,8 +94,8 @@ export default function ResRDPManagement() {
 
                         <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">IP:Port</span>
-                                <span>{rdp.proxmox_public_ip || rdp.ip_address}:{rdp.rdp_port}</span>
+                                <span className="text-muted-foreground">Subdomain:Port</span>
+                                <span>{rdp.dns_name || 'Generating...'}:{rdp.rdp_port}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">User:</span>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_01_141516) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_03_071642) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -295,6 +295,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_01_141516) do
     t.string "profile_picture_url"
     t.string "provider"
     t.string "role"
+    t.integer "token_version", default: 1, null: false
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "work_email"
@@ -815,6 +816,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_01_141516) do
     t.decimal "subscription_fee"
     t.datetime "token_issued_at"
     t.integer "token_request_count", default: 0
+    t.integer "token_version", default: 1, null: false
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
@@ -1123,6 +1125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_01_141516) do
     t.string "referred_by_code"
     t.uuid "reseller_id"
     t.string "status"
+    t.integer "token_version", default: 1, null: false
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "username"

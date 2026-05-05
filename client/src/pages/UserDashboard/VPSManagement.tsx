@@ -12,8 +12,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   CloudIcon,
+  GlobeAltIcon,
   CommandLineIcon,
-  WifiIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   Squares2X2Icon,
@@ -37,6 +37,7 @@ interface VPSInstance {
   ram_gb: number;
   storage_gb: number;
   ip_address: string;
+  dns_name?: string;
   proxmox_public_ip: string;
   hostname: string;
   os_template: string;
@@ -166,10 +167,7 @@ const VPSManagement = () => {
     return osTemplates.sort((a, b) => a.localeCompare(b));
   }, [vpsInstances]);
 
-  const nodeOptions = useMemo(() => {
-    const nodes = [...new Set(vpsInstances.map(instance => instance.node).filter(Boolean) as string[])];
-    return nodes.sort((a, b) => a.localeCompare(b));
-  }, [vpsInstances]);
+
 
   const planOptions = useMemo(() => {
     const plans = [...new Set(vpsInstances.map(instance => instance.plan_name).filter(Boolean) as string[])];
@@ -181,16 +179,13 @@ const VPSManagement = () => {
     let filtered = vpsInstances.filter(instance => {
       const matchesSearch = !searchTerm ||
         instance.hostname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.vm_id?.toString().includes(searchTerm) ||
-        instance.ip_address?.includes(searchTerm) ||
-        (instance.proxmox_public_ip?.includes(searchTerm));
+        instance.vm_id?.toString().includes(searchTerm);
 
       const matchesStatus = statusFilter === 'all' || instance.status === statusFilter;
       const matchesOS = osFilter === 'all' || instance.os_template === osFilter;
-      const matchesNode = nodeFilter === 'all' || instance.node === nodeFilter;
       const matchesPlan = planFilter === 'all' || instance.plan_name === planFilter;
 
-      return matchesSearch && matchesStatus && matchesOS && matchesNode && matchesPlan;
+      return matchesSearch && matchesStatus && matchesOS && matchesPlan;
     });
 
     // Sort instances
@@ -279,8 +274,8 @@ const VPSManagement = () => {
     navigator.clipboard.writeText(text);
   };
 
-  const getConnectionIP = (instance: VPSInstance) => {
-    return instance.ip_address;
+  const getSubdomain = (instance: VPSInstance) => {
+    return instance.dns_name || 'Generating...';
   };
 
   const getSSHPort = (instance: VPSInstance) => {
@@ -292,10 +287,11 @@ const VPSManagement = () => {
   };
 
   const getSSHCommand = (instance: VPSInstance) => {
-    const ip = getConnectionIP(instance);
+    const subdomain = getSubdomain(instance);
     const port = getSSHPort(instance);
-    const user = instance.username || 'root';
-    return ip ? `ssh ${user}@${ip} -p ${port}` : 'IP address pending...';
+    const isWindows = instance.os_template?.toLowerCase().includes('windows');
+    const user = instance.username || (isWindows ? 'Administrator' : (instance.hostname || 'root'));
+    return subdomain !== 'Generating...' ? `ssh ${user}@${subdomain} -p ${port}` : 'Subdomain pending...';
   };
 
   const getStatusColor = (status: string) => {
@@ -340,7 +336,7 @@ const VPSManagement = () => {
 
   const renderVPSCard = (instance: VPSInstance) => {
     const StatusIcon = getStatusIcon(instance.status);
-    const connectionIP = getConnectionIP(instance);
+    const subdomain = getSubdomain(instance);
     const sshPort = getSSHPort(instance);
     const sshCommand = getSSHCommand(instance);
 
@@ -368,196 +364,166 @@ const VPSManagement = () => {
           </div>
         </div>
 
-        {/* Specs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div className="flex items-center space-x-2">
-            <CpuChipIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">{instance.cpu_cores} vCPU</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <CircleStackIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">{instance.ram_gb} GB RAM</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <CloudIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">{instance.storage_gb} GB SSD</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <WifiIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">{instance.bandwidth_gb || 'Unlimited'} GB</span>
-          </div>
-        </div>
-
-        {/* Usage Stats */}
+        {/* Resources & Usage Section */}
         <div className="space-y-3 mb-4">
-          {loadingStats[instance.id] ? (
-            <div className="space-y-3 py-1">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between">
-                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
-                    <div className="h-3 w-8 bg-muted animate-pulse rounded" />
-                  </div>
-                  <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
-                </div>
-              ))}
+          {/* Specs Grid */}
+          <div className="grid grid-cols-3 gap-2 p-3 bg-muted/20 rounded-xl border border-border/50">
+            <div className="flex flex-col items-center justify-center py-1">
+              <CpuChipIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">CPU</span>
+              <span className="text-xs font-mono">{instance.cpu_cores}vC</span>
             </div>
-          ) : (
-            <>
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>CPU Usage</span>
-                  <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
-                  />
-                </div>
-              </div>
+            <div className="flex flex-col items-center justify-center py-1 border-x border-border/30">
+              <CircleStackIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">RAM</span>
+              <span className="text-xs font-mono">{instance.ram_gb}GB</span>
+            </div>
+            <div className="flex flex-col items-center justify-center py-1">
+              <CloudIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">SSD</span>
+              <span className="text-xs font-mono">{instance.storage_gb}GB</span>
+            </div>
+          </div>
 
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>RAM Usage</span>
-                  <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
+          {/* Real-time Usage (Full Width) */}
+          <div className="space-y-3 p-3 bg-muted/20 rounded-xl border border-border/50">
+            {loadingStats[instance.id] ? (
+              <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                    <span>CPU</span>
+                    <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
+                      className={`h-full transition-all ${(instance.resource_usage?.cpu_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
-                  />
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                    <span>RAM</span>
+                    <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
+                      className={`h-full transition-all ${(instance.resource_usage?.ram_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                    />
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Disk Usage</span>
-                  <span>{instance.resource_usage?.disk_percent?.toFixed(1) || 0}%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, instance.resource_usage?.disk_percent || 0)}%` }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Connection Details */}
-        <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Connection IP:</span>
+        {/* Connection Details Panel */}
+        <div className="bg-muted/30 rounded-xl p-4 mb-4 border border-border/50 space-y-3">
+          <div className="flex items-center justify-between group">
+            <div className="flex items-center gap-2">
+              <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subdomain</span>
+            </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono">{connectionIP || 'Pending'}</span>
-              {connectionIP && (
+              <span className="text-sm font-mono font-medium">{instance.dns_name || 'Generating...'}</span>
+              {instance.dns_name && (
                 <button
-                  onClick={() => copyToClipboard(connectionIP)}
-                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => copyToClipboard(instance.dns_name!)}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                  title="Copy Subdomain"
                 >
-                  <ClipboardDocumentIcon className="h-4 w-4" />
+                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">SSH Port:</span>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono">{sshPort}</span>
-              <button
-                onClick={() => copyToClipboard(sshPort.toString())}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Username:</span>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono">{instance.username || 'root'}</span>
-              <button
-                onClick={() => copyToClipboard(instance.username || 'root')}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Root Password:</span>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono">
-                {showPassword[instance.id] ? (instance.root_password || 'Not set') : '••••••••'}
-              </span>
-              <button
-                onClick={() => setShowPassword(prev => ({
-                  ...prev,
-                  [instance.id]: !prev[instance.id]
-                }))}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword[instance.id] ? (
-                  <EyeSlashIcon className="h-4 w-4" />
-                ) : (
-                  <EyeIcon className="h-4 w-4" />
-                )}
-              </button>
-              {instance.root_password && (
+
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Port</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono">{sshPort}</span>
                 <button
-                  onClick={() => copyToClipboard(instance.root_password)}
-                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => copyToClipboard(sshPort.toString())}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
                 >
-                  <ClipboardDocumentIcon className="h-4 w-4" />
+                  <ClipboardDocumentIcon className="h-3 w-3" />
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  setShowPasswordModal(instance);
-                  setNewPassword('');
-                }}
-                className="p-1 text-primary hover:text-primary/80 transition-colors"
-                title="Change Password"
-              >
-                <PencilIcon className="h-4 w-4" />
-              </button>
+              </div>
+            </div>
+            <div className="space-y-1 text-right">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">User</span>
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-sm font-mono truncate max-w-[100px]">
+                  {instance.username || (instance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (instance.hostname || 'root'))}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(instance.username || (instance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (instance.hostname || 'root')))}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  <ClipboardDocumentIcon className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Node:</span>
-            <span className="text-sm">{instance.node}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">OS Template:</span>
-            <span className="text-sm">{instance.os_template}</span>
-          </div>
-          {instance.rdp_enabled && (
+
+          <div className="pt-2 border-t border-border/50">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">RDP Status:</span>
-              <span className="text-sm">Enabled</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Password</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-sm font-mono">
+                  {showPassword[instance.id] ? (instance.root_password || 'Not set') : '••••••••'}
+                </span>
+                <button
+                  onClick={() => setShowPassword(prev => ({ ...prev, [instance.id]: !prev[instance.id] }))}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  {showPassword[instance.id] ? <EyeSlashIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+                </button>
+                {instance.root_password && (
+                  <button
+                    onClick={() => copyToClipboard(instance.root_password)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                  >
+                    <ClipboardDocumentIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => { setShowPasswordModal(instance); setNewPassword(''); }}
+                  className="p-1 rounded hover:bg-primary/10 text-primary transition-all"
+                  title="Change Password"
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* SSH Connection Command */}
-        <div className="p-3 bg-gray-900/50 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 flex items-center">
-              <CommandLineIcon className="h-4 w-4 mr-1" />
-              SSH Connection
+        <div className="p-3 bg-slate-950 rounded-xl border border-white/5 mb-4 group/ssh relative overflow-hidden">
+          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/ssh:opacity-100 transition-opacity" />
+          <div className="flex items-center justify-between mb-2 relative z-10">
+            <span className="text-[10px] font-bold text-primary/70 uppercase tracking-widest flex items-center">
+              <CommandLineIcon className="h-3 w-3 mr-1.5" />
+              SSH Command
             </span>
-            {connectionIP && (
+            {subdomain !== 'Generating...' && (
               <button
                 onClick={() => copyToClipboard(sshCommand)}
-                className="p-1 text-gray-400 hover:text-white transition-colors"
+                className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                title="Copy Command"
               >
-                <ClipboardDocumentIcon className="h-4 w-4" />
+                <ClipboardDocumentIcon className="h-3 w-3" />
               </button>
             )}
           </div>
-          <code className="text-xs text-primary font-mono break-all">
+          <code className="text-[11px] text-gray-300 font-mono break-all relative z-10 block pr-6">
             {sshCommand}
           </code>
         </div>
@@ -567,31 +533,28 @@ const VPSManagement = () => {
           <button
             onClick={() => handleAction(instance.id, 'start')}
             disabled={refreshing[instance.id] || instance.status === 'active' || instance.status === 'running'}
-            className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors disabled:opacity-50"
-            title="Start VM"
+            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all disabled:opacity-30 disabled:grayscale"
           >
-            <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-medium">Start</span>
+            <ArrowPathIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-bold uppercase tracking-tight">Start</span>
           </button>
 
           <button
             onClick={() => handleAction(instance.id, 'stop')}
             disabled={refreshing[instance.id] || instance.status === 'stopped' || instance.status === 'terminated'}
-            className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
-            title="Stop VM"
+            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all disabled:opacity-30 disabled:grayscale"
           >
-            <XCircleIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-medium">Stop</span>
+            <XCircleIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-bold uppercase tracking-tight">Stop</span>
           </button>
 
           <button
             onClick={() => handleAction(instance.id, 'reboot')}
             disabled={refreshing[instance.id]}
-            className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors disabled:opacity-50"
-            title="Reboot VM"
+            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/20 transition-all disabled:opacity-30 disabled:grayscale"
           >
-            <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-medium">Reboot</span>
+            <ArrowPathIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
+            <span className="text-[10px] font-bold uppercase tracking-tight">Reboot</span>
           </button>
         </div>
 
@@ -629,7 +592,7 @@ const VPSManagement = () => {
 
   const renderVPSList = (instance: VPSInstance) => {
     const StatusIcon = getStatusIcon(instance.status);
-    const connectionIP = getConnectionIP(instance);
+    const subdomain = getSubdomain(instance);
 
     return (
       <motion.div
@@ -645,7 +608,7 @@ const VPSManagement = () => {
             </div>
             <div>
               <h3 className="text-lg font-semibold">{instance.hostname || `VPS-${instance.vm_id}`}</h3>
-              <p className="text-sm text-muted-foreground">{instance.plan_name} • {instance.os_template} • {instance.node}</p>
+              <p className="text-sm text-muted-foreground">{instance.plan_name} • {instance.os_template}</p>
             </div>
           </div>
 
@@ -656,8 +619,8 @@ const VPSManagement = () => {
             </div>
 
             <div className="text-center">
-              <p className="text-xs text-muted-foreground">IP Address</p>
-              <p className="text-sm font-mono">{connectionIP || 'Pending'}</p>
+              <p className="text-xs text-muted-foreground">Subdomain</p>
+              <p className="text-sm font-mono">{subdomain}</p>
             </div>
 
             <div className="text-center">
@@ -845,7 +808,7 @@ const VPSManagement = () => {
           <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by hostname, VM ID, or IP address..."
+            placeholder="Search by hostname or VM ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg placeholder-muted-foreground focus:outline-none focus:border-primary"
@@ -941,20 +904,7 @@ const VPSManagement = () => {
                 </select>
               </div>
 
-              <div>
-                <label htmlFor="node-filter" className="block text-sm text-muted-foreground mb-2">Node</label>
-                <select
-                  id="node-filter"
-                  value={nodeFilter}
-                  onChange={(e) => setNodeFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:border-primary"
-                >
-                  <option value="all">All Nodes</option>
-                  {nodeOptions.map(node => (
-                    <option key={node} value={node}>{node}</option>
-                  ))}
-                </select>
-              </div>
+
 
               <div>
                 <label htmlFor="plan-filter" className="block text-sm text-muted-foreground mb-2">Plan</label>
@@ -1074,10 +1024,7 @@ const VPSManagement = () => {
                       <label htmlFor="detail-vmid" className="text-sm text-muted-foreground">VM ID</label>
                       <p id="detail-vmid" className="font-medium">{selectedInstance.vm_id}</p>
                     </div>
-                    <div>
-                      <label htmlFor="detail-node" className="text-sm text-muted-foreground">Node</label>
-                      <p id="detail-node" className="font-medium">{selectedInstance.node}</p>
-                    </div>
+
                   </div>
                 </div>
 
@@ -1113,12 +1060,12 @@ const VPSManagement = () => {
                   <h3 className="text-lg font-semibold mb-3">Connection Details</h3>
                   <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Connection IP:</span>
+                      <span className="text-muted-foreground">Subdomain:</span>
                       <div className="flex items-center space-x-2">
-                        <span className="font-mono">{getConnectionIP(selectedInstance) || 'Pending'}</span>
-                        {getConnectionIP(selectedInstance) && (
+                        <span className="font-mono">{getSubdomain(selectedInstance)}</span>
+                        {selectedInstance.dns_name && (
                           <button
-                            onClick={() => copyToClipboard(getConnectionIP(selectedInstance))}
+                            onClick={() => copyToClipboard(selectedInstance.dns_name || '')}
                             className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <ClipboardDocumentIcon className="h-4 w-4" />
@@ -1138,6 +1085,20 @@ const VPSManagement = () => {
                         </button>
                       </div>
                     </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Username:</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono">
+                              {selectedInstance.username || (selectedInstance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedInstance.hostname || 'root'))}
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(selectedInstance.username || (selectedInstance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedInstance.hostname || 'root')))}
+                              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <ClipboardDocumentIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Root Password:</span>
                       <div className="flex items-center space-x-2">
@@ -1177,7 +1138,7 @@ const VPSManagement = () => {
                     <code className="text-sm text-primary font-mono">
                       {getSSHCommand(selectedInstance)}
                     </code>
-                    {getConnectionIP(selectedInstance) && (
+                    {selectedInstance.dns_name && (
                       <button
                         onClick={() => copyToClipboard(getSSHCommand(selectedInstance))}
                         className="p-1 text-muted-foreground hover:text-foreground transition-colors"

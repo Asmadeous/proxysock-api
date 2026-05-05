@@ -34,6 +34,13 @@
         - name: Gather facts after connectivity verified
           setup:
 
+        - name: Wait for apt lock to be released
+          shell: |
+            while fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+              sleep 1
+            done
+          changed_when: false
+
         - name: Update package cache
           apt:
             update_cache: yes
@@ -89,6 +96,9 @@
           systemd:
             name: ssh
             enabled: yes
+
+        - name: Reset connection to use new ssh service
+          meta: reset_connection
 
         # Step 3 — now this actually takes effect
         - name: Configure SSH to use custom port

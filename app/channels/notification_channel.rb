@@ -14,6 +14,7 @@ class NotificationChannel < ApplicationCable::Channel
   end
 
   def unsubscribed
-    stop_all_streams
+    # Any custom cleanup logic can go here.
+    # Note: ActionCable automatically handles stop_all_streams on unsubscribe.
   end
 end

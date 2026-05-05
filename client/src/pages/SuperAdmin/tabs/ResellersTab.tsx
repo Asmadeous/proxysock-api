@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, TrashIcon, PlusIcon, CogIcon, EyeIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
-import { fetchResellers, createReseller, updateReseller, deleteReseller, onboardReseller, configureReseller, fetchResellerDetail } from "../../../services/adminApi";
+import { fetchResellers, createReseller, updateReseller, deleteReseller, configureReseller, fetchResellerDetail, revokeResellerTokens } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 import { getApiError } from "../../../utils/apiError";
 
@@ -132,12 +132,12 @@ export default function ResellersTab() {
         finally { setActionLoading(false); }
     };
 
-    const handleOnboard = async (id: string) => {
+    const handleRevokeTokens = async (id: string) => {
+        if (!confirm("Are you sure you want to revoke all active sessions for this reseller? They will be logged out everywhere.")) return;
         try {
-            const res = await onboardReseller(id);
-            toast.success(res.data.message);
-            load();
-        } catch (err) { toast.error(getApiError(err, "Failed to onboard reseller")); }
+            await revokeResellerTokens(id);
+            toast.success("Tokens revoked successfully");
+        } catch (err) { toast.error(getApiError(err, "Failed to revoke tokens")); }
     };
 
     const handleConfigure = async () => {
@@ -310,7 +310,9 @@ export default function ResellersTab() {
                         </button>
                         <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                         <button onClick={() => openConfig(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10" title="Configure"><CogIcon className="h-4 w-4" /></button>
-                        <button onClick={() => handleOnboard(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10" title="Onboard"><ArrowPathIcon className="h-4 w-4" /></button>
+                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                            <span className="text-xs font-medium">Access</span>
+                        </button>
                         <button onClick={() => setDeleteTarget(row)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                     </>
                 )}

@@ -46,12 +46,16 @@ export const fetchAdminUser = (id: number) =>
     adminApi.get(`/users/${id}`);
 export const updateAdminUser = (id: number, data: Record<string, unknown>) =>
     adminApi.patch(`/users/${id}`, data);
+export const createAdminUser = (data: Record<string, unknown>) =>
+    adminApi.post("/users", data);
 export const deleteAdminUser = (id: number) =>
     adminApi.delete(`/users/${id}`);
 export const onboardUser = (id: number) =>
     adminApi.post(`/users/${id}/onboard`);
 export const impersonateUser = (id: number) =>
     adminApi.post(`/users/${id}/impersonate`);
+export const revokeUserTokens = (id: number) =>
+    adminApi.post(`/users/${id}/revoke_tokens`);
 
 // ── Employees ─────────────────────────────────────
 export const fetchEmployees = (params?: Record<string, string>) =>
@@ -72,6 +76,8 @@ export const deleteEmployee = (id: number) =>
     adminApi.delete(`/employees/${id}`);
 export const assignTickets = (id: number, ticketIds: number[]) =>
     adminApi.post(`/employees/${id}/assign`, { ticket_ids: ticketIds });
+export const revokeEmployeeTokens = (id: number) =>
+    adminApi.post(`/employees/${id}/revoke_tokens`);
 
 // ── Products ───────────────────────────────────────
 export const fetchAdminProducts = () => adminApi.get("/products");
@@ -102,6 +108,8 @@ export const onboardReseller = (id: string | number) =>
     adminApi.post(`/resellers/${id}/onboard`);
 export const configureReseller = (id: string | number, data: Record<string, unknown>) =>
     adminApi.patch(`/resellers/${id}/configure`, data);
+export const revokeResellerTokens = (id: string | number) =>
+    adminApi.post(`/resellers/${id}/revoke_tokens`);
 
 // ── Orders ────────────────────────────────────────
 export const fetchAdminOrders = (params?: Record<string, string>) =>

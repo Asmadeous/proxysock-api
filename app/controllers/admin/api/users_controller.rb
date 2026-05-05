@@ -3,7 +3,7 @@
 module Admin
   module Api
     class UsersController < Admin::Api::BaseController
-      before_action :set_user, only: %i[show update destroy onboard impersonate]
+      before_action :set_user, only: %i[show update destroy onboard impersonate revoke_tokens]
 
       # GET /admin/api/users
       def index
@@ -25,6 +25,14 @@ module Admin
           page: page,
           per: per
         }
+      end
+
+      # POST /admin/api/users
+      def create
+        require_admin!
+        user = User.create!(user_params.merge(password: params[:password] || SecureRandom.hex(16)))
+        record_audit_log('user.created', user)
+        render json: user_json(user), status: :created
       end
 
       # GET /admin/api/users/:id
@@ -69,6 +77,14 @@ module Admin
         render json: { token: token, user: user_json(@user) }
       end
 
+      # POST /admin/api/users/:id/revoke_tokens
+      def revoke_tokens
+        require_admin!
+        @user.revoke_tokens!
+        record_audit_log('user.tokens_revoked', @user)
+        render json: { message: 'All active sessions and tokens for this user have been revoked.' }
+      end
+
       private
 
       def set_user
@@ -76,7 +92,7 @@ module Admin
       end
 
       def user_params
-        params.permit(:first_name, :last_name, :email, :status)
+        params.permit(:first_name, :last_name, :email, :status, :country_code, :city)
       end
 
       def user_json(u, full: false)
