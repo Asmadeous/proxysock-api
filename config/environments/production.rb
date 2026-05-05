@@ -56,8 +56,8 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Use Sidekiq (matches your docker-compose)
-  config.active_job.queue_adapter = :sidekiq
+  # Use Solid Queue (matches your docker-compose and deploy.yml)
+  config.active_job.queue_adapter = :solid_queue
 
   # Use SolidCache (standard Rails 8)
   config.cache_store = :solid_cache_store

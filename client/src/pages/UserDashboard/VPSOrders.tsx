@@ -723,33 +723,7 @@ ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 
                         Manuals
                       </Button>
 
-                      {(order.dns_name || order.ip_address) && order.status === 'active' && (
-                        <Button
-                          onClick={async () => {
-                            try {
-                              const response = await api.get(`/web/api/orders/${order.id}/download_rdp_config`, {
-                                responseType: 'blob'
-                              });
-                              const blob = new Blob([response.data], { type: 'application/rdp' });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `${order.hostname || 'RDP'}-${order.order_number}.rdp`;
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(url);
-                            } catch (error) {
-                              console.error('Failed to download RDP config:', error);
-                              downloadOrderDetails(order);
-                            }
-                          }}
-                          className="col-span-2 flex items-center justify-center gap-2 bg-primary/20 hover:bg-primary/30 text-primary border-none font-bold"
-                        >
-                          <Monitor className="h-4 w-4" />
-                          Download RDP Session (.rdp)
-                        </Button>
-                      )}
+
 
                       {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
                         <Button
