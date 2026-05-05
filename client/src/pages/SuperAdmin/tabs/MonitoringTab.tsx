@@ -178,15 +178,28 @@ export default function MonitoringTab() {
                     <BoltIcon className="h-5 w-5 text-yellow-500" />Service Health
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {(data?.services || []).map((svc: AnyObj) => (
-                        <div key={svc.name} className={`flex items-center gap-2 p-3 rounded-lg border ${svc.status === "healthy" ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
-                            {svc.status === "healthy" ? <CheckCircleIcon className="h-5 w-5 text-green-500 shrink-0" /> : <XCircleIcon className="h-5 w-5 text-destructive shrink-0" />}
-                            <div>
-                                <p className="text-sm font-medium text-foreground">{svc.name}</p>
-                                <p className="text-xs text-muted-foreground capitalize">{svc.status}</p>
+                    {(data?.services || []).map((svc: AnyObj) => {
+                        const isHealthy = svc.status === "healthy";
+                        const isWarning = svc.status === "warning";
+                        
+                        return (
+                            <div key={svc.name} 
+                                 title={svc.description || svc.details || ""}
+                                 className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
+                                     isHealthy ? "border-green-500/30 bg-green-500/5" : 
+                                     isWarning ? "border-yellow-500/30 bg-yellow-500/5" : 
+                                     "border-destructive/30 bg-destructive/5"
+                                 }`}>
+                                {isHealthy ? <CheckCircleIcon className="h-5 w-5 text-green-500 shrink-0" /> : 
+                                 isWarning ? <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 shrink-0" /> : 
+                                 <XCircleIcon className="h-5 w-5 text-destructive shrink-0" />}
+                                <div>
+                                    <p className="text-sm font-medium text-foreground">{svc.name}</p>
+                                    <p className="text-xs text-muted-foreground capitalize">{svc.status}</p>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
