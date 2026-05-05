@@ -38,8 +38,9 @@ Rails.application.configure do
     stdout_logger = ActiveSupport::Logger.new(STDOUT)
     stdout_logger.formatter = config.log_formatter
     
-    # Create File logger
-    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}.log"))
+    # Create File logger (unique per role if using shared volume)
+    log_suffix = ENV["SERVER_ROLE"].present? ? ".#{ENV["SERVER_ROLE"]}" : ""
+    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}#{log_suffix}.log"))
     file_logger.formatter = config.log_formatter
     
     # Broadcast to both
