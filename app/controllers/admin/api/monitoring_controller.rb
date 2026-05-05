@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'open3'
+require 'sidekiq/api'
 
 module Admin
   module Api
@@ -512,13 +513,28 @@ module Admin
         services = []
         services << check_service('Redis') { Redis.new(url: ENV['REDIS_URL']).ping == 'PONG' }
         services << check_service('Sidekiq') do
-          is_running = defined?(Sidekiq::Stats) && begin
-            Sidekiq::Stats.new.processes_size.positive?
-          rescue StandardError
+          redis_error = nil
+          process_count = 0
+          
+          redis_up = begin
+            # First check if we can connect at all
+            Sidekiq.redis { |c| c.ping == 'PONG' }
+            
+            # If so, get stats
+            stats = Sidekiq::Stats.new
+            process_count = stats.processes_size
+            true
+          rescue StandardError => e
+            redis_error = e.message
+            Rails.logger.error "[Monitoring] Sidekiq connection error: #{e.message}"
             false
           end
-          is_configured = ENV['REDIS_URL'].present?
-          is_running && is_configured
+
+          {
+            status: (redis_up && process_count.positive?) ? 'healthy' : (redis_up ? 'warning' : 'down'),
+            details: redis_up ? "#{process_count} active processes" : "Redis Error: #{redis_error}",
+            description: redis_up && process_count.zero? ? 'Sidekiq connected to Redis but no active processes found' : redis_error
+          }
         end
         services << check_service('Database') { ActiveRecord::Base.connection.active? }
         services << check_service('Prometheus') { defined?(PROMETHEUS_REGISTRY) }
@@ -672,12 +688,19 @@ module Admin
       end
 
       def check_service(name)
-        status = begin
+        result = begin
           yield
-        rescue StandardError
-          false
+        rescue StandardError => e
+          { status: 'down', details: e.message }
         end
-        { name: name, status: status ? 'healthy' : 'down', checked_at: Time.current.iso8601 }
+
+        base = { name: name, checked_at: Time.current.iso8601 }
+
+        if result.is_a?(Hash)
+          base.merge(result)
+        else
+          base.merge(status: result ? 'healthy' : 'down')
+        end
       end
 
       def proxmox_configured?
@@ -687,10 +710,12 @@ module Admin
       def proxmox_reachable?
         return false unless proxmox_configured?
 
-        svc = VmProvisioningService.new(nil, Rails.logger)
-        node = ENV['PROXMOX_NODE'] || 'pve'
-        result = svc.send(:proxmox_get, "/nodes/#{node}/status")
-        result['data'].present?
+        Timeout.timeout(2) do
+          svc = VmProvisioningService.new(nil, Rails.logger)
+          node = ENV['PROXMOX_NODE'] || 'pve'
+          result = svc.send(:proxmox_get, "/nodes/#{node}/status")
+          result['data'].present?
+        end
       rescue StandardError
         false
       end
