@@ -302,26 +302,54 @@ module Admin
         search = params[:search].to_s.strip
         source = params[:source] || 'rails'
 
-        log_file = case source
-                   when 'sidekiq' then Rails.root.join('log', 'sidekiq.log')
-                   else 
-                     # Try role-specific log first, then fallback to environment log
-                     role_log = Rails.root.join('log', "#{Rails.env}.web.log")
-                     File.exist?(role_log) ? role_log : Rails.root.join('log', "#{Rails.env}.log")
+        # Security: Use an explicit case statement with literal strings to satisfy Brakeman
+        log_file = case source.to_s
+                   when "sidekiq"
+                     # Try role-specific log first, then standard sidekiq.log
+                     role_log = Rails.root.join("log", "#{Rails.env}.sidekiq.log")
+                     File.exist?(role_log) ? role_log : Rails.root.join("log", "sidekiq.log")
+                   when "web"
+                     Rails.root.join("log", "#{Rails.env}.web.log")
+                   when "production"
+                     Rails.root.join("log", "production.log")
+                   when "development"
+                     Rails.root.join("log", "development.log")
+                   else
+                     Rails.root.join("log", "#{Rails.env}.log")
                    end
 
         unless File.exist?(log_file)
           return render json: { lines: [], total: 0, source: source, error: "Log file not found" }
         end
 
-        # Security check: Ensure log_file is within the log directory and is an allowed file
-        allowed_files = ["sidekiq.log", "#{Rails.env}.log", "#{Rails.env}.web.log", "#{Rails.env}.job.log"]
-        unless allowed_files.include?(log_file.basename.to_s) && log_file.to_s.start_with?(Rails.root.join('log').to_s)
-          return render json: { lines: [], total: 0, source: source, error: "Access denied" }
+        # Native Ruby implementation of tail to avoid Command Injection warnings
+        buffer_size = 1024 * 64 # 64KB chunks
+        raw_lines = []
+        
+        File.open(log_file, "r") do |f|
+          f.seek(0, IO::SEEK_END)
+          pos = f.pos
+          
+          while raw_lines.size <= lines && pos > 0
+            seek_pos = [0, pos - buffer_size].max
+            read_len = pos - seek_pos
+            f.seek(seek_pos, IO::SEEK_SET)
+            
+            chunk = f.read(read_len)
+            pos = seek_pos
+            
+            # Split and combine with previous results
+            chunk_lines = chunk.split("\n", -1)
+            if raw_lines.any? && !chunk.end_with?("\n")
+              # Join last chunk line with first raw_lines entry if not on boundary
+              raw_lines[0] = chunk_lines.pop + raw_lines[0]
+            end
+            raw_lines = chunk_lines + raw_lines
+          end
         end
-
-        stdout, _stderr, _status = Open3.capture3("tail", "-n", lines.to_s, log_file.to_s)
-        raw_lines = stdout.split("\n")
+        
+        # Take the requested number of lines from the end
+        raw_lines = raw_lines.last(lines + 1).reject(&:blank?)
 
         # Apply search filter
         if search.present?
@@ -361,9 +389,30 @@ module Admin
           return render json: { errors: [], total: 0, error: "Log file not found" }
         end
 
-        # Read last N lines and extract errors
-        stdout, _stderr, _status = Open3.capture3("tail", "-n", lines.to_s, log_file.to_s)
-        raw = stdout.split("\n")
+        # Native Ruby implementation of tail
+        buffer_size = 1024 * 64
+        raw = []
+        
+        File.open(log_file, "r") do |f|
+          f.seek(0, IO::SEEK_END)
+          pos = f.pos
+          
+          while raw.size <= lines && pos > 0
+            seek_pos = [0, pos - buffer_size].max
+            read_len = pos - seek_pos
+            f.seek(seek_pos, IO::SEEK_SET)
+            
+            chunk = f.read(read_len)
+            pos = seek_pos
+            
+            chunk_lines = chunk.split("\n", -1)
+            if raw.any? && !chunk.end_with?("\n")
+              raw[0] = chunk_lines.pop + raw[0]
+            end
+            raw = chunk_lines + raw
+          end
+        end
+        raw = raw.last(lines + 1).reject(&:blank?)
 
         errors = []
         current_error = nil

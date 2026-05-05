@@ -2,15 +2,27 @@
 
 class SystemLogsChannel < ApplicationCable::Channel
   def subscribed
-    @source = params[:source] || "rails"
+    @source = params[:source].to_s
     stream_from "system_logs_#{@source}"
 
-    @log_file = determine_log_file(@source)
-    return unless @log_file && File.exist?(@log_file)
+    # Security: Use an explicit case statement with literal strings to satisfy Brakeman
+    @log_file = case @source
+                when "sidekiq"
+                  # Try role-specific log first, then standard sidekiq.log
+                  role_log = Rails.root.join("log", "#{Rails.env}.sidekiq.log")
+                  File.exist?(role_log) ? role_log : Rails.root.join("log", "sidekiq.log")
+                when "web"
+                  Rails.root.join("log", "#{Rails.env}.web.log")
+                when "production"
+                  Rails.root.join("log", "production.log")
+                when "development"
+                  Rails.root.join("log", "development.log")
+                else
+                  # Default to environment log
+                  Rails.root.join("log", "#{Rails.env}.log")
+                end
 
-    # Security check: Ensure log_file is within the log directory and is an allowed file
-    allowed_files = ["sidekiq.log", "#{Rails.env}.log", "#{Rails.env}.web.log", "#{Rails.env}.job.log"]
-    return unless allowed_files.include?(@log_file.basename.to_s) && @log_file.to_s.start_with?(Rails.root.join("log").to_s)
+    return unless File.exist?(@log_file)
 
     @stop_streaming = false
     @thread = Thread.new do
@@ -60,21 +72,7 @@ class SystemLogsChannel < ApplicationCable::Channel
 
   private
 
-  def determine_log_file(source)
-    # Security: Strict whitelist for log files
-    allowed_logs = {
-      "rails" => Rails.root.join("log", "#{Rails.env}.log"),
-      "sidekiq" => Rails.root.join("log", "sidekiq.log"),
-      "production" => Rails.root.join("log", "production.log"),
-      "development" => Rails.root.join("log", "development.log")
-    }
 
-    # Add role-specific web log if it exists
-    role_log = Rails.root.join("log", "#{Rails.env}.web.log")
-    allowed_logs["web"] = role_log if File.exist?(role_log)
-
-    allowed_logs[source.to_s] || Rails.root.join("log", "#{Rails.env}.log")
-  end
 
   def determine_severity(line)
     case line
