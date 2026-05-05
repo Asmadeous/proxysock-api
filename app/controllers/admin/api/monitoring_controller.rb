@@ -304,7 +304,10 @@ module Admin
 
         log_file = case source
                    when 'sidekiq' then Rails.root.join('log', 'sidekiq.log')
-                   else Rails.root.join('log', "#{Rails.env}.log")
+                   else 
+                     # Try role-specific log first, then fallback to environment log
+                     role_log = Rails.root.join('log', "#{Rails.env}.web.log")
+                     File.exist?(role_log) ? role_log : Rails.root.join('log', "#{Rails.env}.log")
                    end
 
         unless File.exist?(log_file)
