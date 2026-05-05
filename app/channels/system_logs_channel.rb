@@ -6,20 +6,23 @@ class SystemLogsChannel < ApplicationCable::Channel
     stream_from "system_logs_#{@source}"
 
     # Security: Use an explicit case statement with literal strings to satisfy Brakeman
-    @log_file = case @source
-                when "sidekiq"
-                  # Try role-specific log first, then standard sidekiq.log
-                  role_log = Rails.root.join("log", "#{Rails.env}.sidekiq.log")
-                  File.exist?(role_log) ? role_log : Rails.root.join("log", "sidekiq.log")
-                when "web"
-                  Rails.root.join("log", "#{Rails.env}.web.log")
-                when "production"
-                  Rails.root.join("log", "production.log")
-                when "development"
-                  Rails.root.join("log", "development.log")
+    source_key = @source.to_s.downcase.strip
+    @log_file = case source_key
+                when 'sidekiq'
+                  # Try role-specific log, then standard sidekiq.log, then fallback to environment log
+                  role_log = Rails.root.join('log', "#{Rails.env}.sidekiq.log")
+                  if File.exist?(role_log)
+                    role_log
+                  else
+                    std_log = Rails.root.join('log', 'sidekiq.log')
+                    File.exist?(std_log) ? std_log : Rails.root.join('log', "#{Rails.env}.log")
+                  end
+                when 'web'
+                  role_log = Rails.root.join('log', "#{Rails.env}.web.log")
+                  File.exist?(role_log) ? role_log : Rails.root.join('log', "#{Rails.env}.log")
                 else
                   # Default to environment log
-                  Rails.root.join("log", "#{Rails.env}.log")
+                  Rails.root.join('log', "#{Rails.env}.log")
                 end
 
     return unless File.exist?(@log_file)
@@ -28,7 +31,7 @@ class SystemLogsChannel < ApplicationCable::Channel
     @thread = Thread.new do
       last_pos = File.size(@log_file)
 
-      while !@stop_streaming
+      until @stop_streaming
         sleep 1
         next unless File.exist?(@log_file)
 
@@ -47,10 +50,12 @@ class SystemLogsChannel < ApplicationCable::Channel
 
             # Convert raw lines to the format expected by the frontend
             lines = new_content.split("\n").reject(&:blank?).map do |line|
+              # Force UTF-8 and scrub invalid bytes
+              safe_line = line.to_s.force_encoding('UTF-8').scrub
               {
                 id: SecureRandom.uuid,
-                text: line,
-                severity: determine_severity(line)
+                text: safe_line,
+                severity: determine_severity(safe_line)
               }
             end
 
@@ -72,16 +77,14 @@ class SystemLogsChannel < ApplicationCable::Channel
 
   private
 
-
-
   def determine_severity(line)
     case line
-    when /ERROR|FATAL|exception|failed/i then "error"
-    when /WARN/i then "warn"
-    when /DEBUG/i then "info"
-    when /Started (GET|POST|PUT|PATCH|DELETE)/ then "request"
-    when /Completed \d+ \w+/ then "response"
-    else "info"
+    when /ERROR|FATAL|exception|failed/i then 'error'
+    when /WARN/i then 'warn'
+    when /DEBUG/i then 'info'
+    when /Started (GET|POST|PUT|PATCH|DELETE)/ then 'request'
+    when /Completed \d+ \w+/ then 'response'
+    else 'info'
     end
   end
 end
