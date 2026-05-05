@@ -128,6 +128,7 @@ module Admin
         if defined?(Sidekiq::RetrySet)
           Sidekiq::RetrySet.new.each do |job|
             next unless job.jid == jid
+
             job.retry
             found = true
             break
@@ -135,14 +136,13 @@ module Admin
         end
 
         # Search dead set
-        unless found
-          if defined?(Sidekiq::DeadSet)
-            Sidekiq::DeadSet.new.each do |job|
-              next unless job.jid == jid
-              job.retry
-              found = true
-              break
-            end
+        if !found && defined?(Sidekiq::DeadSet)
+          Sidekiq::DeadSet.new.each do |job|
+            next unless job.jid == jid
+
+            job.retry
+            found = true
+            break
           end
         end
 
@@ -165,8 +165,10 @@ module Admin
         # Search all sets
         [Sidekiq::RetrySet, Sidekiq::DeadSet, Sidekiq::ScheduledSet].each do |klass|
           next unless defined?(klass)
+
           klass.new.each do |job|
             next unless job.jid == jid
+
             job.delete
             found = true
             break
@@ -179,6 +181,7 @@ module Admin
           Sidekiq::Queue.all.each do |queue|
             queue.each do |job|
               next unless job.jid == jid
+
               job.delete
               found = true
               break
@@ -273,7 +276,7 @@ module Admin
         records = logs.offset((page - 1) * per).limit(per)
 
         render json: {
-          logs: records.map { |log|
+          logs: records.map do |log|
             {
               id: log.id,
               action: log.action,
@@ -285,7 +288,7 @@ module Admin
               object_changes: log.object_changes,
               created_at: log.created_at.iso8601
             }
-          },
+          end,
           total: total,
           page: page,
           per: per
@@ -303,53 +306,37 @@ module Admin
         source = params[:source] || 'rails'
 
         # Security: Use an explicit case statement with literal strings to satisfy Brakeman
-        log_file = case source.to_s
-                   when "sidekiq"
-                     # Try role-specific log first, then standard sidekiq.log
-                     role_log = Rails.root.join("log", "#{Rails.env}.sidekiq.log")
-                     File.exist?(role_log) ? role_log : Rails.root.join("log", "sidekiq.log")
-                   when "web"
-                     Rails.root.join("log", "#{Rails.env}.web.log")
-                   when "production"
-                     Rails.root.join("log", "production.log")
-                   when "development"
-                     Rails.root.join("log", "development.log")
+        source_key = source.to_s.downcase.strip
+        log_file = case source_key
+                   when 'sidekiq', 'job'
+                     # Try role-specific logs (.job or .sidekiq), then standard sidekiq.log, then fallback to production.log
+                     role_log_job = Rails.root.join('log', "#{Rails.env}.job.log")
+                     role_log_sidekiq = Rails.root.join('log', "#{Rails.env}.sidekiq.log")
+
+                     if File.exist?(role_log_job)
+                       role_log_job
+                     elsif File.exist?(role_log_sidekiq)
+                       role_log_sidekiq
+                     elsif File.exist?(Rails.root.join('log', 'sidekiq.log'))
+                       Rails.root.join('log', 'sidekiq.log')
+                     else
+                       # Final fallback for Docker/Consolidated environments
+                       Rails.root.join('log', "#{Rails.env}.log")
+                     end
+                   when 'web'
+                     role_log = Rails.root.join('log', "#{Rails.env}.web.log")
+                     File.exist?(role_log) ? role_log : Rails.root.join('log', "#{Rails.env}.log")
                    else
-                     Rails.root.join("log", "#{Rails.env}.log")
+                     # Default to environment log
+                     Rails.root.join('log', "#{Rails.env}.log")
                    end
 
         unless File.exist?(log_file)
-          return render json: { lines: [], total: 0, source: source, error: "Log file not found" }
+          return render json: { lines: [], total: 0, source: source, error: 'Log file not found' }
         end
 
-        # Native Ruby implementation of tail to avoid Command Injection warnings
-        buffer_size = 1024 * 64 # 64KB chunks
-        raw_lines = []
-        
-        File.open(log_file, "r") do |f|
-          f.seek(0, IO::SEEK_END)
-          pos = f.pos
-          
-          while raw_lines.size <= lines && pos > 0
-            seek_pos = [0, pos - buffer_size].max
-            read_len = pos - seek_pos
-            f.seek(seek_pos, IO::SEEK_SET)
-            
-            chunk = f.read(read_len)
-            pos = seek_pos
-            
-            # Split and combine with previous results
-            chunk_lines = chunk.split("\n", -1)
-            if raw_lines.any? && !chunk.end_with?("\n")
-              # Join last chunk line with first raw_lines entry if not on boundary
-              raw_lines[0] = chunk_lines.pop + raw_lines[0]
-            end
-            raw_lines = chunk_lines + raw_lines
-          end
-        end
-        
-        # Take the requested number of lines from the end
-        raw_lines = raw_lines.last(lines + 1).reject(&:blank?)
+        # Use native Ruby helper to read last N lines safely
+        raw_lines = read_last_lines(log_file, lines)
 
         # Apply search filter
         if search.present?
@@ -358,21 +345,24 @@ module Admin
 
         # Parse lines with timestamps and severity
         parsed = raw_lines.map.with_index do |line, idx|
-          severity = if line.match?(/\b(FATAL|fatal)\b/)
+          # Force UTF-8 and scrub invalid sequences to prevent JSON encoding warnings
+          safe_line = line.to_s.force_encoding('UTF-8').scrub
+
+          severity = if safe_line.match?(/\b(FATAL|fatal)\b/)
                        'fatal'
-                     elsif line.match?(/\b(ERROR|error)\b/i) && !line.match?(/error_logs|error_class|error_message/)
+                     elsif safe_line.match?(/\b(ERROR|error)\b/i) && !safe_line.match?(/error_logs|error_class|error_message/)
                        'error'
-                     elsif line.match?(/\b(WARN|warn)\b/i)
+                     elsif safe_line.match?(/\b(WARN|warn)\b/i)
                        'warn'
-                     elsif line.match?(/\bStarted\b/)
+                     elsif safe_line.match?(/\bStarted\b/)
                        'request'
-                     elsif line.match?(/\bCompleted\b/)
+                     elsif safe_line.match?(/\bCompleted\b/)
                        'response'
                      else
                        'info'
                      end
 
-          { id: idx, text: line, severity: severity }
+          { id: idx, text: safe_line, severity: severity }
         end
 
         render json: { lines: parsed, total: parsed.size, source: source, file: log_file.to_s }
@@ -386,47 +376,28 @@ module Admin
         log_file = Rails.root.join('log', "#{Rails.env}.log")
 
         unless File.exist?(log_file)
-          return render json: { errors: [], total: 0, error: "Log file not found" }
+          return render json: { errors: [], total: 0, error: 'Log file not found' }
         end
 
-        # Native Ruby implementation of tail
-        buffer_size = 1024 * 64
-        raw = []
-        
-        File.open(log_file, "r") do |f|
-          f.seek(0, IO::SEEK_END)
-          pos = f.pos
-          
-          while raw.size <= lines && pos > 0
-            seek_pos = [0, pos - buffer_size].max
-            read_len = pos - seek_pos
-            f.seek(seek_pos, IO::SEEK_SET)
-            
-            chunk = f.read(read_len)
-            pos = seek_pos
-            
-            chunk_lines = chunk.split("\n", -1)
-            if raw.any? && !chunk.end_with?("\n")
-              raw[0] = chunk_lines.pop + raw[0]
-            end
-            raw = chunk_lines + raw
-          end
-        end
-        raw = raw.last(lines + 1).reject(&:blank?)
+        # Use native Ruby helper to read last N lines safely
+        raw = read_last_lines(log_file, lines)
 
         errors = []
         current_error = nil
 
         raw.each do |line|
-          if line.match?(/\b(ERROR|FATAL|error|fatal)\b/) && !line.match?(/error_logs|error_class|error_message/)
+          # Force UTF-8 and scrub invalid sequences
+          safe_line = line.to_s.force_encoding('UTF-8').scrub
+
+          if safe_line.match?(/\b(ERROR|FATAL|error|fatal)\b/) && !safe_line.match?(/error_logs|error_class|error_message/)
             # Start new error block
             if current_error
               errors << current_error
             end
-            current_error = { message: line, trace: [], timestamp: extract_timestamp(line) }
-          elsif current_error && (line.match?(/^\s+/) || line.match?(/^from /))
+            current_error = { message: safe_line, trace: [], timestamp: extract_timestamp(safe_line) }
+          elsif current_error && (safe_line.match?(/^\s+/) || safe_line.match?(/^from /))
             # Continuation of stack trace
-            current_error[:trace] << line.strip
+            current_error[:trace] << safe_line.strip
           elsif current_error
             errors << current_error
             current_error = nil
@@ -484,18 +455,26 @@ module Admin
       def job_metrics
         if defined?(Sidekiq::Stats)
           stats = Sidekiq::Stats.new
-          processes = Sidekiq::ProcessSet.new rescue []
+          processes = begin
+            Sidekiq::ProcessSet.new
+          rescue StandardError
+            []
+          end
           {
             enqueued: stats.enqueued,
             processed: stats.processed,
             failed: stats.failed,
             retry_size: stats.retry_size,
             scheduled_size: stats.scheduled_size,
-            dead_size: (Sidekiq::DeadSet.new.size rescue 0),
+            dead_size: begin
+              Sidekiq::DeadSet.new.size
+            rescue StandardError
+              0
+            end,
             workers_size: stats.workers_size,
             processes_count: processes.size,
             default_queue_latency: stats.default_queue_latency.round(2),
-            processes: processes.map { |p|
+            processes: processes.map do |p|
               {
                 hostname: p['hostname'],
                 pid: p['pid'],
@@ -505,7 +484,7 @@ module Admin
                 busy: p['busy'],
                 tag: p['tag']
               }
-            }
+            end
           }
         else
           { message: 'Sidekiq not available' }
@@ -533,7 +512,11 @@ module Admin
         services = []
         services << check_service('Redis') { Redis.new(url: ENV['REDIS_URL']).ping == 'PONG' }
         services << check_service('Sidekiq') do
-          is_running = defined?(Sidekiq::Stats) && (Sidekiq::Stats.new.processes_size.positive? rescue false)
+          is_running = defined?(Sidekiq::Stats) && begin
+            Sidekiq::Stats.new.processes_size.positive?
+          rescue StandardError
+            false
+          end
           is_configured = ENV['REDIS_URL'].present?
           is_running && is_configured
         end
@@ -594,7 +577,11 @@ module Admin
           info[:container_id] = cpuset.split('/').last if cpuset.include?('docker')
         end
         # Hostname (typically container name)
-        info[:hostname] = Socket.gethostname rescue 'unknown'
+        info[:hostname] = begin
+          Socket.gethostname
+        rescue StandardError
+          'unknown'
+        end
         # Memory limit (cgroup v2 or v1)
         cgroup_mem = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
         cgroup_mem_v2 = '/sys/fs/cgroup/memory.max'
@@ -611,11 +598,11 @@ module Admin
         cpu_max_v2 = '/sys/fs/cgroup/cpu.max'
         if File.exist?(cpu_max_v2)
           parts = File.read(cpu_max_v2).strip.split
-          info[:cpu_limit] = parts[0] == 'max' ? 'unlimited' : (parts[0].to_f / parts[1].to_f).round(2)
+          info[:cpu_limit] = parts[0] == 'max' ? 'unlimited' : (parts[0].to_f / parts[1]).round(2)
         elsif File.exist?(cpu_quota) && File.exist?(cpu_period)
           quota = File.read(cpu_quota).strip.to_i
           period = File.read(cpu_period).strip.to_i
-          info[:cpu_limit] = quota < 0 ? 'unlimited' : (quota.to_f / period).round(2)
+          info[:cpu_limit] = quota.negative? ? 'unlimited' : (quota.to_f / period).round(2)
         end
         info[:running_in_docker] = File.exist?('/.dockerenv')
         info
@@ -630,11 +617,23 @@ module Admin
         node = ENV['PROXMOX_NODE'] || 'pve'
 
         # Node status
-        node_status = svc.send(:proxmox_get, "/nodes/#{node}/status")['data'] rescue {}
+        node_status = begin
+          svc.send(:proxmox_get, "/nodes/#{node}/status")['data']
+        rescue StandardError
+          {}
+        end
         # Node Storage
-        storage = svc.send(:proxmox_get, "/nodes/#{node}/storage")['data'] rescue []
+        storage = begin
+          svc.send(:proxmox_get, "/nodes/#{node}/storage")['data']
+        rescue StandardError
+          []
+        end
         # Running VMs
-        qemu = svc.send(:proxmox_get, "/nodes/#{node}/qemu")['data'] rescue []
+        qemu = begin
+          svc.send(:proxmox_get, "/nodes/#{node}/qemu")['data']
+        rescue StandardError
+          []
+        end
 
         cpu_info = node_status['cpuinfo'] || {}
         memory = node_status['memory'] || {}
@@ -647,23 +646,23 @@ module Admin
           cpu_cores: cpu_info['cores'],
           cpu_sockets: cpu_info['sockets'],
           cpu_usage: node_status['cpu'] ? (node_status['cpu'] * 100).round(1) : nil,
-          memory_total_gb: memory['total'] ? (memory['total'] / 1073741824.0).round(1) : nil,
-          memory_used_gb: memory['used'] ? (memory['used'] / 1073741824.0).round(1) : nil,
-          memory_free_gb: memory['free'] ? (memory['free'] / 1073741824.0).round(1) : nil,
+          memory_total_gb: memory['total'] ? (memory['total'] / 1_073_741_824.0).round(1) : nil,
+          memory_used_gb: memory['used'] ? (memory['used'] / 1_073_741_824.0).round(1) : nil,
+          memory_free_gb: memory['free'] ? (memory['free'] / 1_073_741_824.0).round(1) : nil,
           kernel_version: node_status['kversion'],
           pve_version: node_status['pveversion'],
-          storage: storage.map { |s|
+          storage: storage.map do |s|
             {
               name: s['storage'],
               type: s['type'],
-              total_gb: s['total'] ? (s['total'] / 1073741824.0).round(1) : nil,
-              used_gb: s['used'] ? (s['used'] / 1073741824.0).round(1) : nil,
-              available_gb: s['avail'] ? (s['avail'] / 1073741824.0).round(1) : nil,
-              usage_pct: s['total'] && s['total'] > 0 ? ((s['used'].to_f / s['total']) * 100).round(1) : 0,
+              total_gb: s['total'] ? (s['total'] / 1_073_741_824.0).round(1) : nil,
+              used_gb: s['used'] ? (s['used'] / 1_073_741_824.0).round(1) : nil,
+              available_gb: s['avail'] ? (s['avail'] / 1_073_741_824.0).round(1) : nil,
+              usage_pct: s['total']&.positive? ? ((s['used'].to_f / s['total']) * 100).round(1) : 0,
               active: s['active'] == 1,
               enabled: s['enabled'] == 1
             }
-          },
+          end,
           vms_running: qemu.count { |v| v['status'] == 'running' },
           vms_stopped: qemu.count { |v| v['status'] == 'stopped' },
           vms_total: qemu.size
@@ -687,6 +686,7 @@ module Admin
 
       def proxmox_reachable?
         return false unless proxmox_configured?
+
         svc = VmProvisioningService.new(nil, Rails.logger)
         node = ENV['PROXMOX_NODE'] || 'pve'
         result = svc.send(:proxmox_get, "/nodes/#{node}/status")
@@ -726,6 +726,7 @@ module Admin
       def disk_usage
         output = `df -h / 2>/dev/null`.split("\n").last
         return {} unless output
+
         parts = output.split
         { total: parts[1], used: parts[2], available: parts[3], usage_pct: parts[4] }
       rescue StandardError
@@ -779,6 +780,41 @@ module Admin
         }
       rescue StandardError
         { jid: 'unknown', klass: 'unknown' }
+      end
+
+      def read_last_lines(file_path, count, buffer_size = 65_536)
+        raw_lines = []
+        File.open(file_path, 'r') do |f|
+          f.seek(0, IO::SEEK_END)
+          pos = f.pos
+          while raw_lines.size <= count && pos.positive?
+            seek_pos = [0, pos - buffer_size].max
+            read_len = pos - seek_pos
+            f.seek(seek_pos, IO::SEEK_SET)
+            chunk = f.read(read_len)
+            pos = seek_pos
+            chunk_lines = chunk.split("\n", -1)
+            raw_lines[0] = chunk_lines.pop + raw_lines[0] if raw_lines.any? && !chunk.end_with?("\n")
+            raw_lines = chunk_lines + raw_lines
+          end
+        end
+        raw_lines.last(count + 1).reject(&:blank?)
+      end
+
+      def determine_log_severity(line)
+        if line.match?(/\b(FATAL|fatal)\b/)
+          'fatal'
+        elsif line.match?(/\b(ERROR|error)\b/i) && !line.match?(/error_logs|error_class|error_message/)
+          'error'
+        elsif line.match?(/\b(WARN|warn)\b/i)
+          'warn'
+        elsif line.match?(/\bStarted\b/)
+          'request'
+        elsif line.match?(/\bCompleted\b/)
+          'response'
+        else
+          'info'
+        end
       end
     end
   end
