@@ -201,6 +201,7 @@
               win_service:
                 name: TermService
                 state: restarted
+                force_dependent_services: yes
               ignore_errors: yes
           tags: rdp
         

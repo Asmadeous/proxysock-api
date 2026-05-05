@@ -311,7 +311,13 @@ module Admin
                    end
 
         unless File.exist?(log_file)
-          return render json: { lines: [], total: 0, source: source, error: "Log file not found: #{log_file}" }
+          return render json: { lines: [], total: 0, source: source, error: "Log file not found" }
+        end
+
+        # Security check: Ensure log_file is within the log directory and is an allowed file
+        allowed_files = ["sidekiq.log", "#{Rails.env}.log", "#{Rails.env}.web.log", "#{Rails.env}.job.log"]
+        unless allowed_files.include?(log_file.basename.to_s) && log_file.to_s.start_with?(Rails.root.join('log').to_s)
+          return render json: { lines: [], total: 0, source: source, error: "Access denied" }
         end
 
         stdout, _stderr, _status = Open3.capture3("tail", "-n", lines.to_s, log_file.to_s)

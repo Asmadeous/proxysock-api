@@ -424,17 +424,19 @@ const VPSManagement = () => {
 
         {/* Connection Details Panel */}
         <div className="bg-muted/30 rounded-xl p-4 mb-4 border border-border/50 space-y-3">
-          <div className="flex items-center justify-between group">
+          <div className="space-y-1.5 group">
             <div className="flex items-center gap-2">
               <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subdomain</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-mono font-medium">{instance.dns_name || 'Generating...'}</span>
+            <div className="flex items-center gap-2 w-full bg-background/50 rounded-lg p-2 border border-border/30">
+              <span className="text-sm font-mono font-medium truncate flex-1" title={instance.dns_name}>
+                {instance.dns_name || 'Generating...'}
+              </span>
               {instance.dns_name && (
                 <button
                   onClick={() => copyToClipboard(instance.dns_name!)}
-                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0"
                   title="Copy Subdomain"
                 >
                   <ClipboardDocumentIcon className="h-3.5 w-3.5" />
@@ -442,7 +444,7 @@ const VPSManagement = () => {
               )}
             </div>
           </div>
-
+  
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Port</span>
