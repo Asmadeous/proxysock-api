@@ -4,7 +4,7 @@ module Admin
   module Api
     class EmployeesController < Admin::Api::BaseController
       before_action :require_admin!, only: %i[create destroy]
-      before_action :set_employee, only: %i[show update destroy assign]
+      before_action :set_employee, only: %i[show update destroy assign revoke_tokens]
 
       # GET /admin/api/employees
       def index
@@ -81,6 +81,14 @@ module Admin
           record_audit_log('employee.assigned_tickets', @employee, { ticket_ids: params[:ticket_ids] })
         end
         render json: { message: "Assigned #{params[:ticket_ids]&.length || 0} tickets to #{@employee.full_name}" }
+      end
+
+      # POST /admin/api/employees/:id/revoke_tokens
+      def revoke_tokens
+        require_admin!
+        @employee.revoke_tokens!
+        record_audit_log('employee.tokens_revoked', @employee)
+        render json: { message: 'All active sessions and tokens for this employee have been revoked.' }
       end
 
       private

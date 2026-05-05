@@ -22,6 +22,7 @@ interface VPSInstance {
     ram_gb: number;
     storage_gb: number;
     ip_address: string;
+    dns_name?: string;
     proxmox_public_ip: string;
     hostname: string;
     os_template: string;
@@ -117,8 +118,8 @@ export default function ResVPSManagement() {
 
                         <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono relative group">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">IP:</span>
-                                <span>{vps.proxmox_public_ip || vps.ip_address}</span>
+                                <span className="text-muted-foreground">Subdomain:</span>
+                                <span>{vps.dns_name || 'Generating...'}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Password:</span>

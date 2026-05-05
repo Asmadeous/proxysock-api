@@ -19,9 +19,10 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
-import { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
-import { toast } from "react-hot-toast";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
+import api, { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
+import { toast } from "react-hot-toast";
 
 interface RDPInstance {
   id: string | number;
@@ -34,6 +35,7 @@ interface RDPInstance {
   ram_gb: number;
   storage_gb: number;
   ip_address: string;
+  dns_name?: string;
   proxmox_public_ip: string;
   hostname: string;
   os_template: string;
@@ -55,6 +57,9 @@ interface RDPInstance {
   created_at: string;
   plan_name?: string;
   monthly_cost?: number;
+  auto_renew?: boolean;
+  renewal_method?: string;
+  order_id?: string;
 }
 
 interface RDPFiltersProps {
@@ -86,7 +91,7 @@ const RDPFilters = ({
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by hostname, IP, VM ID, node, or username..."
+          placeholder="Search by hostname, VM ID, or username..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -150,6 +155,8 @@ interface RDPInstanceCardProps {
   downloadRDPFile: (id: string) => Promise<void>;
   downloadingRDP: string | null;
   onShowPasswordModal: (instance: RDPInstance) => void;
+  setSelectedInstance: (instance: RDPInstance | null) => void;
+  setSubscriptionModalInstance: (instance: RDPInstance | null) => void;
   loadingStats?: Record<string, boolean>;
 }
 
@@ -165,6 +172,8 @@ const RDPInstanceCard = ({
   handleAction,
   refreshing,
   onShowPasswordModal: _onShowPasswordModal,
+  setSelectedInstance,
+  setSubscriptionModalInstance,
   loadingStats = {},
 }: RDPInstanceCardProps & { handleAction: (id: string | number, action: any) => Promise<void>, refreshing: Record<string, boolean> }) => {
   const StatusIcon = getStatusIcon(instance.status);
@@ -191,198 +200,202 @@ const RDPInstanceCard = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="flex items-center space-x-2">
-          <CpuChipIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.cpu_cores} vCPU</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <CircleStackIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.ram_gb} GB RAM</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <CloudIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.storage_gb} GB SSD</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.node}</span>
-        </div>
-      </div>
-
+      {/* Resources & Usage Section */}
       <div className="space-y-3 mb-4">
-        {loadingStats[instance.id] ? (
-          <div className="space-y-3 py-1">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-1">
-                <div className="flex justify-between">
-                  <div className="h-3 w-16 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-8 bg-muted animate-pulse rounded" />
+        {/* Specs Grid */}
+        <div className="grid grid-cols-3 gap-2 p-3 bg-muted/20 rounded-xl border border-border/50">
+          <div className="flex flex-col items-center justify-center py-1">
+            <CpuChipIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">CPU</span>
+            <span className="text-xs font-mono">{instance.cpu_cores}vC</span>
+          </div>
+          <div className="flex flex-col items-center justify-center py-1 border-x border-border/30">
+            <CircleStackIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">RAM</span>
+            <span className="text-xs font-mono">{instance.ram_gb}GB</span>
+          </div>
+          <div className="flex flex-col items-center justify-center py-1">
+            <CloudIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">SSD</span>
+            <span className="text-xs font-mono">{instance.storage_gb}GB</span>
+          </div>
+        </div>
+
+        {/* Real-time Usage (Full Width) */}
+        <div className="space-y-3 p-3 bg-muted/20 rounded-xl border border-border/50">
+          {loadingStats[instance.id] ? (
+            <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                  <span>CPU</span>
+                  <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
                 </div>
-                <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
+                <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
+                    className={`h-full transition-all ${(instance.resource_usage?.cpu_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                  />
+                </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>CPU Usage</span>
-                <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>RAM Usage</span>
-                <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
-                />
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                  <span>RAM</span>
+                  <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
+                    className={`h-full transition-all ${(instance.resource_usage?.ram_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                  />
+                </div>
               </div>
             </div>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Active Sessions</span>
-                <span>{instance.active_sessions}/{instance.concurrent_users}</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (instance.active_sessions / instance.concurrent_users) * 100)}%` }}
-                />
-              </div>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
-      <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">IP Address:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">{instance.ip_address || 'Pending'}</span>
-            {instance.ip_address && (
-              <button
-                onClick={() => copyToClipboard(instance.ip_address)}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-              </button>
-            )}
+        {/* Connection Details Panel */}
+        <div className="bg-muted/30 rounded-xl p-4 mb-4 border border-border/50 space-y-3">
+          <div className="flex items-center justify-between group">
+            <div className="flex items-center gap-2">
+              <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subdomain</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-mono font-medium">{instance.dns_name || 'Generating...'}</span>
+              {instance.dns_name && (
+                <button
+                  onClick={() => copyToClipboard(instance.dns_name!)}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                  title="Copy Subdomain"
+                >
+                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">RDP Port</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono">{instance.rdp_port || 3389}</span>
+                <button
+                  onClick={() => copyToClipboard((instance.rdp_port || 3389).toString())}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  <ClipboardDocumentIcon className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1 text-right">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">User</span>
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-sm font-mono truncate max-w-[100px]">{instance.rdp_username || 'Administrator'}</span>
+                <button
+                  onClick={() => copyToClipboard(instance.rdp_username || 'Administrator')}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  <ClipboardDocumentIcon className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Password</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-sm font-mono">
+                  {showPassword[instance.id.toString()] ? instance.rdp_password : '••••••••'}
+                </span>
+                <button
+                  onClick={() => setShowPassword(prev => ({ ...prev, [instance.id.toString()]: !prev[instance.id.toString()] }))}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  onClick={() => copyToClipboard(instance.rdp_password || '')}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
+                >
+                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">RDP Port:</span>
-          <span className="text-sm font-mono">{instance.rdp_port || 3389}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Username:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">{instance.rdp_username}</span>
+
+        {/* Control Actions & Main Call to Action */}
+        <div className="flex flex-col gap-3 mb-4">
+          <button
+            onClick={() => downloadRDPFile(instance.id.toString())}
+            disabled={downloadingRDP === instance.id || instance.status !== 'active' || !instance.dns_name}
+            className="w-full flex items-center justify-center px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 disabled:opacity-50 disabled:grayscale font-bold uppercase tracking-wider text-xs"
+          >
+            <DocumentArrowDownIcon className={`h-4 w-4 mr-2 ${downloadingRDP === instance.id ? 'animate-pulse' : ''}`} />
+            {downloadingRDP === instance.id ? 'Generating...' : 'Download RDP Session'}
+          </button>
+
+          <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={() => copyToClipboard(instance.rdp_username)}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => handleAction(instance.id, 'start')}
+              disabled={refreshing[instance.id] || ['active', 'running', 'starting'].includes(instance.status)}
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all disabled:opacity-30 disabled:grayscale"
             >
-              <ClipboardDocumentIcon className="h-4 w-4" />
+              <ArrowPathIcon className={`h-3.5 w-3.5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Start</span>
+            </button>
+
+            <button
+              onClick={() => handleAction(instance.id, 'stop')}
+              disabled={refreshing[instance.id] || ['stopped', 'terminated', 'stopping'].includes(instance.status)}
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all disabled:opacity-30 disabled:grayscale"
+            >
+              <XCircleIcon className={`h-3.5 w-3.5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Stop</span>
+            </button>
+
+            <button
+              onClick={() => handleAction(instance.id, 'reboot')}
+              disabled={refreshing[instance.id] || instance.status === 'rebooting'}
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/20 transition-all disabled:opacity-30 disabled:grayscale"
+            >
+              <ArrowPathIcon className={`h-3.5 w-3.5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Reboot</span>
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Password:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">
-              {showPassword[instance.id.toString()] ? instance.rdp_password : '••••••••'}
-            </span>
-            <button
-              onClick={() => setShowPassword(prev => ({
-                ...prev,
-                [instance.id.toString()]: !prev[instance.id.toString()]
-              }))}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={() => copyToClipboard(instance.rdp_password)}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ClipboardDocumentIcon className="h-4 w-4" />
-            </button>
-          </div>
+
+        {/* Instance Info Button */}
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => setSelectedInstance(instance)}
+            className="flex-1 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors flex items-center justify-center text-sm font-medium"
+          >
+            <EyeIcon className="h-4 w-4 mr-2" />
+            Details
+          </button>
+          <button
+            onClick={() => {
+              setSubscriptionModalInstance(instance);
+            }}
+            className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors flex items-center justify-center text-sm font-medium"
+            title="Manage Subscription"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+          </button>
         </div>
-      </div>
 
-      {/* Control Actions */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <button
-          onClick={() => handleAction(instance.id, 'start')}
-          disabled={refreshing[instance.id] || ['active', 'running', 'starting'].includes(instance.status)}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors disabled:opacity-50"
-          title="Start VM"
-        >
-          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Start</span>
-        </button>
-
-        <button
-          onClick={() => handleAction(instance.id, 'stop')}
-          disabled={refreshing[instance.id] || ['stopped', 'terminated', 'stopping'].includes(instance.status)}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
-          title="Stop VM"
-        >
-          <XCircleIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Stop</span>
-        </button>
-
-        <button
-          onClick={() => handleAction(instance.id, 'reboot')}
-          disabled={refreshing[instance.id] || instance.status === 'rebooting'}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors disabled:opacity-50"
-          title="Reboot VM"
-        >
-          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Reboot</span>
-        </button>
-      </div>
-
-      <button
-        onClick={() => downloadRDPFile(instance.id.toString())}
-        disabled={downloadingRDP === instance.id || instance.status !== 'active' || !instance.ip_address}
-        className="w-full flex items-center justify-center px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <DocumentArrowDownIcon className={`h-5 w-5 mr-2 ${downloadingRDP === instance.id ? 'animate-pulse' : ''}`} />
-        {downloadingRDP === instance.id ? 'Generating...' : 'Download RDP File'}
-      </button>
-
-      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-        <div className="text-xs text-muted-foreground mb-2">Quick Connect:</div>
-        <div className="space-y-1 text-xs">
-          <div className="text-foreground">
-            <span className="text-muted-foreground">Host:</span>
-            <span className="font-mono ml-1">
-              {instance.ip_address || 'Pending'}:{instance.rdp_port || 3389}
-            </span>
-          </div>
-          <div className="text-foreground">
-            <span className="text-muted-foreground">User:</span>
-            <span className="font-mono ml-1">{instance.rdp_username}</span>
-          </div>
+        {/* Billing Info */}
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Monthly Cost: <span className="text-primary font-semibold">${instance.monthly_cost || 'N/A'}</span></span>
+          <span>Expires: {instance.expires_at ? new Date(instance.expires_at).toLocaleDateString() : 'N/A'}</span>
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Monthly Cost: <span className="text-primary font-semibold">${instance.monthly_cost || 'N/A'}</span></span>
-        <span>Expires: {instance.expires_at ? new Date(instance.expires_at).toLocaleDateString() : 'N/A'}</span>
-      </div>
     </motion.div>
   );
 };
@@ -395,6 +408,8 @@ interface RDPInstanceDetailsModalProps {
   setShowPassword: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   copyToClipboard: (text: string) => void;
   onShowPasswordModal: (instance: RDPInstance) => void;
+  setSubscriptionModalInstance: (instance: RDPInstance | null) => void;
+  refreshing: Record<string, boolean>;
 }
 
 const RDPInstanceDetailsModal = ({
@@ -404,7 +419,7 @@ const RDPInstanceDetailsModal = ({
   showPassword,
   setShowPassword,
   copyToClipboard,
-  onShowPasswordModal
+  onShowPasswordModal,
 }: RDPInstanceDetailsModalProps) => (
   <AnimatePresence>
     {instance && (
@@ -451,7 +466,6 @@ const RDPInstanceDetailsModal = ({
                 <div className="flex justify-between"><span className="text-muted-foreground">RAM:</span><span className="text-foreground">{instance.ram_gb} GB</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Storage:</span><span className="text-foreground">{instance.storage_gb} GB SSD</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Operating System:</span><span className="text-foreground">{instance.os_template}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Node:</span><span className="text-foreground">{instance.node}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Service Type:</span><span className="text-foreground capitalize">{instance.service_type}</span></div>
               </div>
             </div>
@@ -463,11 +477,14 @@ const RDPInstanceDetailsModal = ({
               </h3>
               <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">IP Address:</span>
+                  <span className="text-gray-400">Subdomain:</span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-white font-mono">{instance.ip_address || 'Pending'}</span>
-                    {instance.ip_address && (
-                      <button onClick={() => copyToClipboard(instance.ip_address)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <span className="text-white font-mono">{instance.dns_name || 'Generating...'}</span>
+                    {instance.dns_name && (
+                      <button
+                        onClick={() => copyToClipboard(instance.dns_name!)}
+                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                      >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     )}
@@ -478,7 +495,7 @@ const RDPInstanceDetailsModal = ({
                   <span className="text-gray-400">Username:</span>
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-mono">{instance.rdp_username}</span>
-                    <button onClick={() => copyToClipboard(instance.rdp_username)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <button onClick={() => copyToClipboard(instance.rdp_username || 'Administrator')} className="p-1 text-gray-400 hover:text-white transition-colors">
                       <ClipboardDocumentIcon className="h-4 w-4" />
                     </button>
                   </div>
@@ -490,7 +507,7 @@ const RDPInstanceDetailsModal = ({
                     <button onClick={() => setShowPassword(prev => ({ ...prev, [instance.id.toString()]: !prev[instance.id.toString()] }))} className="p-1 text-gray-400 hover:text-white transition-colors">
                       {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                     </button>
-                    <button onClick={() => copyToClipboard(instance.rdp_password)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <button onClick={() => copyToClipboard(instance.rdp_password || '')} className="p-1 text-gray-400 hover:text-white transition-colors">
                       <ClipboardDocumentIcon className="h-4 w-4" />
                     </button>
                     <button
@@ -534,6 +551,7 @@ const RDPManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
+  const [subscriptionModalInstance, setSubscriptionModalInstance] = useState<RDPInstance | null>(null);
   const { accessToken } = useAuth();
 
   useEffect(() => {
@@ -550,9 +568,7 @@ const RDPManagement = () => {
     if (searchTerm) {
       filtered = filtered.filter(instance =>
         instance.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.ip_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         instance.vm_id.toString().includes(searchTerm) ||
-        instance.node?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         instance.rdp_username?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -671,7 +687,7 @@ disable menu anims:i:1
 disable themes:i:0
 disable cursor setting:i:0
 bitmapcachepersistenable:i:1
-full address:s:${instance.ip_address}:${instance.rdp_port || 3389}
+full address:s:${instance.dns_name || 'subdomain.pending'}:${instance.rdp_port || 3389}
 audiomode:i:0
 redirectprinters:i:1
 redirectcomports:i:0
@@ -921,6 +937,8 @@ username:s:${instance.rdp_username}`;
               handleAction={handleAction}
               refreshing={refreshing}
               onShowPasswordModal={setShowPasswordModal}
+              setSelectedInstance={setSelectedInstance}
+              setSubscriptionModalInstance={setSubscriptionModalInstance}
               loadingStats={loadingStats}
             />
           ))}
@@ -933,8 +951,21 @@ username:s:${instance.rdp_username}`;
         getStatusTextColor={getStatusTextColor}
         showPassword={showPassword}
         setShowPassword={setShowPassword}
+        refreshing={refreshing}
         copyToClipboard={copyToClipboard}
         onShowPasswordModal={setShowPasswordModal}
+        setSubscriptionModalInstance={setSubscriptionModalInstance}
+      />
+      {/* Subscription Management Modal */}
+      <ManageSubscriptionModal
+        isOpen={!!subscriptionModalInstance}
+        onClose={() => setSubscriptionModalInstance(null)}
+        orderId={subscriptionModalInstance?.order_id || ''}
+        autoRenew={!!subscriptionModalInstance?.auto_renew}
+        renewalMethod={subscriptionModalInstance?.renewal_method || 'wallet'}
+        expiresAt={subscriptionModalInstance?.expires_at || ''}
+        onUpdate={loadRDPInstances}
+        api={api}
       />
     </div>
   );

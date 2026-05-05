@@ -69,7 +69,8 @@ class RedditPixelTracker {
 
   private async sendToConversionsAPI(eventData: any) {
     try {
-      const response = await fetch(`${import.meta.env.VITE_RAILS_API_URL}/analytics/reddit-capi`, {
+      const apiHost = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, '');
+      const response = await fetch(`${apiHost}/analytics/reddit-capi`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
