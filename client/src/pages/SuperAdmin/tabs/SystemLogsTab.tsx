@@ -83,7 +83,6 @@ function SystemLogPanel() {
     const [logFile, setLogFile] = useState("");
     const [autoRefresh, setAutoRefresh] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [isPolling, setIsPolling] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -201,12 +200,9 @@ function SystemLogPanel() {
 
             {/* Log Output */}
             <div className="bg-[#0d1117] rounded-xl border border-border overflow-hidden">
-                <div 
-                    ref={scrollRef}
-                    className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0 scroll-smooth"
-                >
-                    {loading && !isPolling ? (
-                        <div className="flex justify-center py-12">
+                <div className="flex-1 overflow-auto bg-[#0d1117] relative scroll-smooth" ref={scrollRef}>
+                    {loading ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-10">
                             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
                         </div>
                     ) : lines.length === 0 ? (

@@ -61,12 +61,19 @@ class SystemLogsChannel < ApplicationCable::Channel
   private
 
   def determine_log_file(source)
-    if source == "sidekiq"
-      Rails.root.join("log", "sidekiq.log")
-    else
-      role_log = Rails.root.join("log", "#{Rails.env}.web.log")
-      File.exist?(role_log) ? role_log : Rails.root.join("log", "#{Rails.env}.log")
-    end
+    # Security: Strict whitelist for log files
+    allowed_logs = {
+      "rails" => Rails.root.join("log", "#{Rails.env}.log"),
+      "sidekiq" => Rails.root.join("log", "sidekiq.log"),
+      "production" => Rails.root.join("log", "production.log"),
+      "development" => Rails.root.join("log", "development.log")
+    }
+
+    # Add role-specific web log if it exists
+    role_log = Rails.root.join("log", "#{Rails.env}.web.log")
+    allowed_logs["web"] = role_log if File.exist?(role_log)
+
+    allowed_logs[source.to_s] || Rails.root.join("log", "#{Rails.env}.log")
   end
 
   def determine_severity(line)
