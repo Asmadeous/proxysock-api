@@ -21,7 +21,6 @@ import {
   Wifi,
   Shield,
   Zap,
-  Monitor,
   FileText,
   ArrowLeft,
 } from "lucide-react";
