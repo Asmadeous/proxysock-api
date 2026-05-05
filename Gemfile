@@ -20,7 +20,6 @@ gem 'tzinfo-data', platforms: %i[windows jruby]
 # Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
 gem 'solid_cable'
 gem 'solid_cache'
-gem 'solid_queue'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', require: false
@@ -43,6 +42,7 @@ gem 'jwt'
 gem 'kaminari'
 gem 'redis'
 gem 'sidekiq'
+gem 'sidekiq-cron', '~> 2.3'
 
 # OAuth/SSO
 gem 'omniauth'
@@ -68,7 +68,7 @@ group :development, :test do
   gem 'rubocop-rails-omakase', require: false
 end
 
-gem 'sidekiq-cron', '~> 2.3'
+
 
 gem 'mocha', '~> 3.0', group: :test
 

@@ -25,7 +25,3 @@ proxmox_backup:
 vm_garbage_collection:
   cron: "0 3 * * *"    # Every day at 3 AM
   class: "VmGarbageCollectionJob"
-
-# vm_health_check:
-#   cron: "*/30 * * * *"  # Every 30 minutes
-#   class: "VmHealthCheckJob"

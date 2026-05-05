@@ -31,8 +31,8 @@ module ProxysockApi
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
-    # Use Solid Queue for background jobs
-    config.active_job.queue_adapter = :solid_queue
+    # Use Sidekiq for background jobs
+    config.active_job.queue_adapter = :sidekiq
     
     # Ensure jobs are enqueued ONLY after the database transaction commits
     # This prevents RecordNotFound errors in background jobs.
