@@ -47,6 +47,7 @@ class VmProvisioningJob < ApplicationJob
       ip_address: result[:ip_address],
       rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
       ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
+      rdp_username: result[:protocol] == 'rdp' ? result[:username] : nil,
       ssh_username: result[:username] || vm.hostname,
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],

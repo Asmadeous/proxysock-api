@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
     DocumentTextIcon, ServerIcon,
     ArrowPathIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon,
@@ -8,6 +8,7 @@ import {
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { fetchAuditLogs, fetchSystemLogs, fetchErrorLogs } from "../../../services/adminApi";
+import { getCableConsumer } from "../../../services/cable";
 import { toast } from "react-hot-toast";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,6 +82,8 @@ function SystemLogPanel() {
     const [lineCount, setLineCount] = useState("200");
     const [logFile, setLogFile] = useState("");
     const [autoRefresh, setAutoRefresh] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [isPolling, setIsPolling] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -100,11 +103,37 @@ function SystemLogPanel() {
 
     useEffect(() => { load(); }, [load]);
 
+    // WebSocket subscription for live mode
     useEffect(() => {
         if (!autoRefresh) return;
-        const interval = setInterval(load, 5000);
-        return () => clearInterval(interval);
-    }, [autoRefresh, load]);
+
+        const consumer = getCableConsumer();
+        const subscription = consumer.subscriptions.create(
+            { channel: "SystemLogsChannel", source },
+            {
+                received: (data: { lines: AnyObj[] }) => {
+                    if (data.lines && data.lines.length > 0) {
+                        setLines(prev => {
+                            const newLines = [...prev, ...data.lines];
+                            // Keep only the requested number of lines
+                            return newLines.slice(-parseInt(lineCount));
+                        });
+                    }
+                }
+            }
+        );
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [autoRefresh, source, lineCount]);
+
+    // Auto-scroll to bottom in live mode
+    useEffect(() => {
+        if (autoRefresh && scrollRef.current && !loading) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [lines, autoRefresh, loading]);
 
     return (
         <div className="space-y-3">
@@ -155,7 +184,7 @@ function SystemLogPanel() {
                     {autoRefresh ? "● Live" : "○ Live"}
                 </button>
                 <button
-                    onClick={load}
+                    onClick={() => load()}
                     disabled={loading}
                     className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition"
                 >
@@ -172,8 +201,11 @@ function SystemLogPanel() {
 
             {/* Log Output */}
             <div className="bg-[#0d1117] rounded-xl border border-border overflow-hidden">
-                <div className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0">
-                    {loading ? (
+                <div 
+                    ref={scrollRef}
+                    className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0 scroll-smooth"
+                >
+                    {loading && !isPolling ? (
                         <div className="flex justify-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
                         </div>
