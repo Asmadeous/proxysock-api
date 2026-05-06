@@ -22,6 +22,7 @@ import {
   Phone,
   Filter,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -738,54 +739,82 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex-1 gap-2 border-primary/30 hover:bg-primary/5"
-                      >
-                        <QrCode className="h-4 w-4" />
-                        Details
-                      </Button>
+                      {(order.status === "delivered" || order.status === "allocated") && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSelectedOrder(order)}
+                            className="flex-1 gap-2 border-primary/30 hover:bg-primary/5"
+                          >
+                            <QrCode className="h-4 w-4" />
+                            Details
+                          </Button>
 
-                      {order.reorderable && (
-                        <Button
-                          onClick={() => handleReorder(order.id)}
-                          className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          Top-up
-                        </Button>
+                          {order.reorderable && (
+                            <Button
+                              onClick={() => handleReorder(order.id)}
+                              className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              Top-up
+                            </Button>
+                          )}
+
+                          {hasProfiles && (
+                            <Button
+                              onClick={() => downloadOrderDetails(order)}
+                              className="flex-1 gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download
+                            </Button>
+                          )}
+                        </>
                       )}
 
-                      {hasProfiles && (
-                        <Button
-                          onClick={() => downloadOrderDetails(order)}
-                          className="flex-1 gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Download
-                        </Button>
-                      )}
-
-                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+                      {order.status === "pending" && (
                         <Button
                           variant="outline"
-                          onClick={() => handleWalletRefund(order)}
-                          className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                          disabled={refundingOrderId === order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className="flex-1 gap-2 border-primary/30 hover:bg-primary/5"
                         >
-                          <DollarSign className="h-4 w-4" />
-                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                          <QrCode className="h-4 w-4" />
+                          Details
                         </Button>
                       )}
-                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => setRefundDialogOrderId(order.id)}
-                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                          Refund
-                        </Button>
+
+                      {(order.status === "failed" || order.status === "cancelled") && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            className="flex-1 gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Open Ticket
+                          </Button>
+                          
+                          {order.payment_method === "wallet" && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleWalletRefund(order)}
+                              className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                              disabled={refundingOrderId === order.id}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              {refundingOrderId === order.id ? "Refunding..." : "Wallet Refund"}
+                            </Button>
+                          )}
+                          {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                            <Button
+                              variant="destructive"
+                              onClick={() => setRefundDialogOrderId(order.id)}
+                              className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              Refund
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </CardContent>

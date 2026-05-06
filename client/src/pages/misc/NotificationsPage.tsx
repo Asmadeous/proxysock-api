@@ -178,53 +178,108 @@ export default function NotificationsPage() {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {filteredNotifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className={cn(
-                                        "flex gap-4 py-4 px-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer -mx-2",
-                                        !notification.read && "bg-primary/5"
-                                    )}
-                                    onClick={() => {
-                                        if (!notification.read) {
-                                            markAsRead(notification.id);
-                                        }
-                                    }}
-                                >
-                                    {/* Category badge */}
-                                    <div
-                                        className={cn(
-                                            "flex-shrink-0 w-3 h-3 rounded-full mt-2",
-                                            categoryColors[notification.category] || "bg-gray-500"
-                                        )}
-                                    />
+                            {filteredNotifications.map((notification) => {
+                                // Determine navigation target based on category and metadata
+                                const getNotificationLink = (): string | null => {
+                                    const meta = notification.metadata || {};
+                                    const path = window.location.pathname;
+                                    const isAdmin = path.startsWith('/admin') || path.startsWith('/sadmin');
+                                    const isReseller = path.startsWith('/reseller');
 
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
-                                                <p className="font-semibold">{notification.title}</p>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {categoryLabels[notification.category] || notification.category}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                {!notification.read && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium bg-primary text-white rounded-full">
-                                                        New
+                                    // Use metadata link if explicitly provided
+                                    if (meta.link) return meta.link;
+                                    if (meta.url) return meta.url;
+
+                                    // Category-based routing
+                                    const cat = notification.category;
+                                    const title = notification.title?.toLowerCase() || "";
+                                    const msg = notification.message?.toLowerCase() || "";
+
+                                    if (cat === "order" || title.includes("order")) {
+                                        if (isAdmin) return null; // Admin clicks go to Orders tab (handled by tab system)
+                                        if (isReseller) return "/reseller/orders";
+                                        return "/dashboard/orders";
+                                    }
+                                    if (title.includes("ticket")) {
+                                        if (isAdmin) return null;
+                                        if (isReseller) return "/reseller/tickets";
+                                        return "/dashboard/tickets";
+                                    }
+                                    if (title.includes("transaction") || title.includes("payment") || title.includes("deposit") || title.includes("refund")) {
+                                        if (isAdmin) return null;
+                                        if (isReseller) return "/reseller/wallet";
+                                        return "/dashboard/transactions";
+                                    }
+                                    if (title.includes("vm") || title.includes("vps") || msg.includes("vm") || msg.includes("vps")) {
+                                        if (isReseller) return "/reseller/orders";
+                                        return "/dashboard/products";
+                                    }
+                                    if (title.includes("esim") || msg.includes("esim")) {
+                                        if (isReseller) return "/reseller/orders";
+                                        return "/dashboard/products";
+                                    }
+                                    return null;
+                                };
+
+                                const link = getNotificationLink();
+
+                                return (
+                                    <div
+                                        key={notification.id}
+                                        className={cn(
+                                            "flex gap-4 py-4 px-2 rounded-lg transition-colors -mx-2 group",
+                                            !notification.read && "bg-primary/5",
+                                            link ? "cursor-pointer hover:bg-muted/50" : "cursor-default"
+                                        )}
+                                        onClick={() => {
+                                            if (!notification.read) {
+                                                markAsRead(notification.id);
+                                            }
+                                            if (link) {
+                                                window.location.href = link;
+                                            }
+                                        }}
+                                    >
+                                        {/* Category badge */}
+                                        <div
+                                            className={cn(
+                                                "flex-shrink-0 w-3 h-3 rounded-full mt-2",
+                                                categoryColors[notification.category] || "bg-gray-500"
+                                            )}
+                                        />
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="font-semibold">{notification.title}</p>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {categoryLabels[notification.category] || notification.category}
                                                     </span>
-                                                )}
-                                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                                    {formatDate(notification.created_at)}
-                                                </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {!notification.read && (
+                                                        <span className="px-2 py-0.5 text-xs font-medium bg-primary text-white rounded-full">
+                                                            New
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                        {formatDate(notification.created_at)}
+                                                    </span>
+                                                </div>
                                             </div>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {notification.message}
+                                            </p>
+                                            {link && (
+                                                <span className="text-xs text-primary font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                    View details →
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-sm text-muted-foreground mt-2">
-                                            {notification.message}
-                                        </p>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>

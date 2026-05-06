@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_03_071642) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_05_224406) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -141,6 +141,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_03_071642) do
   end
 
   create_table "billing_histories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount_due"
+    t.decimal "amount_paid"
     t.uuid "billable_id"
     t.string "billable_type", default: "Reseller"
     t.date "billing_period_end"
@@ -149,6 +151,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_03_071642) do
     t.string "currency"
     t.datetime "generated_at"
     t.decimal "net_revenue"
+    t.string "status"
     t.integer "total_orders"
     t.decimal "total_refunds"
     t.decimal "total_revenue"
@@ -819,6 +822,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_03_071642) do
     t.integer "token_version", default: 1, null: false
     t.datetime "updated_at", null: false
     t.string "username"
+    t.decimal "withdrawable_profit"
     t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"

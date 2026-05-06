@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe OrderProvisioningService do
-  let(:user) { User.create!(username: 'prov_user', email: 'prov@test.com', first_name: 'P', last_name: 'U', password: 'password123') }
+  let(:user) { User.create!(username: 'prov_user', email: 'prov@test.com', first_name: 'P', last_name: 'U', password: 'password123', country_code: 'US', city: 'New York') }
   let(:wallet) { user.wallet }
   let(:category) { ProductCategory.create!(name: 'Proxies', slug: 'proxies') }
   let(:product) { Product.create!(name: 'Proxy', product_type: 'proxy', provider: 'myproxyapi', product_category: category, available_to: 'both') }
@@ -30,7 +30,12 @@ RSpec.describe OrderProvisioningService do
           service.process!
         end.to change { wallet.reload.balance.to_f }.from(100.0).to(85.0)
 
-        expect(order.reload.status).to eq('processing') # aasm state machine usually moves to processing then completed
+        expect(order.reload.status).to eq('processing')
+
+        # Verify transaction has correct gateway
+        txn = Transaction.find_by(reference: order)
+        expect(txn).not_to be_nil
+        expect(txn.payment_gateway).to eq('wallet')
       end
     end
 

@@ -195,6 +195,8 @@ export const replyToTicket = (id: number, message: string) =>
     adminApi.post(`/tickets/${id}/reply`, { message });
 export const rescueTicketOrder = (id: number) =>
     adminApi.post(`/tickets/${id}/rescue_order`);
+export const updateTicketStatus = (id: number, status: string) =>
+    adminApi.put(`/tickets/${id}`, { ticket: { status } });
 
 // ── Analytics ─────────────────────────────────────
 export const fetchDashboardAnalytics = (params?: Record<string, string>) =>
@@ -265,6 +267,8 @@ export const fetchSystemLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/system_logs", { params });
 export const fetchErrorLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/error_logs", { params });
+export const fetchAdminSummaryCounts = () =>
+    adminApi.get("/monitoring/summary_counts").then(res => res.data);
 
 // ── Transactions (Admin) ──────────────────────────
 export const fetchAdminTransactions = (params?: Record<string, string>) =>

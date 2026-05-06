@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HomeIcon,
@@ -20,7 +20,7 @@ import {
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
-import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
+import { fetchAdminNotifications, markAdminNotificationsAsRead, fetchAdminSummaryCounts } from "../../services/adminApi";
 import { Loader2 } from "lucide-react";
 import { formatImageUrl } from "../../services/api";
 
@@ -89,6 +89,23 @@ const TAB_COMPONENTS: Record<string, any> = {
   logs: SystemLogsTab,
 };
 
+// Tabs that can have "unseen" events
+const BADGE_TABS = ["orders", "tickets", "affiliates", "support_chats", "guest_chats", "monitoring"] as const;
+
+// localStorage key for tracking when admin last viewed each tab
+const SEEN_KEY = "admin_tab_seen";
+
+function getSeenTimestamps(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}");
+  } catch { return {}; }
+}
+
+function markTabSeen(tabId: string) {
+  const seen = getSeenTimestamps();
+  seen[tabId] = Date.now();
+  localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+}
 
 const TabLoader = () => (
   <div className="flex h-[60vh] w-full items-center justify-center">
@@ -96,77 +113,158 @@ const TabLoader = () => (
   </div>
 );
 
+
 export default function SuperAdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
-  const navigate = useNavigate();
+const [activeTab, setActiveTab] = useState("overview");
+const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
+const [counts, setCounts] = useState<any>({});
+// Track which tabs have been "seen" — red dot disappears on visit
+const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
+const navigate = useNavigate();
 
-  // Auth check & Storage sync
-  useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      navigate("/admin/login");
-    }
+// Determine if a tab has unseen activity
+const hasUnseen = useCallback((tabId: string, count: number): boolean => {
+  if (count <= 0) return false;
+  // If the tab is currently active, it's been seen
+  if (seenTabs[tabId]) return false;
+  return true;
+}, [seenTabs]);
 
-    const handleUpdate = () => {
-      setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
-    };
+// Fetch summary counts periodically
+useEffect(() => {
+const loadCounts = async () => {
+  try {
+    const data = await fetchAdminSummaryCounts();
+    setCounts(data);
+  } catch (e) {
+    console.error("Failed to load summary counts", e);
+  }
+};
 
-    window.addEventListener("storage", handleUpdate);
-    window.addEventListener("admin-user-updated", handleUpdate);
-    return () => {
-      window.removeEventListener("storage", handleUpdate);
-      window.removeEventListener("admin-user-updated", handleUpdate);
-    };
-  }, [navigate]);
+loadCounts();
+const interval = setInterval(loadCounts, 30000); // Every 30s
+return () => clearInterval(interval);
+}, []);
 
-  const userName = adminUser.full_name || adminUser.email || "Admin";
-  const userRole = adminUser.role || "admin";
+// When activeTab changes, mark it as "seen"
+useEffect(() => {
+  markTabSeen(activeTab);
+  setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
+}, [activeTab]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    navigate("/admin/login");
-  };
+// When counts change, reset "seen" for tabs that have NEW activity
+useEffect(() => {
+  const newSeenState: Record<string, boolean> = {};
 
-  const ActiveComponent = TAB_COMPONENTS[activeTab] || OverviewTab;
+  // For each badge tab, check if the admin has viewed it since the data existed
+  // If the count is > 0 and they haven't visited, it's unseen
+  for (const tabId of BADGE_TABS) {
+    newSeenState[tabId] = tabId === activeTab; // Currently active = seen
+  }
 
-  // Extend sidebar items with logout
-  const allItems: SidebarItem[] = [
-    ...sidebarItems,
-    { id: "logout", name: "Logout", icon: ArrowRightOnRectangleIcon },
-  ];
+  setSeenTabs(prev => ({ ...prev, ...newSeenState }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [counts]);
 
-  const handleTabChange = (id: string) => {
-    if (id === "logout") {
-      handleLogout();
-      return;
-    }
-    setActiveTab(id);
-  };
+// Auth check & Storage sync
+useEffect(() => {
+const token = localStorage.getItem("adminToken");
+if (!token) {
+  navigate("/admin/login");
+}
 
-  return (
-    <div className="min-h-screen flex">
-      <AdminSidebar
-        items={allItems}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        title="SuperAdmin"
-        userName={userName}
-        userRole={userRole}
-        profilePictureUrl={formatImageUrl(adminUser.profile_picture_url)}
-        fetchNotifications={fetchAdminNotifications}
-        markNotificationsAsRead={markAdminNotificationsAsRead}
-      />
+const handleUpdate = () => {
+  setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
+};
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
-          <Suspense fallback={<TabLoader />}>
-            <ActiveComponent />
-          </Suspense>
-        </div>
-      </main>
+window.addEventListener("storage", handleUpdate);
+window.addEventListener("admin-user-updated", handleUpdate);
+return () => {
+  window.removeEventListener("storage", handleUpdate);
+  window.removeEventListener("admin-user-updated", handleUpdate);
+};
+}, [navigate]);
+
+const userName = adminUser.full_name || adminUser.email || "Admin";
+const userRole = adminUser.role || "admin";
+
+const handleLogout = () => {
+localStorage.removeItem("adminToken");
+localStorage.removeItem("adminUser");
+navigate("/admin/login");
+};
+
+const ActiveComponent = TAB_COMPONENTS[activeTab] || OverviewTab;
+
+// Dynamic sidebar items with badges/counts — red dot only for UNSEEN events
+const dynamicItems = sidebarItems.map(item => {
+const newItem = { ...item };
+
+// Map counts to tabs
+const tabCount = (() => {
+  switch (item.id) {
+    case "orders": return counts.orders || 0;
+    case "tickets": return counts.tickets || 0;
+    case "affiliates": return counts.payouts || 0;
+    case "support_chats": return counts.support_chats || 0;
+    case "guest_chats": return counts.guest_chats || 0;
+    default: return 0;
+  }
+})();
+
+if (tabCount > 0) {
+  newItem.count = tabCount;
+  // Only show red dot if this tab hasn't been visited yet
+  if (hasUnseen(item.id, tabCount)) {
+    newItem.badge = "!";
+  }
+}
+
+// Dead jobs always show red dot — this is a critical system alert
+if (item.id === "monitoring" && counts.dead_jobs > 0) {
+  newItem.badge = "!";
+  newItem.count = counts.dead_jobs;
+}
+
+return newItem;
+});
+
+// Extend sidebar items with logout
+const allItems: SidebarItem[] = [
+...dynamicItems,
+{ id: "logout", name: "Logout", icon: ArrowRightOnRectangleIcon },
+];
+
+const handleTabChange = (id: string) => {
+if (id === "logout") {
+  handleLogout();
+  return;
+}
+setActiveTab(id);
+};
+
+return (
+<div className="min-h-screen flex">
+  <AdminSidebar
+    items={allItems}
+    activeTab={activeTab}
+    onTabChange={handleTabChange}
+    title="SuperAdmin"
+    userName={userName}
+    userRole={userRole}
+    profilePictureUrl={formatImageUrl(adminUser.profile_picture_url)}
+    fetchNotifications={fetchAdminNotifications}
+    markNotificationsAsRead={markAdminNotificationsAsRead}
+  />
+
+  {/* Main Content */}
+  <main className="flex-1 overflow-hidden">
+    <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
+      <Suspense fallback={<TabLoader />}>
+        <ActiveComponent />
+      </Suspense>
     </div>
-  );
+  </main>
+</div>
+);
 }

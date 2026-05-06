@@ -32,6 +32,7 @@ const Contact = lazy(() => import("./pages/public/Contact"));
 const HowToConnect = lazy(() => import("./pages/public/HowToConnect"));
 const CookiePolicy = lazy(() => import("./pages/public/CookiePolicy"));
 const IPChecker = lazy(() => import("./pages/public/IPChecker"));
+const AffiliateProgram = lazy(() => import("./pages/public/AffiliateProgram"));
 const BlogPage = lazy(() => import("./pages/public/BlogPage"));
 const BlogPostPage = lazy(() => import("./pages/public/BlogPostPage"));
 const Privacy = lazy(() => import("./pages/public/Privacy"));
@@ -78,7 +79,7 @@ const VPSOrders = lazy(() => import("./pages/UserDashboard/VPSOrders"));
 const RDPOrders = lazy(() => import("./pages/UserDashboard/RDPOrders"));
 const VPNOrders = lazy(() => import("./pages/UserDashboard/VPNOrders"));
 const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
-const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
+const SupportHub = lazy(() => import("./pages/UserDashboard/SupportHub"));
 const ProductManagement = lazy(() => import("./pages/UserDashboard/ProductsManagement"));
 const ProxyManagement = lazy(() => import("./pages/UserDashboard/ProxyManagement"));
 const VPSManagement = lazy(() => import("./pages/UserDashboard/VPSManagement"));
@@ -156,6 +157,7 @@ export default function App() {
                 <Route path="/esim" element={<ESIMPage />} />
                 <Route path="/vpn" element={<VPNPage />} />
                 <Route path="/reseller-program" element={<ResellerProgram />} />
+                <Route path="/affiliate-program" element={<AffiliateProgram />} />
                 <Route path="/locations" element={<Locations />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/faq" element={<Faq />} />
@@ -210,7 +212,7 @@ export default function App() {
 
                   {/* Support */}
                   <Route path="tickets" element={<Tickets />} />
-                  <Route path="support" element={<SupportChat />} />
+                  <Route path="support" element={<SupportHub />} />
 
                   {/* Management */}
                   <Route path="products" element={<ProductManagement />} />

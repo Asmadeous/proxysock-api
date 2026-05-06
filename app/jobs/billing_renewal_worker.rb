@@ -218,6 +218,7 @@ class BillingRenewalWorker < ApplicationJob
             transaction_type: 'credit',
             status: 'success',
             currency: 'USD',
+            payment_gateway: method,
             description: "Auto-Renewal Gateway Funding (#{method.capitalize})",
             metadata: { 
               gateway: method, 

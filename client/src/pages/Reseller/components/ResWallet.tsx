@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
-import { AlertCircle, TrendingUp, ShieldCheckIcon, CreditCard, Clock, CheckCircle2, Bitcoin } from "lucide-react";
+import { AlertCircle, TrendingUp, ShieldCheckIcon, Clock, CheckCircle2 } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -344,7 +344,9 @@ export default function ResWallet() {
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "paystack" ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${paymentGateway === "paystack" ? "bg-primary/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "paystack" ? "text-primary" : "text-muted-foreground"}`} /></div>
+                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
+                                                <img src="/paystack.png" alt="Paystack" className="w-full h-full object-contain" />
+                                            </div>
                                             <div>
                                                 <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
                                                 <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (NGN)</p>
@@ -374,7 +376,9 @@ export default function ResWallet() {
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "hundredpay" ? "border-purple-500 bg-purple-500/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${paymentGateway === "hundredpay" ? "bg-purple-500/10" : "bg-muted"}`}><CreditCard className={`w-5 h-5 ${paymentGateway === "hundredpay" ? "text-purple-600" : "text-muted-foreground"}`} /></div>
+                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
+                                                <img src="/100pay.png" alt="100Pay" className="w-full h-full object-contain" />
+                                            </div>
                                             <div>
                                                 <p className="font-black text-sm uppercase tracking-tight">100Pay (Card & Crypto)</p>
                                                 <p className="text-[10px] font-medium text-muted-foreground">Global Payment Hub (USD)</p>
@@ -389,7 +393,9 @@ export default function ResWallet() {
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "plisio" ? "border-orange-500 bg-orange-500/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${paymentGateway === "plisio" ? "bg-orange-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "plisio" ? "text-orange-600" : "text-muted-foreground"}`} /></div>
+                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
+                                                <img src="/plisio.webp" alt="Plisio" className="w-full h-full object-contain" />
+                                            </div>
                                             <div>
                                                 <p className="font-black text-sm uppercase tracking-tight">Plisio Crypto</p>
                                                 <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
@@ -404,7 +410,9 @@ export default function ResWallet() {
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "payvra" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${paymentGateway === "payvra" ? "bg-blue-500/10" : "bg-muted"}`}><Bitcoin className={`w-5 h-5 ${paymentGateway === "payvra" ? "text-blue-600" : "text-muted-foreground"}`} /></div>
+                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
+                                                <img src="/payvra.webp" alt="Payvra" className="w-full h-full object-contain" />
+                                            </div>
                                             <div>
                                                 <p className="font-black text-sm uppercase tracking-tight">Payvra Crypto</p>
                                                 <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>

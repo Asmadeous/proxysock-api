@@ -23,6 +23,9 @@ Rails.application.routes.draw do
         end
       end
       resources :resellers, only: %i[index show update] do
+        collection do
+          get :summary_counts
+        end
         member do
           post :deposit # Keep existing deposit action
           post :rotate_dedicated_api_key
@@ -201,6 +204,7 @@ Rails.application.routes.draw do
         end
       end
 
+
       resources :tools, only: [] do
         collection do
           get :ip_lookup
@@ -242,6 +246,7 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+      get 'monitoring/summary_counts', to: 'monitoring#summary_counts'
       post 'monitoring/login', to: 'monitoring#login'
     end
   end
@@ -366,6 +371,7 @@ Rails.application.routes.draw do
       get  'settings/system_info', to: 'settings#system_info'
 
       # System Monitoring
+      get 'monitoring/summary_counts', to: 'monitoring#summary_counts'
       get 'monitoring', to: 'monitoring#index'
       get 'monitoring/queues', to: 'monitoring#queues'
       get 'monitoring/jobs', to: 'monitoring#jobs'

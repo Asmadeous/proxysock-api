@@ -6,6 +6,21 @@ require 'sidekiq/api'
 module Admin
   module Api
     class MonitoringController < Admin::Api::BaseController
+      # GET /admin/api/monitoring/summary_counts
+      def summary_counts
+        counts = {
+          orders: Order.where(status: 'pending').count,
+          tickets: Ticket.where(status: 'open').count,
+          payouts: AffiliatePayout.where(status: 'pending').count,
+          new_users: User.where('created_at >= ?', Time.current.beginning_of_day).count,
+          new_resellers: Reseller.where('created_at >= ?', Time.current.beginning_of_day).count,
+          support_chats: SupportChat.where(status: 'active').count,
+          guest_chats: GuestChat.where(status: 'active').count,
+          dead_jobs: (defined?(Sidekiq::DeadSet) ? Sidekiq::DeadSet.new.size : 0)
+        }
+        render json: counts
+      end
+
       # GET /admin/api/monitoring
       # Returns system metrics for the SuperAdmin monitoring dashboard
       def index

@@ -2,9 +2,21 @@
 
 module Web
   module Api
-    class MonitoringController < ApplicationController
+    class MonitoringController < BaseController
       # This controller allows users to log into the monitoring dashboard
       # using their VM ID and VM Root Password.
+      
+
+      def summary_counts
+        authenticate_actor!
+        actor = current_actor
+        counts = {
+          orders: actor.orders.where(status: ['active', 'processing']).count,
+          tickets: actor.tickets.where(status: 'open').count,
+          notifications: actor.notifications.unread.count
+        }
+        render json: counts
+      end
 
       def login
         vm_id = params[:vm_id] # This should be the Proxmox VM ID (e.g., 20001)
@@ -17,8 +29,6 @@ module Web
         # Since we store root_password in plain text for Ansible, we check it directly.
         if vm && vm.root_password == password && vm.active?
           # 3. Success!
-          # We return a success status and the frontend will then
-          # request the Grafana dashboard with the appropriate headers.
           render json: {
             status: 'success',
             vm_id: vm.proxmox_vm_id,

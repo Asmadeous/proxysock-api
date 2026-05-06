@@ -10,7 +10,7 @@ RSpec.describe 'api/v1/support_chats', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'chat_partner', email: 'chat@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'chat_partner', email: 'chat@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -27,7 +27,7 @@ RSpec.describe 'api/v1/support_chats', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'chat_partner_2', email: 'chat2@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'chat_partner_2', email: 'chat2@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:chat) { SupportChat.create!(chatable: reseller) }
@@ -53,7 +53,7 @@ RSpec.describe 'api/v1/support_chats', type: :request do
       }
 
       response(201, 'message sent') do
-        let(:reseller) { Reseller.create!(username: 'chat_partner_3', email: 'chat3@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'chat_partner_3', email: 'chat3@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:message_data) { { message: 'Hello Support!' } }

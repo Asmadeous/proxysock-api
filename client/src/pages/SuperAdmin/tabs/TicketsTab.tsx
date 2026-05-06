@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
+import { ChatBubbleLeftRightIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import OnlineBadge from "../../../components/OnlineBadge";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
-import { fetchAdminTickets, replyToTicket } from "../../../services/adminApi";
+import { fetchAdminTickets, replyToTicket, updateTicketStatus } from "../../../services/adminApi";
 import { toast } from "react-hot-toast";
 import { getApiError } from "../../../utils/apiError";
 
@@ -56,6 +56,15 @@ export default function TicketsTab() {
         finally { setActionLoading(false); }
     };
 
+    const handleCloseTicket = async (ticket: TicketRow) => {
+        if (!confirm(`Are you sure you want to close ticket: ${ticket.subject}?`)) return;
+        try {
+            await updateTicketStatus(ticket.id, "closed");
+            toast.success("Ticket closed");
+            load();
+        } catch (err) { toast.error(getApiError(err, "Failed to close ticket")); }
+    };
+
     const columns = [
         {
             key: "subject", label: "Subject", sortable: true,
@@ -100,9 +109,16 @@ export default function TicketsTab() {
                 columns={columns} data={tickets} loading={loading}
                 emptyMessage="No tickets"
                 actions={(row: TicketRow) => (
-                    <button onClick={() => { setReplyTarget(row); setReplyMsg(""); }} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors">
-                        <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" /> Reply
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => { setReplyTarget(row); setReplyMsg(""); }} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors">
+                            <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" /> Reply
+                        </button>
+                        {row.status !== "closed" && row.status !== "resolved" && (
+                            <button onClick={() => handleCloseTicket(row)} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                                <XCircleIcon className="h-3.5 w-3.5" /> Close
+                            </button>
+                        )}
+                    </div>
                 )}
             />
 
