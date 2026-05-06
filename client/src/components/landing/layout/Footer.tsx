@@ -108,6 +108,14 @@ export const Footer = () => {
                   Reseller Program
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/affiliate-program"
+                  className="text-gray-400 hover:text-white transition duration-200 text-sm"
+                >
+                  Affiliate Program
+                </Link>
+              </li>
             </ul>
           </div>
 

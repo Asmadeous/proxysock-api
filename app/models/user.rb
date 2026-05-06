@@ -82,6 +82,8 @@ class User < ApplicationRecord
 
       user.email_verified_at = Time.current
       user.status = 'active'
+      user.country_code = 'US'
+      user.city = 'New York'
     end
   end
 

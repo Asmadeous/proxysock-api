@@ -13,7 +13,7 @@ RSpec.describe 'Webhooks', type: :request do
   end
 
   describe 'POST /webhooks/paystack' do
-    let(:user) { User.create!(username: 'webhook_user', email: 'webhook@test.com', first_name: 'W', last_name: 'H', password: 'password123') }
+    let(:user) { User.create!(username: 'webhook_user', email: 'webhook@test.com', first_name: 'W', last_name: 'H', password: 'password123', country_code: 'US', city: 'New York') }
     let(:wallet) { user.wallet }
     let(:transaction_ref) { 'DEP_mock_123' }
     let!(:deposit) do
@@ -47,6 +47,13 @@ RSpec.describe 'Webhooks', type: :request do
       expect(response).to have_http_status(:ok)
       expect(deposit.reload.status).to eq('completed')
       expect(wallet.reload.balance).to be_within(0.01).of(50.0)
+
+      # Verify Transaction record creation for the deposit
+      txn = Transaction.find_by(reference: deposit)
+      expect(txn).not_to be_nil
+      expect(txn.payment_gateway).to eq('paystack')
+      expect(txn.transaction_type).to eq('credit')
+      expect(txn.amount).to be_within(0.01).of(50.0)
     end
 
     it 'rejects invalid signature' do

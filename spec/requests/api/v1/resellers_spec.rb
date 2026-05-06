@@ -12,7 +12,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_profile_view', email: 'profile@example.com', password: 'password', company_name: 'Strategic Solutions') }
+        let(:reseller) { Reseller.create!(username: 'partner_profile_view', email: 'profile@example.com', password: 'password', company_name: 'Strategic Solutions', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller.id }
@@ -35,7 +35,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller_obj) { Reseller.create!(username: 'partner_profile_edit', email: 'edit@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller_obj) { Reseller.create!(username: 'partner_profile_edit', email: 'edit@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller_obj.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller_obj.id }
@@ -53,7 +53,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       description 'Returns a paginated list of authorized partners.'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_admin', email: 'admin@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_admin', email: 'admin@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -82,7 +82,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_topup', email: 'topup@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_topup', email: 'topup@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller.id }
@@ -102,7 +102,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
       description 'Infrastructure partners use this to cycle their static ps_live_... key for security audits.'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_key_rotation', email: 'key_rotation@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure') }
+        let(:reseller) { Reseller.create!(username: 'partner_key_rotation', email: 'key_rotation@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'infrastructure', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller.id }

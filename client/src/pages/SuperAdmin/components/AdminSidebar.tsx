@@ -162,22 +162,38 @@ export default function AdminSidebar({
                             >
                                 <div className="relative flex items-center justify-center">
                                     <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
-                                    {item.count != null && isCollapsed && (
-                                        <span className="absolute -top-1.5 -right-1.5 bg-destructive text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background">
-                                            {Number(item.count) > 9 ? "9+" : item.count}
+                                    {((item.count != null && Number(item.count) > 0) || item.badge) && isCollapsed && (
+                                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
                                         </span>
                                     )}
                                 </div>
                                 {!isCollapsed && (
                                     <>
                                         <span className="flex-1 text-left truncate ml-3">{item.name}</span>
-                                        {item.count != null && (
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{item.count}</span>
+                                        {item.count != null && Number(item.count) > 0 && (
+                                            <div className="flex items-center gap-1.5 ml-1">
+                                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                                                    {item.count}
+                                                </span>
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                </span>
+                                            </div>
                                         )}
-                                        {item.badge && (
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                                                {item.badge}
-                                            </span>
+                                        {item.badge && !item.count && (
+                                            item.badge === "!" ? (
+                                                <span className="relative flex h-2 w-2 ml-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                </span>
+                                            ) : (
+                                                <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                                                    {item.badge}
+                                                </span>
+                                            )
                                         )}
                                     </>
                                 )}

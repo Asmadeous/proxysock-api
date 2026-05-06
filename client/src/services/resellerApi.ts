@@ -105,6 +105,8 @@ export const updateResellerProfile = (id: number, data: Record<string, unknown> 
 };
 export const rotateResellerApiKey = (id: number) =>
     resellerApi.post(`/resellers/${id}/rotate_dedicated_api_key`);
+export const fetchResellerSummaryCounts = () =>
+    resellerApi.get("/resellers/summary_counts").then(res => res.data);
 
 
 // ---- Notifications ----

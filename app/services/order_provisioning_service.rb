@@ -25,13 +25,23 @@ class OrderProvisioningService
 
       total = @order.total_amount
 
-      # 2. Payment / Balance Check (Resellers always use wallet)
+      # 2. Payment / Balance Check
       unless skip_payment
-        if @actor.is_a?(Reseller)
+        if @actor.is_a?(Reseller) && @actor.infrastructure?
+          # Infrastructure resellers are on a postpaid model
+          # We just record the cost_price for the monthly bill
+          @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
+          # No balance deduction here
+        elsif @actor.is_a?(Reseller)
+          # Balance-based resellers (api_only, single_product) use deposited balance ONLY
+          # "balance is deducted from their money wallet once an order hits our fucking backend"
           validate_and_deduct_balance!(total)
         elsif @actor.is_a?(User)
-          # Users may have already paid via gateway, or pay from wallet
-          # If this is called, assume wallet payment
+          # Managed users of infrastructure resellers might be postpaid or prepaid
+          # For now, maintain wallet deduction but record cost for settlement
+          if @actor.reseller&.infrastructure?
+             @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
+          end
           validate_and_deduct_balance!(total)
         end
       end
@@ -158,6 +168,7 @@ class OrderProvisioningService
       transaction_type: 'debit',
       status: 'success',
       currency: 'USD',
+      payment_gateway: 'wallet',
       description: "Order ##{@order.id} payment",
       metadata: { order_id: @order.id }
     )

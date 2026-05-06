@@ -6,7 +6,8 @@ import { toast } from "react-hot-toast";
 
 interface TxRow {
     id: string;
-    order_id: string;
+    reference_id: string;
+    reference_type: string;
     user_id: string;
     amount: number;
     currency: string;
@@ -48,7 +49,16 @@ export default function TransactionsTab() {
 
     const columns = [
         { key: "id", label: "Transaction ID", render: (row: TxRow) => <span className="font-mono text-xs">{String(row.id).slice(0, 12)}</span> },
-        { key: "order_id", label: "Order", render: (row: TxRow) => <span className="font-mono text-xs">{String(row.order_id).slice(0, 8)}</span> },
+        { 
+            key: "reference_id", 
+            label: "Reference", 
+            render: (row: TxRow) => (
+                <div className="flex flex-col">
+                    <span className="font-mono text-[10px]">{String(row.reference_id || "N/A").slice(0, 8)}</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">{row.reference_type}</span>
+                </div>
+            ) 
+        },
         { key: "amount", label: "Amount", sortable: true, render: (row: TxRow) => <span className="font-medium">{(row.currency || "USD").toUpperCase()} {Number(row.amount).toFixed(2)}</span> },
         { key: "payment_gateway", label: "Gateway", render: (row: TxRow) => <span className="text-sm capitalize text-muted-foreground">{row.payment_gateway || "—"}</span> },
         { key: "status", label: "Status", sortable: true, render: (row: TxRow) => <StatusBadge status={row.status || "unknown"} /> },
@@ -74,7 +84,7 @@ export default function TransactionsTab() {
                             key={label}
                             onClick={() => setStatusFilter(key)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2
-                ${statusFilter === key ? "bg-red-500 text-foreground" : "bg-card text-muted-foreground hover:text-foreground border border-border"}`}
+                ${statusFilter === key ? "bg-primary text-primary-foreground shadow-md" : "bg-card text-muted-foreground hover:text-foreground border border-border"}`}
                         >
                             {label}
                             <span className={`px-1.5 py-0.5 rounded-full text-xs ${statusFilter === key ? "bg-white/20" : "bg-muted"}`}>{count}</span>

@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe UserMailer, type: :mailer do
-  let(:user) { User.create!(username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', password: 'password123') }
+  let(:user) { User.create!(username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', password: 'password123', country_code: 'US', city: 'New York') }
 
   describe 'confirmation_email' do
     let(:mail) { UserMailer.confirmation_email(user) }

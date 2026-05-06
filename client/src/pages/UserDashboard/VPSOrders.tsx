@@ -23,6 +23,7 @@ import {
   Zap,
   FileText,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -705,46 +706,89 @@ ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 
 
                     {/* Actions */}
                     <div className="grid grid-cols-2 gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex items-center justify-center gap-2 text-xs"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                        Details
-                      </Button>
-                      
-                      <Button
-                        onClick={() => downloadOrderDetails(order)}
-                        className="flex items-center justify-center gap-2 text-xs"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        Manuals
-                      </Button>
+                      {order.status === "active" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSelectedOrder(order)}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                                  responseType: 'blob'
+                                });
+                                const blob = new Blob([response.data], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `invoice-${order.order_number}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Failed to download invoice:', error);
+                              }
+                            }}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                            title="Download Invoice"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Invoice
+                          </Button>
+                        </>
+                      )}
 
-
-
-                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+                      {order.status === "pending" && (
                         <Button
                           variant="outline"
-                          onClick={() => handleWalletRefund(order)}
-                          className="col-span-2 flex items-center justify-center gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                          disabled={refundingOrderId === order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className="col-span-2 flex items-center justify-center gap-2 text-xs"
                         >
-                          <DollarSign className="h-4 w-4" />
-                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                          <FileText className="h-3.5 w-3.5" />
+                          Details
                         </Button>
                       )}
-                      
-                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => setRefundDialogOrderId(order.id)}
-                          className="col-span-2 flex items-center justify-center gap-2"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                          Refund
-                        </Button>
+
+                      {(order.status === "failed" || order.status === "cancelled") && (
+                        <>
+                          <Button
+                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            Open Ticket
+                          </Button>
+
+                          {order.payment_method === "wallet" && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleWalletRefund(order)}
+                              className="col-span-2 flex items-center justify-center gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                              disabled={refundingOrderId === order.id}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                            </Button>
+                          )}
+                          
+                          {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                            <Button
+                              variant="destructive"
+                              onClick={() => setRefundDialogOrderId(order.id)}
+                              className="col-span-2 flex items-center justify-center gap-2"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              Refund
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </CardContent>

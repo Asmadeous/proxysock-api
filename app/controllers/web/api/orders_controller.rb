@@ -412,6 +412,7 @@ module Web
               transaction_type: 'debit',
               status: 'success',
               currency: 'USD',
+              payment_gateway: 'wallet',
               description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount.positive? ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount.positive? ? " | Referral: -$#{affiliate_discount}" : ''}",
               metadata: { order_ids: orders_to_create.map(&:id) }
             )

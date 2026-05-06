@@ -22,6 +22,7 @@ import {
   Server,
   Filter,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -707,68 +708,96 @@ IPs Included: ${order.ips_included || 0}
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex-1 gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Details
-                      </Button>
-                      {order.status === "completed" && order.credentials && (
-                        <Button
-                          onClick={() => downloadCredentials(order)}
-                          className="flex-1 gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Credentials
-                        </Button>
+                      {order.status === "completed" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSelectedOrder(order)}
+                            className="flex-1 gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Details
+                          </Button>
+                          {order.credentials && (
+                            <Button
+                              onClick={() => downloadCredentials(order)}
+                              className="flex-1 gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              Credentials
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                                  responseType: 'blob'
+                                });
+                                const blob = new Blob([response.data], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `invoice-${order.order_number}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Failed to download invoice:', error);
+                              }
+                            }}
+                            className="gap-2"
+                            title="Download Invoice"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
-                      <Button
-                        variant="outline"
-                        onClick={async () => {
-                          try {
-                            const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
-                              responseType: 'blob'
-                            });
-                            const blob = new Blob([response.data], { type: 'application/pdf' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `invoice-${order.order_number}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            URL.revokeObjectURL(url);
-                          } catch (error) {
-                            console.error('Failed to download invoice:', error);
-                          }
-                        }}
-                        className="gap-2"
-                        title="Download Invoice"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+
+                      {order.status === "pending" && (
                         <Button
                           variant="outline"
-                          onClick={() => handleWalletRefund(order)}
-                          className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                          disabled={refundingOrderId === order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className="flex-1 gap-2"
                         >
-                          <DollarSign className="h-4 w-4" />
-                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                          <FileText className="h-4 w-4" />
+                          Details
                         </Button>
                       )}
-                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => setRefundDialogOrderId(order.id)}
-                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                          Refund
-                        </Button>
+
+                      {(order.status === "failed" || order.status === "cancelled") && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            className="flex-1 gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Open Ticket
+                          </Button>
+                          {order.payment_method === "wallet" && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleWalletRefund(order)}
+                              className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                              disabled={refundingOrderId === order.id}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                            </Button>
+                          )}
+                          {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                            <Button
+                              variant="destructive"
+                              onClick={() => setRefundDialogOrderId(order.id)}
+                              className="flex-1 gap-2 border-destructive text-destructive-foreground"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              Refund
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </CardContent>

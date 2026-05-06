@@ -6,20 +6,18 @@ class ResellerEarningsService
     reseller = nil
 
     if actor.is_a?(Reseller)
-      reseller = actor
+      reseller = actor if actor.infrastructure?
     elsif actor.is_a?(User) && actor.reseller_id.present?
-      reseller = actor.reseller
+      reseller = actor.reseller if actor.reseller&.infrastructure?
     end
 
-    return unless reseller
+    return unless reseller && reseller.infrastructure?
 
     pricing = order.product_pricing
     
-    # Reseller's wholesale cost
-    reseller_cost = (pricing&.reseller_selling_price.to_f || 0) * order.quantity
-    
-    # Reseller earns whatever they charged their sub-user minus their wholesale cost
-    commission = [0, order.total_amount - reseller_cost].max.round(2)
+    # Infrastructure resellers get GROSS revenue in real-time.
+    # We manage everything and they pay a negotiated cost at month-end.
+    commission = order.total_amount
 
     return if commission <= 0
 

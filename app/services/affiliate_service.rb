@@ -26,7 +26,7 @@ class AffiliateService
 
     Affiliate.create!(
       affiliatable: @entity,
-      commission_rate: commission_rate || default_commission_rate,
+      commission_rate: commission_rate || @entity.try(:affiliate)&.commission_rate || default_commission_rate,
       discount_rate: discount_rate || default_discount_rate
     )
   end
@@ -82,12 +82,15 @@ class AffiliateService
       explicit_affiliate = Affiliate.active.find_by('UPPER(referral_code) = ?', explicit_code.upcase)
     end
 
-    # 2. Does the user have a pending signup referral?
-    pending_referral = entity.respond_to?(:affiliate_referrals) ? entity.affiliate_referrals.pending.first : nil
-
     # Prioritize explicitly entered code at checkout, fallback to signup referral
     affiliate = explicit_affiliate || pending_referral&.affiliate
     return unless affiliate
+
+    # Only infrastructure resellers or regular users can earn affiliate commissions
+    owner = affiliate.affiliatable
+    if owner.is_a?(Reseller) && !owner.infrastructure?
+      return # Retail resellers cannot earn
+    end
 
     # Calculate commission based on the affiliate's exact commission_rate percentage
     rate = affiliate.commission_rate.to_f / 100.0
@@ -114,8 +117,10 @@ class AffiliateService
     end
 
     # Credit earnings wallet (only for linked affiliates with a platform account)
-    owner = affiliate.affiliatable
     if owner.present?
+      # Ensure retail resellers don't get an earnings wallet even here
+      return if owner.is_a?(Reseller) && !owner.infrastructure?
+
       wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
       wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
     end
@@ -135,7 +140,16 @@ class AffiliateService
 
     payout = nil
     affiliate.with_lock do
-      raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
+      # Enforce "Payouts from profit after billing is done" for infrastructure resellers
+      if @entity.is_a?(Reseller) && @entity.infrastructure?
+        withdrawable = @entity.withdrawable_profit.to_f
+        if withdrawable < amount
+          raise InsufficientBalanceError, "Insufficient settled profit for payout. Available: #{withdrawable}. Please wait for monthly billing to settle."
+        end
+      else
+        # Standard balance check for others
+        raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
+      end
 
       # Wallet payouts are instant internal transfers
       if method == 'wallet'
@@ -153,6 +167,7 @@ class AffiliateService
         wallet = owner.main_wallet || owner.create_main_wallet!(wallet_type: 'main')
         wallet.credit!(amount, "Affiliate payout ##{payout.id}")
         payout.mark_paid!
+        @entity.decrement!(:withdrawable_profit, amount) if @entity.is_a?(Reseller) && @entity.infrastructure?
         return payout
       end
 
@@ -174,6 +189,7 @@ class AffiliateService
           PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
           payout.update!(metadata: { gateway: 'plisio' })
           payout.mark_paid!
+          @entity.decrement!(:withdrawable_profit, amount) if @entity.is_a?(Reseller) && @entity.infrastructure?
         rescue StandardError => e
           payout.update!(status: 'failed', metadata: { error: e.message })
           raise e
@@ -193,6 +209,7 @@ class AffiliateService
 
       # Notify admin for manual processing
       begin
+        @entity.decrement!(:withdrawable_profit, amount) if @entity.is_a?(Reseller) && @entity.infrastructure?
         AdminMailer.affiliate_payout_request(payout).deliver_later
       rescue StandardError => e
         Rails.logger.error("Failed to notify admin for affiliate payout #{payout.id}: #{e.message}")
@@ -202,10 +219,49 @@ class AffiliateService
     payout
   end
 
+  # ─────────────────────────────────────
+  # Internal Wallet Transfer
+  # ─────────────────────────────────────
+
+  # Move earnings from the earnings wallet to the main (purchase) wallet.
+  def transfer_to_main_wallet!(amount)
+    affiliate = @entity.affiliate
+    raise 'Not enrolled in affiliate program' unless affiliate
+
+    ActiveRecord::Base.transaction do
+      earnings_wallet = @entity.earnings_wallet
+      raise InsufficientBalanceError, 'No earnings wallet found' unless earnings_wallet
+      raise InsufficientBalanceError, "Insufficient earnings balance (#{earnings_wallet.balance} < #{amount})" if earnings_wallet.balance < amount
+
+      main_wallet = @entity.main_wallet || @entity.create_main_wallet!(wallet_type: 'main')
+
+      # 1. Debit earnings
+      earnings_wallet.debit!(
+        amount,
+        'Transfer to purchase balance',
+        { target: 'main_wallet' }
+      )
+
+      # 2. Credit main wallet
+      main_wallet.credit!(
+        amount,
+        'Earnings transfer credit',
+        { source: 'earnings_wallet' }
+      )
+
+      # 3. Track total transferred as a form of payout
+      affiliate.increment!(:total_paid_out, amount)
+    end
+  end
+
   private
 
   def default_commission_rate
-    @entity.is_a?(Reseller) ? 12.0 : 10.0
+    if @entity.is_a?(Reseller)
+      (@entity.try(:affiliate)&.commission_rate&.to_f || 12.0)
+    else
+      10.0
+    end
   end
 
   def default_discount_rate

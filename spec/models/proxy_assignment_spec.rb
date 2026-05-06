@@ -10,7 +10,9 @@ RSpec.describe ProxyAssignment, type: :model do
       first_name: 'Test',
       last_name: 'User',
       password: 'password123',
-      status: 'active'
+      status: 'active',
+      country_code: 'US',
+      city: 'New York'
     )
   end
 

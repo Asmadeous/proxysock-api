@@ -5,7 +5,7 @@ require 'rails_helper'
 RSpec.describe 'Web::Api::Wallets', type: :request do
   let(:email) { 'test@example.com' }
   let(:password) { 'password123' }
-  let(:user) { User.create!(username: 'testuser', email: email, first_name: 'Test', last_name: 'User', password: password) }
+  let(:user) { User.create!(username: 'testuser', email: email, first_name: 'Test', last_name: 'User', password: password, country_code: 'US', city: 'New York') }
   let(:token) { user.generate_jwt }
   let(:headers) { { 'Authorization' => "Bearer #{token}", 'Accept' => 'application/json' } }
 
