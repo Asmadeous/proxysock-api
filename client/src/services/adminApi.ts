@@ -130,6 +130,24 @@ export const updateProxyCredentials = (id: number, data: { username?: string; pa
     adminApi.post(`/orders/${id}/update_credentials`, data);
 export const rotateProxyIp = (id: number) =>
     adminApi.post(`/orders/${id}/rotate_ip`);
+export const adminRenewOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/renew`);
+export const adminReorderOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/reorder`);
+
+// ── VMs (Admin) ───────────────────────────────────
+export const fetchAdminVms = (params?: Record<string, string>) =>
+    adminApi.get("/vms", { params });
+export const fetchAdminVm = (id: number | string) =>
+    adminApi.get(`/vms/${id}`);
+export const startAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/start`);
+export const stopAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/stop`);
+export const rebootAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/reboot`);
+export const deleteAdminVm = (id: number | string) =>
+    adminApi.delete(`/vms/${id}`);
 
 // ── USA eSIM Credentials ─────────────────────────
 export const fetchAdminUsaCredentials = () =>

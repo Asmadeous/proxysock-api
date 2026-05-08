@@ -1,13 +1,11 @@
 
 
 import { useState, useEffect } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   GlobeAltIcon,
   ShoppingCartIcon,
-  CogIcon,
-  EyeIcon,
-  ArrowPathIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
@@ -15,7 +13,6 @@ import {
   PlusIcon,
   UserIcon,
   KeyIcon,
-  MapPinIcon,
   ServerIcon,
   DevicePhoneMobileIcon,
   WifiIcon,
@@ -23,8 +20,10 @@ import {
   CalendarIcon,
   TrashIcon,
   PencilIcon,
-  ArrowPathIcon as RotateIcon
+  ArrowPathIcon as RotateIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
+import ProxyCard from "@/components/dashboard/products/ProxyCard";
 import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
 import { toast } from "react-hot-toast";
 
@@ -64,6 +63,7 @@ interface ResidentialProxyAccount {
 
 export default function ProxyManagement() {
   const [activeTab, setActiveTab] = useState<'orders' | 'residential' | 'mobile' | 'analytics'>('orders');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [proxyOrders, setProxyOrders] = useState<ProxyOrder[]>([]);
   const [residentialAccounts, setResidentialAccounts] = useState<ResidentialProxyAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,8 +73,20 @@ export default function ProxyManagement() {
   const [formData, setFormData] = useState<any>({});
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp'>('all');
+  const [statusFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [typeFilter] = useState<'all' | 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp'>('all');
+
+
+  const location = useLocation();
+
+  // Handle auto-search from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     fetchProxyData();
@@ -133,9 +145,17 @@ export default function ProxyManagement() {
   const filteredOrders = proxyOrders.filter(order => {
     const statusMatch = statusFilter === 'all' || order.status === statusFilter;
     const typeMatch = typeFilter === 'all' || order.product_type === typeFilter;
+    const searchMatch = !searchTerm || 
+      order.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.credentials.username?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return statusMatch && typeMatch;
+    return statusMatch && typeMatch && searchMatch;
   });
+
+  const handleReorderLocal = async (orderId: string) => {
+    await handleReorder(orderId);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -157,40 +177,9 @@ export default function ProxyManagement() {
     );
   };
 
-  const getProductTypeIcon = (type: string) => {
-    switch (type) {
-      case 'datacenter':
-      case 'isp':
-      case 'premium-isp':
-        return ServerIcon;
-      case 'static-residential':
-      case 'residential-rotating':
-        return GlobeAltIcon;
-      case 'mobile':
-        return DevicePhoneMobileIcon;
-      default:
-        return ServerIcon;
-    }
-  };
 
-  const getProductTypeBadge = (type: string) => {
-    const typeConfig = {
-      'datacenter': { color: 'bg-primary/10 text-primary', text: 'Datacenter' },
-      'isp': { color: 'bg-primary/10 text-primary', text: 'ISP' },
-      'premium-isp': { color: 'bg-primary/10 text-primary', text: 'Premium ISP' },
-      'static-residential': { color: 'bg-primary/10 text-primary', text: 'Static Residential' },
-      'residential-rotating': { color: 'bg-primary/10 text-primary', text: 'Residential Rotating' },
-      'mobile': { color: 'bg-primary/10 text-primary', text: 'Mobile' },
-      'global-isp': { color: 'bg-primary/10 text-primary', text: 'Global ISP' }
-    };
 
-    const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.datacenter;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.text}
-      </span>
-    );
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -260,147 +249,6 @@ export default function ProxyManagement() {
     setSelectedOrder(order || null);
     setFormData({});
     setShowModal(true);
-  };
-
-  const renderProxyCard = (order: ProxyOrder) => {
-    const ProductIcon = getProductTypeIcon(order.product_type);
-
-    return (
-      <motion.div
-        key={order.id}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card rounded-xl border transition-all duration-300 p-6"
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ProductIcon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{order.product_name}</h3>
-              <p className="text-muted-foreground text-sm">Order ID: {order.order_id}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {getProductTypeBadge(order.product_type)}
-            {getStatusBadge(order.status)}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <KeyIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Protocol: {order.protocol.toUpperCase()}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Period: {order.period} month{order.period > 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <MapPinIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Locations: {order.locations.length}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Expires: {formatDate(order.expires_at)}</span>
-          </div>
-        </div>
-
-        {/* Traffic Usage for Residential Rotating */}
-        {order.product_type === 'residential-rotating' && (
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-muted-foreground">Traffic Usage</span>
-              <span className="text-sm">
-                {(order.traffic_used! / 1024 / 1024 / 1024).toFixed(2)} GB / {order.traffic_limit} GB
-              </span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min((order.traffic_used! / (order.traffic_limit! * 1024 * 1024 * 1024)) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Credentials Preview */}
-        <div className="bg-slate-700/30 rounded-lg p-3 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Connection Details</span>
-            <button
-              onClick={() => openModal('credentials', order)}
-              className="text-primary hover:text-primary/80 text-xs"
-            >
-              View All
-            </button>
-          </div>
-          {order.credentials.username && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-slate-400">Username:</span>
-                <p className="text-white font-mono truncate">{order.credentials.username}</p>
-              </div>
-              <div>
-                <span className="text-slate-400">Endpoints:</span>
-                <p className="text-white">{order.credentials.endpoints?.length || 0} available</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => openModal('details', order)}
-            className="flex-1 py-2 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <EyeIcon className="h-4 w-4" />
-            Details
-          </button>
-          <button
-            onClick={() => openModal('credentials', order)}
-            className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
-          >
-            <KeyIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => openModal('whitelist', order)}
-            className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
-          >
-            <CogIcon className="h-4 w-4" />
-          </button>
-          {order.status === 'active' && (
-            <>
-              <button
-                onClick={() => openModal('extend', order)}
-                className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium transition-colors"
-                title="Extend Manually"
-              >
-                <ArrowPathIcon className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => openModal('subscription', order)}
-                className="py-2 px-3 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <RotateIcon className="h-4 w-4" />
-                Subscription
-              </button>
-            </>
-          )}
-          {order.status === 'expired' && (
-            <button
-              onClick={() => handleReorder(order.id)}
-              className="flex-1 py-2 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <ShoppingCartIcon className="h-4 w-4" />
-              Reorder
-            </button>
-          )}
-        </div>
-      </motion.div>
-    );
   };
 
   const renderModal = () => {
@@ -1182,9 +1030,18 @@ export default function ProxyManagement() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Proxy Management</h1>
-          <p className="text-muted-foreground">Manage all your proxy services and configurations</p>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/dashboard/products"
+            className="p-2 hover:bg-muted rounded-full transition-colors group"
+            title="Back to Product Management"
+          >
+            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Proxy Management</h1>
+            <p className="text-muted-foreground">Manage all your proxy services and configurations</p>
+          </div>
         </div>
         <GlobeAltIcon className="h-8 w-8 text-primary" />
       </div>
@@ -1230,59 +1087,54 @@ export default function ProxyManagement() {
         })}
       </div>
 
-      {/* Filters for Orders Tab */}
-      {activeTab === 'orders' && (
-        <div className="bg-card rounded-xl p-4 border">
-          <div className="flex flex-wrap gap-4">
-            <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-muted-foreground mb-2">Status</label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="bg-background border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="expired">Expired</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="type-filter" className="block text-sm font-medium text-muted-foreground mb-2">Type</label>
-              <select
-                id="type-filter"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="bg-background border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="residential-rotating">Residential Rotating</option>
-                <option value="static-residential">Static Residential</option>
-                <option value="mobile">Mobile</option>
-                <option value="datacenter">Datacenter</option>
-                <option value="isp">ISP</option>
-                <option value="premium-isp">Premium ISP</option>
-                <option value="global-isp">Global ISP</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Content */}
       {activeTab === 'orders' && (
-        <div>
-          {filteredOrders.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredOrders.map(renderProxyCard)}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <GlobeAltIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No Proxy Orders</h3>
-              <p className="text-muted-foreground">You don't have any proxy orders yet</p>
-            </div>
-          )}
+        <div className="space-y-6">
+          {/* Search Bar for Orders */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by Order ID, Product Name, or Username..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-card border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <GlobeAltIcon className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-3 text-sm text-primary hover:underline"
+              >
+                Clear
+              </button>
+            )}
+            {filteredOrders.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredOrders.map(order => (
+                  <ProxyCard 
+                    key={order.id} 
+                    order={order} 
+                    onOpenModal={openModal} 
+                    onReorder={handleReorderLocal}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-card rounded-2xl border">
+                <GlobeAltIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2">No Proxy Services Found</h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchTerm ? 'Try adjusting your search filters' : "You don't have any proxy subscriptions yet"}
+                </p>
+                <button
+                  onClick={() => globalThis.location.href = '/dashboard/proxies'}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Purchase Proxy
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

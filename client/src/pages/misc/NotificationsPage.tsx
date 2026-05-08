@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Bell, CheckCheck, Filter, Volume2, VolumeX } from "lucide-react";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -34,6 +35,7 @@ const categoryLabels: Record<string, string> = {
 export default function NotificationsPage() {
     const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
+    const navigate = useNavigate();
 
     const {
         notifications,
@@ -183,12 +185,13 @@ export default function NotificationsPage() {
                                 const getNotificationLink = (): string | null => {
                                     const meta = notification.metadata || {};
                                     const path = window.location.pathname;
-                                    const isAdmin = path.startsWith('/admin') || path.startsWith('/sadmin');
+                                    const isAdmin = path.startsWith('/admin') || path.startsWith('/sadmin') || path.startsWith('/employee');
                                     const isReseller = path.startsWith('/reseller');
+                                    const adminPrefix = path.startsWith('/sadmin') ? '/sadmin' : (path.startsWith('/employee') ? '/employee' : '/admin');
 
-                                    // Use metadata link if explicitly provided
-                                    if (meta.link) return meta.link;
-                                    if (meta.url) return meta.url;
+                                    // Use metadata link only if it's a valid absolute path or external URL
+                                    if (meta.link && typeof meta.link === 'string' && (meta.link.startsWith('/') || meta.link.startsWith('http'))) return meta.link;
+                                    if (meta.url && typeof meta.url === 'string' && (meta.url.startsWith('/') || meta.url.startsWith('http'))) return meta.url;
 
                                     // Category-based routing
                                     const cat = notification.category;
@@ -196,27 +199,59 @@ export default function NotificationsPage() {
                                     const msg = notification.message?.toLowerCase() || "";
 
                                     if (cat === "order" || title.includes("order")) {
-                                        if (isAdmin) return null; // Admin clicks go to Orders tab (handled by tab system)
+                                        if (isAdmin) return `${adminPrefix}/orders`;
                                         if (isReseller) return "/reseller/orders";
                                         return "/dashboard/orders";
                                     }
                                     if (title.includes("ticket")) {
-                                        if (isAdmin) return null;
+                                        if (isAdmin) return `${adminPrefix}/tickets`;
                                         if (isReseller) return "/reseller/tickets";
                                         return "/dashboard/tickets";
                                     }
                                     if (title.includes("transaction") || title.includes("payment") || title.includes("deposit") || title.includes("refund")) {
-                                        if (isAdmin) return null;
+                                        if (isAdmin) return `${adminPrefix}/transactions`;
                                         if (isReseller) return "/reseller/wallet";
                                         return "/dashboard/transactions";
                                     }
+                                    if (title.includes("rdp") || msg.includes("rdp")) {
+                                        const searchParam = meta.hostname || meta.rdp_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
+                                        const query = searchParam ? `&search=${searchParam}` : "";
+                                        
+                                        if (isAdmin) return `${adminPrefix}/management?type=rdp${query}`;
+                                        if (isReseller) return `/reseller/rdp-management${query}`;
+                                        return `/dashboard/RDP-management${query}`;
+                                    }
                                     if (title.includes("vm") || title.includes("vps") || msg.includes("vm") || msg.includes("vps")) {
-                                        if (isReseller) return "/reseller/orders";
-                                        return "/dashboard/products";
+                                        const searchParam = meta.hostname || meta.vps_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
+                                        const query = searchParam ? `&search=${searchParam}` : "";
+                                        
+                                        if (isAdmin) return `${adminPrefix}/management?type=vps${query}`;
+                                        if (isReseller) return `/reseller/vps-management${query}`;
+                                        return `/dashboard/VPS-management${query}`;
                                     }
                                     if (title.includes("esim") || msg.includes("esim")) {
-                                        if (isReseller) return "/reseller/orders";
-                                        return "/dashboard/products";
+                                        const searchParam = meta.iccid || meta.order_no || (msg.match(/ICCID:?\s*([\w]+)/i) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=esim${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/esim-management${query}`;
+                                        return `/dashboard/Esim-management${query}`;
+                                    }
+                                    if (title.includes("proxy") || msg.includes("proxy")) {
+                                        const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=proxy${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/proxy-management${query}`;
+                                        return `/dashboard/proxy-management${query}`;
+                                    }
+                                    if (title.includes("vpn") || msg.includes("vpn")) {
+                                        const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=vpn${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/vpn-management${query}`;
+                                        return `/dashboard/vpn-management${query}`;
                                     }
                                     return null;
                                 };
@@ -236,7 +271,9 @@ export default function NotificationsPage() {
                                                 markAsRead(notification.id);
                                             }
                                             if (link) {
-                                                window.location.href = link;
+                                                // Ensure link is absolute to prevent 404s from relative navigation
+                                                const finalLink = link.startsWith("/") || link.startsWith("http") ? link : `/${link}`;
+                                                navigate(finalLink);
                                             }
                                         }}
                                     >

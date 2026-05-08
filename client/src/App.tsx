@@ -238,9 +238,9 @@ export default function App() {
 
               {/* Admin / Employee */}
               <Route path="/admin/login" element={<AdminLoginPage />} />
-              <Route path="/admin" element={<SuperAdminDashboard />} />
-              <Route path="/sadmin" element={<SuperAdminDashboard />} />
-              <Route path="/employee" element={<EmployeeDashboard />} />
+              <Route path="/admin/*" element={<SuperAdminDashboard />} />
+              <Route path="/sadmin/*" element={<SuperAdminDashboard />} />
+              <Route path="/employee/*" element={<EmployeeDashboard />} />
 
               {/* Reseller */}
               <Route path="/reseller/login" element={<ResellerLoginPage />} />
