@@ -16,7 +16,8 @@ import {
     BookOpen,
     DollarSign,
     MessageSquare,
-    Ticket
+    Ticket,
+    Bell
 } from "lucide-react";
 
 
@@ -44,6 +45,7 @@ const ResWebhookConfig = lazy(() => import("./components/ResWebhookConfig"));
 const ResSettings = lazy(() => import("./components/ResSettings"));
 const SupportChat = lazy(() => import("../UserDashboard/SupportChat"));
 const Tickets = lazy(() => import("../UserDashboard/Tickets"));
+const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 
 
 // User dashboard buy pages (reused for full product configuration)
@@ -66,6 +68,7 @@ const API_ONLY_TABS = [
     { id: "developer", label: "Developer", icon: Code },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -78,6 +81,7 @@ const SINGLE_PRODUCT_TABS = [
     { id: "developer", label: "Developer", icon: Code },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -92,6 +96,7 @@ const ENTERPRISE_TABS = [
     { id: "users", label: "Users", icon: Users },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "logout", label: "Logout", icon: LogOut },
 ];
@@ -260,6 +265,7 @@ export default function ResellerDashboard() {
             case "users": return <ResUserManagement />;
             case "support": return <SupportChat role="Reseller" />;
             case "tickets": return <Tickets role="Reseller" />;
+            case "notifications": return <NotificationsPage />;
             case "settings": return <ResSettings />;
             case "checkout": return (
                 <ResellerCheckout
@@ -310,6 +316,7 @@ export default function ResellerDashboard() {
                             case "users": return counts.users || 0;
                             case "tickets": return counts.tickets || 0;
                             case "support": return counts.support_chats || 0;
+                            case "notifications": return counts.notifications || 0;
                             default: return 0;
                         }
                     })();

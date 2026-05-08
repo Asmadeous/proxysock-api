@@ -7,47 +7,81 @@ class ExpirationCleanupJob < ApplicationJob
     Rails.logger.info 'Starting ExpirationCleanupJob...'
 
     # VMs
-    expired_vms = Vm.where(status: 'active').where('expires_at < ?', Time.current)
-    Rails.logger.info "Found #{expired_vms.count} expired VMs to expire"
-    expired_vms.find_each do |vm|
-      Rails.logger.info "Processing VM #{vm.id}, responds_to expire!: #{vm.respond_to?(:expire!)}, may_expire: #{vm.may_expire?}"
-      expire_resource(vm)
-    end
+    active_vms = Vm.where(status: 'active')
+    process_expiries_and_warnings(active_vms)
 
     # Mobile Proxies
-    MobileProxy.where(status: 'active').where('expires_at < ?', Time.current).find_each do |proxy|
-      expire_resource(proxy)
-    end
-
-    # Static Datacenter Proxies
-    StaticDatacenterProxy.where(status: 'active').where('expires_at < ?', Time.current).find_each do |proxy|
-      expire_resource(proxy)
-    end
-
-    # Static ISP Proxies
-    StaticIspProxy.where(status: 'active').where('expires_at < ?', Time.current).find_each do |proxy|
-      expire_resource(proxy)
-    end
-
-    # Residential Proxies
-    ResidentialRotatingProxy.where(status: 'active').where('expires_at < ?', Time.current).find_each do |proxy|
-      expire_resource(proxy)
-    end
+    active_proxies = MobileProxy.where(status: 'active')
+    process_expiries_and_warnings(active_proxies)
 
     # eSIMs
-    EsimOrder.where(status: 'active').where('expires_at < ?', Time.current).find_each do |esim|
-      expire_resource(esim)
-    end
+    active_esims = EsimOrder.where(status: 'active')
+    process_expiries_and_warnings(active_esims)
 
     # VPNs
-    VpnAccount.where(status: 'active').where('expires_at < ?', Time.current).find_each do |vpn|
-      expire_resource(vpn)
-    end
+    active_vpns = VpnAccount.where(status: 'active')
+    process_expiries_and_warnings(active_vpns)
+
+    # Static Datacenter Proxies
+    active_dc_proxies = StaticDatacenterProxy.where(status: 'active')
+    process_expiries_and_warnings(active_dc_proxies)
+
+    # Static ISP Proxies
+    active_isp_proxies = StaticIspProxy.where(status: 'active')
+    process_expiries_and_warnings(active_isp_proxies)
+
+    # Residential Proxies
+    active_resi_proxies = ResidentialRotatingProxy.where(status: 'active')
+    process_expiries_and_warnings(active_resi_proxies)
 
     Rails.logger.info 'ExpirationCleanupJob completed.'
   end
 
   private
+
+  def process_expiries_and_warnings(resources)
+    resources.find_each do |resource|
+      if resource.expires_at < Time.current
+        expire_resource(resource)
+      elsif resource.expires_at < 24.hours.from_now
+        send_expiry_warning(resource, 24)
+      elsif resource.expires_at < 48.hours.from_now
+        send_expiry_warning(resource, 48)
+      end
+    end
+  end
+
+  def send_expiry_warning(resource, hours)
+    order = resource.order
+    return unless order&.orderable
+
+    # Check if we already sent this warning
+    sent_key = "expiry_warning_#{hours}h_sent_at"
+    metadata = order.metadata || {}
+    return if metadata[sent_key].present?
+
+    Rails.logger.info "Sending #{hours}h expiry warning for #{resource.class.name} ##{resource.id}"
+    
+    Notification.create(
+      recipient: order.orderable,
+      category: 'warning',
+      title: "#{resource.class.name.titleize} Expiring Soon",
+      message: "Your #{resource.class.name.titleize} for Order ##{order.order_number} will expire in approximately #{hours} hours. Please renew to avoid service interruption.",
+      metadata: { order_id: order.id, hours_remaining: hours }
+    )
+
+    # Send Email Notification
+    ExpirationMailer.with(
+      resource: resource,
+      order: order,
+      owner: order.orderable,
+      hours: hours
+    ).warning_email.deliver_later
+
+    # Mark as sent
+    metadata[sent_key] = Time.current
+    order.update!(metadata: metadata)
+  end
 
   def terminate_resource(resource)
     Rails.logger.info "Terminating expired #{resource.class.name} ##{resource.id}"

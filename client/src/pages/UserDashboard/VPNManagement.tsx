@@ -1,28 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useLocation, Link } from "react-router-dom";
+
 import {
     ShoppingCart,
-    Eye,
     CheckCircle,
     XCircle,
     Clock,
     Copy,
     Key,
-    MapPin,
-    Calendar,
     Download,
     Shield,
-    Lock,
+    ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
     Card,
-    CardContent,
     CardHeader,
     CardTitle,
+    CardContent,
 } from "@/components/ui/card";
+import VPNCard from "@/components/dashboard/products/VPNCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -60,11 +59,22 @@ interface VPNOrder {
 export default function VPNManagement() {
     const [activeTab, setActiveTab] = useState<"active" | "all">("active");
     const [vpnOrders, setVpnOrders] = useState<VPNOrder[]>([]);
+    const [searchTerm, setSearchTerm] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<VPNOrder | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
     const { user, accessToken } = useAuth();
+    const location = useLocation();
+
+    // Handle auto-search from URL params
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const search = params.get("search");
+        if (search) {
+            setSearchTerm(search);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         if (accessToken && user) {
@@ -97,10 +107,19 @@ export default function VPNManagement() {
                         renewal_method: order.renewal_method,
                     }));
 
-                // Filter based on active tab
-                const filtered = activeTab === "active"
+                // Filter based on active tab and search term
+                let filtered = activeTab === "active"
                     ? transformedOrders.filter((o: VPNOrder) => o.status === "active" || o.status === "pending" || o.status === "processing")
                     : transformedOrders;
+
+                if (searchTerm) {
+                    const term = searchTerm.toLowerCase();
+                    filtered = filtered.filter((o: VPNOrder) => 
+                        o.order_number?.toLowerCase().includes(term) ||
+                        o.plan_name?.toLowerCase().includes(term) ||
+                        o.credentials.username?.toLowerCase().includes(term)
+                    );
+                }
 
                 setVpnOrders(filtered);
             }
@@ -161,111 +180,10 @@ export default function VPNManagement() {
         setIsDetailOpen(true);
     };
 
-    const renderVPNCard = (order: VPNOrder) => (
-        <motion.div
-            key={order.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
-            <Card className="hover:border-primary/50 transition-all duration-300">
-                <CardHeader>
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-primary/10 rounded-lg">
-                                <Lock className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-lg">{order.plan_name}</CardTitle>
-                            </div>
-                        </div>
-                        {getStatusBadge(order.status)}
-                    </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="space-y-1">
-                            <span className="text-muted-foreground flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> Expires
-                            </span>
-                            <p className="font-medium">
-                                {order.expires_at ? formatDate(order.expires_at) : "N/A"}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <span className="text-muted-foreground flex items-center gap-1">
-                                <MapPin className="h-3 w-3" /> Location
-                            </span>
-                            <p className="font-medium">{order.country || "Global"}</p>
-                        </div>
-                    </div>
-
-                    {/* Credentials Preview */}
-                    <div className="bg-muted rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-muted-foreground font-medium">Authentication</span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 text-xs"
-                                onClick={() => openDetails(order)}
-                            >
-                                View Details
-                            </Button>
-                        </div>
-                        {order.credentials?.username ? (
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground text-xs">Username</span>
-                                    <span className="font-mono text-xs">{order.credentials.username}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground text-xs">Password</span>
-                                    <span className="font-mono text-xs">********</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-xs text-muted-foreground italic text-center">
-                                No credentials available
-                            </p>
-                        )}
-                    </div>
-
-                        <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
-                                <Button
-                                    className="flex-1 gap-2"
-                                    onClick={() => openDetails(order)}
-                                >
-                                    <Eye className="h-4 w-4" /> Manage
-                                </Button>
-                                {order.status === "active" && (
-                                    <Button
-                                        variant="secondary"
-                                        className="flex-1 gap-2"
-                                        onClick={() => {
-                                            setSelectedOrder(order);
-                                            setIsSubscriptionOpen(true);
-                                        }}
-                                    >
-                                        <Clock className="h-4 w-4" /> Auto-Renew
-                                    </Button>
-                                )}
-                            </div>
-                            {order.status === "expired" && (
-                                <Button
-                                    className="w-full gap-2"
-                                    variant="outline"
-                                    onClick={() => handleReorder(order.id)}
-                                >
-                                    <ShoppingCart className="h-4 w-4" /> Reorder
-                                </Button>
-                            )}
-                        </div>
-                </CardContent>
-            </Card>
-        </motion.div>
-    );
+    const openSubscription = (order: VPNOrder) => {
+        setSelectedOrder(order);
+        setIsSubscriptionOpen(true);
+    };
 
     if (loading) {
         return (
@@ -322,11 +240,20 @@ export default function VPNManagement() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">VPN Management</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Manage your active VPN subscriptions
-                    </p>
+                <div className="flex items-center gap-4">
+                    <Link
+                        to="/dashboard/products"
+                        className="p-2 hover:bg-muted rounded-full transition-colors group"
+                        title="Back to Product Management"
+                    >
+                        <ArrowLeft className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
+                    </Link>
+                    <div>
+                        <h1 className="text-3xl font-bold">VPN Management</h1>
+                        <p className="text-muted-foreground mt-1">
+                            Manage your active VPN subscriptions
+                        </p>
+                    </div>
                 </div>
                 <div className="flex gap-2 bg-muted p-1 rounded-lg">
                     <Button
@@ -348,9 +275,36 @@ export default function VPNManagement() {
                 </div>
             </div>
 
+            <div className="relative">
+                <input
+                    type="text"
+                    placeholder="Search by Order ID, Plan Name, or Username..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-card border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                {searchTerm && (
+                    <button 
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-2 text-sm text-primary hover:underline"
+                    >
+                        Clear
+                    </button>
+                )}
+            </div>
+
             {vpnOrders.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {vpnOrders.map(renderVPNCard)}
+                    {vpnOrders.map(order => (
+                        <VPNCard 
+                            key={order.id} 
+                            order={order} 
+                            onOpenDetails={openDetails} 
+                            onOpenSubscription={openSubscription}
+                            onReorder={handleReorder}
+                        />
+                    ))}
                 </div>
             ) : (
                 <Card className="text-center py-12">

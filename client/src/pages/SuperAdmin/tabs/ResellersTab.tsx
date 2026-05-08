@@ -18,6 +18,7 @@ interface ResellerRow {
     balance: number;
     earnings_balance: number;
     surcharge: number;
+    discount_percentage: number | null;
     subscription_fee: number | null;
     subscription_expires_at: string | null;
     dedicated_api_key: string | null;
@@ -71,6 +72,7 @@ export default function ResellersTab() {
     const [configForm, setConfigForm] = useState({
         reseller_type: "api_only",
         surcharge: "0",
+        discount_percentage: "0",
         subscription_fee: "",
         subscription_expires_at: "",
         dedicated_api_key: "",
@@ -172,6 +174,7 @@ export default function ResellersTab() {
         setConfigForm({
             reseller_type: r.reseller_type || "api_only",
             surcharge: String(r.surcharge || 0),
+            discount_percentage: String(r.discount_percentage || 0),
             subscription_fee: r.subscription_fee ? String(r.subscription_fee) : "",
             subscription_expires_at: r.subscription_expires_at ? r.subscription_expires_at.slice(0, 10) : "",
             dedicated_api_key: r.dedicated_api_key || "",
@@ -241,6 +244,16 @@ export default function ResellersTab() {
                     {row.reseller_type === "infrastructure" && (
                         <p className="text-xs text-emerald-400">${Number(row.earnings_balance || 0).toFixed(2)} earned</p>
                     )}
+                </div>
+            ),
+        },
+        {
+            key: "discount_percentage", label: "Discount", sortable: true,
+            render: (row: ResellerRow) => (
+                <div className="text-right">
+                    <p className="text-sm font-medium text-emerald-400">
+                        {row.discount_percentage && row.discount_percentage > 0 ? `${row.discount_percentage}%` : "—"}
+                    </p>
                 </div>
             ),
         },
@@ -378,6 +391,10 @@ export default function ResellersTab() {
                                         <p className="text-muted-foreground">Surcharge</p>
                                         <p className="font-medium text-foreground">{expandedDetail.surcharge || 0}%</p>
                                     </div>
+                                    <div className="bg-muted/50 rounded-lg px-3 py-2">
+                                        <p className="text-muted-foreground">Wholesale Discount</p>
+                                        <p className="font-medium text-emerald-400">{expandedDetail.discount_percentage || 0}%</p>
+                                    </div>
                                     {expandedDetail.reseller_type === "infrastructure" && (
                                         <>
                                             <div className="bg-muted/50 rounded-lg px-3 py-2">
@@ -504,6 +521,9 @@ export default function ResellersTab() {
                 </Field>
                 <Field label="Infrastructure Surcharge (%)">
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
+                </Field>
+                <Field label="Wholesale Discount (%)">
+                    <input className={inputClasses} type="number" value={configForm.discount_percentage} onChange={(e) => setConfigForm({ ...configForm, discount_percentage: e.target.value })} />
                 </Field>
 
                 <Field label="Dedicated API Key">

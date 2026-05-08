@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   HomeIcon,
   UsersIcon,
@@ -18,6 +18,8 @@ import {
   AdjustmentsHorizontalIcon,
   CircleStackIcon,
   DevicePhoneMobileIcon,
+  BellIcon,
+  Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
 import { fetchAdminNotifications, markAdminNotificationsAsRead, fetchAdminSummaryCounts } from "../../services/adminApi";
@@ -44,6 +46,10 @@ const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
 const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
 const UsaCredentialsTab = lazy(() => import("./tabs/UsaCredentialsTab"));
+const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
+
+// Consolidated Management Tab
+const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
 
 const sidebarItems: SidebarItem[] = [
   { id: "overview", name: "Overview", icon: HomeIcon },
@@ -53,6 +59,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "resellers", name: "Resellers", icon: BuildingStorefrontIcon },
   { id: "affiliates", name: "Affiliates", icon: LinkIcon },
   { id: "orders", name: "Orders", icon: ShoppingCartIcon },
+  { id: "management", name: "Management", icon: Squares2X2Icon },
   { id: "products", name: "Products", icon: BuildingStorefrontIcon },
   { id: "transactions", name: "Transactions", icon: CurrencyDollarIcon },
   { id: "blog", name: "Blog CMS", icon: DocumentTextIcon },
@@ -63,6 +70,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
   { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
   { id: "database", name: "Database", icon: CircleStackIcon },
+  { id: "notifications", name: "Notifications", icon: BellIcon },
   { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
   { id: "logs", name: "System Logs", icon: ServerStackIcon },
 ];
@@ -75,6 +83,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   resellers: ResellersTab,
   affiliates: AffiliatesTab,
   orders: OrdersTab,
+  management: ManagementTab,
   products: ProductsTab,
   transactions: TransactionsTab,
   blog: BlogTab,
@@ -86,11 +95,12 @@ const TAB_COMPONENTS: Record<string, any> = {
   settings: SettingsTab,
   database: DatabaseTab,
   usa_credentials: UsaCredentialsTab,
+  notifications: NotificationsPage,
   logs: SystemLogsTab,
 };
 
 // Tabs that can have "unseen" events
-const BADGE_TABS = ["orders", "tickets", "affiliates", "support_chats", "guest_chats", "monitoring"] as const;
+const BADGE_TABS = ["orders", "tickets", "affiliates", "support_chats", "guest_chats", "monitoring", "notifications"] as const;
 
 // localStorage key for tracking when admin last viewed each tab
 const SEEN_KEY = "admin_tab_seen";
@@ -121,6 +131,16 @@ const [counts, setCounts] = useState<any>({});
 // Track which tabs have been "seen" — red dot disappears on visit
 const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
 const navigate = useNavigate();
+const location = useLocation();
+
+// Sync tab with URL
+useEffect(() => {
+  const pathParts = location.pathname.split("/").filter(Boolean);
+  // /admin -> ["admin"]
+  // /admin/users -> ["admin", "users"]
+  const subPath = pathParts[1] || "overview";
+  setActiveTab(subPath);
+}, [location.pathname]);
 
 // Determine if a tab has unseen activity
 const hasUnseen = useCallback((tabId: string, count: number): boolean => {
@@ -208,6 +228,7 @@ const tabCount = (() => {
     case "affiliates": return counts.payouts || 0;
     case "support_chats": return counts.support_chats || 0;
     case "guest_chats": return counts.guest_chats || 0;
+    case "notifications": return counts.notifications || 0;
     default: return 0;
   }
 })();
@@ -240,7 +261,8 @@ if (id === "logout") {
   handleLogout();
   return;
 }
-setActiveTab(id);
+const prefix = location.pathname.startsWith('/sadmin') ? '/sadmin' : '/admin';
+navigate(`${prefix}/${id}`);
 };
 
 return (

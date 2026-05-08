@@ -210,6 +210,12 @@ export default function Cart() {
                 <a href="/dashboard/proxies">Browse Proxies</a>
               </Button>
               <Button asChild variant="outline">
+                <a href="/dashboard/vps">Browse VPS</a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="/dashboard/rdp">Browse RDP</a>
+              </Button>
+              <Button asChild variant="outline">
                 <a href="/dashboard/esim">Browse eSIMs</a>
               </Button>
               <Button asChild variant="outline">

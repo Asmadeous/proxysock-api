@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
     HomeIcon,
     ChatBubbleLeftRightIcon,
@@ -7,6 +7,8 @@ import {
     UsersIcon,
     ServerStackIcon,
     ArrowRightOnRectangleIcon,
+    BellIcon,
+    Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarItem } from "../SuperAdmin/components/AdminSidebar";
 import DataTable from "../SuperAdmin/components/DataTable";
@@ -17,6 +19,10 @@ import adminApi, { fetchAdminNotifications, markAdminNotificationsAsRead } from 
 import { toast } from "react-hot-toast";
 import { formatImageUrl } from "../../services/api";
 import SupportChatsTab from "../SuperAdmin/tabs/SupportChatsTab";
+const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
+
+// Consolidated Management Tab
+const ManagementTab = lazy(() => import("../SuperAdmin/tabs/ManagementTab"));
 
 // ── Employee-scoped API calls ──
 const empApi = {
@@ -32,8 +38,10 @@ const TABS: SidebarItem[] = [
     { id: "tickets", name: "My Tickets", icon: ChatBubbleLeftRightIcon },
     { id: "support_chats", name: "Support Chats", icon: ChatBubbleLeftRightIcon },
     { id: "orders", name: "Orders", icon: ShoppingCartIcon },
+    { id: "management", name: "Management", icon: Squares2X2Icon },
     { id: "users", name: "Users", icon: UsersIcon },
     { id: "logs", name: "Activity", icon: ServerStackIcon },
+    { id: "notifications", name: "Notifications", icon: BellIcon },
     { id: "logout", name: "Logout", icon: ArrowRightOnRectangleIcon },
 ];
 
@@ -41,6 +49,16 @@ export default function EmployeeDashboard() {
     const [user, setUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
     const [activeTab, setActiveTab] = useState("overview");
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Sync tab with URL
+    useEffect(() => {
+        const pathParts = location.pathname.split("/").filter(Boolean);
+        // /employee -> ["employee"]
+        // /employee/tickets -> ["employee", "tickets"]
+        const subPath = pathParts[1] || "overview";
+        setActiveTab(subPath);
+    }, [location.pathname]);
 
     useEffect(() => {
         if (!localStorage.getItem("adminToken")) {
@@ -66,7 +84,7 @@ export default function EmployeeDashboard() {
             navigate("/admin/login");
             return;
         }
-        setActiveTab(id);
+        navigate(`/employee/${id}`);
     };
 
     return (
@@ -88,8 +106,18 @@ export default function EmployeeDashboard() {
                     {activeTab === "overview" && <EmpOverview />}
                     {activeTab === "tickets" && <EmpTickets />}
                     {activeTab === "support_chats" && <SupportChatsTab />}
-                    {activeTab === "orders" && <EmpOrders />}
-                    {activeTab === "users" && <EmpUsers />}
+                    { activeTab === "orders" && <EmpOrders />}
+                    { activeTab === "management" && (
+                        <Suspense fallback={<div>Loading...</div>}>
+                            <ManagementTab />
+                        </Suspense>
+                    )}
+                    { activeTab === "users" && <EmpUsers />}
+                    {activeTab === "notifications" && (
+                        <Suspense fallback={<div>Loading...</div>}>
+                            <NotificationsPage />
+                        </Suspense>
+                    )}
                     {activeTab === "logs" && <EmpLogs />}
                 </div>
             </main>

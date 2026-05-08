@@ -305,7 +305,7 @@ export const Sidebar = ({
       )}
 
       {/* 1. Header Section: Avatar & Name */}
-      <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center" : ""}`}>
+      <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center flex-col" : ""}`}>
         <Link
           to="/dashboard/profile"
           onClickCapture={handleMobileClick}
@@ -332,8 +332,8 @@ export const Sidebar = ({
             <span className="text-xs text-muted-foreground truncate">Welcome back</span>
           </div>
         )}
-        {!isCollapsed && (
-          <div className="flex-shrink-0">
+        <div className={`flex-shrink-0 ${isCollapsed ? "" : ""}`}>
+          <SidebarTooltip content="Notifications" show={isCollapsed}>
             <Link to="/dashboard/notifications" onClickCapture={handleMobileClick}>
               <div className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <Bell className="h-5 w-5" />
@@ -344,8 +344,8 @@ export const Sidebar = ({
                 )}
               </div>
             </Link>
-          </div>
-        )}
+          </SidebarTooltip>
+        </div>
       </div>
 
       <div className="h-px bg-border mx-4 mb-4" />

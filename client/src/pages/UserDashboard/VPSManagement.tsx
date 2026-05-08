@@ -1,85 +1,54 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ServerIcon,
-  CpuChipIcon,
-  CircleStackIcon,
   ArrowPathIcon,
   EyeIcon,
   EyeSlashIcon,
   ClipboardDocumentIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   XCircleIcon,
-  CloudIcon,
-  GlobeAltIcon,
-  CommandLineIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   Squares2X2Icon,
   ListBulletIcon,
   ChevronDownIcon,
-  TagIcon,
-  PencilIcon,
-  KeyIcon
+  KeyIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
+import VPSCard, { VPSInstance } from "@/components/dashboard/products/VPSCard";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 import { useAuth } from "../../context/AuthContext";
 
-interface VPSInstance {
-  id: string | number;
-  vm_id: number;
-  proxmox_vm_id: string;
-  vm_type: 'vps' | 'rdp' | 'mobile_proxy';
-  node: string;
-  status: 'pending' | 'provisioning' | 'active' | 'failed' | 'terminated' | 'starting' | 'stopping' | 'rebooting' | 'running' | 'stopped' | 'suspended' | 'error';
-  cpu_cores: number;
-  ram_gb: number;
-  storage_gb: number;
-  ip_address: string;
-  dns_name?: string;
-  proxmox_public_ip: string;
-  hostname: string;
-  os_template: string;
-  root_password: string;
-  ssh_port: number;
-  rdp_port: number;
-  external_port: number;
-  username?: string;
-  resource_usage?: {
-    cpu_percent: number;
-    ram_percent: number;
-    disk_percent: number;
-  };
-  expires_at: string;
-  expired_at?: string; // fallback
-  created_at: string;
-  plan_name?: string;
-  monthly_cost?: number;
-  bandwidth_gb?: number;
-  rdp_enabled?: boolean;
-  auto_renew?: boolean;
-  renewal_method?: string;
-  order_id?: string;
-}
+
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'status' | 'created' | 'cost' | 'usage';
 type SortOrder = 'asc' | 'desc';
 
-import api, { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
+import api, { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
 import { toast } from "react-hot-toast";
 
 const VPSManagement = () => {
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [selectedInstance, setSelectedInstance] = useState<VPSInstance | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState<VPSInstance | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { accessToken } = useAuth();
+  const location = useLocation();
+
+  // Handle auto-search from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [location.search]);
 
   // Filter and search states
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,8 +61,7 @@ const VPSManagement = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [showFilters, setShowFilters] = useState(false);
 
-  const [loadingStats, setLoadingStats] = useState<{ [id: string]: boolean }>({});
-  const fetchedStatIds = useRef<Set<string | number>>(new Set());
+  const [subscriptionModalInstance, setSubscriptionModalInstance] = useState<VPSInstance | null>(null);
 
   useEffect(() => {
     if (accessToken) {
@@ -116,7 +84,6 @@ const VPSManagement = () => {
 
   const handleAction = async (id: string | number, action: 'start' | 'stop' | 'reboot' | 'delete') => {
     try {
-      setRefreshing(prev => ({ ...prev, [id]: true }));
       let response;
 
       switch (action) {
@@ -132,8 +99,6 @@ const VPSManagement = () => {
       setTimeout(loadVPSInstances, 2000);
     } catch (error) {
       // Error is already toasted by api.ts interceptor
-    } finally {
-      setRefreshing(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -153,8 +118,6 @@ const VPSManagement = () => {
       setIsUpdatingPassword(false);
     }
   };
-
-  const [subscriptionModalInstance, setSubscriptionModalInstance] = useState<VPSInstance | null>(null);
 
   // Get unique values for filter options
   const statusOptions = useMemo(() => {
@@ -224,56 +187,6 @@ const VPSManagement = () => {
     return filtered;
   }, [vpsInstances, searchTerm, statusFilter, osFilter, nodeFilter, planFilter, sortBy, sortOrder]);
 
-  // Group instances by status for categorization
-  // Fetch live stats for visible instances
-  useEffect(() => {
-    filteredAndSortedInstances.forEach(instance => {
-      // Fetch stats for running or otherwise active instances
-      if (!fetchedStatIds.current.has(instance.id) && instance.status !== 'terminated' && instance.status !== 'failed') {
-        fetchedStatIds.current.add(instance.id);
-        fetchLiveStats(instance.id);
-      }
-    });
-  }, [filteredAndSortedInstances]);
-
-  const fetchLiveStats = async (id: string | number) => {
-    setLoadingStats(prev => ({ ...prev, [id]: true }));
-    try {
-      const response = await fetchVmStatus(id);
-      if (response.data.resource_usage || response.data.status) {
-        setVpsInstances(prev => prev.map(inst => {
-          if (inst.id === id) {
-            return {
-              ...inst,
-              status: response.data.status || inst.status,
-              resource_usage: response.data.resource_usage || inst.resource_usage
-            };
-          }
-          return inst;
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to fetch live stats for', id, error);
-    } finally {
-      setLoadingStats(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
-  const instancesByStatus = useMemo(() => {
-    const groups: Record<string, VPSInstance[]> = {};
-    filteredAndSortedInstances.forEach(instance => {
-      if (!groups[instance.status]) {
-        groups[instance.status] = [];
-      }
-      groups[instance.status].push(instance);
-    });
-    return groups;
-  }, [filteredAndSortedInstances]);
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
   const getSubdomain = (instance: VPSInstance) => {
     return instance.dns_name || 'Generating...';
   };
@@ -306,23 +219,13 @@ const VPSManagement = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'running':
-      case 'active': return CheckCircleIcon;
-      case 'stopped':
-      case 'terminated': return XCircleIcon;
-      case 'creating':
-      case 'provisioning':
-      case 'starting':
-      case 'stopping':
-      case 'rebooting': return ArrowPathIcon;
-      case 'suspended':
-      case 'failed':
-      case 'error': return ExclamationTriangleIcon;
-      default: return XCircleIcon;
-    }
+
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
+
+
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -333,319 +236,6 @@ const VPSManagement = () => {
   };
 
   const activeFiltersCount = [statusFilter, osFilter, nodeFilter, planFilter].filter(f => f !== 'all').length;
-
-  const renderVPSCard = (instance: VPSInstance) => {
-    const StatusIcon = getStatusIcon(instance.status);
-    const subdomain = getSubdomain(instance);
-    const sshPort = getSSHPort(instance);
-    const sshCommand = getSSHCommand(instance);
-
-    return (
-      <motion.div
-        key={instance.id}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card rounded-xl p-6 border transition-all"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <ServerIcon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{instance.hostname || `VPS-${instance.vm_id}`}</h3>
-              <p className="text-sm text-muted-foreground">{instance.plan_name ? `${instance.plan_name} (VM: ${instance.vm_id})` : `VM ID: ${instance.vm_id}`}</p>
-            </div>
-          </div>
-          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-            <StatusIcon className="h-4 w-4 mr-1" />
-            {instance.status}
-          </div>
-        </div>
-
-        {/* Resources & Usage Section */}
-        <div className="space-y-3 mb-4">
-          {/* Specs Grid */}
-          <div className="grid grid-cols-3 gap-2 p-3 bg-muted/20 rounded-xl border border-border/50">
-            <div className="flex flex-col items-center justify-center py-1">
-              <CpuChipIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">CPU</span>
-              <span className="text-xs font-mono">{instance.cpu_cores}vC</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-1 border-x border-border/30">
-              <CircleStackIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">RAM</span>
-              <span className="text-xs font-mono">{instance.ram_gb}GB</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-1">
-              <CloudIcon className="h-3.5 w-3.5 text-primary/70 mb-1" />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">SSD</span>
-              <span className="text-xs font-mono">{instance.storage_gb}GB</span>
-            </div>
-          </div>
-
-          {/* Real-time Usage (Full Width) */}
-          <div className="space-y-3 p-3 bg-muted/20 rounded-xl border border-border/50">
-            {loadingStats[instance.id] ? (
-              <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                    <span>CPU</span>
-                    <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
-                  </div>
-                  <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
-                      className={`h-full transition-all ${(instance.resource_usage?.cpu_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                    <span>RAM</span>
-                    <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
-                  </div>
-                  <div className="w-full bg-secondary/50 rounded-full h-1.5 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
-                      className={`h-full transition-all ${(instance.resource_usage?.ram_percent ?? 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Connection Details Panel */}
-        <div className="bg-muted/30 rounded-xl p-4 mb-4 border border-border/50 space-y-3">
-          <div className="space-y-1.5 group">
-            <div className="flex items-center gap-2">
-              <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subdomain</span>
-            </div>
-            <div className="flex items-center gap-2 w-full bg-background/50 rounded-lg p-2 border border-border/30">
-              <span className="text-sm font-mono font-medium truncate flex-1" title={instance.dns_name}>
-                {instance.dns_name || 'Generating...'}
-              </span>
-              {instance.dns_name && (
-                <button
-                  onClick={() => copyToClipboard(instance.dns_name!)}
-                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0"
-                  title="Copy Subdomain"
-                >
-                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-  
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Port</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono">{sshPort}</span>
-                <button
-                  onClick={() => copyToClipboard(sshPort.toString())}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
-                >
-                  <ClipboardDocumentIcon className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1 text-right">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">User</span>
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-sm font-mono truncate max-w-[100px]">
-                  {instance.username || (instance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (instance.hostname || 'root'))}
-                </span>
-                <button
-                  onClick={() => copyToClipboard(instance.username || (instance.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (instance.hostname || 'root')))}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
-                >
-                  <ClipboardDocumentIcon className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-border/50">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Password</span>
-              <div className="flex items-center space-x-1">
-                <span className="text-sm font-mono">
-                  {showPassword[instance.id] ? (instance.root_password || 'Not set') : '••••••••'}
-                </span>
-                <button
-                  onClick={() => setShowPassword(prev => ({ ...prev, [instance.id]: !prev[instance.id] }))}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
-                >
-                  {showPassword[instance.id] ? <EyeSlashIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
-                </button>
-                {instance.root_password && (
-                  <button
-                    onClick={() => copyToClipboard(instance.root_password)}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground transition-all"
-                  >
-                    <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => { setShowPasswordModal(instance); setNewPassword(''); }}
-                  className="p-1 rounded hover:bg-primary/10 text-primary transition-all"
-                  title="Change Password"
-                >
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SSH Connection Command */}
-        <div className="p-3 bg-slate-950 rounded-xl border border-white/5 mb-4 group/ssh relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/ssh:opacity-100 transition-opacity" />
-          <div className="flex items-center justify-between mb-2 relative z-10">
-            <span className="text-[10px] font-bold text-primary/70 uppercase tracking-widest flex items-center">
-              <CommandLineIcon className="h-3 w-3 mr-1.5" />
-              SSH Command
-            </span>
-            {subdomain !== 'Generating...' && (
-              <button
-                onClick={() => copyToClipboard(sshCommand)}
-                className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-                title="Copy Command"
-              >
-                <ClipboardDocumentIcon className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          <code className="text-[11px] text-gray-300 font-mono break-all relative z-10 block pr-6">
-            {sshCommand}
-          </code>
-        </div>
-
-        {/* Control Actions */}
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <button
-            onClick={() => handleAction(instance.id, 'start')}
-            disabled={refreshing[instance.id] || instance.status === 'active' || instance.status === 'running'}
-            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all disabled:opacity-30 disabled:grayscale"
-          >
-            <ArrowPathIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-bold uppercase tracking-tight">Start</span>
-          </button>
-
-          <button
-            onClick={() => handleAction(instance.id, 'stop')}
-            disabled={refreshing[instance.id] || instance.status === 'stopped' || instance.status === 'terminated'}
-            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all disabled:opacity-30 disabled:grayscale"
-          >
-            <XCircleIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-bold uppercase tracking-tight">Stop</span>
-          </button>
-
-          <button
-            onClick={() => handleAction(instance.id, 'reboot')}
-            disabled={refreshing[instance.id]}
-            className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/20 transition-all disabled:opacity-30 disabled:grayscale"
-          >
-            <ArrowPathIcon className={`h-4 w-4 mb-1.5 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
-            <span className="text-[10px] font-bold uppercase tracking-tight">Reboot</span>
-          </button>
-        </div>
-
-        {/* Instance Info Button */}
-        <div className="flex gap-2 mt-2">
-          <button
-            onClick={() => setSelectedInstance(instance)}
-            className="flex-1 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors flex items-center justify-center text-sm font-medium"
-          >
-            <EyeIcon className="h-4 w-4 mr-2" />
-            Details
-          </button>
-          <button
-            onClick={() => {
-              // We'll reuse setSelectedInstance but with a different modal type if needed, 
-              // but VPSManagement uses a specific detail modal. 
-              // I'll add a new state for subscription modal.
-              setSubscriptionModalInstance(instance);
-            }}
-            className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors flex items-center justify-center text-sm font-medium"
-            title="Manage Subscription"
-          >
-            <ArrowPathIcon className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Billing Info */}
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Monthly Cost: <span className="text-primary font-semibold">${instance.monthly_cost || 'N/A'}</span></span>
-          <span>Expires: {instance.expires_at ? new Date(instance.expires_at).toLocaleDateString() : 'N/A'}</span>
-        </div>
-      </motion.div>
-    );
-  };
-
-  const renderVPSList = (instance: VPSInstance) => {
-    const StatusIcon = getStatusIcon(instance.status);
-    const subdomain = getSubdomain(instance);
-
-    return (
-      <motion.div
-        key={instance.id}
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="bg-card rounded-lg p-4 border transition-all"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <ServerIcon className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{instance.hostname || `VPS-${instance.vm_id}`}</h3>
-              <p className="text-sm text-muted-foreground">{instance.plan_name} • {instance.os_template}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-6">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">CPU/RAM</p>
-              <p className="text-sm">{instance.cpu_cores}c/{instance.ram_gb}GB</p>
-            </div>
-
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Subdomain</p>
-              <p className="text-sm font-mono">{subdomain}</p>
-            </div>
-
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">Cost</p>
-              <p className="text-sm text-primary font-semibold">${instance.monthly_cost || 'N/A'}</p>
-            </div>
-
-            <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-              <StatusIcon className="h-4 w-4 mr-1" />
-              {instance.status}
-            </div>
-
-            <button
-              onClick={() => setSelectedInstance(instance)}
-              className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-            >
-              Details
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    );
-  };
 
   if (!accessToken) {
     return (
@@ -752,13 +342,33 @@ const VPSManagement = () => {
     if (viewMode === 'grid') {
       return (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredAndSortedInstances.map(renderVPSCard)}
+          {filteredAndSortedInstances.map(instance => (
+            <VPSCard 
+              key={instance.id} 
+              instance={instance} 
+              onAction={handleAction}
+              onShowDetails={(inst) => setSelectedInstance(inst)}
+              onShowSubscription={(inst) => setSubscriptionModalInstance(inst)}
+              onShowPasswordModal={(inst) => setShowPasswordModal(inst)}
+            />
+          ))}
         </div>
       );
     }
+    
+    // Simple fallback for list view using the same card component for now
     return (
-      <div className="space-y-4">
-        {filteredAndSortedInstances.map(renderVPSList)}
+      <div className="flex flex-col gap-4">
+        {filteredAndSortedInstances.map(instance => (
+          <VPSCard 
+            key={instance.id} 
+            instance={instance} 
+            onAction={handleAction}
+            onShowDetails={(inst) => setSelectedInstance(inst)}
+            onShowSubscription={(inst) => setSubscriptionModalInstance(inst)}
+            onShowPasswordModal={(inst) => setShowPasswordModal(inst)}
+          />
+        ))}
       </div>
     );
   };
@@ -767,13 +377,22 @@ const VPSManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">VPS Management</h1>
-          <p className="text-muted-foreground mt-2">
-            {filteredAndSortedInstances.length} of {vpsInstances.length} instances
-            {searchTerm && ` matching "${searchTerm}"`}
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/dashboard/products"
+            className="p-2 hover:bg-muted rounded-full transition-colors group"
+            title="Back to Product Management"
+          >
+            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">VPS Management</h1>
+            <p className="text-muted-foreground mt-1">
+              {filteredAndSortedInstances.length} of {vpsInstances.length} instances
+              {searchTerm && ` matching "${searchTerm}"`}
+            </p>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <button
@@ -951,34 +570,6 @@ const VPSManagement = () => {
         </div>
       ) : (
         renderInstances()
-      )}
-
-      {/* Categorized View (Alternative) */}
-      {filteredAndSortedInstances.length > 0 && Object.keys(instancesByStatus).length > 1 && (
-        <div className="mt-8">
-          <div className="flex items-center mb-4">
-            <TagIcon className="h-5 w-5 text-muted-foreground mr-2" />
-            <h2 className="text-lg font-semibold">Grouped by Status</h2>
-          </div>
-          <div className="space-y-6">
-            {Object.entries(instancesByStatus).map(([status, instances]) => (
-              <div key={status}>
-                <div className={`flex items-center mb-3 px-3 py-1 rounded-lg inline-flex ${getStatusColor(status)}`}>
-                  <span className="font-medium capitalize">{status}</span>
-                  <span className="ml-2 text-xs">({instances.length})</span>
-                </div>
-                <div className={viewMode === 'grid'
-                  ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4"
-                  : "space-y-3"
-                }>
-                  {instances.map(instance =>
-                    viewMode === 'grid' ? renderVPSCard(instance) : renderVPSList(instance)
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* Instance Details Modal */}
@@ -1264,6 +855,53 @@ const VPSManagement = () => {
         onUpdate={loadVPSInstances}
         api={api}
       />
+
+      {/* Change Password Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-xl p-6 max-w-md w-full border shadow-2xl"
+            >
+              <h3 className="text-xl font-bold mb-4">Change VPS Password</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enter a new root/administrator password for <strong>{showPasswordModal.hostname}</strong>. 
+                The instance will need to be running for this to take effect.
+              </p>
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-background border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPasswordModal(null)}
+                  className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isUpdatingPassword || !newPassword}
+                  className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

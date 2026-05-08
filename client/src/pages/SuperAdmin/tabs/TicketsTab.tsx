@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChatBubbleLeftRightIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
@@ -26,6 +27,8 @@ export default function TicketsTab() {
     const [tickets, setTickets] = useState<TicketRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("");
+    const [searchParams] = useSearchParams();
+    const [search, setSearch] = useState(searchParams.get("search") || searchParams.get("q") || "");
     const [replyTarget, setReplyTarget] = useState<TicketRow | null>(null);
     const [replyMsg, setReplyMsg] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
@@ -35,11 +38,12 @@ export default function TicketsTab() {
         try {
             const params: Record<string, string> = {};
             if (statusFilter) params.status = statusFilter;
+            if (search) params.q = search;
             const res = await fetchAdminTickets(params);
             setTickets(res.data.tickets || res.data || []);
         } catch (err) { toast.error(getApiError(err, "Failed to load tickets")); }
         finally { setLoading(false); }
-    }, [statusFilter]);
+    }, [statusFilter, search]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -107,6 +111,8 @@ export default function TicketsTab() {
 
             <DataTable
                 columns={columns} data={tickets} loading={loading}
+                searchPlaceholder="Search tickets..."
+                onSearch={(q) => { setSearch(q); }}
                 emptyMessage="No tickets"
                 actions={(row: TicketRow) => (
                     <div className="flex gap-2">

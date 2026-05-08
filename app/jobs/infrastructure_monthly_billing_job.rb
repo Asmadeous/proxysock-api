@@ -26,7 +26,7 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
     total_wholesale_cost = reseller_orders.sum(:cost_price) + managed_user_orders.sum(:cost_price)
     
     # 2. Negotiated Infrastructure Cost (Backend overhead)
-    infra_cost = reseller.negotiated_infrastructure_cost.to_f
+    infra_cost = reseller.subscription_fee.to_f
     
     grand_total = (total_wholesale_cost + infra_cost).round(2)
     

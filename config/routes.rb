@@ -333,6 +333,23 @@ Rails.application.routes.draw do
       resources :orders, only: %i[index show] do
         post :refund,   on: :member
         post :rescue,   on: :member
+        get :credentials, on: :member
+        post :update_credentials, on: :member
+        post :change_protocol, on: :member
+        post :rotate_ip, on: :member
+        post :whitelist, action: :whitelist_add, on: :member
+        delete :whitelist, action: :whitelist_delete, on: :member
+        post :renew, on: :member
+        post :reorder, on: :member
+      end
+
+      resources :vms, only: %i[index show destroy] do
+        member do
+          post :start
+          post :stop
+          post :reboot
+          get :status
+        end
       end
 
       # Affiliates management
