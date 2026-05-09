@@ -11,11 +11,11 @@ class Reseller < ApplicationRecord
   has_one_attached :avatar
   validate :avatar_security_checks
 
-  has_many :reseller_orders
-  has_many :billing_histories, as: :billable
+  has_many :reseller_orders, dependent: :destroy
+  has_many :billing_histories, as: :billable, dependent: :destroy
   has_many :payouts, dependent: :destroy
-  has_many :managed_users, class_name: 'User', foreign_key: 'reseller_id'
-  has_many :deposits, as: :depositable
+  has_many :managed_users, class_name: 'User', foreign_key: 'reseller_id', dependent: :destroy
+  has_many :deposits, as: :depositable, dependent: :destroy
   has_many :wallets, as: :owner, dependent: :destroy
   has_one :main_wallet, -> { where(wallet_type: 'main') }, as: :owner, class_name: 'Wallet'
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
@@ -43,8 +43,9 @@ class Reseller < ApplicationRecord
   has_one :affiliate, as: :affiliatable, dependent: :destroy
   has_many :affiliate_referrals, as: :referred, dependent: :destroy
   has_many :webhook_endpoints, dependent: :destroy
+  has_many :webhook_events, dependent: :destroy
   has_many :notifications, as: :recipient, dependent: :destroy
-  has_many :tickets, as: :user
+  has_many :tickets, as: :user, dependent: :destroy
 
   delegate :balance, to: :main_wallet, allow_nil: true
   delegate :balance, to: :earnings_wallet, prefix: :earnings, allow_nil: true

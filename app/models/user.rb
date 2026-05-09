@@ -6,8 +6,8 @@ class User < ApplicationRecord
   has_one_attached :avatar
 
   has_many :orders, as: :orderable, dependent: :destroy
-  has_many :deposits, as: :depositable
-  has_many :tickets, as: :user
+  has_many :deposits, as: :depositable, dependent: :destroy
+  has_many :tickets, as: :user, dependent: :destroy
   has_many :wallets, as: :owner, dependent: :destroy
   has_one :main_wallet, -> { where(wallet_type: 'main') }, as: :owner, class_name: 'Wallet'
   has_one :earnings_wallet, -> { where(wallet_type: 'earnings') }, as: :owner, class_name: 'Wallet'
