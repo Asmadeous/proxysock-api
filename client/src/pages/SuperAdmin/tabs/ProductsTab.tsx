@@ -126,6 +126,12 @@ export default function ProductsTab() {
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+    const [importModalOpen, setImportModalOpen] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [excelFile, setExcelFile] = useState<File | null>(null);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const imageRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -360,7 +366,7 @@ export default function ProductsTab() {
                                             Manage <ArrowRightIcon className="w-4 h-4 ml-1.5" />
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     </motion.div>

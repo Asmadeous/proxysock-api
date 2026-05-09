@@ -21,9 +21,16 @@ import {
     ArrowsUpDownIcon,
     ShieldCheckIcon
 } from "@heroicons/react/24/outline";
+import { cn } from "@/lib/utils";
+import {
+    CheckCircle2, XCircle, Clock, RefreshCw,
+    Globe, Smartphone, Monitor, Server, ShieldCheck, ShoppingCart,
+    AlertCircle,
+} from "lucide-react";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import StatsCard from "../components/StatsCard";
+import ManagementFilters from "../components/ManagementFilters";
 import { getApiError } from "../utils/errors";
 import {
     fetchAdminOrders,
@@ -239,11 +246,11 @@ export default function OrdersTab() {
                         row.product_type === 'esim' ? "bg-green-500/10 text-green-500" :
                         "bg-primary/10 text-primary"
                     )}>
-                        {row.product_type === 'rdp' && <ComputerDesktopIcon className="w-4 h-4" />}
-                        {row.product_type === 'vps' && <ServerIcon className="w-4 h-4" />}
-                        {row.product_type === 'esim' && <DevicePhoneMobileIcon className="w-4 h-4" />}
-                        {row.product_type === 'proxy' && <GlobeAltIcon className="w-4 h-4" />}
-                        {row.product_type === 'vpn' && <ShieldCheckIcon className="w-4 h-4" />}
+                        {row.product_type === 'rdp' && <Monitor className="w-4 h-4" />}
+                        {row.product_type === 'vps' && <Server className="w-4 h-4" />}
+                        {row.product_type === 'esim' && <Smartphone className="w-4 h-4" />}
+                        {row.product_type === 'proxy' && <Globe className="w-4 h-4" />}
+                        {row.product_type === 'vpn' && <ShieldCheck className="w-4 h-4" />}
                     </div>
                     <span className="font-medium text-foreground">{row.product_name}</span>
                 </div>
@@ -288,18 +295,18 @@ export default function OrdersTab() {
     ];
 
     const productTypes = [
-        { id: "proxy", label: "Proxy", icon: GlobeAltIcon, color: "text-purple-500", bg: "bg-purple-500/10" },
-        { id: "esim", label: "eSIM", icon: DevicePhoneMobileIcon, color: "text-green-500", bg: "bg-green-500/10" },
-        { id: "rdp", label: "RDP", icon: ComputerDesktopIcon, color: "text-orange-500", bg: "bg-orange-500/10" },
-        { id: "vps", label: "VPS", icon: ServerIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
-        { id: "vpn", label: "VPN", icon: ShieldCheckIcon, color: "text-cyan-500", bg: "bg-cyan-500/10" },
+        { id: "proxy", label: "Proxy", icon: Globe, color: "text-purple-500", bg: "bg-purple-500/10" },
+        { id: "esim", label: "eSIM", icon: Smartphone, color: "text-green-500", bg: "bg-green-500/10" },
+        { id: "rdp", label: "RDP", icon: Monitor, color: "text-orange-500", bg: "bg-orange-500/10" },
+        { id: "vps", label: "VPS", icon: Server, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { id: "vpn", label: "VPN", icon: ShieldCheck, color: "text-cyan-500", bg: "bg-cyan-500/10" },
     ];
 
     const statuses = [
-        { id: "active", label: "Active", icon: CheckCircleIcon, color: "text-green-500", bg: "bg-green-500/10" },
-        { id: "pending", label: "Pending", icon: ClockIcon, color: "text-yellow-500", bg: "bg-yellow-500/10" },
-        { id: "failed", label: "Failed", icon: ExclamationCircleIcon, color: "text-red-500", bg: "bg-red-500/10" },
-        { id: "processing", label: "Processing", icon: ArrowPathIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { id: "active", label: "Active", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10" },
+        { id: "pending", label: "Pending", icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10" },
+        { id: "failed", label: "Failed", icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+        { id: "processing", label: "Processing", icon: RefreshCw, color: "text-blue-500", bg: "bg-blue-500/10" },
     ];
 
     return (
@@ -335,25 +342,27 @@ export default function OrdersTab() {
                             <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-bold">+{Math.round(stats.active / stats.total * 100) || 0}% Active</span>
                         </div>
                     </div>
-                    <ShoppingCartIcon className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0" />
+                    <ShoppingCart className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0" />
                 </motion.div>
 
                 {statuses.map((s, i) => (
-                    <motion.div 
+                    <motion.div
                         key={s.id}
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * (i + 1) }}
                         onClick={() => { setStatusFilter(statusFilter === s.id ? "" : s.id); setPage(1); }}
                         className={cn(
-                            "bg-card border rounded-2xl p-6 cursor-pointer transition-all shadow-sm group",
+                            "bg-card border rounded-2xl p-6 cursor-pointer transition-all shadow-sm group relative overflow-hidden",
                             statusFilter === s.id ? "border-primary ring-4 ring-primary/5" : "border-border hover:border-muted-foreground/30"
                         )}
                     >
+                        <s.icon className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0 z-0" />
+                        <div className="relative z-10 flex flex-col gap-4">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
                                 <h3 className="text-3xl font-black text-foreground">
-                                    {s.id === 'active' ? stats.active : 
-                                     s.id === 'pending' ? stats.pending : 
+                                    {s.id === 'active' ? stats.active :
+                                     s.id === 'pending' ? stats.pending :
                                      s.id === 'failed' ? stats.failed : stats.processing}
                                 </h3>
                             </div>
@@ -361,11 +370,12 @@ export default function OrdersTab() {
                                 <s.icon className="w-5 h-5" />
                             </div>
                         </div>
-                        <div className="mt-4 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                             <div 
                                 className={cn("h-full rounded-full transition-all duration-1000", s.id === 'active' ? "bg-green-500" : s.id === 'pending' ? "bg-yellow-500" : "bg-red-500")} 
                                 style={{ width: `${Math.round(((s.id === 'active' ? stats.active : s.id === 'pending' ? stats.pending : stats.failed) / stats.total) * 100) || 0}%` }} 
                             />
+                        </div>
                         </div>
                     </motion.div>
                 ))}
