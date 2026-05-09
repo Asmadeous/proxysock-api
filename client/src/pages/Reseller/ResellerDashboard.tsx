@@ -17,6 +17,7 @@ import {
     MessageSquare,
     Ticket,
     ArrowLeft,
+    Bell,
 } from "lucide-react";
 
 
@@ -45,6 +46,7 @@ const ResWebhookConfig = lazy(() => import("./components/ResWebhookConfig"));
 const ResSettings = lazy(() => import("./components/ResSettings"));
 const SupportChat = lazy(() => import("../UserDashboard/SupportChat"));
 const Tickets = lazy(() => import("../UserDashboard/Tickets"));
+const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 
 
 // User dashboard buy pages (reused for full product configuration)
@@ -67,6 +69,7 @@ const API_ONLY_TABS = [
     { id: "developer", label: "Developer", icon: Code },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -78,6 +81,7 @@ const SINGLE_PRODUCT_TABS = [
     { id: "developer", label: "Developer", icon: Code },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -91,6 +95,7 @@ const ENTERPRISE_TABS = [
     { id: "users", label: "Users", icon: Users },
     { id: "support", label: "Support", icon: MessageSquare },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -110,9 +115,29 @@ export default function ResellerDashboard() {
     const [cartCount, setCartCount] = useState(0);
     const [selectedCountry, setSelectedCountry] = useState("");
     const [resellerUser, setResellerUser] = useState(() => JSON.parse(localStorage.getItem("resellerUser") || "{}"));
+    const [counts, setCounts] = useState<any>({});
+    const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Fetch summary counts periodically
+    useEffect(() => {
+        const loadCounts = async () => {
+            const { fetchResellerSummaryCounts } = await import("../../services/resellerApi");
+            try {
+                const data = await fetchResellerSummaryCounts();
+                setCounts(data);
+            } catch (e) {
+                console.error("Failed to load reseller summary counts", e);
+            }
+        };
+
+        if (localStorage.getItem("resellerToken")) {
+            loadCounts();
+            const interval = setInterval(loadCounts, 30000);
+            return () => clearInterval(interval);
+        }
+    }, []);
 
     useEffect(() => {
         if (!localStorage.getItem("resellerToken")) {
@@ -157,6 +182,23 @@ export default function ResellerDashboard() {
             window.removeEventListener("cart-updated", updateCartCount);
         };
     }, [navigate, location.pathname]);
+
+    // Mark tab as seen when visited
+    useEffect(() => {
+        setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
+    }, [activeTab]);
+
+    // Reset seen state when counts change (new activity)
+    useEffect(() => {
+        setSeenTabs(prev => {
+            const next: Record<string, boolean> = {};
+            for (const key of Object.keys(prev)) {
+                next[key] = key === activeTab; // Only current tab stays seen
+            }
+            return next;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [counts]);
 
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
@@ -234,6 +276,7 @@ export default function ResellerDashboard() {
             case "users": return <ResUserManagement />;
             case "support": return <SupportChat role="Reseller" />;
             case "tickets": return <Tickets role="Reseller" />;
+            case "notifications": return <NotificationsPage />;
             case "settings": return <ResSettings />;
             case "checkout": return (
                 <ResellerCheckout
@@ -275,11 +318,28 @@ export default function ResellerDashboard() {
     return (
         <div className="h-screen flex bg-background overflow-hidden">
             <AdminSidebar
-                items={tabs.map(t => ({
-                    ...t,
-                    name: t.label,
-                    count: t.id === "cart" ? cartCount : undefined
-                }))}
+                items={tabs.map(t => {
+                    const newItem: any = { ...t, name: t.label };
+                    // Map counts per tab
+                    const tabCount = (() => {
+                        switch (t.id) {
+                            case "orders": return counts.orders || 0;
+                            case "users": return counts.users || 0;
+                            case "tickets": return counts.tickets || 0;
+                            case "support": return counts.support_chats || 0;
+                            case "notifications": return counts.notifications || 0;
+                            default: return 0;
+                        }
+                    })();
+                    if (t.id === "cart") newItem.count = cartCount;
+                    if (tabCount > 0) {
+                        newItem.count = tabCount;
+                        // Red dot only for unseen tabs
+                        if (!seenTabs[t.id]) newItem.badge = "!";
+                    }
+                    if (t.id === "earnings" && counts.withdrawable_profit > 0) newItem.badge = `$${counts.withdrawable_profit.toFixed(0)}`;
+                    return newItem;
+                })}
                 activeTab={activeTab}
                 onTabChange={handleTab}
                 title={isEnterprise ? "Enterprise" : isSingleProduct ? "Product Reseller" : "API Reseller"}

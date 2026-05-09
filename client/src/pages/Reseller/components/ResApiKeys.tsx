@@ -27,7 +27,7 @@ export default function ResApiKeys() {
             setResellerUser(updatedUser);
             toast.success("API Key rotated successfully");
             globalThis.dispatchEvent(new CustomEvent("reseller-user-updated", { detail: updatedUser }));
-        } catch (err) {
+        } catch (err: any) {
             toast.error(getApiError(err, "Failed to rotate API key"));
         } finally {
             setIsRotating(false);

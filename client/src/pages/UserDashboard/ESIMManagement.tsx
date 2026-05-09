@@ -1,75 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DevicePhoneMobileIcon,
   GlobeAltIcon,
-  SignalIcon,
   QrCodeIcon,
   ClipboardDocumentIcon,
-  EyeIcon,
-  EyeSlashIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
   ChartBarIcon,
-  MapPinIcon,
+  ArrowLeftIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import ESIMCard, { ESIMProfile } from "@/components/dashboard/products/ESIMCard";
 import { toast } from "sonner";
 
-interface ESIMProfile {
-  id: string;
-  esim_order_id: string;
-  product_type: string;
-  user_id: string;
-  esim_tran_no: string
-  order_no: string;
-  iccid: string;
-  imsi: string;
-  msisdn: string;
-  qr_code_url: string;
-  activation_code: string;
-  smdp_status: string;
-  esim_status: string;
-  eid: string;
-  package_code: string;
-  package_name: string;
-  location_code: string;
-  location_name: string;
-  total_volume: number; // in MB
-  total_duration: number;
-  duration_unit: string;
-  order_usage: number; // in MB
-  expired_time: string;
-  created_at: string;
-  updated_at: string;
-  pdf_url: string;
-  // Enhanced fields from edge function
-  usage_percent: number;
-  remaining_data: number;
-  is_expired: boolean;
-  days_remaining: number | null;
-  order_total: number;
-  order_status: string;
-  auto_renew?: boolean;
-  renewal_method?: string;
-}
+
 
 const ESIMManagement = () => {
   const [esimProfiles, setEsimProfiles] = useState<ESIMProfile[]>([]);
   const [productTypeFilter, setProductTypeFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<ESIMProfile | null>(null);
   // NOTE: In-house eSIM credentials (e.g., SM-DP+ address and activation code) 
   // cannot be changed programmatically. These are fixed per profile by the provider.
-  const [showActivationCode, setShowActivationCode] = useState<{ [key: string]: boolean }>({});
   const [showQRModal, setShowQRModal] = useState<ESIMProfile | null>(null);
   const [subscriptionModalProfile, setSubscriptionModalProfile] = useState<ESIMProfile | null>(null);
+
   const { accessToken } = useAuth();
+  const location = useLocation();
+
+  // Handle auto-search from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) {
+      // For eSIM, we search ICCID, Order No, or Package Name
+      // We'll set the productTypeFilter to 'all' to ensure the search is effective
+      setProductTypeFilter('all');
+      setSearchTerm(search);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     fetchESIMProfiles();
@@ -132,12 +109,17 @@ const ESIMManagement = () => {
     }
   };
 
-  const filteredProfiles = esimProfiles.filter(profile => {
-    if (productTypeFilter === 'all') return true;
-    return profile.product_type === productTypeFilter;
-  });
+  const filteredProfiles = useMemo(() => esimProfiles.filter(profile => {
+    const matchesProductType = productTypeFilter === 'all' || profile.product_type === productTypeFilter;
+    const matchesSearch = !searchTerm || 
+      profile.iccid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.order_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.package_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const copyToClipboard = (text: string) => {
+    return matchesProductType && matchesSearch;
+  }), [esimProfiles, productTypeFilter, searchTerm]);
+
+  const copyToClipboard = (text?: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
@@ -165,50 +147,9 @@ const ESIMManagement = () => {
     return `${mb} MB`;
   };
 
-  const getStatusColor = (status: string, isExpired: boolean) => {
-    if (isExpired) return 'text-destructive bg-destructive/10';
 
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'activated':
-      case 'delivered':
-        return 'text-primary bg-primary/10';
-      case 'pending':
-      case 'processing':
-      case 'allocated':
-        return 'text-secondary-foreground bg-secondary';
-      case 'inactive':
-      case 'suspended':
-        return 'text-muted-foreground bg-muted';
-      case 'failed':
-      case 'error':
-        return 'text-destructive bg-destructive/10';
-      default:
-        return 'text-muted-foreground bg-muted';
-    }
-  };
 
-  const getStatusIcon = (status: string, isExpired: boolean) => {
-    if (isExpired) return XCircleIcon;
 
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'activated':
-      case 'delivered':
-        return CheckCircleIcon;
-      case 'pending':
-      case 'allocated':
-        return ClockIcon;
-      case 'inactive':
-      case 'suspended':
-        return ExclamationTriangleIcon;
-      case 'failed':
-      case 'error':
-        return XCircleIcon;
-      default:
-        return ClockIcon;
-    }
-  };
 
   const getUsageColor = (percent: number) => {
     if (percent >= 90) return 'from-destructive to-destructive';
@@ -313,10 +254,19 @@ const ESIMManagement = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">eSIM Management</h1>
-          <p className="text-muted-foreground mt-2">Manage your eSIM profiles and data plans</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/dashboard/products"
+            className="p-2 hover:bg-muted rounded-full transition-colors group"
+            title="Back to Product Management"
+          >
+            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">eSIM Management</h1>
+            <p className="text-muted-foreground mt-2">Manage your eSIM profiles and data plans</p>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <button
@@ -331,7 +281,17 @@ const ESIMManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search by ICCID, Order #, or Plan..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <GlobeAltIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        </div>
         <select
           value={productTypeFilter}
           onChange={(e) => setProductTypeFilter(e.target.value)}
@@ -341,6 +301,14 @@ const ESIMManagement = () => {
           <option value="esim">eSIM Access</option>
           <option value="usa_esim">USA eSIM</option>
         </select>
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')}
+            className="text-sm text-primary hover:underline"
+          >
+            Clear Search
+          </button>
+        )}
       </div>
 
       {/* eSIM Profiles Grid */}
@@ -352,211 +320,17 @@ const ESIMManagement = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredProfiles.map((profile) => {
-            const StatusIcon = getStatusIcon(profile.esim_status, profile.is_expired);
-            const displayStatus = profile.is_expired ? 'Expired' : profile.esim_status;
-
-            return (
-              <motion.div
-                key={profile.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-card rounded-xl p-6 border transition-all"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <DevicePhoneMobileIcon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{profile.package_name}</h3>
-                      <p className="text-sm text-muted-foreground flex items-center">
-                        <MapPinIcon className="h-3 w-3 mr-1" />
-                        {profile.location_name}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${profile.product_type === 'usa_esim' ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-                      {profile.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
-                    </div>
-                    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus, profile.is_expired)}`}>
-                      <StatusIcon className="h-4 w-4 mr-1" />
-                      {displayStatus}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Data Plan Info */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="flex items-center space-x-2">
-                    <ChartBarIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{formatDataSize(profile.total_volume)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <ClockIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      {profile.total_duration} {profile.duration_unit}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{profile.location_code.toUpperCase()}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <SignalIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      {profile.days_remaining ? `${profile.days_remaining} days left` : 'Expired'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Usage Stats */}
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Data Usage</span>
-                      <span>{formatDataSize(profile.order_usage)} / {formatDataSize(profile.total_volume)}</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div
-                        className={`bg-gradient-to-r ${getUsageColor(profile.usage_percent)} h-2 rounded-full transition-all`}
-                        style={{ width: `${profile.usage_percent}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{profile.usage_percent}% used</span>
-                      <span>{formatDataSize(profile.remaining_data)} remaining</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Connection Details */}
-                <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">ICCID:</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono text-right truncate max-w-[150px]">
-                        {profile.iccid}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(profile.iccid)}
-                        className="p-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                      >
-                        <ClipboardDocumentIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {profile.msisdn && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Phone:</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono">{profile.msisdn}</span>
-                        <button
-                          onClick={() => copyToClipboard(profile.msisdn)}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <ClipboardDocumentIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {profile.activation_code && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Activation:</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono truncate max-w-[120px]">
-                          {showActivationCode[profile.id]
-                            ? profile.activation_code
-                            : '••••••••••••'}
-                        </span>
-                        <button
-                          onClick={() => setShowActivationCode(prev => ({
-                            ...prev,
-                            [profile.id]: !prev[profile.id]
-                          }))}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showActivationCode[profile.id] ? (
-                            <EyeSlashIcon className="h-4 w-4" />
-                          ) : (
-                            <EyeIcon className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(profile.activation_code)}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <ClipboardDocumentIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-2">
-                  {profile.qr_code_url && (
-                    <button
-                      onClick={() => setShowQRModal(profile)}
-                      className="flex-1 flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-                    >
-                      <QrCodeIcon className="h-4 w-4 mr-2" />
-                      QR Code
-                    </button>
-                  )}
-                  {profile.pdf_url && (
-                    <a
-                      href={profile.pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-                    >
-                      <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
-                      PDF
-                    </a>
-                  )}
-                  <button
-                    onClick={() => setSelectedProfile(profile)}
-                    className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                  </button>
-                  {profile.order_status === 'active' && (
-                    <button
-                      onClick={() => setSubscriptionModalProfile(profile)}
-                      className="px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors"
-                      title="Manage Subscription"
-                    >
-                      <ArrowPathIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                  {profile.is_expired && (
-                    <button
-                      onClick={() => handleReorder(profile.esim_order_id)}
-                      className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors flex items-center gap-2"
-                      title="Reorder"
-                    >
-                      <ArrowPathIcon className="h-4 w-4" />
-                      Reorder
-                    </button>
-                  )}
-                </div>
-
-                {/* Validity Info */}
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Cost: <span className="text-primary font-semibold">${profile.order_total?.toFixed(2) || 'N/A'}</span></span>
-                  <span>
-                    {profile.expired_time
-                      ? `Expires: ${new Date(profile.expired_time).toLocaleDateString()}`
-                      : 'No expiry'}
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
+          {filteredProfiles.map((profile) => (
+            <ESIMCard
+              key={profile.id}
+              profile={profile}
+              onShowQR={(p) => setShowQRModal(p)}
+              onShowDetails={(p) => setSelectedProfile(p)}
+              onShowSubscription={(p) => setSubscriptionModalProfile(p)}
+              onReorder={handleReorder}
+              onCopy={copyToClipboard}
+            />
+          ))}
         </div>
       )}
 
@@ -778,14 +552,14 @@ const ESIMManagement = () => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground text-sm">Purchase Date</span>
                       <span className="text-sm">
-                        {new Date(selectedProfile.created_at).toLocaleDateString()}
+                        {selectedProfile.created_at ? new Date(selectedProfile.created_at).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                     {selectedProfile.expired_time && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground text-sm">Expiry Date</span>
                         <span className={`text-sm ${selectedProfile.is_expired ? 'text-destructive' : ''}`}>
-                          {new Date(selectedProfile.expired_time).toLocaleDateString()}
+                          {selectedProfile.expired_time ? new Date(selectedProfile.expired_time).toLocaleDateString() : 'N/A'}
                           {selectedProfile.days_remaining && !selectedProfile.is_expired &&
                             ` (${selectedProfile.days_remaining} days remaining)`}
                         </span>

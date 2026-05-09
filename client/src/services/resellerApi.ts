@@ -25,7 +25,17 @@ resellerApi.interceptors.response.use(
         if (err.response?.status === 401) {
             localStorage.removeItem("resellerToken");
             localStorage.removeItem("resellerUser");
-            window.location.href = "/reseller/login";
+            if (window.location.pathname !== "/reseller/login") {
+                window.location.href = "/reseller/login";
+            }
+        }
+        // Enrich the error message from the backend JSON body so callers can
+        // simply do: catch(err) { toast.error(err.message) }
+        const data = err.response?.data;
+        if (data) {
+            const msg = data.message || data.error ||
+                (Array.isArray(data.errors) ? data.errors.join(", ") : null);
+            if (msg && err instanceof Error) err.message = msg;
         }
         return Promise.reject(err);
     }
@@ -95,6 +105,8 @@ export const updateResellerProfile = (id: number, data: Record<string, unknown> 
 };
 export const rotateResellerApiKey = (id: number) =>
     resellerApi.post(`/resellers/${id}/rotate_dedicated_api_key`);
+export const fetchResellerSummaryCounts = () =>
+    resellerApi.get("/resellers/summary_counts").then(res => res.data);
 
 
 // ---- Notifications ----

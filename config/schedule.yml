@@ -26,6 +26,6 @@ vm_garbage_collection:
   cron: "0 3 * * *"    # Every day at 3 AM
   class: "VmGarbageCollectionJob"
 
-# vm_health_check:
-#   cron: "*/30 * * * *"  # Every 30 minutes
-#   class: "VmHealthCheckJob"
+infrastructure_monthly_billing:
+  cron: "0 1 1 * *"    # 1st of every month at 1 AM
+  class: "InfrastructureMonthlyBillingJob"

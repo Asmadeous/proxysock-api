@@ -134,6 +134,10 @@ export default function AffiliatesTab() {
         setEntitySearch("");
     };
 
+    const handleProcessPayout = async (id: number) => {
+        await processPayout.mutateAsync(id);
+    };
+
     const openConfig = (a: AffiliateRow) => {
         setConfigTarget(a);
         setConfigForm({

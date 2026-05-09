@@ -4,8 +4,10 @@ import {
   fetchAdminUsers,
   deleteAdminUser,
   updateAdminUser,
+  createAdminUser,
   onboardUser,
   impersonateUser,
+  revokeUserTokens,
 } from "../../../services/adminApi";
 import { adminQueryKeys } from "./queryKeys";
 
@@ -53,6 +55,18 @@ export function useUpdateUser() {
   });
 }
 
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => createAdminUser(data),
+    onSuccess: () => {
+      toast.success("User created successfully");
+      queryClient.invalidateQueries(adminQueryKeys.users.all());
+    },
+    onError: () => toast.error("Failed to create user"),
+  });
+}
+
 export function useOnboardUser() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -73,5 +87,13 @@ export function useImpersonateUser() {
       toast.success("Impersonating user — open a new tab");
     },
     onError: () => toast.error("Failed to impersonate user"),
+  });
+}
+
+export function useRevokeUserTokens() {
+  return useMutation({
+    mutationFn: (id: number) => revokeUserTokens(id),
+    onSuccess: () => toast.success("Tokens revoked"),
+    onError: () => toast.error("Failed to revoke tokens"),
   });
 }

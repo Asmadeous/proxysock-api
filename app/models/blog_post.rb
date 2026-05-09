@@ -26,17 +26,22 @@ class BlogPost < ApplicationRecord
   # Serialised format matching the existing TypeScript Post interface
   def as_blog_json
     {
-      id: slug,
+      id: id,
+      slug: slug,
       title: title,
       excerpt: excerpt,
       category: category,
       author: author,
       date: published_at&.strftime('%Y-%m-%d') || created_at.strftime('%Y-%m-%d'),
+      read_time: read_time,
       readTime: read_time,
       featured: featured,
+      published: published,
       tags: tags || [],
       content: content,
-      imageUrl: image_url
+      imageUrl: image_url,
+      published_at: published_at,
+      created_at: created_at
     }
   end
 

@@ -219,6 +219,23 @@ class WebhooksController < ApplicationController
       wallet = deposit.depositable.wallet
       raise "Wallet missing for #{deposit.depositable_type} #{deposit.depositable_id}" if wallet.nil?
 
+      # Create a Transaction record for the deposit so it shows in SuperAdmin
+      transaction = Transaction.create!(
+        transactable: deposit.depositable,
+        reference: deposit,
+        amount: paid_amount_usd,
+        transaction_type: 'credit',
+        status: 'success',
+        currency: 'USD',
+        payment_gateway: gateway,
+        description: "Deposit via #{gateway}",
+        metadata: { 
+          gateway: gateway, 
+          gateway_ref: reference, 
+          paid_amount_usd: paid_amount_usd 
+        }
+      )
+
       wallet.credit!(
         paid_amount_usd,
         "Deposit via #{gateway}",
@@ -226,7 +243,8 @@ class WebhooksController < ApplicationController
           gateway: gateway,
           gateway_ref: reference,
           paid_amount_usd: paid_amount_usd
-        }
+        },
+        transaction
       )
     end
   end
@@ -273,6 +291,7 @@ class WebhooksController < ApplicationController
         transaction_type: 'debit',
         status: 'success',
         currency: session.currency,
+        payment_gateway: gateway,
         description: "Cart Checkout via #{gateway}",
         metadata: { checkout_session_id: session.id, gateway: gateway }
       )

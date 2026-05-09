@@ -82,20 +82,18 @@ export const fetchTransactions = () => api.get("/web/api/billing/transactions");
 export const verifyAndSyncDeposit = (depositId: string) => api.post("/web/api/billing/verify_and_sync", { deposit_id: depositId });
 export const fetchNotifications = () => api.get("/web/api/notifications");
 export const markNotificationsAsRead = () => api.post("/web/api/notifications/mark_as_read");
+export const fetchUserSummaryCounts = () => api.get("/web/api/monitoring/summary_counts").then(res => res.data);
 
 export const fetchTickets = (params?: Record<string, string>) => api.get("/web/api/tickets", { params });
 export const createTicket = (data: Record<string, unknown>) => api.post("/web/api/tickets", { ticket: data });
 export const replyTicket = (id: number, body: string) => api.post(`/web/api/tickets/${id}/reply`, { body });
 
-export const fetchResellerTickets = (params?: Record<string, string>) => api.get("/api/v1/tickets", { params });
-export const createResellerTicket = (data: Record<string, unknown>) => api.post("/api/v1/tickets", { ticket: data });
-export const replyResellerTicket = (id: number, body: string) => api.post(`/api/v1/tickets/${id}/reply`, { body });
+
 
 export const fetchUserSupportChat = () => api.get("/web/api/support_chats");
 export const sendUserSupportMessage = (message: string) => api.post("/web/api/support_chats/messages", { message });
 
-export const fetchResellerSupportChat = () => api.get("/api/v1/support_chats");
-export const sendResellerSupportMessage = (message: string) => api.post("/api/v1/support_chats/messages", { message });
+
 
 // VM Management Services
 export const fetchVms = (params?: Record<string, string>) => api.get("/web/api/vms", { params });

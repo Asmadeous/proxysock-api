@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { BellIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import { useNavigate, useLocation } from "react-router-dom";
+import { BellIcon, XMarkIcon, CheckCircleIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "@/store/notificationStore";
 
@@ -29,6 +30,8 @@ export default function NotificationBell({ notifications: propNotifications, unr
 
     const [open, setOpen] = useState(false);
     const [markingRead, setMarkingRead] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const handleOpen = () => setOpen(true);
     const handleClose = () => setOpen(false);
@@ -42,6 +45,19 @@ export default function NotificationBell({ notifications: propNotifications, unr
         } finally {
             setMarkingRead(false);
         }
+    };
+    
+    const handleViewAll = () => {
+        const path = location.pathname;
+        let target = "/dashboard/notifications";
+        
+        if (path.startsWith('/admin')) target = "/admin/notifications";
+        else if (path.startsWith('/sadmin')) target = "/sadmin/notifications";
+        else if (path.startsWith('/employee')) target = "/employee/notifications";
+        else if (path.startsWith('/reseller')) target = "/reseller/notifications";
+        
+        navigate(target);
+        setOpen(false);
     };
 
     return (
@@ -130,6 +146,15 @@ export default function NotificationBell({ notifications: propNotifications, unr
                                             </div>
                                         ))
                                 )}
+                            </div>
+                            <div className="p-3 border-t border-border bg-muted/30 flex-shrink-0">
+                                <button 
+                                    onClick={handleViewAll}
+                                    className="w-full py-2 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center justify-center gap-2 group"
+                                >
+                                    View all notifications
+                                    <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                                </button>
                             </div>
                         </motion.div>
                     </>

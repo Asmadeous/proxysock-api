@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import DepositPayment from '../pages/payments/DepositPayments';
-import { Wallet, CreditCard, Bitcoin, AlertCircle, Loader2 } from 'lucide-react';
+import { Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -27,6 +27,7 @@ const PaymentMethodCard = ({
   title,
   description,
   icon: Icon,
+  imageUrl,
   isSelected,
   onClick,
   colorClass,
@@ -35,7 +36,8 @@ const PaymentMethodCard = ({
   id: PaymentMethodType;
   title: string;
   description: string;
-  icon: any;
+  icon?: any;
+  imageUrl?: string;
   isSelected: boolean;
   onClick: () => void;
   colorClass: string;
@@ -51,7 +53,13 @@ const PaymentMethodCard = ({
     <CardContent className="p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Icon className={`w-6 h-6 text-${colorClass}-600 dark:text-${colorClass}-400`} />
+          {imageUrl ? (
+            <div className="w-10 h-10 shrink-0 bg-white rounded-md p-1 border flex items-center justify-center shadow-sm">
+              <img src={imageUrl} alt={title} className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <Icon className={`w-6 h-6 text-${colorClass}-600 dark:text-${colorClass}-400`} />
+          )}
           <div>
             <div className="font-semibold">{title}</div>
             <div className="text-sm text-muted-foreground">{description}</div>
@@ -241,27 +249,17 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     id="paystack"
                     title="Pay with Card (Paystack)"
                     description="Credit/Debit Cards, Mobile Money"
-                    icon={CreditCard}
+                    imageUrl="/paystack.png"
                     isSelected={paymentMethod === 'paystack'}
                     onClick={() => setPaymentMethod('paystack')}
                     colorClass="cyan"
                     loading={loading}
                   />
-{/* <PaymentMethodCard
-                    id="fastspring"
-                    title="Pay with Card (FastSpring)"
-                    description="Global Cards, PayPal & More"
-                    icon={CreditCard}
-                    isSelected={paymentMethod === 'fastspring'}
-                    onClick={() => setPaymentMethod('fastspring')}
-                    colorClass="blue"
-                    loading={loading}
-                  /> */}
                   <PaymentMethodCard
                     id="crypto_hundredpay"
                     title="100Pay (Card & Crypto)"
                     description="Global Payment Hub (USD)"
-                    icon={CreditCard}
+                    imageUrl="/100pay.png"
                     isSelected={paymentMethod === 'crypto_hundredpay'}
                     onClick={() => setPaymentMethod('crypto_hundredpay')}
                     colorClass="purple"
@@ -271,7 +269,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     id="crypto_payvra"
                     title="Pay with Crypto (Payvra)"
                     description="BTC, ETH, USDT & more"
-                    icon={Bitcoin}
+                    imageUrl="/payvra.webp"
                     isSelected={paymentMethod === 'crypto_payvra'}
                     onClick={() => setPaymentMethod('crypto_payvra')}
                     colorClass="blue"
@@ -281,7 +279,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     id="crypto_plisio"
                     title="Pay with Crypto (Plisio)"
                     description="BTC, ETH, USDT & more"
-                    icon={Bitcoin}
+                    imageUrl="/plisio.webp"
                     isSelected={paymentMethod === 'crypto_plisio'}
                     onClick={() => setPaymentMethod('crypto_plisio')}
                     colorClass="orange"

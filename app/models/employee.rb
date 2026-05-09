@@ -52,10 +52,15 @@ class Employee < ApplicationRecord
       employee_id: id,
       email: email,
       role: role,
+      token_version: token_version,
       exp: 8.hours.from_now.to_i, # Shorter expiry for employees
       iat: Time.current.to_i
     }
     JWT.encode(payload, Rails.application.secret_key_base)
+  end
+
+  def revoke_tokens!
+    update!(token_version: (token_version || 1) + 1)
   end
 
   def full_name

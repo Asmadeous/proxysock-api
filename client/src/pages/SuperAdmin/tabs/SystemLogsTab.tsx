@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     DocumentTextIcon, ServerIcon,
     ArrowPathIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon,
@@ -76,6 +76,7 @@ function SystemLogPanel() {
     const [source, setSource] = useState("rails");
     const [lineCount, setLineCount] = useState("200");
     const [autoRefresh, setAutoRefresh] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const { data, isLoading, refetch } = useSystemLogs(
         { search, source, lineCount },
@@ -84,6 +85,12 @@ function SystemLogPanel() {
 
     const lines: AnyObj[] = data?.lines || [];
     const logFile: string = data?.file || "";
+
+    useEffect(() => {
+        if (autoRefresh && scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [lines, autoRefresh]);
 
     return (
         <div className="space-y-3">
@@ -149,7 +156,7 @@ function SystemLogPanel() {
             )}
 
             <div className="bg-[#0d1117] rounded-xl border border-border overflow-hidden">
-                <div className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0">
+                <div className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0 scroll-smooth" ref={scrollRef}>
                     {isLoading ? (
                         <div className="flex justify-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />

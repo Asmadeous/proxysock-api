@@ -17,6 +17,8 @@ import {
   DocumentTextIcon,
   QuestionMarkCircleIcon,
   BookOpenIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import logoDark from "@/assets/images/PROXY PNG.webp";
@@ -160,6 +162,16 @@ const Navbar = () => {
   ];
 
   const navigationItems = [
+    {
+      name: "Resellers",
+      href: "/reseller-program",
+      icon: UserGroupIcon,
+    },
+    {
+      name: "Affiliates",
+      href: "/affiliate-program",
+      icon: CurrencyDollarIcon,
+    },
     {
       name: "Blog",
       href: "/blog",
@@ -620,7 +632,7 @@ const Navbar = () => {
                             : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                             }`}
                         >
-                          <item.icon className="h-5 w-5 mr-3 text-red-500 flex-shrink-0" />
+                          <item.icon className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                           <span>{item.name}</span>
                         </Link>
                       </motion.div>

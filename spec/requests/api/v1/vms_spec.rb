@@ -10,7 +10,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'resource_inventory_manager', email: 'inventory@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'resource_inventory_manager', email: 'inventory@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -34,7 +34,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       }
 
       response(202, 'accepted') do
-        let(:reseller) { r = Reseller.create!(username: 'compute_provisioning_flow', email: 'provisioning@example.com', password: 'password', company_name: 'Test Company'); r.main_wallet.credit!(100.0, 'Initial'); r }
+        let(:reseller) { r = Reseller.create!(username: 'compute_provisioning_flow', email: 'provisioning@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York'); r.main_wallet.credit!(100.0, 'Initial'); r }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         
@@ -56,7 +56,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'instance_health_monitor', email: 'health@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'instance_health_monitor', email: 'health@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         
@@ -81,7 +81,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'resource_auditor', email: 'audit@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'resource_auditor', email: 'audit@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Instance', product_type: 'vm', provider_type: 'proxmox') }
@@ -101,7 +101,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       description 'Permanently deletes the VM instance and deprovisions resources.'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'resource_cleanup_service', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'resource_cleanup_service', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Instance', product_type: 'vm', provider_type: 'proxmox') }
@@ -122,7 +122,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       security [{ Bearer: [] }]
       produces 'application/json'
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Instance', product_type: 'vm', provider_type: 'proxmox') }
@@ -143,7 +143,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       security [{ Bearer: [] }]
       produces 'application/json'
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Instance', product_type: 'vm', provider_type: 'proxmox') }
@@ -164,7 +164,7 @@ RSpec.describe 'api/v1/vms', type: :request do
       security [{ Bearer: [] }]
       produces 'application/json'
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'instance_operator', email: 'ops@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Instance', product_type: 'vm', provider_type: 'proxmox') }

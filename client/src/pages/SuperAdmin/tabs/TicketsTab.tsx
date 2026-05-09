@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
+import { ChatBubbleLeftRightIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import EmptyState from "../components/EmptyState";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
-import { useAdminTickets, useReplyToTicket } from "../queries/tickets.queries";
+import { useAdminTickets, useReplyToTicket, useUpdateTicketStatus } from "../queries/tickets.queries";
 
 interface TicketRow {
     id: number;
@@ -35,12 +35,18 @@ export default function TicketsTab() {
     const tickets: TicketRow[] = data?.tickets ?? data ?? [];
 
     const replyToTicket = useReplyToTicket();
+    const updateStatusMutation = useUpdateTicketStatus();
 
     const handleReply = async () => {
         if (!replyTarget || !replyMsg.trim()) return;
         await replyToTicket.mutateAsync({ id: replyTarget.id, message: replyMsg });
         setReplyTarget(null);
         setReplyMsg("");
+    };
+
+    const handleCloseTicket = async (ticket: TicketRow) => {
+        if (!confirm(`Are you sure you want to close ticket: ${ticket.subject}?`)) return;
+        await updateStatusMutation.mutateAsync({ id: ticket.id, status: "closed" });
     };
 
     const columns = [
@@ -85,12 +91,19 @@ export default function TicketsTab() {
                 loading={isLoading}
                 emptyMessage={<EmptyState icon={ChatBubbleLeftRightIcon} title="No tickets" description="Support tickets will appear here." />}
                 actions={(row: TicketRow) => (
-                    <button
-                        onClick={() => { setReplyTarget(row); setReplyMsg(""); }}
-                        className="px-2.5 py-1 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
-                    >
-                        Reply
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => { setReplyTarget(row); setReplyMsg(""); }}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                        >
+                            <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" /> Reply
+                        </button>
+                        {row.status !== "closed" && row.status !== "resolved" && (
+                            <button onClick={() => handleCloseTicket(row)} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                                <XCircleIcon className="h-3.5 w-3.5" /> Close
+                            </button>
+                        )}
+                    </div>
                 )}
             />
 

@@ -29,7 +29,7 @@ RSpec.describe 'api/v1/products', type: :request do
         # Legacy Rswag 2.x approach for run_test! hook logic, or manual data creation
         # We need a reseller and token to pass auth
         let(:reseller) do
-          Reseller.create!(username: 'partner_v1_demo', email: 'partner@example.com', password: 'password', company_name: 'Enterprise Solutions')
+          Reseller.create!(username: 'partner_v1_demo', email: 'partner@example.com', password: 'password', company_name: 'Enterprise Solutions', country_code: 'US', city: 'New York')
         end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
@@ -61,7 +61,7 @@ RSpec.describe 'api/v1/products', type: :request do
 
       response(200, 'successful') do
         let(:reseller) do
-          Reseller.create!(username: 'partner_v1_show', email: 'partner2@example.com', password: 'password', company_name: 'Enterprise Solutions')
+          Reseller.create!(username: 'partner_v1_show', email: 'partner2@example.com', password: 'password', company_name: 'Enterprise Solutions', country_code: 'US', city: 'New York')
         end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
@@ -79,7 +79,7 @@ RSpec.describe 'api/v1/products', type: :request do
 
       response(404, 'not found') do
         let(:reseller) do
-          Reseller.create!(username: 'doc_user_3', email: 'doc3@test.com', password: 'password', company_name: 'test')
+          Reseller.create!(username: 'doc_user_3', email: 'doc3@test.com', password: 'password', company_name: 'test', country_code: 'US', city: 'New York')
         end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }

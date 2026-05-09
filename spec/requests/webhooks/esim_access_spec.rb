@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe 'Webhooks::EsimAccess', type: :request do
   describe 'POST /webhooks/esim_access' do
-    let(:orderable) { User.create!(email: 'tester@example.com', username: 'testeresim', password: 'password', first_name: 'Test', last_name: 'User') }
+    let(:orderable) { User.create!(email: 'tester@example.com', username: 'testeresim', password: 'password', first_name: 'Test', last_name: 'User', country_code: 'US', city: 'New York') }
     let(:category) { ProductCategory.create!(name: 'eSIMs', slug: 'esims') }
     let(:product) { Product.create!(name: 'esim prod', product_type: 'esim', provider: 'esim_access', product_category: category) }
     let(:pricing) { ProductPricing.create!(product: product, selling_price: 10.0, active: true, currency: 'USD') }

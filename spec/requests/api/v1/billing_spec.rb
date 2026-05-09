@@ -17,7 +17,7 @@ RSpec.describe 'api/v1/billing', type: :request do
                  currency: { type: :string }
                }
 
-        let(:reseller) { Reseller.create!(username: 'partner_billing_summary', email: 'billing@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_billing_summary', email: 'billing@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -32,7 +32,7 @@ RSpec.describe 'api/v1/billing', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'transaction_ledger', email: 'transactions@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'transaction_ledger', email: 'transactions@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -57,7 +57,14 @@ RSpec.describe 'api/v1/billing', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { r = Reseller.create!(username: 'earnings_manager', email: 'earnings@example.com', password: 'password', company_name: 'Test Company'); r.reload.earnings_wallet.credit!(100.0, 'Initial'); r }
+        let(:reseller) { 
+          r = Reseller.create!(username: 'earnings_manager', email: 'earnings@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York', reseller_type: 'infrastructure')
+          AffiliateService.new(r).enrol!
+          wallet = r.wallets.find_or_create_by!(wallet_type: 'earnings')
+          wallet.credit!(100.0, 'Initial')
+          r.update!(withdrawable_profit: 100.0)
+          r.reload
+        }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:transfer) { { amount: 50.0 } }
@@ -85,10 +92,18 @@ RSpec.describe 'api/v1/billing', type: :request do
       }
 
       response(201, 'created') do
-        let(:reseller) { r = Reseller.create!(username: 'commission_withdraw', email: 'payouts@example.com', password: 'password', company_name: 'Test Company'); r.reload.earnings_wallet.credit!(500.0, 'Initial'); r }
+        let!(:reseller) { 
+          r = Reseller.create!(username: 'commission_withdraw', email: 'payouts@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York', reseller_type: 'infrastructure')
+          AffiliateService.new(r).enrol!
+          r.reload.affiliate.update!(total_earned: 500.0)
+          wallet = r.wallets.find_or_create_by!(wallet_type: 'earnings')
+          wallet.credit!(500.0, 'Initial')
+          r.update!(withdrawable_profit: 500.0)
+          r.reload
+        }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        let(:payout) { { amount: 100.0, payment_method: 'bank_transfer', payment_details: { bank: 'Example Bank', account: '123456' } } }
+        let(:payout) { { amount: 100.0, payment_method: 'manual', payment_details: { bank: 'Example Bank', account: '123456' } } }
         run_test!
       end
     end

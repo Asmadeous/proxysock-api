@@ -23,6 +23,9 @@ Rails.application.routes.draw do
         end
       end
       resources :resellers, only: %i[index show update] do
+        collection do
+          get :summary_counts
+        end
         member do
           post :deposit # Keep existing deposit action
           post :rotate_dedicated_api_key
@@ -201,6 +204,7 @@ Rails.application.routes.draw do
         end
       end
 
+
       resources :tools, only: [] do
         collection do
           get :ip_lookup
@@ -242,6 +246,7 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+      get 'monitoring/summary_counts', to: 'monitoring#summary_counts'
       post 'monitoring/login', to: 'monitoring#login'
     end
   end
@@ -257,7 +262,10 @@ Rails.application.routes.draw do
 
       # Admin routes
       resources :employees do
-        post :assign, on: :member
+        member do
+          post :assign
+          post :revoke_tokens
+        end
       end
 
       resources :products do
@@ -310,11 +318,13 @@ Rails.application.routes.draw do
         member do
           post :onboard
           patch :configure
+          post :revoke_tokens
         end
       end
-      resources :users, only: %i[index show update destroy] do
+      resources :users, only: %i[index create show update destroy] do
         post :impersonate, on: :member
         post :onboard,     on: :member
+        post :revoke_tokens, on: :member
       end
       resources :usa_esim_credentials, only: %i[index destroy] do
         post :import, on: :collection
@@ -323,6 +333,23 @@ Rails.application.routes.draw do
       resources :orders, only: %i[index show] do
         post :refund,   on: :member
         post :rescue,   on: :member
+        get :credentials, on: :member
+        post :update_credentials, on: :member
+        post :change_protocol, on: :member
+        post :rotate_ip, on: :member
+        post :whitelist, action: :whitelist_add, on: :member
+        delete :whitelist, action: :whitelist_delete, on: :member
+        post :renew, on: :member
+        post :reorder, on: :member
+      end
+
+      resources :vms, only: %i[index show destroy] do
+        member do
+          post :start
+          post :stop
+          post :reboot
+          get :status
+        end
       end
 
       # Affiliates management
@@ -361,6 +388,7 @@ Rails.application.routes.draw do
       get  'settings/system_info', to: 'settings#system_info'
 
       # System Monitoring
+      get 'monitoring/summary_counts', to: 'monitoring#summary_counts'
       get 'monitoring', to: 'monitoring#index'
       get 'monitoring/queues', to: 'monitoring#queues'
       get 'monitoring/jobs', to: 'monitoring#jobs'

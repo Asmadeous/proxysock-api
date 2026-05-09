@@ -1,0 +1,5 @@
+class AddWithdrawableProfitToResellers < ActiveRecord::Migration[8.1]
+  def change
+    add_column :resellers, :withdrawable_profit, :decimal
+  end
+end

@@ -20,8 +20,10 @@ import {
   Globe,
   Wifi,
   Shield,
-  Terminal,
+  Zap,
+  FileText,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
@@ -55,6 +57,7 @@ interface VPSOrder {
   node: string;
   os_template: string;
   hostname: string;
+  username?: string;
   total_amount: number;
   currency_code: string;
   status: 'pending' | 'provisioning' | 'active' | 'suspended' | 'terminated' | 'failed' | 'cancelled';
@@ -67,7 +70,9 @@ interface VPSOrder {
   country: string;
   duration: number;
   activated_at: string;
+  expires_at?: string;
   ip_address: string;
+  dns_name?: string;
   ssh_port: number;
   // Related plan data
   plan?: {
@@ -127,7 +132,13 @@ const VPSOrdersPage = () => {
       if (response.data && response.data.orders) {
         const transformedOrders = response.data.orders.map((order: any) => ({
           ...order,
-          plan: order.metadata?.plan_details || order.metadata
+          plan: {
+            cpu_cores: order.cpu_cores || order.metadata?.plan_details?.cpu_cores || order.metadata?.cpu_cores || 0,
+            ram_gb: order.ram_gb || order.metadata?.plan_details?.ram_gb || order.metadata?.ram_gb || 0,
+            storage_gb: order.storage_gb || order.metadata?.plan_details?.storage_gb || order.metadata?.storage_gb || 0,
+            bandwidth_gb: order.bandwidth_gb || order.metadata?.plan_details?.bandwidth_gb || order.metadata?.bandwidth_gb || 0,
+            name: order.plan_name || order.metadata?.plan_details?.name || order.metadata?.name || 'Standard'
+          }
         }));
         setOrders(transformedOrders);
       }
@@ -144,9 +155,15 @@ const VPSOrdersPage = () => {
     // Filter by tab
     if (activeTab !== 'all') {
       filtered = filtered.filter(o => {
-        if (activeTab === 'active') return o.status === 'active' || o.status === 'provisioning';
+        if (activeTab === 'active') {
+          const isExpired = o.expires_at && new Date(o.expires_at) < new Date();
+          return (o.status === 'active' || o.status === 'provisioning') && !isExpired;
+        }
         if (activeTab === 'pending') return o.status === 'pending';
-        if (activeTab === 'terminated') return o.status === 'terminated' || o.status === 'suspended';
+        if (activeTab === 'terminated') {
+          const isExpired = o.expires_at && new Date(o.expires_at) < new Date();
+          return o.status === 'terminated' || o.status === 'suspended' || isExpired;
+        }
         if (activeTab === 'failed') return o.status === 'failed' || o.status === 'cancelled';
         return true;
       });
@@ -165,11 +182,15 @@ const VPSOrdersPage = () => {
   };
 
   const calculateStats = () => {
-    const active = orders.filter(o => o.status === 'active' || o.status === 'provisioning').length;
+    const active = orders.filter(o => {
+      const isExpired = o.expires_at && new Date(o.expires_at) < new Date();
+      return (o.status === 'active' || o.status === 'provisioning') && !isExpired;
+    }).length;
     const pending = orders.filter(o => o.status === 'pending').length;
-    const terminated = orders.filter(o =>
-      o.status === 'terminated' || o.status === 'suspended'
-    ).length;
+    const terminated = orders.filter(o => {
+      const isExpired = o.expires_at && new Date(o.expires_at) < new Date();
+      return o.status === 'terminated' || o.status === 'suspended' || isExpired;
+    }).length;
     const failed = orders.filter(o => o.status === 'failed' || o.status === 'cancelled').length;
     const totalSpent = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
     const totalVMs = orders.filter(o => o.vm_id).length;
@@ -239,7 +260,6 @@ ${order.activated_at ? `Activated: ${new Date(order.activated_at).toLocaleDateSt
 Server Configuration
 ====================
 Hostname: ${order.hostname || 'Not assigned'}
-Node: ${order.node}
 OS Template: ${order.os_template}
 Service Type: ${order.service_type}
 Management Type: ${order.management_type}
@@ -254,8 +274,8 @@ Bandwidth: ${order.plan?.bandwidth_gb || 'Unlimited'} GB
 
 Network Information
 ==================
-IP Address: ${order.ip_address || 'Not assigned'}
-SSH Port: 22
+Subdomain: ${order.dns_name || 'Generating...'}
+SSH Port: ${order.ssh_port || 22}
 External Port: ${order.ssh_port || 'Default'}
 
 Billing
@@ -267,7 +287,7 @@ Payment Method: ${order.payment_method || 'N/A'}
 
 SSH Connection
 ==============
-ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
+ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (order.hostname || 'root'))}@${order.dns_name || 'subdomain.pending'} -p ${order.ssh_port || 22}
     `.trim();
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -620,45 +640,46 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
 
                   {/* Details */}
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Cpu className="h-4 w-4" />
-                          Resources
-                        </span>
-                        <span className="font-medium">
-                          {order.plan?.cpu_cores || 0} vCPU / {order.plan?.ram_gb || 0} GB
-                        </span>
+                    {/* Compact Spec Bar */}
+                    <div className="grid grid-cols-3 gap-2 p-3 bg-muted/20 rounded-xl border border-border/50">
+                      <div className="flex flex-col items-center justify-center py-1">
+                        <Cpu className="h-3.5 w-3.5 text-primary/70 mb-1" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">CPU</span>
+                        <span className="text-xs font-mono">{order.plan?.cpu_cores || 0}vC</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <HardDrive className="h-4 w-4" />
-                          Storage
-                        </span>
-                        <span className="font-medium">{order.plan?.storage_gb || 0} GB SSD</span>
+                      <div className="flex flex-col items-center justify-center py-1 border-x border-border/30">
+                        <Wifi className="h-3.5 w-3.5 text-primary/70 mb-1" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">RAM</span>
+                        <span className="text-xs font-mono">{order.plan?.ram_gb || 0}GB</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Wifi className="h-4 w-4" />
-                          Bandwidth
-                        </span>
-                        <span className="font-medium">
-                          {order.plan?.bandwidth_gb ? `${order.plan.bandwidth_gb} GB` : 'Unlimited'}
-                        </span>
+                      <div className="flex flex-col items-center justify-center py-1">
+                        <HardDrive className="h-3.5 w-3.5 text-primary/70 mb-1" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">SSD</span>
+                        <span className="text-xs font-mono">{order.plan?.storage_gb || 0}GB</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Globe className="h-4 w-4" />
+                    </div>
+
+                    <div className="space-y-2 px-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1.5 font-medium uppercase tracking-tight">
+                          <Globe className="h-3.5 w-3.5" />
                           Location
                         </span>
-                        <span className="font-medium">{order.country || order.node}</span>
+                        <span className="font-bold text-foreground">{order.country || 'Default'}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1.5 font-medium uppercase tracking-tight">
+                          <Calendar className="h-3.5 w-3.5" />
                           Duration
                         </span>
-                        <span className="font-medium">{order.duration} month(s)</span>
+                        <span className="font-bold text-foreground">{order.duration} month(s)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1.5 font-medium uppercase tracking-tight">
+                          <Zap className="h-3.5 w-3.5" />
+                          Network
+                        </span>
+                        <span className="font-bold text-foreground">{order.plan?.bandwidth_gb ? `${order.plan.bandwidth_gb} GB` : 'Unlimited'}</span>
                       </div>
                     </div>
 
@@ -684,42 +705,90 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex-1 gap-2"
-                      >
-                        <Terminal className="h-4 w-4" />
-                        Details
-                      </Button>
-                      <Button
-                        onClick={() => downloadOrderDetails(order)}
-                        className="flex-1 gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </Button>
-                      {(order.status === "failed" || order.status === "cancelled") && order.payment_method === "wallet" && (
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      {order.status === "active" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSelectedOrder(order)}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
+                                  responseType: 'blob'
+                                });
+                                const blob = new Blob([response.data], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `invoice-${order.order_number}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Failed to download invoice:', error);
+                              }
+                            }}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                            title="Download Invoice"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Invoice
+                          </Button>
+                        </>
+                      )}
+
+                      {order.status === "pending" && (
                         <Button
                           variant="outline"
-                          onClick={() => handleWalletRefund(order)}
-                          className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                          disabled={refundingOrderId === order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className="col-span-2 flex items-center justify-center gap-2 text-xs"
                         >
-                          <DollarSign className="h-4 w-4" />
-                          {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                          <FileText className="h-3.5 w-3.5" />
+                          Details
                         </Button>
                       )}
-                      {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => setRefundDialogOrderId(order.id)}
-                          className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                          Refund
-                        </Button>
+
+                      {(order.status === "failed" || order.status === "cancelled") && (
+                        <>
+                          <Button
+                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            className="col-span-2 flex items-center justify-center gap-2 text-xs"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            Open Ticket
+                          </Button>
+
+                          {order.payment_method === "wallet" && (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleWalletRefund(order)}
+                              className="col-span-2 flex items-center justify-center gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
+                              disabled={refundingOrderId === order.id}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
+                            </Button>
+                          )}
+                          
+                          {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
+                            <Button
+                              variant="destructive"
+                              onClick={() => setRefundDialogOrderId(order.id)}
+                              className="col-span-2 flex items-center justify-center gap-2"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              Refund
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </CardContent>
@@ -789,9 +858,10 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                       <p className="font-medium mt-1">{selectedOrder.os_template}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-sm">Node</span>
-                      <p className="font-medium mt-1">{selectedOrder.node}</p>
+                      <span className="text-muted-foreground text-sm">Username</span>
+                      <p className="font-medium mt-1">{selectedOrder.username || (selectedOrder.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedOrder.hostname || 'root'))}</p>
                     </div>
+
                     <div>
                       <span className="text-muted-foreground text-sm">Service Type</span>
                       <p className="font-medium mt-1 capitalize">{selectedOrder.service_type}</p>
@@ -842,7 +912,7 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
               </Card>
 
               {/* Network Information */}
-              {selectedOrder.ip_address && (
+              {(selectedOrder.dns_name || selectedOrder.ip_address) && (
                 <Card className="bg-muted/50">
                   <CardHeader>
                     <CardTitle className="text-lg">Network Information</CardTitle>
@@ -851,8 +921,8 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <span className="text-muted-foreground text-sm">IP Address</span>
-                          <p className="font-medium mt-1">{selectedOrder.ip_address}</p>
+                          <span className="text-muted-foreground text-sm">Subdomain</span>
+                          <p className="font-medium mt-1">{selectedOrder.dns_name || 'Generating...'}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground text-sm">SSH Port</span>
@@ -862,7 +932,7 @@ ssh root@${order.ip_address || '[IP_ADDRESS]'} -p 22
                       <div className="p-3 bg-card rounded-lg border">
                         <p className="text-xs text-muted-foreground mb-2">SSH Connection Command:</p>
                         <code className="text-sm text-emerald-600 dark:text-emerald-400 font-mono">
-                          ssh root@{selectedOrder.ip_address} -p 22
+                          ssh ${selectedOrder.username || (selectedOrder.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedOrder.hostname || 'root'))}@{selectedOrder.dns_name || 'subdomain.pending'} -p ${selectedOrder.ssh_port || 22}
                         </code>
                       </div>
                     </div>

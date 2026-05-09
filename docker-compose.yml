@@ -18,7 +18,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - FRONTEND_URL=${FRONTEND_URL}
     ports:
-      - "80:80"
+      - "3000:80"
     depends_on:
       db-production:
         condition: service_healthy
@@ -26,6 +26,7 @@ services:
         condition: service_healthy
     volumes:
       - ./storage:/rails/storage
+      - proxysock_api_logs:/rails/log
     profiles: [ "prod" ]
     restart: unless-stopped
 
@@ -67,6 +68,7 @@ services:
         condition: service_healthy
     volumes:
       - ./storage:/rails/storage
+      - proxysock_api_logs:/rails/log
     profiles: [ "prod" ]
     restart: unless-stopped
 
@@ -129,6 +131,7 @@ services:
     volumes:
       - ./storage:/rails/storage
       - ./monitoring/prometheus/targets:/rails/monitoring/prometheus/targets
+      - proxysock_api_logs:/rails/log
     profiles: [ "staging" ]
     restart: unless-stopped
 
@@ -171,6 +174,7 @@ services:
     volumes:
       - ./storage:/rails/storage
       - ./monitoring/prometheus/targets:/rails/monitoring/prometheus/targets
+      - proxysock_api_logs:/rails/log
     profiles: [ "staging" ]
     restart: unless-stopped
 
@@ -253,7 +257,8 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.external-url=https://test.proxysock.net/prometheus/'
+      - '--web.external-url=${FRONTEND_URL}/prometheus/'
+      - '--web.route-prefix=/prometheus/'
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/targets:/etc/prometheus/targets
@@ -278,7 +283,7 @@ services:
       - GF_AUTH_PROXY_HEADER_NAME=X-WEBAUTH-USER
       - GF_AUTH_PROXY_HEADER_PROPERTY=username
       - GF_AUTH_PROXY_AUTO_SIGN_UP=true
-      - GF_SERVER_ROOT_URL=https://test.proxysock.net/grafana/
+      - GF_SERVER_ROOT_URL=${FRONTEND_URL}/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     ports:
       - "3002:3000"
@@ -296,3 +301,4 @@ volumes:
   redis_staging_data:
   prometheus_data:
   grafana_data:
+  proxysock_api_logs:

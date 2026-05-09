@@ -73,15 +73,16 @@ FROM base
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
-USER 1000:1000
 
 # Copy built artifacts: gems, application
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Ensure log and tmp directories exist and are writable
-RUN mkdir -p /rails/log /rails/tmp && \
-    chown -R rails:rails /rails/log /rails/tmp
+# Ensure log, tmp and monitoring directories exist and are writable (run as root before USER switch)
+RUN mkdir -p /rails/log /rails/tmp /rails/monitoring/prometheus/targets && \
+    chown -R rails:rails /rails/log /rails/tmp /rails/monitoring
+
+USER 1000:1000
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

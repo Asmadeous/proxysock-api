@@ -10,6 +10,7 @@ import {
     BuildingStorefrontIcon,
 } from "@heroicons/react/24/outline";
 import { resellerLogin } from "../../services/resellerApi";
+import { getApiError } from "../../utils/apiError";
 import { Helmet } from "react-helmet-async";
 import AuthLogo from "../../components/auth/AuthLogo";
 import AuroraBackground from "../../components/auth/carousel/AuroraBackground";
@@ -109,8 +110,7 @@ export default function ResellerLoginPage() {
             localStorage.setItem("resellerUser", JSON.stringify(res.data.reseller));
             navigate("/reseller");
         } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Login failed";
-            setError(msg);
+            setError(getApiError(err, "Login failed"));
         } finally {
             setLoading(false);
         }

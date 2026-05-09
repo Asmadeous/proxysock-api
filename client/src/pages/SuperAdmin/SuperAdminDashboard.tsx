@@ -1,5 +1,5 @@
-import { useState, useEffect, lazy, Suspense } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   HomeIcon,
   UsersIcon,
@@ -21,12 +21,13 @@ import {
   AdjustmentsHorizontalIcon,
   CircleStackIcon,
   DevicePhoneMobileIcon,
+  BellIcon,
+  Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarGroup } from "./components/AdminSidebar";
 import CommandPalette from "./components/CommandPalette";
 import AdminErrorBoundary from "./components/AdminErrorBoundary";
-import { saveTabFilters, restoreTabFilters } from "./utils/adminFilterCache";
-import { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
+import { fetchAdminNotifications, markAdminNotificationsAsRead, fetchAdminSummaryCounts } from "../../services/adminApi";
 import { Loader2 } from "lucide-react";
 import { formatImageUrl } from "../../services/api";
 
@@ -50,6 +51,10 @@ const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
 const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
 const UsaCredentialsTab = lazy(() => import("./tabs/UsaCredentialsTab"));
+const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
+
+// Consolidated Management Tab
+const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
 
 const sidebarGroups: SidebarGroup[] = [
   {
@@ -71,6 +76,7 @@ const sidebarGroups: SidebarGroup[] = [
     label: "Commerce",
     items: [
       { id: "orders", name: "Orders", icon: ShoppingCartIcon },
+      { id: "management", name: "Management", icon: Squares2X2Icon },
       { id: "products", name: "Products", icon: CubeIcon },
       { id: "transactions", name: "Transactions", icon: CurrencyDollarIcon },
       { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
@@ -83,6 +89,7 @@ const sidebarGroups: SidebarGroup[] = [
       { id: "tickets", name: "Tickets", icon: ChatBubbleLeftRightIcon },
       { id: "support_chats", name: "Support Chats", icon: InboxIcon },
       { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleOvalLeftIcon },
+      { id: "notifications", name: "Notifications", icon: BellIcon },
     ],
   },
   {
@@ -105,6 +112,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   resellers: ResellersTab,
   affiliates: AffiliatesTab,
   orders: OrdersTab,
+  management: ManagementTab,
   products: ProductsTab,
   transactions: TransactionsTab,
   blog: BlogTab,
@@ -116,9 +124,27 @@ const TAB_COMPONENTS: Record<string, any> = {
   settings: SettingsTab,
   database: DatabaseTab,
   usa_credentials: UsaCredentialsTab,
+  notifications: NotificationsPage,
   logs: SystemLogsTab,
 };
 
+// Tabs that can have "unseen" events
+const BADGE_TABS = ["orders", "tickets", "affiliates", "support_chats", "guest_chats", "monitoring", "notifications"] as const;
+
+// localStorage key for tracking when admin last viewed each tab
+const SEEN_KEY = "admin_tab_seen";
+
+function getSeenTimestamps(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}");
+  } catch { return {}; }
+}
+
+function markTabSeen(tabId: string) {
+  const seen = getSeenTimestamps();
+  seen[tabId] = Date.now();
+  localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+}
 
 const TabLoader = () => (
   <div className="flex h-[60vh] w-full items-center justify-center">
@@ -126,12 +152,22 @@ const TabLoader = () => (
   </div>
 );
 
+
 export default function SuperAdminDashboard() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") ?? "overview";
+  const [activeTab, setActiveTab] = useState("overview");
   const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
+  const [counts, setCounts] = useState<any>({});
+  const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
   const [cmdOpen, setCmdOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Sync tab with URL (path-based routing)
+  useEffect(() => {
+    const pathParts = location.pathname.split("/").filter(Boolean);
+    const subPath = pathParts[1] || "overview";
+    setActiveTab(subPath);
+  }, [location.pathname]);
 
   // Cmd+K / Ctrl+K to open command palette
   useEffect(() => {
@@ -145,17 +181,53 @@ export default function SuperAdminDashboard() {
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
+  // Determine if a tab has unseen activity
+  const hasUnseen = useCallback((tabId: string, count: number): boolean => {
+    if (count <= 0) return false;
+    if (seenTabs[tabId]) return false;
+    return true;
+  }, [seenTabs]);
+
+  // Fetch summary counts periodically
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const data = await fetchAdminSummaryCounts();
+        setCounts(data);
+      } catch (e) {
+        console.error("Failed to load summary counts", e);
+      }
+    };
+    loadCounts();
+    const interval = setInterval(loadCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // When activeTab changes, mark it as "seen"
+  useEffect(() => {
+    markTabSeen(activeTab);
+    setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
+  }, [activeTab]);
+
+  // When counts change, reset "seen" for tabs that have NEW activity
+  useEffect(() => {
+    const newSeenState: Record<string, boolean> = {};
+    for (const tabId of BADGE_TABS) {
+      newSeenState[tabId] = tabId === activeTab;
+    }
+    setSeenTabs(prev => ({ ...prev, ...newSeenState }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts]);
+
   // Auth check & Storage sync
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
     if (!token) {
       navigate("/admin/login");
     }
-
     const handleUpdate = () => {
       setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
     };
-
     window.addEventListener("storage", handleUpdate);
     window.addEventListener("admin-user-updated", handleUpdate);
     return () => {
@@ -175,21 +247,43 @@ export default function SuperAdminDashboard() {
 
   const ActiveComponent = TAB_COMPONENTS[activeTab] || OverviewTab;
 
+  // Apply badge counts to grouped sidebar structure
+  const dynamicGroups: SidebarGroup[] = sidebarGroups.map(group => ({
+    ...group,
+    items: group.items.map(item => {
+      const newItem = { ...item };
+      const tabCount = (() => {
+        switch (item.id) {
+          case "orders": return counts.orders || 0;
+          case "tickets": return counts.tickets || 0;
+          case "affiliates": return counts.payouts || 0;
+          case "support_chats": return counts.support_chats || 0;
+          case "guest_chats": return counts.guest_chats || 0;
+          case "notifications": return counts.notifications || 0;
+          default: return 0;
+        }
+      })();
+      if (tabCount > 0) {
+        newItem.count = tabCount;
+        if (hasUnseen(item.id, tabCount)) {
+          newItem.badge = "!";
+        }
+      }
+      if (item.id === "monitoring" && counts.dead_jobs > 0) {
+        newItem.badge = "!";
+        newItem.count = counts.dead_jobs;
+      }
+      return newItem;
+    }),
+  }));
+
   const handleTabChange = (id: string) => {
     if (id === "logout") {
       handleLogout();
       return;
     }
-    // Save the current tab's filter state before leaving
-    saveTabFilters(activeTab, searchParams);
-    // Restore saved filters for the destination tab (if any)
-    const saved = restoreTabFilters(id);
-    if (saved) {
-      saved.set("tab", id);
-      setSearchParams(saved, { replace: false });
-    } else {
-      setSearchParams({ tab: id }, { replace: false });
-    }
+    const prefix = location.pathname.startsWith('/sadmin') ? '/sadmin' : '/admin';
+    navigate(`${prefix}/${id}`);
   };
 
   return (
@@ -197,12 +291,12 @@ export default function SuperAdminDashboard() {
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
-        groups={sidebarGroups}
+        groups={dynamicGroups}
         onNavigate={handleTabChange}
         activeTab={activeTab}
       />
       <AdminSidebar
-        groups={sidebarGroups}
+        groups={dynamicGroups}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onOpenCommandPalette={() => setCmdOpen(true)}

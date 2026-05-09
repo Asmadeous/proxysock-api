@@ -54,7 +54,9 @@ RSpec.describe 'Web::Api::Auth SSO', type: :request do
           username: 'existing_one',
           first_name: 'Existing',
           last_name: 'User',
-          password: 'password123'
+          password: 'password123',
+          country_code: 'US',
+          city: 'New York'
         )
       end
 
@@ -78,7 +80,9 @@ RSpec.describe 'Web::Api::Auth SSO', type: :request do
           username: 'testuser',
           first_name: 'Other',
           last_name: 'User',
-          password: 'password123'
+          password: 'password123',
+          country_code: 'US',
+          city: 'New York'
         )
       end
 

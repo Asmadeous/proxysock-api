@@ -43,10 +43,9 @@
         - name: Gather facts after connectivity verified
           setup:
 
-        - name: Install RDP packages, desktop environment and tools
+        - name: Install RDP packages and tools
           dnf:
             name:
-              - "@gnome-desktop"
               - xrdp
               - xrdp-selinux
               - xorgxrdp
@@ -115,9 +114,10 @@
           seport:
             ports: "{{ custom_port | default(3389) }}"
             proto: tcp
-            setype: xrdp_port_t
+            setype: rdp_port_t
             state: present
           when: custom_port is defined
+          ignore_errors: true
 
 
 

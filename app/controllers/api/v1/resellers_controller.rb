@@ -5,6 +5,29 @@ module Api
     class ResellersController < BaseController
       include JwtAuthenticated
 
+      def summary_counts
+        # Managed users' pending orders
+        managed_order_count = Order.where(orderable: current_reseller.managed_users)
+                                   .where(status: 'pending').count
+        
+        # New managed users today
+        new_users_today = current_reseller.managed_users
+                                          .where('created_at >= ?', Time.current.beginning_of_day).count
+                                          
+        # Unread notifications
+        unread_notifications = current_reseller.notifications.unread.count
+
+        # Withdrawable profit (Infrastructure only)
+        withdrawable = current_reseller.infrastructure? ? current_reseller.withdrawable_profit.to_f : 0
+
+        render json: {
+          orders: managed_order_count,
+          users: new_users_today,
+          notifications: unread_notifications,
+          withdrawable_profit: withdrawable
+        }
+      end
+
       def index
         resellers = Reseller.page(params[:page]).per(params[:per] || 25)
         render json: {

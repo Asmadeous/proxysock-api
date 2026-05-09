@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe Wallet, type: :model do
-  let(:user) { User.create!(username: 'wallet_user', email: 'wallet@test.com', first_name: 'W', last_name: 'S', password: 'password123') }
+  let(:user) { User.create!(username: 'wallet_user', email: 'wallet@test.com', first_name: 'W', last_name: 'S', password: 'password123', country_code: 'US', city: 'New York') }
   let(:wallet) { user.wallet }
 
   describe '#credit!' do

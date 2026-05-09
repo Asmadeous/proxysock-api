@@ -9,7 +9,7 @@ class BillingRenewalWorker < ApplicationJob
     Rails.logger.info '[BillingRenewal] Starting renewal check...'
 
     [
-      'Vm', 'Vpn', 'MobileProxy', 'GlobalIspProxy',
+      'Vm', 'VpnAccount', 'MobileProxy', 'GlobalIspProxy',
       'StaticDatacenterProxy', 'StaticIspProxy',
       'StaticResidentialProxy', 'PremiumIspProxy',
       'EsimOrder'
@@ -28,25 +28,31 @@ class BillingRenewalWorker < ApplicationJob
   private
 
   def process_expiring_resources(model_class)
+    return unless model_class.column_names.include?('expires_at')
+
+    query = model_class.all
+    if model_class.column_names.include?('status')
+      query = query.where(status: 'active')
+    elsif model_class.column_names.include?('active')
+      query = query.where(active: true)
+    end
+
     # Resources expiring in the next 24 hours — send renewal reminder
-    model_class.where(status: 'active')
-               .where(expires_at: Time.current..24.hours.from_now)
-               .find_each do |resource|
-                 send_renewal_reminder(resource) unless already_notified_today?(resource)
+    query.where(expires_at: Time.current..24.hours.from_now)
+         .find_each do |resource|
+           send_renewal_reminder(resource) unless already_notified_today?(resource)
     end
 
     # Resources expiring in the next 3 days — send early warning
-    model_class.where(status: 'active')
-               .where(expires_at: 24.hours.from_now..3.days.from_now)
-               .find_each do |resource|
-                 send_early_warning(resource) unless already_notified_today?(resource)
+    query.where(expires_at: 24.hours.from_now..3.days.from_now)
+         .find_each do |resource|
+           send_early_warning(resource) unless already_notified_today?(resource)
     end
 
     # Auto-renew resources with wallet balance if metadata flag is set
-    model_class.where(status: 'active')
-               .where(expires_at: Time.current..24.hours.from_now)
-               .find_each do |resource|
-                 attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
+    query.where(expires_at: Time.current..24.hours.from_now)
+         .find_each do |resource|
+           attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
     end
   end
 
@@ -212,6 +218,7 @@ class BillingRenewalWorker < ApplicationJob
             transaction_type: 'credit',
             status: 'success',
             currency: 'USD',
+            payment_gateway: method,
             description: "Auto-Renewal Gateway Funding (#{method.capitalize})",
             metadata: { 
               gateway: method, 

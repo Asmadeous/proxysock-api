@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_07_092823) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -141,6 +141,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
   end
 
   create_table "billing_histories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount_due"
+    t.decimal "amount_paid"
     t.uuid "billable_id"
     t.string "billable_type", default: "Reseller"
     t.date "billing_period_end"
@@ -149,6 +151,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
     t.string "currency"
     t.datetime "generated_at"
     t.decimal "net_revenue"
+    t.string "status"
     t.integer "total_orders"
     t.decimal "total_refunds"
     t.decimal "total_revenue"
@@ -295,6 +298,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
     t.string "profile_picture_url"
     t.string "provider"
     t.string "role"
+    t.integer "token_version", default: 1, null: false
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "work_email"
@@ -815,8 +819,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
     t.decimal "subscription_fee"
     t.datetime "token_issued_at"
     t.integer "token_request_count", default: 0
+    t.integer "token_version", default: 1, null: false
     t.datetime "updated_at", null: false
     t.string "username"
+    t.decimal "withdrawable_profit"
     t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
@@ -1104,6 +1110,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
     t.datetime "email_verified_at"
     t.string "first_name"
     t.string "ip_address"
+    t.boolean "jellyfin_account_created", default: false
+    t.string "jellyfin_password"
+    t.string "jellyfin_username"
     t.datetime "last_login_at"
     t.string "last_name"
     t.datetime "last_seen_at"
@@ -1120,6 +1129,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_15_232236) do
     t.string "referred_by_code"
     t.uuid "reseller_id"
     t.string "status"
+    t.integer "token_version", default: 1, null: false
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "username"

@@ -38,8 +38,9 @@ Rails.application.configure do
     stdout_logger = ActiveSupport::Logger.new(STDOUT)
     stdout_logger.formatter = config.log_formatter
     
-    # Create File logger
-    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}.log"))
+    # Create File logger (unique per role if using shared volume)
+    log_suffix = ENV["SERVER_ROLE"].present? ? ".#{ENV["SERVER_ROLE"]}" : ""
+    file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}#{log_suffix}.log"))
     file_logger.formatter = config.log_formatter
     
     # Broadcast to both
@@ -56,7 +57,7 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Use Sidekiq (matches your docker-compose)
+  # Use Sidekiq
   config.active_job.queue_adapter = :sidekiq
 
   # Use SolidCache (standard Rails 8)
@@ -80,5 +81,10 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [:id]
 
   # Action Cable configuration
-  config.action_cable.allowed_request_origins = ['https://proxysock.com', 'https://www.proxysock.com']
+  config.action_cable.allowed_request_origins = [
+    'https://proxysock.com',
+    'https://www.proxysock.com',
+    'https://testprod.proxysock.com',
+    %r{https://.+\.proxysock\.com}
+  ]
 end

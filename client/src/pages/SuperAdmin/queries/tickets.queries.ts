@@ -4,6 +4,7 @@ import {
   fetchAdminTickets,
   replyToTicket,
   rescueTicketOrder,
+  updateTicketStatus,
 } from "../../../services/adminApi";
 import { adminQueryKeys } from "./queryKeys";
 
@@ -44,5 +45,18 @@ export function useRescueTicketOrder() {
       queryClient.invalidateQueries(adminQueryKeys.tickets.all());
     },
     onError: () => toast.error("Failed to rescue order"),
+  });
+}
+
+export function useUpdateTicketStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      updateTicketStatus(id, status),
+    onSuccess: () => {
+      toast.success("Ticket status updated");
+      queryClient.invalidateQueries(adminQueryKeys.tickets.all());
+    },
+    onError: () => toast.error("Failed to update ticket status"),
   });
 }

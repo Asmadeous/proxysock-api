@@ -1,61 +1,29 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ComputerDesktopIcon,
   CpuChipIcon,
-  CircleStackIcon,
   ArrowPathIcon,
   EyeIcon,
   EyeSlashIcon,
   ClipboardDocumentIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   XCircleIcon,
-  CloudIcon,
   ShieldCheckIcon,
-  DocumentArrowDownIcon,
-  GlobeAltIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
+  PencilIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
-import { fetchVms, fetchVmStatus, startVm, stopVm, rebootVm, deleteVm } from "../../services/api";
+import RDPCard, { RDPInstance } from "@/components/dashboard/products/RDPCard";
+import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
+import api, { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
 import { toast } from "sonner";
 import { PencilIcon } from "@heroicons/react/24/outline";
 
-interface RDPInstance {
-  id: string | number;
-  vm_id: number;
-  proxmox_vm_id: string;
-  vm_type: 'vps' | 'rdp' | 'mobile_proxy';
-  node: string;
-  status: 'pending' | 'provisioning' | 'active' | 'failed' | 'terminated' | 'starting' | 'stopping' | 'rebooting' | 'running' | 'stopped';
-  cpu_cores: number;
-  ram_gb: number;
-  storage_gb: number;
-  ip_address: string;
-  proxmox_public_ip: string;
-  hostname: string;
-  os_template: string;
-  rdp_username: string;
-  rdp_password: string;
-  root_password?: string;
-  rdp_port: number;
-  ssh_port?: number;
-  external_port: number;
-  concurrent_users: number;
-  active_sessions: number;
-  service_type: 'residential' | 'standard';
-  resource_usage?: {
-    cpu_percent: number;
-    ram_percent: number;
-    disk_percent: number;
-  };
-  expires_at: string;
-  created_at: string;
-  plan_name?: string;
-  monthly_cost?: number;
-}
+
 
 interface RDPFiltersProps {
   searchTerm: string;
@@ -86,7 +54,7 @@ const RDPFilters = ({
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by hostname, IP, VM ID, node, or username..."
+          placeholder="Search by hostname, VM ID, or username..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -140,253 +108,6 @@ const RDPFilters = ({
   </div>
 );
 
-interface RDPInstanceCardProps {
-  instance: RDPInstance;
-  getStatusIcon: (status: string) => any;
-  getStatusColor: (status: string) => string;
-  showPassword: Record<string, boolean>;
-  setShowPassword: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  copyToClipboard: (text: string) => void;
-  downloadRDPFile: (id: string) => Promise<void>;
-  downloadingRDP: string | null;
-  onShowPasswordModal: (instance: RDPInstance) => void;
-  loadingStats?: Record<string, boolean>;
-}
-
-const RDPInstanceCard = ({
-  instance,
-  getStatusIcon,
-  getStatusColor,
-  showPassword,
-  setShowPassword,
-  copyToClipboard,
-  downloadRDPFile,
-  downloadingRDP,
-  handleAction,
-  refreshing,
-  onShowPasswordModal: _onShowPasswordModal,
-  loadingStats = {},
-}: RDPInstanceCardProps & { handleAction: (id: string | number, action: any) => Promise<void>, refreshing: Record<string, boolean> }) => {
-  const StatusIcon = getStatusIcon(instance.status);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-card rounded-xl p-6 border transition-all"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <ComputerDesktopIcon className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">{instance.hostname || `RDP-${instance.vm_id}`}</h3>
-            <p className="text-sm text-muted-foreground">{instance.plan_name ? `${instance.plan_name} (VM: ${instance.vm_id})` : `${instance.service_type} - VM ${instance.vm_id}`}</p>
-          </div>
-        </div>
-        <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.status)}`}>
-          <StatusIcon className="h-4 w-4 mr-1" />
-          {instance.status}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="flex items-center space-x-2">
-          <CpuChipIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.cpu_cores} vCPU</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <CircleStackIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.ram_gb} GB RAM</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <CloudIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.storage_gb} GB SSD</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <GlobeAltIcon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-foreground">{instance.node}</span>
-        </div>
-      </div>
-
-      <div className="space-y-3 mb-4">
-        {loadingStats[instance.id] ? (
-          <div className="space-y-3 py-1">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-1">
-                <div className="flex justify-between">
-                  <div className="h-3 w-16 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-8 bg-muted animate-pulse rounded" />
-                </div>
-                <div className="h-2 w-full bg-muted animate-pulse rounded-full" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>CPU Usage</span>
-                <span>{instance.resource_usage?.cpu_percent?.toFixed(1) || 0}%</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, instance.resource_usage?.cpu_percent || 0)}%` }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>RAM Usage</span>
-                <span>{instance.resource_usage?.ram_percent?.toFixed(1) || 0}%</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, instance.resource_usage?.ram_percent || 0)}%` }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Active Sessions</span>
-                <span>{instance.active_sessions}/{instance.concurrent_users}</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (instance.active_sessions / instance.concurrent_users) * 100)}%` }}
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">IP Address:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">{instance.ip_address || 'Pending'}</span>
-            {instance.ip_address && (
-              <button
-                onClick={() => copyToClipboard(instance.ip_address)}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">RDP Port:</span>
-          <span className="text-sm font-mono">{instance.rdp_port || 3389}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Username:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">{instance.rdp_username}</span>
-            <button
-              onClick={() => copyToClipboard(instance.rdp_username)}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ClipboardDocumentIcon className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Password:</span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-mono">
-              {showPassword[instance.id.toString()] ? instance.rdp_password : '••••••••'}
-            </span>
-            <button
-              onClick={() => setShowPassword(prev => ({
-                ...prev,
-                [instance.id.toString()]: !prev[instance.id.toString()]
-              }))}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={() => copyToClipboard(instance.rdp_password)}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ClipboardDocumentIcon className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Control Actions */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <button
-          onClick={() => handleAction(instance.id, 'start')}
-          disabled={refreshing[instance.id] || ['active', 'running', 'starting'].includes(instance.status)}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors disabled:opacity-50"
-          title="Start VM"
-        >
-          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'starting' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Start</span>
-        </button>
-
-        <button
-          onClick={() => handleAction(instance.id, 'stop')}
-          disabled={refreshing[instance.id] || ['stopped', 'terminated', 'stopping'].includes(instance.status)}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors disabled:opacity-50"
-          title="Stop VM"
-        >
-          <XCircleIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'stopping' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Stop</span>
-        </button>
-
-        <button
-          onClick={() => handleAction(instance.id, 'reboot')}
-          disabled={refreshing[instance.id] || instance.status === 'rebooting'}
-          className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors disabled:opacity-50"
-          title="Reboot VM"
-        >
-          <ArrowPathIcon className={`h-5 w-5 mb-1 ${refreshing[instance.id] && instance.status === 'rebooting' ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-medium">Reboot</span>
-        </button>
-      </div>
-
-      <button
-        onClick={() => downloadRDPFile(instance.id.toString())}
-        disabled={downloadingRDP === instance.id || instance.status !== 'active' || !instance.ip_address}
-        className="w-full flex items-center justify-center px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <DocumentArrowDownIcon className={`h-5 w-5 mr-2 ${downloadingRDP === instance.id ? 'animate-pulse' : ''}`} />
-        {downloadingRDP === instance.id ? 'Generating...' : 'Download RDP File'}
-      </button>
-
-      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-        <div className="text-xs text-muted-foreground mb-2">Quick Connect:</div>
-        <div className="space-y-1 text-xs">
-          <div className="text-foreground">
-            <span className="text-muted-foreground">Host:</span>
-            <span className="font-mono ml-1">
-              {instance.ip_address || 'Pending'}:{instance.rdp_port || 3389}
-            </span>
-          </div>
-          <div className="text-foreground">
-            <span className="text-muted-foreground">User:</span>
-            <span className="font-mono ml-1">{instance.rdp_username}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Monthly Cost: <span className="text-primary font-semibold">${instance.monthly_cost || 'N/A'}</span></span>
-        <span>Expires: {instance.expires_at ? new Date(instance.expires_at).toLocaleDateString() : 'N/A'}</span>
-      </div>
-    </motion.div>
-  );
-};
-
 interface RDPInstanceDetailsModalProps {
   instance: RDPInstance | null;
   onClose: () => void;
@@ -395,6 +116,7 @@ interface RDPInstanceDetailsModalProps {
   setShowPassword: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   copyToClipboard: (text: string) => void;
   onShowPasswordModal: (instance: RDPInstance) => void;
+  refreshing: Record<string, boolean>;
 }
 
 const RDPInstanceDetailsModal = ({
@@ -404,7 +126,7 @@ const RDPInstanceDetailsModal = ({
   showPassword,
   setShowPassword,
   copyToClipboard,
-  onShowPasswordModal
+  onShowPasswordModal,
 }: RDPInstanceDetailsModalProps) => (
   <AnimatePresence>
     {instance && (
@@ -451,7 +173,6 @@ const RDPInstanceDetailsModal = ({
                 <div className="flex justify-between"><span className="text-muted-foreground">RAM:</span><span className="text-foreground">{instance.ram_gb} GB</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Storage:</span><span className="text-foreground">{instance.storage_gb} GB SSD</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Operating System:</span><span className="text-foreground">{instance.os_template}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Node:</span><span className="text-foreground">{instance.node}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Service Type:</span><span className="text-foreground capitalize">{instance.service_type}</span></div>
               </div>
             </div>
@@ -463,11 +184,14 @@ const RDPInstanceDetailsModal = ({
               </h3>
               <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">IP Address:</span>
+                  <span className="text-gray-400">Subdomain:</span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-white font-mono">{instance.ip_address || 'Pending'}</span>
-                    {instance.ip_address && (
-                      <button onClick={() => copyToClipboard(instance.ip_address)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <span className="text-white font-mono">{instance.dns_name || 'Generating...'}</span>
+                    {instance.dns_name && (
+                      <button
+                        onClick={() => copyToClipboard(instance.dns_name!)}
+                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                      >
                         <ClipboardDocumentIcon className="h-4 w-4" />
                       </button>
                     )}
@@ -477,8 +201,13 @@ const RDPInstanceDetailsModal = ({
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Username:</span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-white font-mono">{instance.rdp_username}</span>
-                    <button onClick={() => copyToClipboard(instance.rdp_username)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <span className="text-white font-mono">
+                      {instance.rdp_username || (instance.os_template?.toLowerCase().includes('win') ? 'Administrator' : instance.hostname)}
+                    </span>
+                    <button 
+                      onClick={() => copyToClipboard(instance.rdp_username || (instance.os_template?.toLowerCase().includes('win') ? 'Administrator' : instance.hostname))} 
+                      className="p-1 text-gray-400 hover:text-white transition-colors"
+                    >
                       <ClipboardDocumentIcon className="h-4 w-4" />
                     </button>
                   </div>
@@ -490,7 +219,7 @@ const RDPInstanceDetailsModal = ({
                     <button onClick={() => setShowPassword(prev => ({ ...prev, [instance.id.toString()]: !prev[instance.id.toString()] }))} className="p-1 text-gray-400 hover:text-white transition-colors">
                       {showPassword[instance.id.toString()] ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                     </button>
-                    <button onClick={() => copyToClipboard(instance.rdp_password)} className="p-1 text-gray-400 hover:text-white transition-colors">
+                    <button onClick={() => copyToClipboard(instance.rdp_password || '')} className="p-1 text-gray-400 hover:text-white transition-colors">
                       <ClipboardDocumentIcon className="h-4 w-4" />
                     </button>
                     <button
@@ -523,18 +252,28 @@ const RDPInstanceDetailsModal = ({
 
 const RDPManagement = () => {
   const [rdpInstances, setRdpInstances] = useState<RDPInstance[]>([]);
-  const [filteredInstances, setFilteredInstances] = useState<RDPInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
-  const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [selectedInstance, setSelectedInstance] = useState<RDPInstance | null>(null);
+  const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [showPasswordModal, setShowPasswordModal] = useState<RDPInstance | null>(null);
-  void showPasswordModal; // setter used as prop, value reserved for password modal UI
-  const [downloadingRDP, setDownloadingRDP] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
+  const [sortOrder] = useState<'asc' | 'desc'>('asc');
+  const [subscriptionModalInstance, setSubscriptionModalInstance] = useState<RDPInstance | null>(null);
   const { accessToken } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (accessToken) {
@@ -542,77 +281,12 @@ const RDPManagement = () => {
     }
   }, [accessToken]);
 
-  // Filter instances based on search and filters
-  useEffect(() => {
-    let filtered = rdpInstances;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(instance =>
-        instance.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.ip_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.vm_id.toString().includes(searchTerm) ||
-        instance.node?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.rdp_username?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(instance => instance.status === statusFilter);
-    }
-
-    // Service type filter
-    if (serviceTypeFilter !== "all") {
-      filtered = filtered.filter(instance => instance.service_type === serviceTypeFilter);
-    }
-
-    setFilteredInstances(filtered);
-  }, [rdpInstances, searchTerm, statusFilter, serviceTypeFilter]);
-
-  const [loadingStats, setLoadingStats] = useState<{ [id: string]: boolean }>({});
-  const fetchedStatIds = useRef<Set<string | number>>(new Set());
-
-  // Fetch live stats for visible instances
-  useEffect(() => {
-    filteredInstances.forEach(instance => {
-      // Fetch stats for running or otherwise active instances
-      if (!fetchedStatIds.current.has(instance.id) && instance.status !== 'terminated' && instance.status !== 'failed') {
-        fetchedStatIds.current.add(instance.id);
-        fetchLiveStats(instance.id);
-      }
-    });
-  }, [filteredInstances]);
-
-  const fetchLiveStats = async (id: string | number) => {
-    setLoadingStats(prev => ({ ...prev, [id]: true }));
-    try {
-      const response = await fetchVmStatus(id);
-      if (response.data.resource_usage || response.data.status) {
-        setRdpInstances(prev => prev.map(inst => {
-          if (inst.id === id) {
-            return {
-              ...inst,
-              status: response.data.status || inst.status,
-              resource_usage: response.data.resource_usage || inst.resource_usage
-            };
-          }
-          return inst;
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to fetch live stats for', id, error);
-    } finally {
-      setLoadingStats(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
   const loadRDPInstances = async () => {
     try {
       setLoading(true);
       const response = await fetchVms({ vm_type: 'rdp' });
-      const allVms: RDPInstance[] = response.data.vms || [];
-      setRdpInstances(allVms);
+      const allRdp: RDPInstance[] = response.data.vms || [];
+      setRdpInstances(allRdp);
     } catch (error) {
       console.error('Failed to fetch RDP instances:', error);
     } finally {
@@ -635,99 +309,49 @@ const RDPManagement = () => {
       toast.success(response?.data?.message || `Action ${action} initiated`);
       setTimeout(loadRDPInstances, 2000);
     } catch (error) {
-      // Error is already toasted by api.ts interceptor
     } finally {
       setRefreshing(prev => ({ ...prev, [id]: false }));
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!showPasswordModal || !newPassword) return;
 
-  const downloadRDPFile = async (instanceId: string) => {
     try {
-      setDownloadingRDP(instanceId);
-      const instance = rdpInstances.find(i => i.id === instanceId);
-      if (!instance) return;
-
-      const rdpContent = `screen mode id:i:2
-use multimon:i:0
-desktopwidth:i:1920
-desktopheight:i:1080
-session bpp:i:32
-winposstr:s:0,3,0,0,800,600
-compression:i:1
-keyboardhook:i:2
-audiocapturemode:i:0
-videoplaybackmode:i:1
-connection type:i:7
-networkautodetect:i:1
-bandwidthautodetect:i:1
-displayconnectionbar:i:1
-enableworkspacereconnect:i:0
-disable wallpaper:i:0
-allow font smoothing:i:0
-allow desktop composition:i:0
-disable full window drag:i:1
-disable menu anims:i:1
-disable themes:i:0
-disable cursor setting:i:0
-bitmapcachepersistenable:i:1
-full address:s:${instance.ip_address}:${instance.rdp_port || 3389}
-audiomode:i:0
-redirectprinters:i:1
-redirectcomports:i:0
-redirectsmartcards:i:1
-redirectclipboard:i:1
-redirectposdevices:i:0
-autoreconnection enabled:i:1
-authentication level:i:2
-prompt for credentials:i:0
-negotiate security layer:i:1
-remoteapplicationmode:i:0
-alternate shell:s:
-shell working directory:s:
-gatewayhostname:s:
-gatewayusagemethod:i:4
-gatewaycredentialssource:i:4
-gatewayprofileusagemethod:i:0
-promptcredentialonce:i:0
-gatewaybrokeringtype:i:0
-use redirection server name:i:0
-rdgiskdcproxy:i:0
-kdcproxyname:s:
-username:s:${instance.rdp_username}`;
-
-      const blob = new Blob([rdpContent], { type: 'application/rdp' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const fileName = instance.hostname || `RDP-${instance.vm_id}`;
-      link.download = `${fileName}.rdp`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      setIsUpdatingPassword(true);
+      await changeVmPassword(showPasswordModal.id, newPassword);
+      toast.success('Password change initiated successfully');
+      setShowPasswordModal(null);
+      setNewPassword('');
+      loadRDPInstances();
     } catch (error) {
-      console.error('Failed to download RDP file:', error);
     } finally {
-      setDownloadingRDP(null);
+      setIsUpdatingPassword(false);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
+  const filteredAndSortedInstances = useMemo(() => {
+    let filtered = rdpInstances.filter(instance => {
+      const matchesSearch = !searchTerm ||
+        instance.hostname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        instance.vm_id?.toString().includes(searchTerm);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'text-primary bg-primary/10';
-      case 'stopped': return 'text-destructive bg-destructive/10';
-      case 'creating': return 'text-secondary-foreground bg-secondary';
-      case 'suspended': return 'text-destructive bg-destructive/10';
-      case 'terminated': return 'text-muted-foreground bg-muted';
-      case 'error': return 'text-destructive bg-destructive/10';
-      default: return 'text-muted-foreground bg-muted';
-    }
-  };
+      const matchesStatus = statusFilter === 'all' || instance.status === statusFilter;
+      const matchesServiceType = serviceTypeFilter === 'all' || instance.service_type === serviceTypeFilter;
+
+      return matchesSearch && matchesStatus && matchesServiceType;
+    });
+
+    filtered.sort((a, b) => {
+      let aValue: any = a.hostname || '', bValue: any = b.hostname || '';
+      
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [rdpInstances, searchTerm, statusFilter, serviceTypeFilter, sortOrder]);
 
   const getStatusTextColor = (status: string) => {
     switch (status) {
@@ -741,16 +365,8 @@ username:s:${instance.rdp_username}`;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active': return CheckCircleIcon;
-      case 'stopped': return XCircleIcon;
-      case 'creating': return ArrowPathIcon;
-      case 'suspended': return ExclamationTriangleIcon;
-      case 'terminated': return XCircleIcon;
-      case 'error': return ExclamationTriangleIcon;
-      default: return XCircleIcon;
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
 
   const clearFilters = () => {
@@ -771,94 +387,25 @@ username:s:${instance.rdp_username}`;
     );
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-8 w-48 bg-muted animate-pulse rounded-lg"></div>
-            <div className="h-4 w-72 bg-muted animate-pulse rounded mt-2"></div>
-          </div>
-          <div className="h-10 w-28 bg-muted animate-pulse rounded-lg"></div>
-        </div>
-
-        {/* Search and Filters Skeleton */}
-        <div className="bg-card rounded-xl p-6 border">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
-            <div className="h-10 w-full max-w-md bg-muted animate-pulse rounded-lg"></div>
-            <div className="flex items-center space-x-4">
-              <div className="h-10 w-32 bg-muted animate-pulse rounded-lg"></div>
-              <div className="h-10 w-32 bg-muted animate-pulse rounded-lg"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Cards Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-card rounded-xl p-6 border">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 bg-muted animate-pulse rounded-lg"></div>
-                  <div>
-                    <div className="h-5 w-32 bg-muted animate-pulse rounded mb-2"></div>
-                    <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
-                  </div>
-                </div>
-                <div className="h-6 w-16 bg-muted animate-pulse rounded-full"></div>
-              </div>
-
-              {/* Specs */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="flex items-center space-x-2">
-                    <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
-                    <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Usage Stats */}
-              <div className="space-y-3 mb-4">
-                {[1, 2, 3].map((j) => (
-                  <div key={j}>
-                    <div className="flex justify-between mb-1">
-                      <div className="h-3 w-16 bg-muted animate-pulse rounded"></div>
-                      <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
-                    </div>
-                    <div className="h-2 w-full bg-muted animate-pulse rounded-full"></div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Connection Details */}
-              <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="flex items-center justify-between">
-                    <div className="h-3 w-20 bg-muted animate-pulse rounded"></div>
-                    <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Download Button */}
-              <div className="h-12 w-full bg-muted animate-pulse rounded-lg"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">RDP Management</h1>
-          <p className="text-muted-foreground mt-2">View and manage your Remote Desktop instances</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/dashboard/products"
+            className="p-2 hover:bg-muted rounded-full transition-colors group"
+            title="Back to Product Management"
+          >
+            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">RDP Management</h1>
+            <p className="text-muted-foreground mt-1">
+              {filteredAndSortedInstances.length} of {rdpInstances.length} instances
+              {searchTerm && ` matching "${searchTerm}"`}
+            </p>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <button
@@ -880,12 +427,11 @@ username:s:${instance.rdp_username}`;
         serviceTypeFilter={serviceTypeFilter}
         setServiceTypeFilter={setServiceTypeFilter}
         clearFilters={clearFilters}
-        filteredCount={filteredInstances.length}
+        filteredCount={filteredAndSortedInstances.length}
         totalCount={rdpInstances.length}
       />
 
-      {/* RDP Instances Grid */}
-      {filteredInstances.length === 0 ? (
+      {filteredAndSortedInstances.length === 0 ? (
         <div className="text-center py-12">
           <ComputerDesktopIcon className="h-16 w-16 text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-400 mb-2">
@@ -907,21 +453,14 @@ username:s:${instance.rdp_username}`;
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredInstances.map((instance) => (
-            <RDPInstanceCard
-              key={instance.id}
-              instance={instance}
-              getStatusIcon={getStatusIcon}
-              getStatusColor={getStatusColor}
-              showPassword={showPassword}
-              setShowPassword={setShowPassword}
-              copyToClipboard={copyToClipboard}
-              downloadRDPFile={downloadRDPFile}
-              downloadingRDP={downloadingRDP}
-              handleAction={handleAction}
-              refreshing={refreshing}
-              onShowPasswordModal={setShowPasswordModal}
-              loadingStats={loadingStats}
+          {filteredAndSortedInstances.map(instance => (
+            <RDPCard 
+              key={instance.id} 
+              instance={instance} 
+              onAction={handleAction}
+              onShowDetails={(inst) => setSelectedInstance(inst)}
+              onShowSubscription={(inst) => setSubscriptionModalInstance(inst)}
+              onShowPasswordModal={(inst) => setShowPasswordModal(inst)}
             />
           ))}
         </div>
@@ -933,9 +472,67 @@ username:s:${instance.rdp_username}`;
         getStatusTextColor={getStatusTextColor}
         showPassword={showPassword}
         setShowPassword={setShowPassword}
+        refreshing={refreshing}
         copyToClipboard={copyToClipboard}
-        onShowPasswordModal={setShowPasswordModal}
+        onShowPasswordModal={(inst) => setShowPasswordModal(inst)}
       />
+      {/* Subscription Management Modal */}
+      <ManageSubscriptionModal
+        isOpen={!!subscriptionModalInstance}
+        onClose={() => setSubscriptionModalInstance(null)}
+        orderId={subscriptionModalInstance?.order_id || ''}
+        autoRenew={!!subscriptionModalInstance?.auto_renew}
+        renewalMethod={subscriptionModalInstance?.renewal_method || 'wallet'}
+        expiresAt={subscriptionModalInstance?.expires_at || ''}
+        onUpdate={loadRDPInstances}
+        api={api}
+      />
+      {/* Change Password Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-xl p-6 max-w-md w-full border shadow-2xl"
+            >
+              <h3 className="text-xl font-bold mb-4">Change RDP Password</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enter a new root/administrator password for <strong>{showPasswordModal.hostname}</strong>. 
+                The instance will need to be running for this to take effect.
+              </p>
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-background border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPasswordModal(null)}
+                  className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isUpdatingPassword || !newPassword}
+                  className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

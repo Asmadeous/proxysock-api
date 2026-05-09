@@ -3,7 +3,7 @@
 module Admin
   module Api
     class ResellersController < Admin::Api::BaseController
-      before_action :set_reseller, only: %i[show update destroy onboard configure]
+      before_action :set_reseller, only: %i[show update destroy onboard configure revoke_tokens]
 
       # GET /admin/api/resellers
       def index
@@ -92,6 +92,7 @@ module Admin
         updates = {}
         updates[:reseller_type] = params[:reseller_type] if params[:reseller_type].present?
         updates[:infrastructure_surcharge_percentage] = params[:surcharge].to_d if params[:surcharge].present?
+        updates[:discount_percentage] = params[:discount_percentage].to_d if params[:discount_percentage].present?
         updates[:subscription_fee] = params[:subscription_fee].to_d if params[:subscription_fee].present?
         if params[:subscription_expires_at].present?
           updates[:subscription_expires_at] =
@@ -105,6 +106,14 @@ module Admin
         render json: reseller_json(@reseller)
       end
 
+      # POST /admin/api/resellers/:id/revoke_tokens
+      def revoke_tokens
+        require_admin!
+        @reseller.revoke_tokens!
+        record_audit_log('reseller.tokens_revoked', @reseller)
+        render json: { message: 'All active sessions and tokens for this reseller have been revoked.' }
+      end
+
       private
 
       def set_reseller
@@ -113,7 +122,7 @@ module Admin
 
       def reseller_params
         params.require(:reseller).permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
-                                         :subscription_fee, :dedicated_api_key, :customer_email, :allowed_product_category_id,
+                                         :subscription_fee, :discount_percentage, :dedicated_api_key, :customer_email, :allowed_product_category_id,
                                          :country_code, :country, :city)
       end
 
@@ -133,6 +142,7 @@ module Admin
           balance: r.balance || 0,
           earnings_balance: r.earnings_balance || 0,
           surcharge: r.infrastructure_surcharge_percentage,
+          discount_percentage: r.discount_percentage,
           subscription_fee: r.subscription_fee,
           subscription_expires_at: r.subscription_expires_at,
           dedicated_api_key: r.dedicated_api_key,
