@@ -19,6 +19,7 @@ import {
     importUsaCredentials,
     deleteAdminUsaCredential
 } from "../../../services/adminApi";
+import { getApiError } from "../../../utils/apiError";
 
 interface UsaCredentialRow {
     id: string;
@@ -89,7 +90,7 @@ export default function UsaCredentialsTab() {
             setImageFiles([]);
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to import credentials");
+            toast.error(getApiError(err, "Failed to import credentials"));
         } finally {
             setActionLoading(false);
         }
@@ -102,7 +103,7 @@ export default function UsaCredentialsTab() {
             toast.success("Credential deleted");
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to delete");
+            toast.error(getApiError(err, "Failed to delete credential"));
         }
     };
 

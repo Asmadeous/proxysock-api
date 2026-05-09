@@ -6,7 +6,7 @@ class VmProvisioningJob < ApplicationJob
   def perform(vm_id, params = {})
     vm = Vm.find_by(id: vm_id)
     unless vm
-      logger.error "[VmProvisioningJob] VM #{vm_id} not found. Raising to allow Sidekiq retry."
+      logger.error "[VmProvisioningJob] VM #{vm_id} not found. Raising to allow retry."
       raise ActiveRecord::RecordNotFound, "VM #{vm_id} not found"
     end
 
@@ -47,6 +47,7 @@ class VmProvisioningJob < ApplicationJob
       ip_address: result[:ip_address],
       rdp_port: result[:protocol] == 'rdp' ? result[:port] : nil,
       ssh_port: result[:protocol] == 'ssh' ? result[:port] : nil,
+      rdp_username: result[:protocol] == 'rdp' ? result[:username] : nil,
       ssh_username: result[:username] || vm.hostname,
       ssh_password: result[:password],
       root_password: result[:root_password] || result[:password],

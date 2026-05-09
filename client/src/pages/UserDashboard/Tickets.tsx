@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useLocation } from "react-router-dom";
-import { fetchTickets, createTicket, replyTicket, fetchResellerTickets, createResellerTicket, replyResellerTicket } from "../../services/api";
+import { fetchTickets, createTicket, replyTicket } from "../../services/api";
+import { fetchResellerTickets, createResellerTicket, replyResellerTicket } from "../../services/resellerApi";
 import { getCableConsumer } from "../../services/cable";
 import type { Subscription } from "@rails/actioncable";
 import DataTable from "../SuperAdmin/components/DataTable";

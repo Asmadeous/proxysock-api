@@ -19,7 +19,17 @@ adminApi.interceptors.response.use(
         if (err.response?.status === 401 && !window.location.pathname.includes("/admin/login")) {
             localStorage.removeItem("adminToken");
             localStorage.removeItem("adminUser");
-            window.location.href = "/admin/login";
+            if (window.location.pathname !== "/admin/login") {
+                window.location.href = "/admin/login";
+            }
+        }
+        // Enrich the error message from the backend JSON body so callers can
+        // simply do: catch(err) { toast.error(err.message) }
+        const data = err.response?.data;
+        if (data) {
+            const msg = data.message || data.error ||
+                (Array.isArray(data.errors) ? data.errors.join(", ") : null);
+            if (msg && err instanceof Error) err.message = msg;
         }
         return Promise.reject(err);
     }
@@ -36,12 +46,16 @@ export const fetchAdminUser = (id: number) =>
     adminApi.get(`/users/${id}`);
 export const updateAdminUser = (id: number, data: Record<string, unknown>) =>
     adminApi.patch(`/users/${id}`, data);
+export const createAdminUser = (data: Record<string, unknown>) =>
+    adminApi.post("/users", data);
 export const deleteAdminUser = (id: number) =>
     adminApi.delete(`/users/${id}`);
 export const onboardUser = (id: number) =>
     adminApi.post(`/users/${id}/onboard`);
 export const impersonateUser = (id: number) =>
     adminApi.post(`/users/${id}/impersonate`);
+export const revokeUserTokens = (id: number) =>
+    adminApi.post(`/users/${id}/revoke_tokens`);
 
 // ── Employees ─────────────────────────────────────
 export const fetchEmployees = (params?: Record<string, string>) =>
@@ -62,6 +76,8 @@ export const deleteEmployee = (id: number) =>
     adminApi.delete(`/employees/${id}`);
 export const assignTickets = (id: number, ticketIds: number[]) =>
     adminApi.post(`/employees/${id}/assign`, { ticket_ids: ticketIds });
+export const revokeEmployeeTokens = (id: number) =>
+    adminApi.post(`/employees/${id}/revoke_tokens`);
 
 // ── Products ───────────────────────────────────────
 export const fetchAdminProducts = () => adminApi.get("/products");
@@ -92,6 +108,8 @@ export const onboardReseller = (id: string | number) =>
     adminApi.post(`/resellers/${id}/onboard`);
 export const configureReseller = (id: string | number, data: Record<string, unknown>) =>
     adminApi.patch(`/resellers/${id}/configure`, data);
+export const revokeResellerTokens = (id: string | number) =>
+    adminApi.post(`/resellers/${id}/revoke_tokens`);
 
 // ── Orders ────────────────────────────────────────
 export const fetchAdminOrders = (params?: Record<string, string>) =>
@@ -112,6 +130,24 @@ export const updateProxyCredentials = (id: number, data: { username?: string; pa
     adminApi.post(`/orders/${id}/update_credentials`, data);
 export const rotateProxyIp = (id: number) =>
     adminApi.post(`/orders/${id}/rotate_ip`);
+export const adminRenewOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/renew`);
+export const adminReorderOrder = (id: number) =>
+    adminApi.post(`/orders/${id}/reorder`);
+
+// ── VMs (Admin) ───────────────────────────────────
+export const fetchAdminVms = (params?: Record<string, string>) =>
+    adminApi.get("/vms", { params });
+export const fetchAdminVm = (id: number | string) =>
+    adminApi.get(`/vms/${id}`);
+export const startAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/start`);
+export const stopAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/stop`);
+export const rebootAdminVm = (id: number | string) =>
+    adminApi.post(`/vms/${id}/reboot`);
+export const deleteAdminVm = (id: number | string) =>
+    adminApi.delete(`/vms/${id}`);
 
 // ── USA eSIM Credentials ─────────────────────────
 export const fetchAdminUsaCredentials = () =>
@@ -177,6 +213,8 @@ export const replyToTicket = (id: number, message: string) =>
     adminApi.post(`/tickets/${id}/reply`, { message });
 export const rescueTicketOrder = (id: number) =>
     adminApi.post(`/tickets/${id}/rescue_order`);
+export const updateTicketStatus = (id: number, status: string) =>
+    adminApi.put(`/tickets/${id}`, { ticket: { status } });
 
 // ── Analytics ─────────────────────────────────────
 export const fetchDashboardAnalytics = (params?: Record<string, string>) =>
@@ -247,6 +285,8 @@ export const fetchSystemLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/system_logs", { params });
 export const fetchErrorLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/error_logs", { params });
+export const fetchAdminSummaryCounts = () =>
+    adminApi.get("/monitoring/summary_counts").then(res => res.data);
 
 // ── Transactions (Admin) ──────────────────────────
 export const fetchAdminTransactions = (params?: Record<string, string>) =>

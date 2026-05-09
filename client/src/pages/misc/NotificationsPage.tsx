@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Bell, CheckCheck, Filter, Volume2, VolumeX } from "lucide-react";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -34,6 +35,7 @@ const categoryLabels: Record<string, string> = {
 export default function NotificationsPage() {
     const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
+    const navigate = useNavigate();
 
     const {
         notifications,
@@ -178,53 +180,143 @@ export default function NotificationsPage() {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {filteredNotifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className={cn(
-                                        "flex gap-4 py-4 px-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer -mx-2",
-                                        !notification.read && "bg-primary/5"
-                                    )}
-                                    onClick={() => {
-                                        if (!notification.read) {
-                                            markAsRead(notification.id);
-                                        }
-                                    }}
-                                >
-                                    {/* Category badge */}
-                                    <div
-                                        className={cn(
-                                            "flex-shrink-0 w-3 h-3 rounded-full mt-2",
-                                            categoryColors[notification.category] || "bg-gray-500"
-                                        )}
-                                    />
+                            {filteredNotifications.map((notification) => {
+                                // Determine navigation target based on category and metadata
+                                const getNotificationLink = (): string | null => {
+                                    const meta = notification.metadata || {};
+                                    const path = window.location.pathname;
+                                    const isAdmin = path.startsWith('/admin') || path.startsWith('/sadmin') || path.startsWith('/employee');
+                                    const isReseller = path.startsWith('/reseller');
+                                    const adminPrefix = path.startsWith('/sadmin') ? '/sadmin' : (path.startsWith('/employee') ? '/employee' : '/admin');
 
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
-                                                <p className="font-semibold">{notification.title}</p>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {categoryLabels[notification.category] || notification.category}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                {!notification.read && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium bg-primary text-white rounded-full">
-                                                        New
+                                    // Use metadata link only if it's a valid absolute path or external URL
+                                    if (meta.link && typeof meta.link === 'string' && (meta.link.startsWith('/') || meta.link.startsWith('http'))) return meta.link;
+                                    if (meta.url && typeof meta.url === 'string' && (meta.url.startsWith('/') || meta.url.startsWith('http'))) return meta.url;
+
+                                    // Category-based routing
+                                    const cat = notification.category;
+                                    const title = notification.title?.toLowerCase() || "";
+                                    const msg = notification.message?.toLowerCase() || "";
+
+                                    if (cat === "order" || title.includes("order")) {
+                                        if (isAdmin) return `${adminPrefix}/orders`;
+                                        if (isReseller) return "/reseller/orders";
+                                        return "/dashboard/orders";
+                                    }
+                                    if (title.includes("ticket")) {
+                                        if (isAdmin) return `${adminPrefix}/tickets`;
+                                        if (isReseller) return "/reseller/tickets";
+                                        return "/dashboard/tickets";
+                                    }
+                                    if (title.includes("transaction") || title.includes("payment") || title.includes("deposit") || title.includes("refund")) {
+                                        if (isAdmin) return `${adminPrefix}/transactions`;
+                                        if (isReseller) return "/reseller/wallet";
+                                        return "/dashboard/transactions";
+                                    }
+                                    if (title.includes("rdp") || msg.includes("rdp")) {
+                                        const searchParam = meta.hostname || meta.rdp_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
+                                        const query = searchParam ? `&search=${searchParam}` : "";
+                                        
+                                        if (isAdmin) return `${adminPrefix}/management?type=rdp${query}`;
+                                        if (isReseller) return `/reseller/rdp-management${query}`;
+                                        return `/dashboard/RDP-management${query}`;
+                                    }
+                                    if (title.includes("vm") || title.includes("vps") || msg.includes("vm") || msg.includes("vps")) {
+                                        const searchParam = meta.hostname || meta.vps_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
+                                        const query = searchParam ? `&search=${searchParam}` : "";
+                                        
+                                        if (isAdmin) return `${adminPrefix}/management?type=vps${query}`;
+                                        if (isReseller) return `/reseller/vps-management${query}`;
+                                        return `/dashboard/VPS-management${query}`;
+                                    }
+                                    if (title.includes("esim") || msg.includes("esim")) {
+                                        const searchParam = meta.iccid || meta.order_no || (msg.match(/ICCID:?\s*([\w]+)/i) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=esim${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/esim-management${query}`;
+                                        return `/dashboard/Esim-management${query}`;
+                                    }
+                                    if (title.includes("proxy") || msg.includes("proxy")) {
+                                        const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=proxy${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/proxy-management${query}`;
+                                        return `/dashboard/proxy-management${query}`;
+                                    }
+                                    if (title.includes("vpn") || msg.includes("vpn")) {
+                                        const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
+                                        const query = searchParam ? `?search=${searchParam}` : "";
+
+                                        if (isAdmin) return `${adminPrefix}/management?type=vpn${query.replace('?', '&')}`;
+                                        if (isReseller) return `/reseller/vpn-management${query}`;
+                                        return `/dashboard/vpn-management${query}`;
+                                    }
+                                    return null;
+                                };
+
+                                const link = getNotificationLink();
+
+                                return (
+                                    <div
+                                        key={notification.id}
+                                        className={cn(
+                                            "flex gap-4 py-4 px-2 rounded-lg transition-colors -mx-2 group",
+                                            !notification.read && "bg-primary/5",
+                                            link ? "cursor-pointer hover:bg-muted/50" : "cursor-default"
+                                        )}
+                                        onClick={() => {
+                                            if (!notification.read) {
+                                                markAsRead(notification.id);
+                                            }
+                                            if (link) {
+                                                // Ensure link is absolute to prevent 404s from relative navigation
+                                                const finalLink = link.startsWith("/") || link.startsWith("http") ? link : `/${link}`;
+                                                navigate(finalLink);
+                                            }
+                                        }}
+                                    >
+                                        {/* Category badge */}
+                                        <div
+                                            className={cn(
+                                                "flex-shrink-0 w-3 h-3 rounded-full mt-2",
+                                                categoryColors[notification.category] || "bg-gray-500"
+                                            )}
+                                        />
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="font-semibold">{notification.title}</p>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {categoryLabels[notification.category] || notification.category}
                                                     </span>
-                                                )}
-                                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                                    {formatDate(notification.created_at)}
-                                                </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {!notification.read && (
+                                                        <span className="px-2 py-0.5 text-xs font-medium bg-primary text-white rounded-full">
+                                                            New
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                        {formatDate(notification.created_at)}
+                                                    </span>
+                                                </div>
                                             </div>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {notification.message}
+                                            </p>
+                                            {link && (
+                                                <span className="text-xs text-primary font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                    View details →
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-sm text-muted-foreground mt-2">
-                                            {notification.message}
-                                        </p>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>

@@ -34,17 +34,11 @@
         - name: Gather facts after connectivity verified
           setup:
 
-        - name: Install RDP packages and desktop environment
+        - name: Install RDP packages and tools
           dnf:
             name:
               - xrdp
               - xorg-x11-drivers
-              - xfce4-session
-              - xfce4-settings
-              - xfce4-panel
-              - xfce4-terminal
-              - xfdesktop
-              - xfwm4
               - curl
               - wget
               - vim
@@ -90,9 +84,10 @@
           seport:
             ports: "{{ custom_port | default(3389) }}"
             proto: tcp
-            setype: xrdp_port_t
+            setype: rdp_port_t
             state: present
           when: custom_port is defined
+          ignore_errors: true
 
 
 

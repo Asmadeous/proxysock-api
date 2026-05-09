@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -217,7 +217,7 @@ export default function ProductsTab() {
 
     const handleSync = () => {
         if (!activeCatData) return;
-        if (!window.confirm(`Sync ${activeCatData.name} products? This syncs from external/internal sources.`)) return;
+        if (!window.confirm(`Are you sure you want to sync ${activeCatData.name} products?`)) return;
         syncProducts.mutate(activeCatData.syncType);
     };
 
@@ -246,7 +246,7 @@ export default function ProductsTab() {
             setImageFiles([]);
             loadCredits();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to import credentials");
+            toast.error(getApiError(err, "Failed to import credentials"));
         } finally {
             setActionLoading(false);
         }
@@ -259,7 +259,7 @@ export default function ProductsTab() {
             toast.success("Credential deleted");
             loadCredits();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to delete");
+            toast.error(getApiError(err, "Failed to delete product"));
         }
     };
 

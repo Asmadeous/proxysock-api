@@ -26,9 +26,11 @@ RSpec.describe MyProxyApiClient do
     it 'sends a PATCH request with Bearer token' do
       token_resp = double('token_resp', code: '200', body: { 'token' => 't' }.to_json)
       allow(token_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      allow(token_resp).to receive(:is_a?).with(Net::HTTPRedirection).and_return(false)
 
       update_resp = double('update_resp', code: '200', body: { 'status' => 'success' }.to_json)
       allow(update_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      allow(update_resp).to receive(:is_a?).with(Net::HTTPRedirection).and_return(false)
 
       expect(http_mock).to receive(:request).and_return(token_resp, update_resp)
 
@@ -41,9 +43,11 @@ RSpec.describe MyProxyApiClient do
     it 'sends a PATCH request to /orders/replacement' do
       token_resp = double('token_resp', code: '200', body: { token: 't' }.to_json)
       allow(token_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      allow(token_resp).to receive(:is_a?).with(Net::HTTPRedirection).and_return(false)
 
       rotate_resp = double('rotate_resp', code: '200', body: { 'status' => 'success' }.to_json)
       allow(rotate_resp).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      allow(rotate_resp).to receive(:is_a?).with(Net::HTTPRedirection).and_return(false)
 
       expect(http_mock).to receive(:request).and_return(token_resp, rotate_resp)
 

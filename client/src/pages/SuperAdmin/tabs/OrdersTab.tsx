@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     ArrowPathIcon,
     BanknotesIcon,
@@ -14,7 +16,10 @@ import {
     KeyIcon,
     XCircleIcon,
     DocumentDuplicateIcon,
-    TrashIcon
+    TrashIcon,
+    MagnifyingGlassIcon,
+    ArrowsUpDownIcon,
+    ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
@@ -59,7 +64,8 @@ export default function OrdersTab() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
-    const [search, setSearch] = useState("");
+    const [searchParams] = useSearchParams();
+    const [search, setSearch] = useState(searchParams.get("search") || searchParams.get("q") || "");
     const [statusFilter, setStatusFilter] = useState("");
     const [entityTypeFilter, setEntityTypeFilter] = useState("");
     const [productTypeFilter, setProductTypeFilter] = useState("");
@@ -68,6 +74,7 @@ export default function OrdersTab() {
         by_type: {} as Record<string, number>,
         revenue_by_type: {} as Record<string, number>
     });
+    
     const [rescueTarget, setRescueTarget] = useState<OrderRow | null>(null);
     const [refundTarget, setRefundTarget] = useState<OrderRow | null>(null);
     const [proxyConfigTarget, setProxyConfigTarget] = useState<OrderRow | null>(null);
@@ -92,11 +99,19 @@ export default function OrdersTab() {
             setOrders(res.data.orders);
             setTotal(res.data.total);
             setStats(res.data.stats);
-        } catch { toast.error("Failed to load orders"); }
+        } catch (err) { toast.error(getApiError(err, "Failed to load orders")); }
         finally { setLoading(false); }
     }, [page, search, statusFilter, entityTypeFilter, productTypeFilter]);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        const q = searchParams.get("search") || searchParams.get("q");
+        if (q && q !== search) {
+            setSearch(q);
+            setPage(1);
+        }
+    }, [searchParams, search]);
 
     const handleRescue = async () => {
         if (!rescueTarget) return;
@@ -106,7 +121,7 @@ export default function OrdersTab() {
             toast.success("Rescue triggered");
             setRescueTarget(null);
             load();
-        } catch (err) {
+        } catch (err: any) {
             toast.error(getApiError(err, "Rescue failed"));
         } finally {
             setActionLoading(false);
@@ -164,10 +179,9 @@ export default function OrdersTab() {
                     toast.success("Reorder created");
                     break;
             }
-            // Refresh credentials if still in modal
             const res = await fetchOrderCredentials(proxyConfigTarget.id);
             setProxyCreds(res.data);
-        } catch (err) {
+        } catch (err: any) {
             toast.error(getApiError(err, "Action failed"));
         } finally {
             setProxyActionLoading(false);
@@ -183,7 +197,7 @@ export default function OrdersTab() {
             setRefundTarget(null);
             setRefundMethod("wallet");
             load();
-        } catch (err) {
+        } catch (err: any) {
             toast.error(getApiError(err, "Refund failed"));
         } finally {
             setActionLoading(false);
@@ -207,401 +221,595 @@ export default function OrdersTab() {
 
     const columns = [
         {
-            key: "id", label: "Order", sortable: true,
-            render: (row: OrderRow) => <span className="text-sm font-mono text-foreground">#{String(row.id).slice(0, 8)}</span>,
+            key: "id", label: "Order ID", sortable: true,
+            render: (row: OrderRow) => (
+                <span className="text-xs font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                    #{String(row.id).slice(0, 8)}
+                </span>
+            ),
         },
-        { key: "product_name", label: "Product", sortable: true },
+        { 
+            key: "product_name", label: "Product", sortable: true,
+            render: (row: OrderRow) => (
+                <div className="flex items-center gap-2">
+                    <div className={cn(
+                        "p-1.5 rounded-lg",
+                        row.product_type === 'rdp' ? "bg-orange-500/10 text-orange-500" :
+                        row.product_type === 'vps' ? "bg-blue-500/10 text-blue-500" :
+                        row.product_type === 'esim' ? "bg-green-500/10 text-green-500" :
+                        "bg-primary/10 text-primary"
+                    )}>
+                        {row.product_type === 'rdp' && <ComputerDesktopIcon className="w-4 h-4" />}
+                        {row.product_type === 'vps' && <ServerIcon className="w-4 h-4" />}
+                        {row.product_type === 'esim' && <DevicePhoneMobileIcon className="w-4 h-4" />}
+                        {row.product_type === 'proxy' && <GlobeAltIcon className="w-4 h-4" />}
+                        {row.product_type === 'vpn' && <ShieldCheckIcon className="w-4 h-4" />}
+                    </div>
+                    <span className="font-medium text-foreground">{row.product_name}</span>
+                </div>
+            )
+        },
         {
             key: "entity_name", label: "Customer",
             render: (row: OrderRow) => (
-                <div>
-                    <p className="text-sm text-foreground">{row.entity_name}</p>
-                    <p className="text-xs text-muted-foreground">{row.entity_type}</p>
+                <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">{row.entity_name}</p>
+                    <div className="flex items-center gap-1">
+                        <span className={cn(
+                            "text-[10px] px-1 rounded uppercase font-bold",
+                            row.entity_type === 'Reseller' ? "bg-purple-500/10 text-purple-500" : "bg-blue-500/10 text-blue-500"
+                        )}>
+                            {row.entity_type}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">• {row.entity_email}</span>
+                    </div>
                 </div>
             ),
         },
-        { key: "total_amount", label: "Amount", sortable: true, render: (row: OrderRow) => <span className="text-sm font-medium">${Number(row.total_amount).toFixed(2)}</span> },
-        {
-            key: "payment_method", label: "Payment",
+        { 
+            key: "total_amount", label: "Amount", sortable: true, 
             render: (row: OrderRow) => (
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium ${
-                    row.payment_method === "balance"
-                        ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
-                        : "text-purple-400 bg-purple-500/10 border-purple-500/20"
-                }`}>
-                    {paymentLabel(row.payment_method)}
-                </span>
+                <div className="flex flex-col">
+                    <span className="text-sm font-bold text-foreground">${Number(row.total_amount).toFixed(2)}</span>
+                    <span className="text-[10px] text-muted-foreground uppercase">{paymentLabel(row.payment_method)}</span>
+                </div>
             )
         },
         { key: "status", label: "Status", sortable: true, render: (row: OrderRow) => <StatusBadge status={row.status} /> },
-        { key: "created_at", label: "Date", sortable: true, render: (row: OrderRow) => <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleString()}</span> },
+        { 
+            key: "created_at", label: "Date", sortable: true, 
+            render: (row: OrderRow) => (
+                <div className="text-xs text-muted-foreground">
+                    <p>{new Date(row.created_at).toLocaleDateString()}</p>
+                    <p className="opacity-60">{new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+            )
+        },
     ];
 
-    const statusTabs = [
-        { key: "", label: "All", count: stats.total },
-        { key: "active", label: "Active", count: stats.active, icon: CheckCircleIcon, color: "text-green-400" },
-        { key: "pending", label: "Pending", count: stats.pending, icon: ClockIcon, color: "text-yellow-400" },
-        { key: "failed", label: "Failed", count: stats.failed, icon: ExclamationCircleIcon, color: "text-red-400" },
+    const productTypes = [
+        { id: "proxy", label: "Proxy", icon: GlobeAltIcon, color: "text-purple-500", bg: "bg-purple-500/10" },
+        { id: "esim", label: "eSIM", icon: DevicePhoneMobileIcon, color: "text-green-500", bg: "bg-green-500/10" },
+        { id: "rdp", label: "RDP", icon: ComputerDesktopIcon, color: "text-orange-500", bg: "bg-orange-500/10" },
+        { id: "vps", label: "VPS", icon: ServerIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { id: "vpn", label: "VPN", icon: ShieldCheckIcon, color: "text-cyan-500", bg: "bg-cyan-500/10" },
+    ];
+
+    const statuses = [
+        { id: "active", label: "Active", icon: CheckCircleIcon, color: "text-green-500", bg: "bg-green-500/10" },
+        { id: "pending", label: "Pending", icon: ClockIcon, color: "text-yellow-500", bg: "bg-yellow-500/10" },
+        { id: "failed", label: "Failed", icon: ExclamationCircleIcon, color: "text-red-500", bg: "bg-red-500/10" },
+        { id: "processing", label: "Processing", icon: ArrowPathIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
     ];
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Orders</h2>
-
-            {/* Type Breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {[
-                    { type: "proxy", label: "Proxy Orders", icon: ShoppingCartIcon, colors: { bg: "bg-purple-500/10", text: "text-purple-500", border: "border-purple-500", ring: "ring-purple-500/30" }, count: stats.by_type?.proxy || 0, revenue: stats.revenue_by_type?.proxy || 0 },
-                    { type: "esim", label: "eSIM Orders", icon: DevicePhoneMobileIcon, colors: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500", ring: "ring-green-500/30" }, count: stats.by_type?.esim || 0, revenue: stats.revenue_by_type?.esim || 0 },
-                    { type: "rdp", label: "RDP Orders", icon: ComputerDesktopIcon, colors: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500", ring: "ring-red-500/30" }, count: stats.by_type?.rdp || 0, revenue: stats.revenue_by_type?.rdp || 0 },
-                    { type: "vps", label: "VPS Orders", icon: ServerIcon, colors: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500", ring: "ring-blue-500/30" }, count: stats.by_type?.vps || 0, revenue: stats.revenue_by_type?.vps || 0 },
-                    { type: "vpn", label: "VPN Orders", icon: GlobeAltIcon, colors: { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500", ring: "ring-cyan-500/30" }, count: stats.by_type?.vpn || 0, revenue: stats.revenue_by_type?.vpn || 0 },
-
-                ].map((c) => {
-                    const isActive = productTypeFilter === c.type;
-                    return (
-                        <button
-                            key={c.type}
-                            onClick={() => { setProductTypeFilter(isActive ? "" : c.type); setPage(1); }}
-                            className={`bg-card rounded-xl p-4 flex items-center gap-3 text-left border transition-all ${isActive ? `${c.colors.border} ring-1 ${c.colors.ring}` : "border-border hover:border-muted-foreground/30"}`}
-                        >
-                            <div className={`p-3 ${c.colors.bg} rounded-xl shrink-0`}><c.icon className={`h-6 w-6 ${c.colors.text}`} /></div>
-                            <div className="min-w-0">
-                                <p className="text-sm text-muted-foreground font-medium truncate">{c.label}</p>
-                                <div className="flex items-baseline gap-1.5 flex-wrap">
-                                    <span className="text-xl font-bold text-foreground">{c.count}</span>
-                                    <span className="text-xs text-muted-foreground">${Number(c.revenue).toFixed(0)}</span>
-                                </div>
-                            </div>
-                        </button>
-                    )
-                })}
-            </div>
-
-            {/* Status Tabs & Filters */}
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
-                    {statusTabs.map(({ key, label, count, icon, color }) => (
-                        <button
-                            key={label}
-                            onClick={() => { setStatusFilter(key); setPage(1); }}
-                            className={`bg-card rounded-xl p-4 border transition-all text-left
-                ${statusFilter === key ? "border-red-500 ring-1 ring-red-500/30" : "border-border hover:border-border"}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                {icon && <StatsCard title="" value="" icon={icon} loading={false} />}
-                                <span className="text-2xl font-bold text-foreground">{count}</span>
-                            </div>
-                            <p className={`text-sm mt-1 ${color || "text-muted-foreground"}`}>{label}</p>
-                        </button>
-                    ))}
+        <div className="space-y-8 pb-20">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">Order Management</h1>
+                    <p className="text-muted-foreground mt-2 text-lg">Monitor and control every transaction across the platform.</p>
                 </div>
-
-                {/* Entity Filter */}
-                <div className="shrink-0 flex items-start">
-                    <select
-                        value={entityTypeFilter}
-                        onChange={(e) => { setEntityTypeFilter(e.target.value); setPage(1); }}
-                        className="bg-card text-foreground border border-border rounded-xl text-sm px-4 py-3 h-full max-h-[104px] outline-none hover:border-muted-foreground/30 transition-colors"
+                <div className="flex items-center gap-3">
+                    <ManagementFilters entityType={entityTypeFilter} onEntityTypeChange={(t) => { setEntityTypeFilter(t); setPage(1); }} />
+                    <button 
+                        onClick={() => load()} 
+                        disabled={loading}
+                        className="p-3 bg-card border border-border rounded-xl hover:bg-muted/50 transition-all shadow-sm"
                     >
-                        <option value="">All Customers</option>
-                        <option value="User">Users Only</option>
-                        <option value="Reseller">Resellers Only</option>
-                    </select>
+                        <ArrowPathIcon className={cn("w-5 h-5 text-muted-foreground", loading && "animate-spin")} />
+                    </button>
                 </div>
             </div>
 
-            <DataTable
-                columns={columns} data={orders} loading={loading}
-                searchPlaceholder="Search orders..."
-                onSearch={(q) => { setSearch(q); setPage(1); }}
-                page={page} totalPages={Math.ceil(total / PER)} onPageChange={setPage} total={total}
-                emptyMessage="No orders found"
-                actions={(row: OrderRow) => (
-                    <>
-                        {(row.status === "failed" || row.status === "error") && (
-                            <button onClick={() => setRescueTarget(row)} className="px-2.5 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors flex items-center gap-1">
-                                <ArrowPathIcon className="h-3.5 w-3.5" /> Rescue
-                            </button>
-                        )}
-                        {row.status !== "refunded" && (
-                            <button onClick={() => openRefund(row)} className="px-2.5 py-1 text-xs bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors flex items-center gap-1">
-                                <BanknotesIcon className="h-3.5 w-3.5" /> Refund
-                            </button>
-                        )}
-                        {row.product_type === 'proxy' && row.status === 'active' && (
-                            <button onClick={() => handleProxyModalOpen(row)} className="px-2.5 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center gap-1">
-                                <CogIcon className="h-3.5 w-3.5" /> Proxy Config
-                            </button>
-                        )}
-                    </>
-                )}
-            />
-
-            {/* Rescue Modal */}
-            {rescueTarget && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setRescueTarget(null)}>
-                    <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="text-lg font-semibold text-foreground">Rescue Order</h3>
-                        <p className="text-sm text-muted-foreground">Re-provision order #{String(rescueTarget.id).slice(0, 8)}?</p>
-                        <div className="flex gap-3 justify-end">
-                            <button onClick={() => setRescueTarget(null)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
-                            <button onClick={handleRescue} disabled={actionLoading} className="px-4 py-2 text-sm bg-yellow-500 text-black font-medium rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition-colors">
-                                {actionLoading ? "Rescuing..." : "Rescue"}
-                            </button>
+            {/* Premium Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group shadow-sm"
+                >
+                    <div className="relative z-10">
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Total Volume</p>
+                        <h3 className="text-3xl font-black text-foreground">{stats.total}</h3>
+                        <div className="mt-4 flex items-center gap-2">
+                            <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-bold">+{Math.round(stats.active / stats.total * 100) || 0}% Active</span>
                         </div>
                     </div>
-                </div>
-            )}
+                    <ShoppingCartIcon className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0" />
+                </motion.div>
 
-            {/* Refund Modal */}
-            {refundTarget && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => { setRefundTarget(null); setRefundMethod("wallet"); }}>
-                    <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="text-lg font-semibold text-foreground">Refund Order</h3>
-
-                        <div className="bg-muted/50 rounded-xl p-4 space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Amount</span>
-                                <span className="font-medium text-foreground">${Number(refundTarget.total_amount).toFixed(2)}</span>
+                {statuses.map((s, i) => (
+                    <motion.div 
+                        key={s.id}
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * (i + 1) }}
+                        onClick={() => { setStatusFilter(statusFilter === s.id ? "" : s.id); setPage(1); }}
+                        className={cn(
+                            "bg-card border rounded-2xl p-6 cursor-pointer transition-all shadow-sm group",
+                            statusFilter === s.id ? "border-primary ring-4 ring-primary/5" : "border-border hover:border-muted-foreground/30"
+                        )}
+                    >
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
+                                <h3 className="text-3xl font-black text-foreground">
+                                    {s.id === 'active' ? stats.active : 
+                                     s.id === 'pending' ? stats.pending : 
+                                     s.id === 'failed' ? stats.failed : stats.processing}
+                                </h3>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Customer</span>
-                                <span className="text-foreground">{refundTarget.entity_name}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Paid Via</span>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-                                    refundTarget.payment_method === "balance"
-                                        ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
-                                        : "text-purple-400 bg-purple-500/10 border-purple-500/20"
-                                }`}>
-                                    {paymentLabel(refundTarget.payment_method)}
-                                </span>
+                            <div className={cn("p-2 rounded-xl", s.bg, s.color)}>
+                                <s.icon className="w-5 h-5" />
                             </div>
                         </div>
+                        <div className="mt-4 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div 
+                                className={cn("h-full rounded-full transition-all duration-1000", s.id === 'active' ? "bg-green-500" : s.id === 'pending' ? "bg-yellow-500" : "bg-red-500")} 
+                                style={{ width: `${Math.round(((s.id === 'active' ? stats.active : s.id === 'pending' ? stats.pending : stats.failed) / stats.total) * 100) || 0}%` }} 
+                            />
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
 
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium text-muted-foreground">Refund To</p>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setRefundMethod("wallet")}
-                                    className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all ${refundMethod === "wallet" ? "bg-blue-500/20 border-blue-500/40 text-blue-400" : "border-border text-muted-foreground hover:text-foreground"}`}
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase mr-2 tracking-widest">Category</span>
+                <button 
+                    onClick={() => { setProductTypeFilter(""); setPage(1); }}
+                    className={cn(
+                        "px-4 py-2 rounded-full text-sm font-bold transition-all border shadow-sm",
+                        productTypeFilter === "" ? "bg-foreground text-background border-foreground" : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
+                    )}
+                >
+                    All Orders
+                </button>
+                {productTypes.map((t) => (
+                    <button
+                        key={t.id}
+                        onClick={() => { setProductTypeFilter(t.id); setPage(1); }}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border shadow-sm",
+                            productTypeFilter === t.id 
+                                ? cn("bg-foreground text-background border-foreground")
+                                : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
+                        )}
+                    >
+                        <t.icon className={cn("w-4 h-4", productTypeFilter === t.id ? "text-background" : t.color)} />
+                        {t.label}
+                        <span className={cn(
+                            "text-[10px] px-1.5 rounded-full",
+                            productTypeFilter === t.id ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
+                        )}>
+                            {stats.by_type[t.id] || 0}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Data Section */}
+            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-xl">
+                <div className="p-6 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="relative flex-1 max-w-md">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <input 
+                            type="text"
+                            placeholder="Search by Order ID, Customer, or Email..."
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                            className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ArrowsUpDownIcon className="w-4 h-4" />
+                        <span>Sorted by Latest First</span>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns} data={orders} loading={loading}
+                    searchPlaceholder=""
+                    onSearch={() => {}} // Controlled by external input
+                    page={page} totalPages={Math.ceil(total / PER)} onPageChange={setPage} total={total}
+                    emptyMessage="No orders match your current filters."
+                    actions={(row: OrderRow) => (
+                        <div className="flex items-center gap-1.5">
+                            {(row.status === "failed" || row.status === "error") && (
+                                <button 
+                                    onClick={() => setRescueTarget(row)} 
+                                    className="p-2 text-yellow-500 hover:bg-yellow-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-yellow-500/20"
+                                    title="Rescue Order"
                                 >
-                                    Wallet
+                                    <ArrowPathIcon className="h-5 w-5" />
                                 </button>
-                                {refundTarget.payment_method && refundTarget.payment_method !== "balance" && (
-                                    <button
-                                        onClick={() => setRefundMethod("original")}
-                                        className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all ${refundMethod === "original" ? "bg-purple-500/20 border-purple-500/40 text-purple-400" : "border-border text-muted-foreground hover:text-foreground"}`}
-                                    >
-                                        Original ({paymentLabel(refundTarget.payment_method)})
-                                    </button>
-                                )}
-                            </div>
-                            {refundMethod === "original" && (
-                                <p className="text-[11px] text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
-                                    ⚠ Gateway refund will be attempted via {paymentLabel(refundTarget.payment_method)}. Manual crypto/plisio refunds require console.
-                                </p>
+                            )}
+                            {row.status !== "refunded" && (
+                                <button 
+                                    onClick={() => openRefund(row)} 
+                                    className="p-2 text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-orange-500/20"
+                                    title="Issue Refund"
+                                >
+                                    <BanknotesIcon className="h-5 w-5" />
+                                </button>
+                            )}
+                            {row.product_type === 'proxy' && row.status === 'active' && (
+                                <button 
+                                    onClick={() => handleProxyModalOpen(row)} 
+                                    className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-primary/20"
+                                    title="Proxy Config"
+                                >
+                                    <CogIcon className="h-5 w-5" />
+                                </button>
                             )}
                         </div>
+                    )}
+                />
+            </div>
 
-                        <div className="flex gap-3 justify-end pt-2">
-                            <button onClick={() => { setRefundTarget(null); setRefundMethod("wallet"); }} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
-                            <button onClick={handleRefund} disabled={actionLoading} className="px-4 py-2 text-sm bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-400 disabled:opacity-50 transition-colors">
-                                {actionLoading ? "Refunding..." : `Refund to ${refundMethod === "original" ? paymentLabel(refundTarget.payment_method) : "Wallet"}`}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Proxy Config Modal */}
-            {proxyConfigTarget && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setProxyConfigTarget(null)}>
-                    <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                            <div>
-                                <h3 className="text-xl font-bold text-foreground">Proxy Management</h3>
-                                <p className="text-xs text-muted-foreground mt-1">Order #{proxyConfigTarget.order_number} • {proxyConfigTarget.product_name}</p>
+            {/* Rescue Modal */}
+            <AnimatePresence>
+                {rescueTarget && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
+                            onClick={() => setRescueTarget(null)} 
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
+                        >
+                            <div className="p-4 bg-yellow-500/10 rounded-3xl w-fit">
+                                <ArrowPathIcon className="w-10 h-10 text-yellow-500" />
                             </div>
-                            <button onClick={() => setProxyConfigTarget(null)} className="text-muted-foreground hover:text-foreground p-1 transition-colors">
-                                <XCircleIcon className="h-7 w-7" />
-                            </button>
-                        </div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black text-foreground">Rescue Order?</h3>
+                                <p className="text-muted-foreground">This will attempt to re-provision the infrastructure for order <span className="font-mono text-foreground font-bold">#{String(rescueTarget.id).slice(0, 8)}</span>. Use this for stuck orders.</p>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setRescueTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
+                                <button onClick={handleRescue} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-yellow-500 text-black hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-yellow-500/20">
+                                    {actionLoading ? "Processing..." : "Rescue Now"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
-                        <div className="flex border-b border-border bg-muted/10">
-                            <button onClick={() => setModalSubTab('creds')} className={`flex-1 py-3 text-sm font-medium transition-all border-b-2 ${modalSubTab === 'creds' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Credentials</button>
-                            <button onClick={() => setModalSubTab('whitelist')} className={`flex-1 py-3 text-sm font-medium transition-all border-b-2 ${modalSubTab === 'whitelist' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Whitelist</button>
-                            <button onClick={() => setModalSubTab('protocol')} className={`flex-1 py-3 text-sm font-medium transition-all border-b-2 ${modalSubTab === 'protocol' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Protocol & Advanced</button>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                            {proxyActionLoading && !proxyCreds ? (
-                                <div className="py-12 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                                    <ArrowPathIcon className="h-8 w-8 animate-spin" />
-                                    <p className="text-sm font-medium">Loading proxy details...</p>
+            {/* Refund Modal */}
+            <AnimatePresence>
+                {refundTarget && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
+                            onClick={() => { setRefundTarget(null); setRefundMethod("wallet"); }} 
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
+                        >
+                            <div className="flex justify-between items-start">
+                                <div className="p-4 bg-orange-500/10 rounded-3xl">
+                                    <BanknotesIcon className="w-10 h-10 text-orange-500" />
                                 </div>
-                            ) : proxyCreds ? (
-                                <div className="space-y-6">
-                                    {modalSubTab === 'creds' && (
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div className="space-y-4 bg-muted/30 p-4 rounded-xl border border-border/50">
-                                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                                        <KeyIcon className="h-4 w-4" /> Current Auth
-                                                    </h4>
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="text-[10px] text-muted-foreground uppercase block mb-1">Username</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm outline-none" value={newCreds.username} onChange={e => setNewCreds({...newCreds, username: e.target.value})} />
-                                                            </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Refund Amount</p>
+                                    <h2 className="text-3xl font-black text-foreground">${Number(refundTarget.total_amount).toFixed(2)}</h2>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Customer</span>
+                                    <span className="font-bold text-foreground">{refundTarget.entity_name}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Payment Method</span>
+                                    <span className="font-bold text-foreground uppercase text-xs">{paymentLabel(refundTarget.payment_method)}</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Refund Destination</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setRefundMethod("wallet")}
+                                        className={cn(
+                                            "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                                            refundMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"
+                                        )}
+                                    >
+                                        <BanknotesIcon className="w-6 h-6" />
+                                        <span className="text-xs font-bold">User Wallet</span>
+                                    </button>
+                                    {refundTarget.payment_method && refundTarget.payment_method !== "balance" && (
+                                        <button
+                                            onClick={() => setRefundMethod("original")}
+                                            className={cn(
+                                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 text-center",
+                                                refundMethod === "original" ? "border-purple-500 bg-purple-500/5 text-purple-500" : "border-border text-muted-foreground hover:border-muted-foreground"
+                                            )}
+                                        >
+                                            <GlobeAltIcon className="w-6 h-6" />
+                                            <span className="text-xs font-bold">Original Gateway</span>
+                                        </button>
+                                    )}
+                                </div>
+                                {refundMethod === "original" && (
+                                    <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] text-yellow-500 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 leading-relaxed font-medium">
+                                        ⚠ Gateway refunds are processed via {paymentLabel(refundTarget.payment_method)}. Automated for fiat; manual claim required for crypto.
+                                    </motion.p>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setRefundTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Discard</button>
+                                <button onClick={handleRefund} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-orange-500 text-white hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-orange-500/20">
+                                    {actionLoading ? "Processing..." : "Confirm Refund"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Proxy Config Modal - Optimized */}
+            <AnimatePresence>
+                {proxyConfigTarget && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
+                            onClick={() => setProxyConfigTarget(null)} 
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 20 }}
+                            className="relative bg-card border border-border rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Modal Header */}
+                            <div className="p-8 border-b border-border flex justify-between items-start bg-muted/20">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><GlobeAltIcon className="w-6 h-6" /></div>
+                                        <h3 className="text-2xl font-black text-foreground tracking-tight">Proxy Infrastructure</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                                        <span className="bg-muted px-2 py-0.5 rounded text-[10px] font-mono">#{proxyConfigTarget.order_number}</span>
+                                        <span>•</span>
+                                        <span>{proxyConfigTarget.product_name}</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setProxyConfigTarget(null)} className="p-2 hover:bg-muted rounded-full transition-all text-muted-foreground hover:text-foreground">
+                                    <XCircleIcon className="w-8 h-8" />
+                                </button>
+                            </div>
+
+                            {/* Modal Tabs */}
+                            <div className="flex p-2 bg-muted/10 border-b border-border gap-2">
+                                {[
+                                    { id: 'creds', label: 'Auth & Access', icon: KeyIcon },
+                                    { id: 'whitelist', label: 'IP Whitelist', icon: ShieldCheckIcon },
+                                    { id: 'protocol', label: 'Network Settings', icon: GlobeAltIcon },
+                                ].map((tab) => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => setModalSubTab(tab.id as any)} 
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-black transition-all",
+                                            modalSubTab === tab.id ? "bg-card text-foreground shadow-sm border border-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                        )}
+                                    >
+                                        <tab.icon className="w-4 h-4" />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                {proxyActionLoading && !proxyCreds ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-4">
+                                        <ArrowPathIcon className="w-12 h-12 animate-spin text-primary" />
+                                        <p className="font-bold text-lg animate-pulse">Syncing with nodes...</p>
+                                    </div>
+                                ) : proxyCreds ? (
+                                    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+                                        {modalSubTab === 'creds' && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="space-y-6">
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Authentication</h4>
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Username</label>
+                                                            <input 
+                                                                className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
+                                                                value={newCreds.username} 
+                                                                onChange={e => setNewCreds({...newCreds, username: e.target.value})} 
+                                                            />
                                                         </div>
-                                                        <div>
-                                                            <label className="text-[10px] text-muted-foreground uppercase block mb-1">Password</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm outline-none" value={newCreds.password} onChange={e => setNewCreds({...newCreds, password: e.target.value})} />
-                                                            </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Password</label>
+                                                            <input 
+                                                                className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
+                                                                value={newCreds.password} 
+                                                                onChange={e => setNewCreds({...newCreds, password: e.target.value})} 
+                                                            />
                                                         </div>
                                                         <button 
                                                             onClick={() => handleProxyAction('update-creds')}
                                                             disabled={proxyActionLoading}
-                                                            className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                                                            className="w-full py-4 bg-primary text-primary-foreground rounded-2xl text-sm font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                                                         >
-                                                            Update Credentials
+                                                            Sync New Credentials
                                                         </button>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-4 bg-muted/30 p-4 rounded-xl border border-border/50">
-                                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                                        <ArrowPathIcon className="h-4 w-4" /> Operations
-                                                    </h4>
-                                                    <div className="space-y-2">
+                                                <div className="space-y-6">
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Quick Operations</h4>
+                                                    <div className="grid grid-cols-1 gap-3">
                                                         <button 
                                                             onClick={() => handleProxyAction('rotate')}
                                                             disabled={proxyActionLoading}
-                                                            className="w-full py-3 bg-secondary text-secondary-foreground rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                                                            className="p-4 bg-card border border-border rounded-2xl hover:border-primary transition-all flex items-center gap-4 group"
                                                         >
-                                                            <ArrowPathIcon className={`h-4 w-4 ${proxyActionLoading ? 'animate-spin' : ''}`} /> Force IP Rotation
+                                                            <div className="p-3 bg-primary/10 text-primary rounded-xl group-hover:rotate-180 transition-all duration-500">
+                                                                <ArrowPathIcon className="w-5 h-5" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <p className="text-xs font-black text-foreground">Force Rotation</p>
+                                                                <p className="text-[10px] text-muted-foreground">Immediate IP change request</p>
+                                                            </div>
                                                         </button>
                                                         <button 
                                                             onClick={() => handleProxyAction('renew')}
-                                                            disabled={proxyActionLoading}
-                                                            className="w-full py-3 bg-green-500/10 text-green-500 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                                                            className="p-4 bg-card border border-border rounded-2xl hover:border-green-500 transition-all flex items-center gap-4 group"
                                                         >
-                                                            <ClockIcon className="h-4 w-4" /> Renew (1 Month)
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => handleProxyAction('reorder')}
-                                                            disabled={proxyActionLoading}
-                                                            className="w-full py-3 bg-blue-500/10 text-blue-500 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-                                                        >
-                                                            <ArrowPathIcon className="h-4 w-4" /> Reorder Product
+                                                            <div className="p-3 bg-green-500/10 text-green-500 rounded-xl group-hover:scale-110 transition-all">
+                                                                <ClockIcon className="w-5 h-5" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <p className="text-xs font-black text-foreground">Renew Duration</p>
+                                                                <p className="text-[10px] text-muted-foreground">Add 30 days to expiry</p>
+                                                            </div>
                                                         </button>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            {proxyCreds.ip && (
-                                                <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
-                                                    <h4 className="text-sm font-bold uppercase mb-3 text-muted-foreground">Proxy Details</h4>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                {/* Live Status Card */}
+                                                <div className="md:col-span-2 bg-foreground text-background rounded-3xl p-6 flex flex-wrap items-center justify-between gap-6 shadow-xl">
+                                                    <div className="flex gap-8">
                                                         <div>
-                                                            <p className="text-[10px] text-muted-foreground uppercase">IP</p>
-                                                            <p className="text-sm font-medium">{proxyCreds.ip}</p>
+                                                            <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mb-1">Current Endpoint</p>
+                                                            <p className="text-xl font-mono font-bold">{proxyCreds.ip}:{proxyCreds.port}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-[10px] text-muted-foreground uppercase">Port</p>
-                                                            <p className="text-sm font-medium">{proxyCreds.port}</p>
+                                                            <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mb-1">Protocol</p>
+                                                            <p className="text-xl font-bold uppercase">{proxyCreds.protocol}</p>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-[10px] text-muted-foreground uppercase">Protocol</p>
-                                                            <p className="text-sm font-medium uppercase">{proxyCreds.protocol}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <button onClick={() => copyToClipboard(`${proxyCreds.ip}:${proxyCreds.port}:${newCreds.username}:${newCreds.password}`)} className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium">
-                                                                <DocumentDuplicateIcon className="h-4 w-4" /> Copy All
+                                                    </div>
+                                                    <button onClick={() => copyToClipboard(`${proxyCreds.ip}:${proxyCreds.port}:${newCreds.username}:${newCreds.password}`)} className="bg-background text-foreground px-6 py-3 rounded-2xl text-xs font-black hover:opacity-90 transition-all flex items-center gap-2">
+                                                        <DocumentDuplicateIcon className="w-4 h-4" /> Copy Access Line
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {modalSubTab === 'whitelist' && (
+                                            <div className="space-y-6">
+                                                <div className="flex justify-between items-center">
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Authorized IPs</h4>
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full font-black uppercase">{proxyConfigTarget.proxy_details?.whitelist_ips?.length || 0} / 10 Active</span>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {proxyConfigTarget.proxy_details?.whitelist_ips?.map((ip: string) => (
+                                                        <div key={ip} className="bg-muted/20 border border-border p-4 rounded-2xl flex justify-between items-center group hover:bg-muted/40 transition-all">
+                                                            <div className="flex items-center gap-3">
+                                                                <ShieldCheckIcon className="w-5 h-5 text-primary" />
+                                                                <span className="text-sm font-mono font-bold">{ip}</span>
+                                                            </div>
+                                                            <button onClick={() => handleProxyAction('whitelist-delete', ip)} className="text-destructive hover:bg-destructive/10 p-2 rounded-xl transition-all">
+                                                                <TrashIcon className="w-4 h-4" />
                                                             </button>
                                                         </div>
+                                                    ))}
+                                                    <div className="bg-card border border-border border-dashed p-4 rounded-2xl flex flex-col gap-4">
+                                                        <div className="flex gap-2">
+                                                            <input 
+                                                                className="flex-1 bg-background border border-border rounded-xl px-4 py-2 text-sm font-mono outline-none focus:ring-4 focus:ring-primary/10" 
+                                                                placeholder="Enter IPv4 Address..." 
+                                                                value={newIp}
+                                                                onChange={e => setNewIp(e.target.value)}
+                                                            />
+                                                            <button 
+                                                                onClick={() => handleProxyAction('whitelist-add')}
+                                                                disabled={proxyActionLoading || !newIp}
+                                                                className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+                                                            >
+                                                                Authorize
+                                                            </button>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground leading-relaxed italic">Changes take up to 60 seconds to propagate to edge nodes.</p>
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {modalSubTab === 'whitelist' && (
-                                        <div className="space-y-4">
-                                            <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
-                                                <h4 className="text-sm font-bold uppercase mb-4 text-muted-foreground">Whitelisted IPs</h4>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-                                                    {proxyConfigTarget.proxy_details?.whitelist_ips?.length ? (
-                                                        proxyConfigTarget.proxy_details.whitelist_ips.map((ip: string) => (
-                                                            <div key={ip} className="bg-background border border-border p-2 rounded-lg flex justify-between items-center group">
-                                                                <span className="text-sm font-mono">{ip}</span>
-                                                                <button onClick={() => handleProxyAction('whitelist-delete', ip)} className="text-destructive opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all">
-                                                                    <TrashIcon className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <p className="col-span-full text-center py-4 text-sm text-muted-foreground italic">No IPs whitelisted.</p>
-                                                    )}
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <input 
-                                                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary" 
-                                                        placeholder="Add IP (e.g. 1.2.3.4)" 
-                                                        value={newIp}
-                                                        onChange={e => setNewIp(e.target.value)}
-                                                    />
-                                                    <button 
-                                                        onClick={() => handleProxyAction('whitelist-add')}
-                                                        disabled={proxyActionLoading || !newIp}
-                                                        className="bg-primary px-4 py-2 rounded-lg text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
-                                                    >
-                                                        Add IP
-                                                    </button>
-                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
-                                    {modalSubTab === 'protocol' && (
-                                        <div className="space-y-6">
-                                            <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
-                                                <h4 className="text-sm font-bold uppercase mb-4 text-muted-foreground">Select Protocol</h4>
-                                                <div className="grid grid-cols-2 gap-4">
+                                        {modalSubTab === 'protocol' && (
+                                            <div className="space-y-8">
+                                                <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground text-center">Infrastructure Protocol</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <button 
                                                         onClick={() => handleProxyAction('change-protocol', 'http')}
-                                                        className={`p-4 rounded-xl border-2 transition-all text-center ${proxyCreds.protocol === 'http' ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
+                                                        className={cn(
+                                                            "p-8 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-4 text-center",
+                                                            proxyCreds.protocol === 'http' ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
+                                                        )}
                                                     >
-                                                        <p className="font-bold">HTTP/S</p>
-                                                        <p className="text-[10px] text-muted-foreground">Standard web traffic</p>
+                                                        <div className={cn("p-4 rounded-3xl", proxyCreds.protocol === 'http' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                                            <GlobeAltIcon className="w-10 h-10" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xl font-black mb-1">HTTP / HTTPS</p>
+                                                            <p className="text-xs text-muted-foreground font-medium">Recommended for browsers and standard scrapers.</p>
+                                                        </div>
+                                                        {proxyCreds.protocol === 'http' && <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Current Configuration</span>}
                                                     </button>
+                                                    
                                                     <button 
                                                         onClick={() => handleProxyAction('change-protocol', 'socks5')}
-                                                        className={`p-4 rounded-xl border-2 transition-all text-center ${proxyCreds.protocol === 'socks5' ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
+                                                        className={cn(
+                                                            "p-8 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-4 text-center",
+                                                            proxyCreds.protocol === 'socks5' ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
+                                                        )}
                                                     >
-                                                        <p className="font-bold">SOCKS5</p>
-                                                        <p className="text-[10px] text-muted-foreground">UDP & TCP traffic</p>
+                                                        <div className={cn("p-4 rounded-3xl", proxyCreds.protocol === 'socks5' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                                            <ShieldCheckIcon className="w-10 h-10" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xl font-black mb-1">SOCKS5</p>
+                                                            <p className="text-xs text-muted-foreground font-medium">Advanced networking with UDP support and proxy chaining.</p>
+                                                        </div>
+                                                        {proxyCreds.protocol === 'socks5' && <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Current Configuration</span>}
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : null}
-                        </div>
-                        
-                        <div className="p-4 bg-muted/30 border-t border-border flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground italic">Changes affect the live proxy configuration.</span>
-                            <button onClick={() => setProxyConfigTarget(null)} className="px-5 py-2 text-xs font-bold text-muted-foreground hover:text-foreground">Done</button>
-                        </div>
+                                        )}
+                                    </motion.div>
+                                ) : null}
+                            </div>
+                            
+                            <div className="p-6 bg-muted/20 border-t border-border flex justify-between items-center">
+                                <p className="text-[10px] text-muted-foreground font-medium max-w-[200px]">Node synchronization may cause a momentary connection reset.</p>
+                                <button onClick={() => setProxyConfigTarget(null)} className="bg-foreground text-background px-8 py-3 rounded-2xl text-xs font-black hover:opacity-90 transition-all shadow-xl">Close Panel</button>
+                            </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
         </div>
     );
 }

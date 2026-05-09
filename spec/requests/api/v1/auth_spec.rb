@@ -35,7 +35,7 @@ RSpec.describe 'api/v1/auth', type: :request do
                  }
                }
 
-        let(:reseller) { Reseller.create!(username: 'partner_credential_access', email: 'partner_auth@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only', permanent_api_key: 'secure_integration_key') }
+        let(:reseller) { Reseller.create!(username: 'partner_credential_access', email: 'partner_auth@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only', permanent_api_key: 'secure_integration_key', country_code: 'US', city: 'New York') }
         let(:credentials) { { username: reseller.username, api_key: reseller.permanent_api_key } }
         run_test!
       end
@@ -54,7 +54,7 @@ RSpec.describe 'api/v1/auth', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_session_user', email: 'session@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_session_user', email: 'session@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { reseller.generate_rotating_token }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -79,7 +79,7 @@ RSpec.describe 'api/v1/auth', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'dashboard_user', email: 'dash@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'dashboard_user', email: 'dash@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:login_data) { { email: reseller.email, password: 'password' } }
         run_test!
       end
@@ -101,7 +101,7 @@ RSpec.describe 'api/v1/auth', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'refresh_user', email: 'refresh@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'refresh_user', email: 'refresh@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { reseller.generate_rotating_token }
         let(:Authorization) { "Bearer #{token}" }
         let(:refresh_data) { { refresh_token: 'valid_refresh_token' } }

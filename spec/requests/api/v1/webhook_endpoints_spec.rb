@@ -10,7 +10,7 @@ RSpec.describe 'api/v1/webhook_endpoints', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_event_listener', email: 'events@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_event_listener', email: 'events@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -38,7 +38,7 @@ RSpec.describe 'api/v1/webhook_endpoints', type: :request do
       }
 
       response(201, 'created') do
-        let(:reseller) { Reseller.create!(username: 'partner_v1_webhook', email: 'webhook_v1@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_v1_webhook', email: 'webhook_v1@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:webhook_endpoint) { { url: 'https://api.partner.com/v1', events: ['order.completed'] } }
@@ -65,7 +65,7 @@ RSpec.describe 'api/v1/webhook_endpoints', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_endpoint_update', email: 'update@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_endpoint_update', email: 'update@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:endpoint_obj) { WebhookEndpoint.create!(reseller: reseller, url: 'https://old.com', events: []) }
@@ -81,7 +81,7 @@ RSpec.describe 'api/v1/webhook_endpoints', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_endpoint_cleanup', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_endpoint_cleanup', email: 'cleanup@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:endpoint_obj) { WebhookEndpoint.create!(reseller: reseller, url: 'https://delete-me.com', events: []) }

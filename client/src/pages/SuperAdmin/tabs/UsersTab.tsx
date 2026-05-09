@@ -10,10 +10,12 @@ import CountrySelect from "../../../components/ui/CountrySelect";
 import EmptyState from "../components/EmptyState";
 import {
     useAdminUsers,
+    useCreateAdminUser,
     useDeleteUser,
     useUpdateUser,
     useOnboardUser,
     useImpersonateUser,
+    useRevokeUserTokens,
 } from "../queries/users.queries";
 
 interface UserRow {
@@ -40,21 +42,33 @@ export default function UsersTab() {
     const [editTarget, setEditTarget] = useState<UserRow | null>(null);
     const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", status: "", country_code: "", city: "" });
     const [editErrors, setEditErrors] = useState<ValidationErrors>({});
+    const [createModal, setCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({ first_name: "", last_name: "", email: "", password: "", country_code: "", city: "" });
 
     const { data, isLoading } = useAdminUsers({ page, search, per: PER });
     const users: UserRow[] = data?.users ?? [];
     const total: number = data?.total ?? 0;
 
+    const createAdminUser = useCreateAdminUser();
     const deleteUser = useDeleteUser();
     const updateUser = useUpdateUser();
     const onboardUser = useOnboardUser();
     const impersonateUser = useImpersonateUser();
+    const revokeTokensMutation = useRevokeUserTokens();
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
         await deleteUser.mutateAsync(deleteTarget.id);
         setDeleteTarget(null);
     };
+
+    const handleCreate = async () => {
+        await createAdminUser.mutateAsync(createForm as Record<string, unknown>);
+        setCreateModal(false);
+        setCreateForm({ first_name: "", last_name: "", email: "", password: "", country_code: "", city: "" });
+    };
+
+    const handleRevokeTokens = (id: number) => revokeTokensMutation.mutate(id);
 
     const handleEdit = async () => {
         if (!editTarget) return;
@@ -115,6 +129,13 @@ export default function UsersTab() {
                     <h2 className="text-2xl font-bold text-foreground">Users</h2>
                     <p className="text-sm text-muted-foreground mt-1">{total} total users</p>
                 </div>
+                <button
+                    onClick={() => setCreateModal(true)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                    <UserPlusIcon className="h-4 w-4" />
+                    Onboard User
+                </button>
             </div>
 
             <DataTable
@@ -143,6 +164,9 @@ export default function UsersTab() {
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10"
                         >
                             <UserPlusIcon className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                            <span className="text-xs font-medium">Access</span>
                         </button>
                         <button
                             onClick={() => impersonateUser.mutate(row.id)}
@@ -207,6 +231,37 @@ export default function UsersTab() {
                         <option value="suspended">Suspended</option>
                     </select>
                 </Field>
+            </FormModal>
+
+            {/* Create Modal */}
+            <FormModal
+                open={createModal}
+                onClose={() => setCreateModal(false)}
+                title="Onboard New User"
+                onSubmit={handleCreate}
+                submitLabel="Create"
+                loading={createAdminUser.isLoading}
+            >
+                <Field label="First Name">
+                    <input className={inputClasses} required value={createForm.first_name} onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })} />
+                </Field>
+                <Field label="Last Name">
+                    <input className={inputClasses} required value={createForm.last_name} onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })} />
+                </Field>
+                <Field label="Email">
+                    <input className={inputClasses} required type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} />
+                </Field>
+                <Field label="Password">
+                    <input className={inputClasses} type="password" placeholder="Leave blank to auto-generate" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} />
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Country Code">
+                        <input className={inputClasses} value={createForm.country_code} onChange={(e) => setCreateForm({ ...createForm, country_code: e.target.value })} placeholder="US" />
+                    </Field>
+                    <Field label="City">
+                        <input className={inputClasses} value={createForm.city} onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })} placeholder="New York" />
+                    </Field>
+                </div>
             </FormModal>
         </div>
     );

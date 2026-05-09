@@ -8,6 +8,7 @@ import {
   deleteReseller,
   onboardReseller,
   configureReseller,
+  revokeResellerTokens,
 } from "../../../services/adminApi";
 import { adminQueryKeys } from "./queryKeys";
 
@@ -121,5 +122,13 @@ export function useConfigureReseller() {
       queryClient.invalidateQueries(adminQueryKeys.resellers.all());
     },
     onError: (err) => toast.error(apiError(err, "Failed to configure reseller")),
+  });
+}
+
+export function useRevokeResellerTokens() {
+  return useMutation({
+    mutationFn: (id: string | number) => revokeResellerTokens(id),
+    onSuccess: () => toast.success("Tokens revoked successfully"),
+    onError: (err) => toast.error(apiError(err, "Failed to revoke tokens")),
   });
 }

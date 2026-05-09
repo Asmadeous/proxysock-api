@@ -3,15 +3,15 @@ import { Link, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import {
   LayoutDashboard,
-  Globe,
-  ShieldCheck,
+  Network,
+  Shield,
   Smartphone,
-  Server,
+  HardDrive,
   Monitor,
-  Box,
-  ShoppingBag,
-  Receipt,
-  User,
+  Package,
+  ClipboardList,
+  CreditCard,
+  UserCircle,
   KeyRound,
   LogOut,
   ShoppingCart,
@@ -20,12 +20,11 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
-  MessageSquare,
+  Headphones,
+  Bell,
 } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
-import NotificationBell from "@/components/NotificationBell";
-import { fetchTickets, fetchUserSupportChat } from "@/services/api";
 import { useNotificationStore } from "@/store/notificationStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -65,13 +64,13 @@ const navigationSections: NavigationSection[] = [
       {
         name: "Premium Proxies",
         href: "/dashboard/proxies",
-        icon: Globe,
+        icon: Network,
         description: "Purchase residential & datacenter proxies",
       },
       {
         name: "VPN",
         href: "/dashboard/vpn",
-        icon: ShieldCheck,
+        icon: Shield,
         description: "Purchase residential vpn",
       },
       {
@@ -83,7 +82,7 @@ const navigationSections: NavigationSection[] = [
       {
         name: "VPS Hosting",
         href: "/dashboard/vps",
-        icon: Server,
+        icon: HardDrive,
         description: "Virtual private servers",
         badge: "Popular",
       },
@@ -110,32 +109,27 @@ const navigationSections: NavigationSection[] = [
       {
         name: "View Products",
         href: "/dashboard/products",
-        icon: Box,
+        icon: Package,
         description: "Manage active services",
       },
       {
         name: "View Orders",
         href: "/dashboard/orders",
-        icon: ShoppingBag,
+        icon: ClipboardList,
         description: "Complete order history",
       },
       {
         name: "Transactions",
         href: "/dashboard/transactions",
-        icon: Receipt,
+        icon: CreditCard,
         description: "Payment history & invoices",
       },
+
       {
-        name: "Support Tickets",
-        href: "/dashboard/tickets",
-        icon: MessageSquare,
-        description: "Get help & support",
-      },
-      {
-        name: "Support Chat",
+        name: "Support",
         href: "/dashboard/support",
-        icon: MessageSquare,
-        description: "Live chat with support",
+        icon: Headphones,
+        description: "Get help & support",
       },
     ],
   },
@@ -146,7 +140,7 @@ const navigationSections: NavigationSection[] = [
       {
         name: "Profile Settings",
         href: "/dashboard/profile",
-        icon: User,
+        icon: UserCircle,
         description: "Manage your profile",
       },
       {
@@ -200,39 +194,21 @@ export const Sidebar = ({
   const { dark, toggleDark } = useThemeStore();
 
   // Dynamic badge counts
-  const [unreadTickets, setUnreadTickets] = useState(0);
-  const [unreadChats, setUnreadChats] = useState(0);
+  const [counts, setCounts] = useState<any>({ orders: 0, tickets: 0, notifications: 0 });
+  // Track which hrefs have been "seen" since their counts appeared
+  const [seenPaths, setSeenPaths] = useState<Record<string, boolean>>({});
 
-  const notifications = useNotificationStore(state => state.notifications);
   const unreadNotifications = useNotificationStore(state => state.unreadCount);
   const fetchStoreNotifications = useNotificationStore(state => state.fetchNotifications);
   const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
   const subscribeToRealtime = useNotificationStore(state => state.subscribeToRealtime);
   const unsubscribeFromRealtime = useNotificationStore(state => state.unsubscribeFromRealtime);
-  const markAllAsRead = useNotificationStore(state => state.markAllAsRead);
 
   const loadBadgeCounts = useCallback(async () => {
     try {
-      const [ticketRes, chatRes] = await Promise.allSettled([
-        fetchTickets(),
-        fetchUserSupportChat(),
-      ]);
-
-      if (ticketRes.status === "fulfilled") {
-        const tickets = ticketRes.value.data.tickets || ticketRes.value.data || [];
-        const openCount = Array.isArray(tickets)
-          ? tickets.filter((t: any) => t.status === "open" || t.status === "pending").length
-          : 0;
-        setUnreadTickets(openCount);
-      }
-
-      if (chatRes.status === "fulfilled") {
-        const chats = chatRes.value.data;
-        const unread = Array.isArray(chats)
-          ? chats.filter((c: any) => c.unread_count > 0).length
-          : chats?.unread_count || 0;
-        setUnreadChats(unread);
-      }
+      const { fetchUserSummaryCounts } = await import("@/services/api");
+      const summary = await fetchUserSummaryCounts();
+      setCounts(summary);
 
       // Initial fetch for notifications through store
       await Promise.all([
@@ -247,21 +223,44 @@ export const Sidebar = ({
   useEffect(() => {
     loadBadgeCounts();
     subscribeToRealtime();
-    return () => unsubscribeFromRealtime();
+    const interval = setInterval(loadBadgeCounts, 30000); // 30s poll
+    return () => {
+      unsubscribeFromRealtime();
+      clearInterval(interval);
+    };
   }, [loadBadgeCounts, subscribeToRealtime, unsubscribeFromRealtime]);
 
-  // Clear badge when navigating to the page
+  // Mark current page as "seen" when navigating
   useEffect(() => {
-    if (location.pathname.includes("/dashboard/tickets")) setUnreadTickets(0);
-    if (location.pathname.includes("/dashboard/support")) setUnreadChats(0);
+    setSeenPaths(prev => ({ ...prev, [location.pathname]: true }));
   }, [location.pathname]);
 
-  // Map href -> badge count
+  // When counts change, reset seen state for tabs with activity (except currently active)
+  useEffect(() => {
+    setSeenPaths(prev => {
+      const next: Record<string, boolean> = {};
+      for (const key of Object.keys(prev)) {
+        next[key] = location.pathname === key || location.pathname.startsWith(key + "/");
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts]);
+
+  // Map href -> badge count (only meaningful counts, not "active orders")
   const getBadgeCount = (href: string): number => {
-    if (href === "/dashboard/tickets") return unreadTickets;
-    if (href === "/dashboard/support") return unreadChats;
-    if (href === "/dashboard/notifications") return unreadNotifications;
+    if (href === "/dashboard/tickets") return counts.tickets;
+    if (href === "/dashboard/notifications") return unreadNotifications || counts.notifications;
     return 0;
+  };
+
+  // Whether the red dot should show (unseen activity)
+  const isUnseen = (href: string): boolean => {
+    const count = getBadgeCount(href);
+    if (count <= 0) return false;
+    // If we're currently on this page, it's seen
+    if (location.pathname === href || location.pathname.startsWith(href + "/")) return false;
+    return !seenPaths[href];
   };
 
   const isActive = (path: string) => {
@@ -306,7 +305,7 @@ export const Sidebar = ({
       )}
 
       {/* 1. Header Section: Avatar & Name */}
-      <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center" : ""}`}>
+      <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center flex-col" : ""}`}>
         <Link
           to="/dashboard/profile"
           onClickCapture={handleMobileClick}
@@ -333,15 +332,20 @@ export const Sidebar = ({
             <span className="text-xs text-muted-foreground truncate">Welcome back</span>
           </div>
         )}
-        {!isCollapsed && (
-          <div className="flex-shrink-0">
-            <NotificationBell
-              notifications={notifications}
-              unreadCount={unreadNotifications}
-              markAsRead={markAllAsRead}
-            />
-          </div>
-        )}
+        <div className={`flex-shrink-0 ${isCollapsed ? "" : ""}`}>
+          <SidebarTooltip content="Notifications" show={isCollapsed}>
+            <Link to="/dashboard/notifications" onClickCapture={handleMobileClick}>
+              <div className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <Bell className="h-5 w-5" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
+              </div>
+            </Link>
+          </SidebarTooltip>
+        </div>
       </div>
 
       <div className="h-px bg-border mx-4 mb-4" />
@@ -364,34 +368,38 @@ export const Sidebar = ({
         {navigationSections.map((section) => (
           <div key={section.id}>
             {!isCollapsed && (
-              <div className="px-3 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+              <div className="px-3 mb-3 mt-2 text-[10px] font-extrabold text-foreground/40 uppercase tracking-widest truncate">
                 {section.title}
               </div>
             )}
             <nav className="space-y-1">
               {section.items.map((item) => {
                 const active = isActive(item.href);
+                const badgeCount = getBadgeCount(item.href);
+                const unseen = isUnseen(item.href);
 
                 return (
                   <SidebarTooltip key={item.name} content={item.name} show={isCollapsed}>
                     <Link
                       to={item.href}
                       onClickCapture={handleMobileClick}
-                      className={`group relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${active
-                        ? "bg-primary text-white font-medium shadow-sm"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-300 ${active
+                        ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold shadow-md shadow-primary/20"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         } ${isCollapsed ? "justify-center px-2" : ""}`}
                     >
                       <div className="relative flex items-center justify-center">
-                        <item.icon className={`h-4.5 w-4.5 flex-shrink-0 ${active ? "text-white" : ""}`} />
+                        <item.icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${active ? "text-primary-foreground" : "group-hover:text-primary group-hover:scale-110"}`} />
                         {item.isCart && cartCount > 0 && (
                           <span className="absolute -top-1.5 -right-1.5 bg-destructive text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background">
                             {cartCount > 9 ? "9+" : cartCount}
                           </span>
                         )}
-                        {!item.isCart && getBadgeCount(item.href) > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background animate-pulse">
-                            {getBadgeCount(item.href) > 9 ? "9+" : getBadgeCount(item.href)}
+                        {/* Red dot on icon — only for unseen activity */}
+                        {!item.isCart && unseen && (
+                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
                           </span>
                         )}
                       </div>
@@ -400,10 +408,19 @@ export const Sidebar = ({
                         <span className="flex-1 truncate">{item.name}</span>
                       )}
 
-                      {!isCollapsed && getBadgeCount(item.href) > 0 && !active && (
-                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                          {getBadgeCount(item.href) > 99 ? "99+" : getBadgeCount(item.href)}
-                        </span>
+                      {/* Count badge — always shows when count > 0 */}
+                      {!isCollapsed && badgeCount > 0 && !active && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="bg-muted text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                            {badgeCount > 99 ? "99+" : badgeCount}
+                          </span>
+                          {unseen && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                          )}
+                        </div>
                       )}
 
                       {!isCollapsed && item.badge && getBadgeCount(item.href) === 0 && (

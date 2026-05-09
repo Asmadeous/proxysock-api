@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
 import { validEmail, required, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
@@ -20,6 +20,7 @@ import {
     useDeleteReseller,
     useOnboardReseller,
     useConfigureReseller,
+    useRevokeResellerTokens,
 } from "../queries/resellers.queries";
 
 interface ResellerRow {
@@ -31,6 +32,7 @@ interface ResellerRow {
     balance: number;
     earnings_balance: number;
     surcharge: number;
+    discount_percentage: number | null;
     subscription_fee: number | null;
     subscription_expires_at: string | null;
     dedicated_api_key: string | null;
@@ -54,7 +56,7 @@ interface Stats {
     total_balance: number;
 }
 
-const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only", country_code: "US", country: "United States", city: "" };
+const EMPTY_FORM = { email: "", username: "", company_name: "", password: "", reseller_type: "api_only", country_code: "US", country: "United States", city: "", allowed_product_category_id: "" };
 
 const TYPE_FILTERS = [
     { label: "All", value: "" },
@@ -81,6 +83,7 @@ export default function ResellersTab() {
     const [configForm, setConfigForm] = useState({
         reseller_type: "api_only",
         surcharge: "0",
+        discount_percentage: "0",
         subscription_fee: "",
         subscription_expires_at: "",
         dedicated_api_key: "",
@@ -95,11 +98,12 @@ export default function ResellersTab() {
     const total: number = resellersData?.total ?? 0;
     const stats: Stats = resellersData?.stats ?? { total: 0, api_only: 0, enterprise: 0, single_product: 0, total_balance: 0 };
 
-    const createReseller = useCreateReseller();
-    const updateReseller = useUpdateReseller();
-    const deleteReseller = useDeleteReseller();
+    const createResellerMutation = useCreateReseller();
+    const updateResellerMutation = useUpdateReseller();
+    const deleteResellerMutation = useDeleteReseller();
     const onboardReseller = useOnboardReseller();
-    const configureReseller = useConfigureReseller();
+    const configureResellerMutation = useConfigureReseller();
+    const revokeTokensMutation = useRevokeResellerTokens();
 
     const validateForm = (isCreate: boolean): ValidationErrors => ({
         email: validEmail(form.email),
@@ -111,7 +115,7 @@ export default function ResellersTab() {
     const handleCreate = async () => {
         const errors = validateForm(true);
         if (hasErrors(errors)) { setFormErrors(errors); return; }
-        await createReseller.mutateAsync(form as unknown as Record<string, unknown>);
+        await createResellerMutation.mutateAsync(form as unknown as Record<string, unknown>);
         setShowCreate(false);
         setForm(EMPTY_FORM);
         setFormErrors({});
@@ -122,34 +126,37 @@ export default function ResellersTab() {
         const errors = validateForm(false);
         if (hasErrors(errors)) { setFormErrors(errors); return; }
         const { password: _pw, ...data } = form;
-        await updateReseller.mutateAsync({ id: editTarget.id, data: data as unknown as Record<string, unknown> });
+        await updateResellerMutation.mutateAsync({ id: editTarget.id, data: data as unknown as Record<string, unknown> });
         setEditTarget(null);
         setFormErrors({});
     };
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
-        await deleteReseller.mutateAsync(deleteTarget.id);
+        await deleteResellerMutation.mutateAsync(deleteTarget.id);
         setDeleteTarget(null);
     };
 
+    const handleRevokeTokens = (id: string) => revokeTokensMutation.mutate(id);
+
     const handleConfigure = async () => {
         if (!configTarget) return;
-        await configureReseller.mutateAsync({ id: configTarget.id, data: configForm as Record<string, unknown> });
+        await configureResellerMutation.mutateAsync({ id: configTarget.id, data: configForm as Record<string, unknown> });
         setConfigTarget(null);
     };
 
     const openEdit = (r: ResellerRow) => {
         setEditTarget(r);
-        setForm({ 
-            email: r.email, 
-            username: r.username, 
-            company_name: r.company_name || "", 
-            password: "", 
+        setForm({
+            email: r.email,
+            username: r.username,
+            company_name: r.company_name || "",
+            password: "",
             reseller_type: r.reseller_type || "api_only",
             country_code: r.country_code || "US",
             country: r.country || "United States",
-            city: r.city || ""
+            city: r.city || "",
+            allowed_product_category_id: (r as any).allowed_product_category_id ? String((r as any).allowed_product_category_id) : ""
         });
     };
 
@@ -158,6 +165,7 @@ export default function ResellersTab() {
         setConfigForm({
             reseller_type: r.reseller_type || "api_only",
             surcharge: String(r.surcharge || 0),
+            discount_percentage: String(r.discount_percentage || 0),
             subscription_fee: r.subscription_fee ? String(r.subscription_fee) : "",
             subscription_expires_at: r.subscription_expires_at ? r.subscription_expires_at.slice(0, 10) : "",
             dedicated_api_key: r.dedicated_api_key || "",
@@ -220,7 +228,17 @@ export default function ResellersTab() {
             ),
         },
         {
-            key: "subscription_fee", label: "Subscription",
+            key: "discount_percentage", label: "Discount", sortable: true,
+            render: (row: ResellerRow) => (
+                <div className="text-right">
+                    <p className="text-sm font-medium text-emerald-400">
+                        {row.discount_percentage && row.discount_percentage > 0 ? `${row.discount_percentage}%` : "—"}
+                    </p>
+                </div>
+            ),
+        },
+        {
+            key: "subscription_fee", label: "Subscription", sortable: false,
             render: (row: ResellerRow) => {
                 if (row.reseller_type !== "infrastructure") return <span className="text-xs text-muted-foreground">—</span>;
                 const isActive = row.subscription_expires_at && new Date(row.subscription_expires_at) > new Date();
@@ -292,6 +310,9 @@ export default function ResellersTab() {
                         <button onClick={() => openEdit(row)} aria-label="Edit reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"><PencilIcon className="h-4 w-4" /></button>
                         <button onClick={() => openConfig(row)} aria-label="Configure reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10"><CogIcon className="h-4 w-4" /></button>
                         <button onClick={() => onboardReseller.mutate(row.id)} aria-label="Onboard reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10"><ArrowPathIcon className="h-4 w-4" /></button>
+                        <button onClick={() => handleRevokeTokens(row.id)} aria-label="Revoke access" className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
+                            <span className="text-xs font-medium">Access</span>
+                        </button>
                         <button onClick={() => setDeleteTarget(row)} aria-label="Delete reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"><TrashIcon className="h-4 w-4" /></button>
                     </>
                 )}
@@ -404,7 +425,7 @@ export default function ResellersTab() {
             )}
 
             {/* Create Modal */}
-            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); setShowPassword(false); }} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={createReseller.isLoading}>
+            <FormModal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); setShowPassword(false); }} title="Add Reseller" onSubmit={handleCreate} submitLabel="Create" loading={createResellerMutation.isLoading}>
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
@@ -433,10 +454,20 @@ export default function ResellersTab() {
                         </SelectContent>
                     </Select>
                 </Field>
+                {form.reseller_type === "single_product" && (
+                    <>
+                        <div className="border-t border-border pt-3 mt-2">
+                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
+                        </div>
+                        <Field label="Allowed Product Category ID">
+                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        </Field>
+                    </>
+                )}
             </FormModal>
 
             {/* Edit Modal */}
-            <FormModal open={!!editTarget} onClose={() => { setEditTarget(null); setFormErrors({}); }} title="Edit Reseller" onSubmit={handleUpdate} submitLabel="Update" loading={updateReseller.isLoading}>
+            <FormModal open={!!editTarget} onClose={() => { setEditTarget(null); setFormErrors({}); }} title="Edit Reseller" onSubmit={handleUpdate} submitLabel="Update" loading={updateResellerMutation.isLoading}>
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
@@ -457,6 +488,16 @@ export default function ResellersTab() {
                         </SelectContent>
                     </Select>
                 </Field>
+                {form.reseller_type === "single_product" && (
+                    <>
+                        <div className="border-t border-border pt-3 mt-2">
+                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
+                        </div>
+                        <Field label="Allowed Product Category ID">
+                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        </Field>
+                    </>
+                )}
             </FormModal>
 
             {/* Configure Modal */}
@@ -466,7 +507,7 @@ export default function ResellersTab() {
                 title={`Configure ${configTarget?.company_name || configTarget?.username}`}
                 onSubmit={handleConfigure}
                 submitLabel="Apply"
-                loading={configureReseller.isLoading}
+                loading={configureResellerMutation.isLoading}
             >
                 <Field label="Reseller Tier">
                     <Select value={configForm.reseller_type} onValueChange={(v) => setConfigForm({ ...configForm, reseller_type: v })}>
@@ -480,6 +521,9 @@ export default function ResellersTab() {
                 </Field>
                 <Field label="Infrastructure Surcharge (%)">
                     <input className={inputClasses} type="number" value={configForm.surcharge} onChange={(e) => setConfigForm({ ...configForm, surcharge: e.target.value })} />
+                </Field>
+                <Field label="Wholesale Discount (%)">
+                    <input className={inputClasses} type="number" value={configForm.discount_percentage} onChange={(e) => setConfigForm({ ...configForm, discount_percentage: e.target.value })} />
                 </Field>
                 <Field label="Dedicated API Key">
                     <input className={inputClasses} value={configForm.dedicated_api_key} onChange={(e) => setConfigForm({ ...configForm, dedicated_api_key: e.target.value })} placeholder="ps_live_..." />
@@ -519,7 +563,7 @@ export default function ResellersTab() {
                 title="Delete Reseller"
                 message={`Delete ${deleteTarget?.company_name || deleteTarget?.email}? This removes all data.`}
                 confirmLabel="Delete"
-                loading={deleteReseller.isLoading}
+                loading={deleteResellerMutation.isLoading}
             />
         </div>
     );

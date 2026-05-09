@@ -93,7 +93,7 @@ export default function ResUserManagement() {
             setForm(EMPTY_FORM);
             loadUsers();
         } catch (err: any) {
-            toast.error(err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : "Failed to create user");
+            toast.error(getApiError(err, "Failed to create user"));
         } finally {
             setActionLoading(false);
         }

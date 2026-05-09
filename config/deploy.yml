@@ -7,11 +7,18 @@ image: proxysock_api
 # Deploy to these servers.
 servers:
   web:
-    - 192.168.0.1
-  # job:
-  #   hosts:
-  #     - 192.168.0.1
-  #   cmd: bin/jobs
+    hosts:
+      - 192.168.0.1
+    env:
+      clear:
+        SERVER_ROLE: web
+  job:
+    hosts:
+      - 192.168.0.1
+    cmd: bundle exec sidekiq -C config/sidekiq.yml
+    env:
+      clear:
+        SERVER_ROLE: job
 
 # Enable SSL auto certification via Let's Encrypt and allow for multiple apps on a single web server.
 # If used with Cloudflare, set encryption mode in SSL/TLS setting to "Full" to enable CF-to-app encryption.
@@ -41,12 +48,8 @@ env:
   secret:
     - RAILS_MASTER_KEY
   clear:
-    # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
-    # When you start using multiple servers, you should split out job processing to a dedicated machine.
-    SOLID_QUEUE_IN_PUMA: true
-
-    # Set number of processes dedicated to Solid Queue (default: 1)
-    # JOB_CONCURRENCY: 3
+    REDIS_URL: redis://proxysock_api-redis:6379/0
+    RAILS_LOG_TO_STDOUT: true
 
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2
@@ -70,6 +73,7 @@ aliases:
 # Recommended to change this to a mounted volume path that is backed up off server.
 volumes:
   - "proxysock_api_storage:/rails/storage"
+  - "proxysock_api_logs:/rails/log"
 
 
 # Configure the image builder.
@@ -107,9 +111,11 @@ builder:
 #       - db/production.sql:/docker-entrypoint-initdb.d/setup.sql
 #     directories:
 #       - data:/var/lib/mysql
-#   redis:
-#     image: valkey/valkey:8
-#     host: 192.168.0.2
-#     port: 6379
-#     directories:
-#       - data:/data
+accessories:
+  redis:
+    image: redis:7.0
+    host: 192.168.0.1
+    port: 6379
+    directories:
+      - data:/data
+

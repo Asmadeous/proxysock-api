@@ -47,10 +47,10 @@ module Admin
 
           credential.assign_attributes(
             qr_activation_code: row[act_idx].to_s.strip,
-            pin1: row[pin1_idx],
-            puk1: row[puk1_idx],
-            pin2: row[pin2_idx],
-            puk2: row[puk2_idx],
+            "PIN1" => row[pin1_idx],
+            "PUK1" => row[puk1_idx],
+            "PIN2" => row[pin2_idx],
+            "PUK2" => row[puk2_idx],
             provider: provider,
             status: 'available'
           )

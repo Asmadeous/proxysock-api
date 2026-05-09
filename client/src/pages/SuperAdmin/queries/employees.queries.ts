@@ -6,6 +6,7 @@ import {
   updateEmployee,
   deleteEmployee,
   assignTickets,
+  revokeEmployeeTokens,
 } from "../../../services/adminApi";
 import { adminQueryKeys } from "./queryKeys";
 
@@ -73,5 +74,13 @@ export function useAssignTickets() {
       assignTickets(id, ticketIds),
     onSuccess: () => toast.success("Tickets assigned"),
     onError: () => toast.error("Failed to assign tickets"),
+  });
+}
+
+export function useRevokeEmployeeTokens() {
+  return useMutation({
+    mutationFn: (id: number) => revokeEmployeeTokens(id),
+    onSuccess: () => toast.success("Tokens revoked"),
+    onError: () => toast.error("Failed to revoke tokens"),
   });
 }

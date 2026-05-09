@@ -92,11 +92,18 @@ class Reseller < ApplicationRecord
   before_create :generate_api_key
   before_create :generate_dedicated_api_key, if: -> { infrastructure? || dedicated_api_key.present? }
 
-  # Price multiplier based on tier (infrastructure has a surcharge for overhead)
+  # Price multiplier based on tier (infrastructure has a surcharge for overhead, all can have discounts)
   def price_multiplier
-    return 1.0 if balance_based?
+    # Start with 1.0 (base) + surcharge (for infrastructure)
+    multiplier = 1.0
+    multiplier += (infrastructure_surcharge_percentage.to_f / 100.0) if infrastructure?
 
-    1.0 + (infrastructure_surcharge_percentage.to_f / 100.0)
+    # Apply the discount if present (works for all reseller types)
+    if discount_percentage.to_f > 0
+      multiplier *= (1.0 - (discount_percentage.to_f / 100.0))
+    end
+
+    multiplier
   end
 
   # Generate rotating JWT token (balance-based tiers: api_only & single_product)
@@ -107,6 +114,7 @@ class Reseller < ApplicationRecord
     payload = {
       reseller_id: id,
       email: email,
+      token_version: token_version,
       jti: jti,
       exp: 1.hour.from_now.to_i,
       iat: Time.current.to_i
@@ -119,6 +127,10 @@ class Reseller < ApplicationRecord
     )
 
     JWT.encode(payload, Rails.application.secret_key_base)
+  end
+
+  def revoke_tokens!
+    update!(token_version: (token_version || 1) + 1, current_token_jti: nil)
   end
 
   # Validates the single-use JTI and consumes it so it cannot be reused.

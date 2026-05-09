@@ -87,7 +87,7 @@ export default function ResProducts({ type }: ResProductsProps) {
             // Refresh balance
             const balRes = await fetchResellerBalance();
             setBalance(balRes.data.balance || 0);
-        } catch (err) {
+        } catch (err: any) {
             toast.error(getApiError(err, "Purchase failed"));
         } finally {
             setIsBuying(false);

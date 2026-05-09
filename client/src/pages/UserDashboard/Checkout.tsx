@@ -5,8 +5,6 @@ import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import {
     Wallet,
-    CreditCard,
-    Bitcoin,
     AlertCircle,
     Loader2,
     Lock,
@@ -282,8 +280,8 @@ export default function Checkout() {
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "paystack" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="paystack" id="paystack" className="sr-only" />
                                     <Label htmlFor="paystack" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center shrink-0">
-                                            <CreditCard className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
+                                            <img src="/paystack.png" alt="Paystack" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">Paystack (Card)</div>
@@ -310,8 +308,8 @@ export default function Checkout() {
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "plisio" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="plisio" id="plisio" className="sr-only" />
                                     <Label htmlFor="plisio" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
-                                            <Bitcoin className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
+                                            <img src="/plisio.webp" alt="Plisio" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">Crypto (Plisio)</div>
@@ -324,8 +322,8 @@ export default function Checkout() {
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="hundredpay" id="hundredpay" className="sr-only" />
                                     <Label htmlFor="hundredpay" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                                            <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
+                                            <img src="/100pay.png" alt="100Pay" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">100Pay (Card & Crypto)</div>
@@ -338,8 +336,8 @@ export default function Checkout() {
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "payvra" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="payvra" id="payvra" className="sr-only" />
                                     <Label htmlFor="payvra" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                                            <Bitcoin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
+                                            <img src="/payvra.webp" alt="Payvra" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">Crypto (Payvra)</div>

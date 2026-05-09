@@ -412,7 +412,9 @@ module Web
               transaction_type: 'debit',
               status: 'success',
               currency: 'USD',
-              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount.positive? ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount.positive? ? " | Referral: -$#{affiliate_discount}" : ''}"
+              payment_gateway: 'wallet',
+              description: "Virtual Cart Checkout (#{orders_to_create.count} items)#{promo_discount.positive? ? " | Promo: -$#{promo_discount}" : ''}#{affiliate_discount.positive? ? " | Referral: -$#{affiliate_discount}" : ''}",
+              metadata: { order_ids: orders_to_create.map(&:id) }
             )
 
             wallet.debit!(final_amount, 'Cart Checkout', {}, transaction)
@@ -500,7 +502,7 @@ module Web
           vm = order.vm
           render json: {
             type: 'vm',
-            ip: vm&.ip_address,
+            host: vm&.dns_name || vm&.ip_address,
             username: vm&.ssh_username,
             password: vm&.ssh_password,
             ssh_port: vm&.ssh_port || 22,
@@ -1029,6 +1031,7 @@ module Web
           base[:service_type] = order.product.metadata&.dig('vm_type') || 'residential'
           base[:management_type] = 'unmanaged'
           base[:ip_address] = resource&.ip_address
+          base[:dns_name] = resource&.dns_name
           base[:ssh_port] = resource&.ssh_port || 22
           base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)
           base[:concurrent_users] = order.product.metadata&.dig('concurrent_users') || 1

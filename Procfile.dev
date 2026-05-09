@@ -7,3 +7,4 @@
 rails: bin/rails server -p 3000
 vite: cd client && npm run dev -- --port 3001
 sidekiq: bundle exec sidekiq -C config/sidekiq.yml
+

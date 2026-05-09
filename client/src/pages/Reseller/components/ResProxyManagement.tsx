@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getApiError } from "../../../utils/apiError";
 import { motion } from "framer-motion";
 import {
     GlobeAltIcon,
@@ -169,8 +170,8 @@ export default function ResProxyManagement() {
             if (action !== 'whitelist-add' && action !== 'whitelist-delete') {
                 setShowModal(false);
             }
-        } catch (err) {
-            toast.error(getApiError(err, 'Action failed'));
+        } catch (err: any) {
+            toast.error(getApiError(err, "Action failed"));
         } finally {
             setActionLoading(false);
         }

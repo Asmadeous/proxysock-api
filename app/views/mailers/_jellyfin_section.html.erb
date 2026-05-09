@@ -1,0 +1,40 @@
+<div style="background-color: #FEE2E2; border: 2px solid #EF4444; border-radius: 12px; padding: 24px; margin-bottom: 32px; text-align: center;">
+    <h3 style="color: #991B1B; margin-top: 0; margin-bottom: 12px;">⚠️ IMPORTANT: WATCH TUTORIAL FIRST</h3>
+    <p style="color: #B91C1C; margin-bottom: 20px; font-size: 15px;">Before using your credentials, please watch the setup tutorial videos on our media portal.</p>
+    <a href="https://media.proxysock.com" style="display: inline-block; background-color: #EF4444; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 16px;">Watch Tutorial Videos</a>
+</div>
+
+<% if @owner.is_a?(User) && @owner.jellyfin_account_created? %>
+<div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+    <h3 style="margin-bottom: 16px; font-size: 18px; color: #166534;">Media Portal Access</h3>
+    <% if @owner.jellyfin_password.present? %>
+        <p style="margin-bottom: 16px; font-size: 14px; color: #15803d;">We've created a dedicated account for you to access our tutorial library and media content.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px;">
+            <tr>
+                <td style="padding: 6px 0; color: #374151;">Portal URL</td>
+                <td style="padding: 6px 0; text-align: right;"><a href="https://media.proxysock.com" style="color: #166534; font-weight: 600; text-decoration: none;">media.proxysock.com</a></td>
+            </tr>
+            <tr>
+                <td style="padding: 6px 0; color: #374151;">Username</td>
+                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.jellyfin_username || @owner.username %></td>
+            </tr>
+            <tr>
+                <td style="padding: 6px 0; color: #374151;">Password</td>
+                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.jellyfin_password %></td>
+            </tr>
+        </table>
+    <% else %>
+        <p style="margin-bottom: 16px; font-size: 14px; color: #15803d;">Log in to the media portal with your existing account to watch setup tutorials.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px;">
+            <tr>
+                <td style="padding: 6px 0; color: #374151;">Portal URL</td>
+                <td style="padding: 6px 0; text-align: right;"><a href="https://media.proxysock.com" style="color: #166534; font-weight: 600; text-decoration: none;">media.proxysock.com</a></td>
+            </tr>
+            <tr>
+                <td style="padding: 6px 0; color: #374151;">Username</td>
+                <td style="padding: 6px 0; text-align: right; color: #000000; font-weight: 600;"><%= @owner.username %></td>
+            </tr>
+        </table>
+    <% end %>
+</div>
+<% end %>

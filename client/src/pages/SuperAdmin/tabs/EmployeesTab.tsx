@@ -14,6 +14,7 @@ import {
     useUpdateEmployee,
     useDeleteEmployee,
     useAssignTickets,
+    useRevokeEmployeeTokens,
 } from "../queries/employees.queries";
 
 interface EmployeeRow {
@@ -119,6 +120,9 @@ export default function EmployeesTab() {
         setAssignTicketIds("");
     };
 
+    const revokeTokensMutation = useRevokeEmployeeTokens();
+    const handleRevokeTokens = (id: number) => revokeTokensMutation.mutate(id);
+
     const openEdit = (e: EmployeeRow) => {
         setEditTarget(e);
         setForm({ first_name: e.first_name, last_name: e.last_name, email: e.email, password: "", role: e.role, department: e.department ?? "General", avatar: null });
@@ -181,6 +185,9 @@ export default function EmployeesTab() {
                         </button>
                         <button onClick={() => setAssignTarget(row)} aria-label="Assign tickets" className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-500/10">
                             <ClipboardDocumentCheckIcon className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                            <span className="text-xs font-medium">Access</span>
                         </button>
                         <button onClick={() => setDeleteTarget(row)} aria-label="Deactivate employee" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                             <TrashIcon className="h-4 w-4" />

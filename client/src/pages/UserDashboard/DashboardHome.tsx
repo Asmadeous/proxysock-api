@@ -123,12 +123,14 @@ const DashboardLandingPage = () => {
           // Let's just ensure we have the data
         }
 
-        // Map counts by type
-        newStats.proxyCount = d.counts_by_type?.proxy || 0;
-        newStats.vpnCount = d.counts_by_type?.vpn || 0;
-        newStats.vpsCount = d.counts_by_type?.vps || 0;
-        newStats.rdpCount = d.counts_by_type?.rdp || 0;
-        newStats.esimCount = (d.counts_by_type?.esim || 0) + (d.counts_by_type?.usa_esim || 0);
+        // Map counts by type from type_stats
+        if (d.type_stats) {
+          newStats.proxyCount = d.type_stats.proxy?.active || 0;
+          newStats.vpnCount = d.type_stats.vpn?.active || 0;
+          newStats.vpsCount = d.type_stats.vps?.active || 0;
+          newStats.rdpCount = d.type_stats.rdp?.active || 0;
+          newStats.esimCount = (d.type_stats.esim?.active || 0) + (d.type_stats.usa_esim?.active || 0);
+        }
       }
 
 

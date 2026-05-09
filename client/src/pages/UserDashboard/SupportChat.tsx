@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
-import { fetchUserSupportChat, sendUserSupportMessage, fetchResellerSupportChat, sendResellerSupportMessage } from "../../services/api";
+import { fetchUserSupportChat, sendUserSupportMessage } from "../../services/api";
+import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage as sendResellerSupportMessage } from "../../services/resellerApi";
 import { getCableConsumer } from "../../services/cable";
 import { toast } from "sonner";
 import type { Subscription } from "@rails/actioncable";

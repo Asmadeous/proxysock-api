@@ -12,6 +12,7 @@ import PublicLayout from "./components/landing/layout/PublicLayout";
 import ScrollToTop from "./components/ScrollToTop";
 import AuthLayout from "./components/landing/layout/AuthLayout";
 import { Toaster } from "sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import ChatWidget from "./components/ChatWidget";
 
@@ -31,6 +32,7 @@ const Contact = lazy(() => import("./pages/public/Contact"));
 const HowToConnect = lazy(() => import("./pages/public/HowToConnect"));
 const CookiePolicy = lazy(() => import("./pages/public/CookiePolicy"));
 const IPChecker = lazy(() => import("./pages/public/IPChecker"));
+const AffiliateProgram = lazy(() => import("./pages/public/AffiliateProgram"));
 const BlogPage = lazy(() => import("./pages/public/BlogPage"));
 const BlogPostPage = lazy(() => import("./pages/public/BlogPostPage"));
 const Privacy = lazy(() => import("./pages/public/Privacy"));
@@ -77,7 +79,7 @@ const VPSOrders = lazy(() => import("./pages/UserDashboard/VPSOrders"));
 const RDPOrders = lazy(() => import("./pages/UserDashboard/RDPOrders"));
 const VPNOrders = lazy(() => import("./pages/UserDashboard/VPNOrders"));
 const Tickets = lazy(() => import("./pages/UserDashboard/Tickets"));
-const SupportChat = lazy(() => import("./pages/UserDashboard/SupportChat"));
+const SupportHub = lazy(() => import("./pages/UserDashboard/SupportHub"));
 const ProductManagement = lazy(() => import("./pages/UserDashboard/ProductsManagement"));
 const ProxyManagement = lazy(() => import("./pages/UserDashboard/ProxyManagement"));
 const VPSManagement = lazy(() => import("./pages/UserDashboard/VPSManagement"));
@@ -119,6 +121,26 @@ export default function App() {
       <HelmetProvider>
         <ScrollToTop />
         <Toaster position="top-right" richColors={true} />
+        <HotToaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "hsl(var(--card))",
+              color: "hsl(var(--foreground))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "0.75rem",
+              fontSize: "0.875rem",
+            },
+            success: {
+              iconTheme: { primary: "#22c55e", secondary: "white" },
+            },
+            error: {
+              iconTheme: { primary: "#ef4444", secondary: "white" },
+              duration: 5000,
+            },
+          }}
+        />
         <AutoSEO
           siteName="ProxySock"
           defaultTitle="ProxySock - Buy Premium Proxies, VPN, RDP, VPS & eSIM Online"
@@ -135,6 +157,7 @@ export default function App() {
                 <Route path="/esim" element={<ESIMPage />} />
                 <Route path="/vpn" element={<VPNPage />} />
                 <Route path="/reseller-program" element={<ResellerProgram />} />
+                <Route path="/affiliate-program" element={<AffiliateProgram />} />
                 <Route path="/locations" element={<Locations />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/faq" element={<Faq />} />
@@ -189,7 +212,7 @@ export default function App() {
 
                   {/* Support */}
                   <Route path="tickets" element={<Tickets />} />
-                  <Route path="support" element={<SupportChat />} />
+                  <Route path="support" element={<SupportHub />} />
 
                   {/* Management */}
                   <Route path="products" element={<ProductManagement />} />
@@ -215,9 +238,9 @@ export default function App() {
 
               {/* Admin / Employee */}
               <Route path="/admin/login" element={<AdminLoginPage />} />
-              <Route path="/admin" element={<SuperAdminDashboard />} />
-              <Route path="/sadmin" element={<SuperAdminDashboard />} />
-              <Route path="/employee" element={<EmployeeDashboard />} />
+              <Route path="/admin/*" element={<SuperAdminDashboard />} />
+              <Route path="/sadmin/*" element={<SuperAdminDashboard />} />
+              <Route path="/employee/*" element={<EmployeeDashboard />} />
 
               {/* Reseller */}
               <Route path="/reseller/login" element={<ResellerLoginPage />} />

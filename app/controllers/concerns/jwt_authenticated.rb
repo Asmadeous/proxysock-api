@@ -26,11 +26,26 @@ module JwtAuthenticated
       if @decoded_token[:reseller_id] && @decoded_token[:jti]
         authenticate_reseller_with_rotation
       elsif @decoded_token[:reseller_id]
-        @current_reseller = Reseller.find(@decoded_token[:reseller_id])
+        reseller = Reseller.find(@decoded_token[:reseller_id])
+        if @decoded_token[:token_version] && reseller.token_version && @decoded_token[:token_version] < reseller.token_version
+          render_unauthorized('Token has been revoked')
+          return
+        end
+        @current_reseller = reseller
       elsif @decoded_token[:user_id]
-        @current_user = User.find(@decoded_token[:user_id])
+        user = User.find(@decoded_token[:user_id])
+        if @decoded_token[:token_version] && user.token_version && @decoded_token[:token_version] < user.token_version
+          render_unauthorized('Token has been revoked')
+          return
+        end
+        @current_user = user
       elsif @decoded_token[:employee_id]
-        @current_employee = Employee.find(@decoded_token[:employee_id])
+        employee = Employee.find(@decoded_token[:employee_id])
+        if @decoded_token[:token_version] && employee.token_version && @decoded_token[:token_version] < employee.token_version
+          render_unauthorized('Token has been revoked')
+          return
+        end
+        @current_employee = employee
       else
         render_unauthorized('Invalid token payload')
       end
@@ -43,10 +58,14 @@ module JwtAuthenticated
     end
   end
 
-  # Reseller uses rotating tokens - validate and issue new one
   def authenticate_reseller_with_rotation
     jti = @decoded_token[:jti]
     @current_reseller = Reseller.find(@decoded_token[:reseller_id])
+
+    if @decoded_token[:token_version] && @current_reseller.token_version && @decoded_token[:token_version] < @current_reseller.token_version
+      render_unauthorized('Token has been revoked')
+      return
+    end
 
     unless @current_reseller.validate_and_consume_token!(jti)
       render_unauthorized('Token already used or invalid. Request a new token.')

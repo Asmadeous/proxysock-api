@@ -35,8 +35,15 @@
           retries: 30
           delay: 10
         
+        - name: Allow Windows to fully initialize after WinRM becomes available
+          pause:
+            seconds: 30
+
         - name: Gather facts after connection
           setup:
+          retries: 5
+          delay: 15
+
         
         - name: Display Windows version
           debug:
@@ -194,6 +201,7 @@
               win_service:
                 name: TermService
                 state: restarted
+                force_dependent_services: yes
               ignore_errors: yes
           tags: rdp
         
@@ -296,6 +304,15 @@
             name: "{{ hostname }}"
           register: hostname_result
           when: hostname is defined
+          tags: system_config
+        
+        - name: Enforce Command-Line Interface for VPS (Disable GUI)
+          win_regedit:
+            path: 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+            name: Shell
+            data: 'cmd.exe'
+            type: string
+          when: vm_type is defined and vm_type == 'vps'
           tags: system_config
         
         - name: Create managed server marker file

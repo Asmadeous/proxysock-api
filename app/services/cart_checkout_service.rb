@@ -46,7 +46,9 @@ class CartCheckoutService
   # ========== Wallet Payment ==========
   def process_wallet_payment!(grand_total)
     wallet = @actor.wallet
-    if wallet.nil? || wallet.balance < grand_total
+    is_infra = @actor.is_a?(Reseller) && @actor.infrastructure?
+
+    if !is_infra && (wallet.nil? || wallet.balance < grand_total)
       return { success: false,
                error: "Insufficient balance. Required: #{grand_total}, Available: #{wallet&.balance || 0}" }
     end
@@ -54,20 +56,22 @@ class CartCheckoutService
     created_orders = []
 
     ActiveRecord::Base.transaction do
-      # Wallet.debit! handles transaction creation internally if transaction is passed?
-      # Actually line 41 creates a Transaction.
-      transaction = Transaction.create!(
-        transactable: @actor,
-        reference: @cart,
-        amount: grand_total,
-        transaction_type: 'debit',
-        status: 'success',
-        currency: 'USD',
-        description: "Cart Checkout (#{@cart.cart_items.count} items)",
-        metadata: { cart_id: @cart.id }
-      )
+      # Transaction record and debit only for non-infrastructure actors
+      unless is_infra
+        transaction = Transaction.create!(
+          transactable: @actor,
+          reference: @cart,
+          amount: grand_total,
+          transaction_type: 'debit',
+          status: 'success',
+          currency: 'USD',
+          payment_gateway: 'wallet',
+          description: "Cart Checkout (#{@cart.cart_items.count} items)",
+          metadata: { cart_id: @cart.id }
+        )
 
-      wallet.debit!(grand_total, 'Cart Checkout', { cart_id: @cart.id }, transaction)
+        wallet.debit!(grand_total, 'Cart Checkout', { cart_id: @cart.id }, transaction)
+      end
 
       # Create orders
       @cart.cart_items.each do |item|

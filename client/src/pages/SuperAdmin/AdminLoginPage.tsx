@@ -12,6 +12,7 @@ import {
 import { adminLogin } from "../../services/adminApi";
 import AuthLogo from "../../components/auth/AuthLogo";
 import AuroraBackground from "../../components/auth/carousel/AuroraBackground";
+import { getApiError } from "../../utils/apiError";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
@@ -31,8 +32,7 @@ export default function AdminLoginPage() {
             localStorage.setItem("adminUser", JSON.stringify(res.data.employee));
             navigate("/admin");
         } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Login failed";
-            setError(msg);
+            setError(getApiError(err, "Login failed"));
         } finally {
             setLoading(false);
         }

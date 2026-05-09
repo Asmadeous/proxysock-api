@@ -25,13 +25,23 @@ class OrderProvisioningService
 
       total = @order.total_amount
 
-      # 2. Payment / Balance Check (Resellers always use wallet)
+      # 2. Payment / Balance Check
       unless skip_payment
-        if @actor.is_a?(Reseller)
+        if @actor.is_a?(Reseller) && @actor.infrastructure?
+          # Infrastructure resellers are on a postpaid model
+          # We just record the cost_price for the monthly bill
+          @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
+          # No balance deduction here
+        elsif @actor.is_a?(Reseller)
+          # Balance-based resellers (api_only, single_product) use deposited balance ONLY
+          # "balance is deducted from their money wallet once an order hits our fucking backend"
           validate_and_deduct_balance!(total)
         elsif @actor.is_a?(User)
-          # Users may have already paid via gateway, or pay from wallet
-          # If this is called, assume wallet payment
+          # Managed users of infrastructure resellers might be postpaid or prepaid
+          # For now, maintain wallet deduction but record cost for settlement
+          if @actor.reseller&.infrastructure?
+             @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
+          end
           validate_and_deduct_balance!(total)
         end
       end
@@ -46,6 +56,11 @@ class OrderProvisioningService
 
     # 4. Provision based on product type
     provision_product!
+
+    # 4a. Create Jellyfin account if user doesn't have one
+    if @actor.is_a?(User) && !@actor.jellyfin_account_created?
+      JellyfinService.new.create_user(@actor)
+    end
 
     # 5. Generate and store invoice PDF via Active Storage
     begin
@@ -153,6 +168,7 @@ class OrderProvisioningService
       transaction_type: 'debit',
       status: 'success',
       currency: 'USD',
+      payment_gateway: 'wallet',
       description: "Order ##{@order.id} payment",
       metadata: { order_id: @order.id }
     )
@@ -392,9 +408,9 @@ class OrderProvisioningService
       end
 
       # Handle Residential Rotating V2 (resi: 1)
-      if category_slug == 'residential-rotating'
-        provisioning_params[:resi] = 1 # Force V2 API strictly
-      end
+      # if category_slug == 'residential-rotating'
+      #   provisioning_params[:resi] = 1 # Force V2 API strictly
+      # end
 
       response = client.place_order(**provisioning_params)
 
@@ -409,8 +425,10 @@ class OrderProvisioningService
           # Re-fetch full details (IPs, credentials) from the provider
           full_details = if category_slug == 'mobile'
                            client.view_mobile_order(provider_order_id)
-                         elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
-                           client.fetch_v2_residential_rotating_order(provider_order_id)
+                         # elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
+                         #   client.fetch_v2_residential_rotating_order(provider_order_id)
+                         elsif category_slug == 'residential-rotating'
+                           client.fetch_v1_residential_rotating_order(provider_order_id)
                          else
                            client.view_order(provider_order_id)
                          end
@@ -421,8 +439,64 @@ class OrderProvisioningService
         end
       end
 
-      # ========== RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
-      if category_slug == 'residential-rotating' && provisioning_params[:resi] == 1 && provider_order_id.present?
+      # ========== RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION (COMMENTED OUT) ==========
+      # if category_slug == 'residential-rotating' && provisioning_params[:resi] == 1 && provider_order_id.present?
+      #   begin
+      #     proxy_rotation = @order.metadata['residentalRotatingConfig']&.dig('rotationStrategy') || '0'
+      #     proxy_hostname = @order.metadata['residentalRotatingConfig']&.dig('proxyRegion') || 'ip-na.myproxyapi.com'
+      #     quantity       = (@order.metadata['residentalRotatingConfig']&.dig('quantity') || 1).to_i
+      #     auto_generate  = @order.metadata['residentalRotatingConfig']&.dig('autoGenerate') != false
+      #
+      #     all_credentials = []
+      #     quantity.times do
+      #       if auto_generate
+      #         proxy_username = "user_#{SecureRandom.hex(4)}"
+      #         proxy_password = SecureRandom.hex(12)
+      #       else
+      #         proxy_username = @order.metadata['residentalRotatingConfig']&.dig('customUsername') || "user_#{SecureRandom.hex(4)}"
+      #         proxy_password = @order.metadata['residentalRotatingConfig']&.dig('customPassword') || SecureRandom.hex(12)
+      #       end
+      #
+      #       # Determine targeting type based on provided filters
+      #       targeting = if @order.metadata['residentalRotatingConfig']&.dig('isp').present?
+      #                     'isp'
+      #                   else
+      #                     'state_city'
+      #                   end
+      #
+      #       proxy_creds = client.generate_v2_res_rot_proxy(
+      #         user_id: user_id,
+      #         hostname: proxy_hostname,
+      #         username: proxy_username,
+      #         password: proxy_password,
+      #         proxy_rotation: proxy_rotation.to_s,
+      #         protocol: protocol,
+      #         quantity: 1,
+      #         format: 'hostname:port:username:password',
+      #         country: @order.metadata['residentalRotatingConfig']&.dig('country'),
+      #         state: @order.metadata['residentalRotatingConfig']&.dig('state'),
+      #         city: @order.metadata['residentalRotatingConfig']&.dig('city'),
+      #         isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
+      #         targeting: targeting
+      #       )
+      #       all_credentials << proxy_creds
+      #     end
+      #
+      #     @order.metadata['proxy_credentials']    = all_credentials
+      #     @order.metadata['rotation_strategy']    = proxy_rotation
+      #     @order.metadata['proxy_region']         = proxy_hostname
+      #     @order.metadata['quantity_generated']   = quantity
+      #
+      #     Rails.logger.info("Generated #{quantity} residential rotating proxy credential(s) for order #{provider_order_id}")
+      #   rescue StandardError => e
+      #     Rails.logger.warn("Failed to generate residential rotating credentials: #{e.message}")
+      #     raise ProvisioningError, "Failed to generate proxy credentials: #{e.message}"
+      #   end
+      # end
+      # ========== END RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
+
+      # ========== RESIDENTIAL ROTATING V1 CREDENTIAL GENERATION ==========
+      if category_slug == 'residential-rotating' && provider_order_id.present?
         begin
           proxy_rotation = @order.metadata['residentalRotatingConfig']&.dig('rotationStrategy') || '0'
           proxy_hostname = @order.metadata['residentalRotatingConfig']&.dig('proxyRegion') || 'ip-na.myproxyapi.com'
@@ -446,7 +520,7 @@ class OrderProvisioningService
                           'state_city'
                         end
 
-            proxy_creds = client.generate_v2_res_rot_proxy(
+            proxy_creds = client.generate_v1_res_rot_proxy(
               user_id: user_id,
               hostname: proxy_hostname,
               username: proxy_username,
@@ -475,7 +549,7 @@ class OrderProvisioningService
           raise ProvisioningError, "Failed to generate proxy credentials: #{e.message}"
         end
       end
-      # ========== END RESIDENTIAL ROTATING CREDENTIAL GENERATION ==========
+      # ========== END RESIDENTIAL ROTATING V1 CREDENTIAL GENERATION ================
 
       @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response

@@ -10,7 +10,7 @@ RSpec.describe 'api/v1/tickets', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_support_access', email: 'support@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_support_access', email: 'support@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         run_test!
@@ -34,7 +34,7 @@ RSpec.describe 'api/v1/tickets', type: :request do
       }
 
       response(201, 'created') do
-        let(:reseller) { Reseller.create!(username: 'partner_v1_ticket', email: 'v1_ticket@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'partner_v1_ticket', email: 'v1_ticket@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:ticket) { { subject: 'Integration help', priority: 'low', message: 'How do I verify signatures?' } }
@@ -52,7 +52,7 @@ RSpec.describe 'api/v1/tickets', type: :request do
       produces 'application/json'
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'ticket_detail_access', email: 'details@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'ticket_detail_access', email: 'details@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:ticket_obj) { Ticket.create!(user: reseller, subject: 'Issue', priority: 'medium', status: 'open') }
@@ -80,7 +80,7 @@ RSpec.describe 'api/v1/tickets', type: :request do
       }
 
       response(201, 'reply added') do
-        let(:reseller) { Reseller.create!(username: 'ticket_reply_session', email: 'reply@example.com', password: 'password', company_name: 'Test Company') }
+        let(:reseller) { Reseller.create!(username: 'ticket_reply_session', email: 'reply@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:ticket_obj) { Ticket.create!(user: reseller, subject: 'Issue', priority: 'medium', status: 'open') }
