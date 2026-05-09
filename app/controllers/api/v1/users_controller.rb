@@ -99,11 +99,11 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:email, :username, :first_name, :last_name, :phone, :country, :city, :country_code)
+        params.require(:user).permit(:email, :username, :password, :first_name, :last_name, :phone, :country, :city, :country_code)
       end
 
       def user_update_params
-        params.require(:user).permit(:email, :first_name, :last_name, :phone, :status, :country, :city, :country_code)
+        params.require(:user).permit(:email, :username, :password, :first_name, :last_name, :phone, :status, :country, :city, :country_code)
       end
 
       def serialize_user(user)
