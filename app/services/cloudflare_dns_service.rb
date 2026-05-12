@@ -27,12 +27,12 @@ class CloudflareDnsService
     delete_vm_dns(hostname)
 
     response = cf_post("/zones/#{@zone_id}/dns_records", {
-      type: 'A',
-      name: hostname,
-      content: ip_address,
-      ttl: 120,         # 2 min TTL for fast updates
-      proxied: false     # DNS-only — RDP doesn't work through CF proxy
-    })
+                         type: 'A',
+                         name: hostname,
+                         content: ip_address,
+                         ttl: 120, # 2 min TTL for fast updates
+                         proxied: false # DNS-only — RDP doesn't work through CF proxy
+                       })
 
     if response['success']
       record_id = response.dig('result', 'id')

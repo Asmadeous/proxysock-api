@@ -40,7 +40,7 @@ class OrderProvisioningService
           # Managed users of infrastructure resellers might be postpaid or prepaid
           # For now, maintain wallet deduction but record cost for settlement
           if @actor.reseller&.infrastructure?
-             @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
+            @order.update!(cost_price: (@product.product_pricings.find_by(active: true)&.cost_price || 0) * (@order.quantity || 1))
           end
           validate_and_deduct_balance!(total)
         end
@@ -88,6 +88,7 @@ class OrderProvisioningService
     true
   rescue StandardError => e
     handle_failure(e)
+    raise e
   end
 
   def process_without_deduction!
@@ -102,8 +103,8 @@ class OrderProvisioningService
 
     begin
       RefundService.new(@order).process!
-    rescue RefundService::DeferredCryptoRefund => re
-      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{re.message}")
+    rescue RefundService::DeferredCryptoRefund => ce
+      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{ce.message}")
     rescue StandardError => re
       Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{re.message}")
     end
@@ -256,75 +257,115 @@ class OrderProvisioningService
 
     # Intercept non-Canadian VMs and bundle a localized proxy for Ansible configurations
     if vm_order.country_code.to_s.upcase != 'CA' && vm_order.country_code.to_s.upcase != 'CANADA'
-      proxy_slug = @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true' ? 'static-residential' : 'datacenter'
+      # ── USA VMs: Use self-hosted LocalToNet mobile proxy instead of MyProxyApi ──
+      if vm_order.country_code.to_s.upcase == 'US'
+        tunnel = LocaltonetTunnel.available.first
+        if tunnel
+          # Create a dedicated client credential for this VM on the shared proxy
+          vm_username = "vm_#{SecureRandom.hex(4)}"
+          vm_password = SecureRandom.hex(12)
+          begin
+            ltn_client = LocaltonetApiClient.new
+            ltn_client.add_client(
+              tunnel.localtonet_tunnel_id,
+              username: vm_username,
+              password: vm_password,
+              description: "VM #{vm.id} - Order #{@order.order_number}"
+            )
+          rescue LocaltonetApiClient::ApiError => e
+            Rails.logger.warn("LocalToNet client creation failed for VM #{vm.id}: #{e.message}, falling back to tunnel auth")
+            # Fall back to tunnel-level auth if shared proxy client fails
+            vm_username = tunnel.metadata&.dig('auth_username')
+            vm_password = tunnel.metadata&.dig('auth_password')
+          end
 
-      # Find a base 1x product corresponding to the target slug
-      proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where(
-        'products.name LIKE ?', '1 x%'
-      ).first
-      if proxy_pr.nil?
-        Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
-        raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
+          job_params['proxy'] = {
+            'ip' => tunnel.hostname,
+            'port' => tunnel.port,
+            'username' => vm_username,
+            'password' => vm_password,
+            'protocol' => tunnel.protocol_type || 'http'
+          }
+
+          Rails.logger.info("Assigned LocalToNet proxy (tunnel #{tunnel.localtonet_tunnel_id}) to USA VM '#{vm.id}'")
+        else
+          Rails.logger.warn("No active LocalToNet tunnel for USA VM #{vm.id}, falling back to MyProxyApi")
+          # Fall through to existing MyProxyApi logic below
+        end
       end
 
-      # Determine location ID from product metadata for the API call
-      # The API expects a numeric location/city ID, not a country code.
-      location_id = nil
-      if proxy_pr.metadata['isp'].is_a?(Array)
-        proxy_pr.metadata['isp'].each do |isp|
-          next unless isp['locations'] && isp['locations'][country]
+      # ── Non-USA VMs (or USA fallback): Use MyProxyApi ──
+      if job_params['proxy'].blank?
+        proxy_slug = @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true' ? 'static-residential' : 'datacenter'
 
-          city = isp['locations'][country]['cities']&.first
-          if city
-            location_id = city['id']
-            break
+        # Find a base 1x product corresponding to the target slug
+        proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where(
+          'products.name LIKE ?', '1 x%'
+        ).first
+        if proxy_pr.nil?
+          Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
+          raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
+        end
+
+        # Determine location ID from product metadata for the API call
+        # The API expects a numeric location/city ID, not a country code.
+        location_id = nil
+        if proxy_pr.metadata['isp'].is_a?(Array)
+          proxy_pr.metadata['isp'].each do |isp|
+            next unless isp['locations'] && isp['locations'][country]
+
+            city = isp['locations'][country]['cities']&.first
+            if city
+              location_id = city['id']
+              break
+            end
           end
         end
-      end
 
-      # Execute MyProxyApi Purchase
-      begin
-        client = MyProxyApiClient.new
-        user_id = client.reseller_user_id
-        
-        order_response = client.place_order(
-          user_id: user_id,
-          product_api_id: proxy_pr.provider_product_id,
-          period: 1,
-          protocol: 'http',
-          locations: location_id,
-          whitelist_ip: @order.metadata['client_ip']
-        )
+        # Execute MyProxyApi Purchase
+        begin
+          client = MyProxyApiClient.new
+          user_id = client.reseller_user_id
 
-        # place_order returns { data: { order_id: "..." } } — we need to call view_order
-        # to get the actual proxy credentials (IP, port, username, password).
-        provider_order_id = order_response.dig('data', 'order_id') || order_response['order_id']
-        if provider_order_id.blank?
-          raise ProvisioningError,
-                "MyProxyApi did not return an order_id. #{order_response.inspect}"
+          order_response = client.place_order(
+            user_id: user_id,
+            product_api_id: proxy_pr.provider_product_id,
+            period: 1,
+            protocol: 'http',
+            locations: location_id,
+            whitelist_ip: @order.metadata['client_ip']
+          )
+
+          # place_order returns { data: { order_id: "..." } } — we need to call view_order
+          # to get the actual proxy credentials (IP, port, username, password).
+          provider_order_id = order_response.dig('data', 'order_id') || order_response['order_id']
+          if provider_order_id.blank?
+            raise ProvisioningError,
+                  "MyProxyApi did not return an order_id. #{order_response.inspect}"
+          end
+
+          full_details = client.view_order(provider_order_id)
+          response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+          raise ProvisioningError, 'MyProxyApi view_order returned no proxy data' if response.blank?
+
+          # Store the API response metadata securely for recordkeeping
+          @order.metadata ||= {}
+          @order.metadata['my_proxy_api_response'] = response
+          @order.save!
+
+          # Attach to the Ansible Job params
+          job_params['proxy'] ||= {}
+          job_params['proxy']['ip']       = response['ip']
+          job_params['proxy']['port']     = response['port'] || response['http_port'] || response['socks5_port']
+          job_params['proxy']['username'] = response['username']
+          job_params['proxy']['password'] = response['password']
+          job_params['proxy']['protocol'] = 'http'
+
+          Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
+        rescue StandardError => e
+          Rails.logger.error("Failed to provision intercept proxy for VM: #{e.message}")
+          raise ProvisioningError, "Dependency error acquiring proxy for VM: #{e.message}"
         end
-
-        full_details = client.view_order(provider_order_id)
-        response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-        raise ProvisioningError, 'MyProxyApi view_order returned no proxy data' if response.blank?
-
-        # Store the API response metadata securely for recordkeeping
-        @order.metadata ||= {}
-        @order.metadata['my_proxy_api_response'] = response
-        @order.save!
-
-        # Attach to the Ansible Job params
-        job_params['proxy'] ||= {}
-        job_params['proxy']['ip']       = response['ip']
-        job_params['proxy']['port']     = response['port'] || response['http_port'] || response['socks5_port']
-        job_params['proxy']['username'] = response['username']
-        job_params['proxy']['password'] = response['password']
-        job_params['proxy']['protocol'] = 'http'
-
-        Rails.logger.info("Successfully provisioned intercept #{proxy_slug} proxy for VM '#{vm.id}' residing in #{vm_order.country_code}")
-      rescue StandardError => e
-        Rails.logger.error("Failed to provision intercept proxy for VM: #{e.message}")
-        raise ProvisioningError, "Dependency error acquiring proxy for VM: #{e.message}"
       end
     end
 
@@ -346,8 +387,18 @@ class OrderProvisioningService
       XProxyService.new.provision(@order)
       @order.activate!
 
+    when 'localtonet'
+      # USA Mobile Proxies — provisioned via LocalToNet shared proxy client API
+      provision_usa_mobile_via_localtonet!
+
     when 'myproxyapi'
       category_slug = @product.product_category&.slug
+
+      # Intercept USA mobile orders to use LocalToNet instead of MyProxyApi
+      if category_slug == 'mobile'
+        provision_usa_mobile_via_localtonet!
+        return
+      end
 
       # NOTE: residential rotating and global-isp are different in a way.
       # Global ISP targets specific ISP/City IDs for a fixed duration (7d/30d),
@@ -373,7 +424,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol  = @order.metadata['protocol'] || 'http'
       api_id    = @product.provider_product_id
-      
+
       client = MyProxyApiClient.new
       user_id = client.reseller_user_id
 
@@ -584,6 +635,149 @@ class OrderProvisioningService
     end
   end
 
+  # ========== USA Mobile Proxy via LocalToNet (Method 2: Dedicated Tunnels) ==========
+  def provision_usa_mobile_via_localtonet!
+    ltn_client = LocaltonetApiClient.new
+
+    # 1. Fetch available physical phones (auth tokens) directly from the API
+    begin
+      tokens = ltn_client.list_auth_tokens
+      # Enforce strict online-only check as requested
+      active_token = tokens.find { |t| t['clientIsOnline'] == true }
+      raise ProvisioningError, 'No active (online) USA mobile phones found on LocalToNet' unless active_token
+    rescue LocaltonetApiClient::ApiError => e
+      raise ProvisioningError, "Failed to fetch LocalToNet devices: #{e.message}"
+    end
+
+    # 2. Determine protocol, duration, and bandwidth
+    # LocalToNet V2 ProtocolTypes: 6 = HTTP, 7 = SOCKS5
+    protocol = @order.metadata&.dig('protocol') == 'socks5' ? 7 : 6
+    duration_days = @order.product_pricing&.duration_value || @order.metadata&.dig('duration_days')&.to_i || 30
+    expiry = Time.current + duration_days.days
+
+    bandwidth_gb = @order.metadata&.dig('bandwidth_gb')&.to_f ||
+                   @product.metadata&.dig('bandwidth_gb')&.to_f ||
+                   @product.metadata&.dig('gb_max')&.to_f
+    bandwidth_limit_bytes = bandwidth_gb ? (bandwidth_gb * 1.gigabyte).to_i : nil
+
+    # Generate unique credentials for this customer
+    username = "ps_#{SecureRandom.hex(4)}"
+    password = SecureRandom.hex(12)
+
+    # 3. Create a dedicated tunnel for this customer
+    # Note: We provide a temporary IP restriction to satisfy LocalToNet's security requirements
+    # that prevent creating 'open' tunnels without auth or IP whitelists.
+    begin
+      tunnel_data = ltn_client.create_proxy_tunnel(
+        auth_token: active_token['token'],
+        protocol_type: protocol,
+        server_code: 'us10', # Default to US-Chicago for USA Mobile orders
+        ip_restrictions: ['0.0.0.0/0']
+      )
+      new_tunnel_id = tunnel_data['id'] || tunnel_data['tunnelId']
+
+      # 4. Set Authentication on the new dedicated tunnel
+      ltn_client.set_authentication(new_tunnel_id, enabled: true, username: username, password: password)
+
+      # 5. Set Bandwidth Limit natively on the tunnel if applicable
+      if bandwidth_limit_bytes
+        ltn_client.set_bandwidth_limit(new_tunnel_id, limit_bytes: bandwidth_limit_bytes)
+      end
+
+      # 6. Start the tunnel so it assigns a port
+      ltn_client.start_tunnel(new_tunnel_id)
+
+      # 7. Fetch updated details (to get the assigned port)
+      # We might need a tiny delay for the server to assign the port
+      updated_data = nil
+      3.times do |i|
+        sleep(0.5) if i.positive?
+        updated_data = ltn_client.get_tunnel(new_tunnel_id)
+        break if updated_data['serverPort'].present?
+      end
+
+      hostname = updated_data['serverDomain'] || updated_data['serverIp']
+      port = updated_data['serverPort']
+
+      raise ProvisioningError, 'LocalToNet failed to assign a server port' if port.blank?
+    rescue LocaltonetApiClient::ApiError => e
+      raise ProvisioningError, "Failed to configure LocalToNet tunnel: #{e.message}"
+    end
+
+    # 6. Track this dedicated tunnel in our DB
+    tunnel_record = LocaltonetTunnel.create!(
+      localtonet_tunnel_id: new_tunnel_id,
+      auth_token: active_token['token'],
+      hostname: hostname,
+      port: port,
+      protocol_type: protocol == 1 ? 'socks5' : 'http',
+      status: 'active',
+      title: "Order #{@order.order_number}",
+      country_code: 'US'
+    )
+
+    # Create MobileProxyOrder
+    m_order = MobileProxyOrder.find_or_create_by!(order: @order) do |mo|
+      mo.quantity = 1
+      mo.status = 'active'
+    end
+
+    # Create MobileProxy record (Note: we don't need a shared client ID anymore, because the tunnel ITSELF is the proxy)
+    proxy = MobileProxy.create!(
+      order: @order,
+      mobile_proxy_order: m_order,
+      localtonet_tunnel: tunnel_record,
+      ip_address: hostname,
+      port: port,
+      username: username,
+      password: password,
+      proxy_source: 'localtonet',
+      proxy_type: tunnel_record.protocol_type,
+      status: 'active',
+      expires_at: expiry,
+      country_code: 'US',
+      bandwidth_limit_bytes: bandwidth_limit_bytes,
+      bandwidth_used_bytes: 0,
+      metadata: {
+        'localtonet_tunnel_id' => new_tunnel_id,
+        'bandwidth_gb' => bandwidth_gb
+      }.merge(service_renewal_metadata)
+    )
+
+    # Store response metadata on the order
+    @order.metadata ||= {}
+    @order.metadata['provider'] = 'localtonet'
+    @order.metadata['localtonet_tunnel_id'] = new_tunnel_id
+    @order.metadata['proxy_credentials'] = {
+      'hostname' => hostname,
+      'port' => port,
+      'username' => username,
+      'password' => password,
+      'protocol' => tunnel_record.protocol_type || 'http',
+      'country' => 'US',
+      'bandwidth_limit_gb' => bandwidth_gb,
+      'expires_at' => expiry.iso8601
+    }
+    @order.save!
+    @order.activate!
+
+    # Send credentials email
+    target_email = @order.metadata&.dig('credentials_email').presence
+    owner = @actor || @order.orderable
+    saved_order = @order
+    saved_proxy = proxy
+    ActiveRecord.after_all_transactions_commit do
+      ProxyMailer.with(
+        owner: owner,
+        proxy: saved_proxy,
+        order: saved_order,
+        target_email: target_email
+      ).credentials_email.deliver_later
+    end
+
+    Rails.logger.info("Provisioned USA mobile proxy via LocalToNet for order #{@order.order_number} (tunnel: #{new_tunnel_id})")
+  end
+
   def assign_proxy_from_inventory(provider_type)
     # Find available proxy from synced inventory
     proxy_class = case provider_type
@@ -676,14 +870,14 @@ class OrderProvisioningService
     if provider == 'colt'
       # Colt requires manual fulfillment
       UsaEsimOrder.transaction do
-          UsaEsimOrder.create!(
-            order: @order,
-            status: 'pending',
-            provider: provider,
-            quantity: quantity,
-            total_amount: @order.total_amount || 0.0,
-            metadata: service_renewal_metadata
-          )
+        UsaEsimOrder.create!(
+          order: @order,
+          status: 'pending',
+          provider: provider,
+          quantity: quantity,
+          total_amount: @order.total_amount || 0.0,
+          metadata: service_renewal_metadata
+        )
       end
 
       @order.update!(status: 'processing')
@@ -757,7 +951,7 @@ class OrderProvisioningService
       client_ip = @order.metadata['client_ip']
       protocol  = @order.metadata['protocol'] || 'http'
       api_id    = @product.provider_product_id
-      
+
       client = MyProxyApiClient.new
       user_id = client.reseller_user_id
 
@@ -1001,7 +1195,7 @@ class OrderProvisioningService
         o.status = 'active' if o.respond_to?(:status=)
         o.metadata = service_renewal_metadata
       end
-      fk = proxy_order_class.name.underscore + "_id"
+      fk = "#{proxy_order_class.name.underscore}_id"
 
       # Handle both Array and Hash responses
       records = response['ips'] || (response.is_a?(Array) ? response : [response])

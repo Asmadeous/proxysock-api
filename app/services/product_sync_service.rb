@@ -52,7 +52,8 @@ class ProductSyncService
     cleanup_previous_plans
 
     # 2. Sync ONLY Proxy categories
-    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp mobile global-isp]
+    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp global-isp]
+    # NOTE: 'mobile' removed — USA mobile proxies are now self-hosted via LocalToNet
 
     categories.each do |cat_slug|
       sync_category(cat_slug)
@@ -97,7 +98,7 @@ class ProductSyncService
       # V1 API has no geographic endpoints (countries/states/cities/isps).
       # Commented out until V2 is available.
       # countries = fetch_residential_rotating_countries
-      
+
       # Build complete config with hardcoded options only (V1)
       config = {
         countries: [],
@@ -108,7 +109,7 @@ class ProductSyncService
 
       # Store in ProductCategory metadata
       category.update!(metadata: (category.metadata || {}).merge(residential_rotating_config: config))
-      
+
       @logger.info('[ProductSyncService] Residential Rotating config synced successfully')
     rescue StandardError => e
       @logger.error("[ProductSyncService] Failed to sync Residential Rotating config: #{e.message}")
@@ -119,10 +120,10 @@ class ProductSyncService
   # Fetch countries and their states/cities/isps from MyProxyApi
   def fetch_residential_rotating_countries
     countries_data = @client.fetch_residential_rotating_countries
-    
-    countries = (countries_data || []).map do |country|
+
+    (countries_data || []).map do |country|
       country_code = country['country_code'] || country['code'] || country['id']
-      
+
       {
         id: country_code,
         name: country['country_name'] || country['name'],
@@ -133,19 +134,17 @@ class ProductSyncService
         isps: fetch_residential_rotating_isps(country_code)
       }
     end
-
-    countries
   end
 
   # Fetch states for a specific country
   # Fetch states for a specific country
   def fetch_residential_rotating_states(country_code)
     states_data = @client.fetch_residential_rotating_states(country_code)
-    
+
     (states_data || []).map do |state|
       state_slug = state['code'] || state['id'] || state['slug']
-      
-      # If cities are already nested in the state response, use them. 
+
+      # If cities are already nested in the state response, use them.
       # Otherwise, fetch them separately.
       cities = if state['cities'].is_a?(Array) && state['cities'].any?
                  state['cities'].map do |city|
@@ -173,7 +172,7 @@ class ProductSyncService
   # Fetch cities for a specific state
   def fetch_residential_rotating_cities(country_code, state_slug)
     cities_data = @client.fetch_residential_rotating_cities(country_code, state_slug)
-    
+
     (cities_data || []).map do |city|
       {
         id: city['code'] || city['id'] || city['slug'],
@@ -187,7 +186,7 @@ class ProductSyncService
   # Fetch ISPs for a specific country
   def fetch_residential_rotating_isps(country_code)
     isps_data = @client.fetch_residential_rotating_isps(country_code)
-    
+
     (isps_data || []).map do |isp|
       {
         id: isp['id'] || isp['code'],
@@ -313,7 +312,7 @@ class ProductSyncService
     end
 
     meta['locations'] = plan['locations'] if plan['locations']
-    
+
     if plan['global_isp_config']
       config = plan['global_isp_config']
       countries_data = config['country'] || []
@@ -323,7 +322,7 @@ class ProductSyncService
         first_country = countries_data.first
         meta['country_code'] = alpha3_to_alpha2(first_country['alpha3']) || meta['country_code']
       end
-      
+
       filtered_periods = (config['period'] || []).select { |p| p['name']&.to_s&.include?('30') }
 
       meta['periods'] = filtered_periods

@@ -19,7 +19,7 @@ class UsaEsimMailer < ApplicationMailer
   def manual_order_notification
     @owner = params[:owner]
     @order = params[:order]
-    @title = "Order Received - Manual Fulfillment Required"
+    @title = 'Order Received - Manual Fulfillment Required'
 
     mail(
       to: @owner.email,
@@ -31,7 +31,7 @@ class UsaEsimMailer < ApplicationMailer
   def admin_manual_order_alert
     @order = params[:order]
     @owner = @order.orderable
-    @title = "NEW MANUAL ORDER: Colt USA eSIM"
+    @title = 'NEW MANUAL ORDER: Colt USA eSIM'
 
     mail(
       to: SUPPORT_EMAIL,

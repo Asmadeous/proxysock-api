@@ -32,7 +32,7 @@ class DailyAnalyticsSummaryWorker < ApplicationJob
                                 .limit(5)
                                 .count
                                 .transform_keys do |k|
-                                  Product.find(k).name
+      Product.find(k).name
     rescue StandardError
       'Unknown'
     end

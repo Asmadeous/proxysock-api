@@ -27,14 +27,14 @@ module Admin
         end
 
         record_audit_log('database.query', current_employee, { query: query_string })
-        
+
         begin
           result = ActiveRecord::Base.connection.exec_query(query_string)
-          
-          # Convert value arrays to strings or safe types to avoid JSON serialization errors with PG types like dates/UUIDs
-          rows = result.rows.map { |row| row.map { |v| v.nil? ? nil : v.to_s } }
 
-          render json: { 
+          # Convert value arrays to strings or safe types to avoid JSON serialization errors with PG types like dates/UUIDs
+          rows = result.rows.map { |row| row.map { |v| v&.to_s } }
+
+          render json: {
             columns: result.columns,
             rows: rows,
             count: result.rows.size,

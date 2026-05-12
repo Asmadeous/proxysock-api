@@ -25,6 +25,7 @@ import {
 } from "@heroicons/react/24/outline";
 import ProxyCard from "@/components/dashboard/products/ProxyCard";
 import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
+import { subscribeToNotifications, unsubscribe } from "../../lib/actionCable";
 import { toast } from "react-hot-toast";
 
 interface ProxyOrder {
@@ -91,6 +92,29 @@ export default function ProxyManagement() {
   useEffect(() => {
     fetchProxyData();
   }, [activeTab]);
+
+  useEffect(() => {
+    const sub = subscribeToNotifications((data: any) => {
+      if (data && data.type === 'bandwidth_update') {
+        setProxyOrders((prevOrders) => 
+          prevOrders.map(order => {
+            if (order.order_id === data.order_id) {
+              return {
+                ...order,
+                traffic_used: data.bandwidth_used_bytes,
+                traffic_limit: data.bandwidth_limit_gb || order.traffic_limit
+              };
+            }
+            return order;
+          })
+        );
+      }
+    });
+
+    return () => {
+      unsubscribe(sub);
+    };
+  }, []);
 
   const fetchProxyData = async () => {
     setLoading(true);
@@ -800,38 +824,50 @@ export default function ProxyManagement() {
               </div>
 
               <div className="space-y-3 mb-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Whitelisted IP:</span>
-                  <span className="font-mono">
-                    {order.whitelist_ips[0] || 'Not set'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rotation:</span>
-                  <span>Every 30 minutes</span>
-                </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Expires:</span>
                   <span>{formatDate(order.expires_at)}</span>
                 </div>
+                {order.traffic_limit && order.traffic_limit > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Bandwidth:</span>
+                      <span>
+                        {((order.traffic_used || 0) / 1024 / 1024 / 1024).toFixed(2)} GB / {order.traffic_limit} GB
+                      </span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(((order.traffic_used || 0) / (order.traffic_limit * 1024 * 1024 * 1024)) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">
+                {/* 
                 <button
-                  onClick={() => {
-                    // Handle rotation toggle
+                  onClick={async () => {
+                    try {
+                      await rotateProxyIp(order.id);
+                      toast.success('IP rotation initiated (Airplane Mode toggled)');
+                    } catch (e) {
+                      toast.error('Failed to initiate IP rotation');
+                    }
                   }}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
                 >
-                  Toggle Rotation
-                </button>
+                  <RotateIcon className="h-4 w-4" />
+                  Rotate IP
+                </button> 
+                */}
                 <button
-                  onClick={() => {
-                    // Handle IP update
-                  }}
+                  onClick={() => openModal('credentials', order)}
                   className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 px-3 rounded-lg text-sm font-medium transition-colors"
                 >
-                  Update IP
+                  Credentials
                 </button>
               </div>
             </div>

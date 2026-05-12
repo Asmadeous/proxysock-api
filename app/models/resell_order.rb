@@ -13,4 +13,3 @@ class ResellOrder < ApplicationRecord
   # Delegations for convenience
   delegate :status, :total_amount, :currency, :order_number, to: :order
 end
-

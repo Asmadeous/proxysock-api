@@ -273,12 +273,11 @@ export const renderISPOptionsWithCountries = ({
   let periodLabel = isMobile ? "Duration (Days)" : (isResidential && plan.billing_type === "usage_gb" ? "Data Amount (GB)" : "Validity (Months)");
 
   if (isMobile) {
-    if (plan.is_owned) {
-      if (plan.billing_type === "daily") periodLabel = "Duration (Days)";
-      else if (plan.billing_type === "weekly") periodLabel = "Duration (Weeks)";
-      else if (plan.billing_type === "monthly") periodLabel = "Duration (Months)";
-      else if (plan.billing_type === "usage_gb") periodLabel = "Data Amount (GB)";
-    } else {
+    if (plan.billing_type === "daily") periodLabel = "Duration (Days)";
+    else if (plan.billing_type === "weekly") periodLabel = "Duration (Weeks)";
+    else if (plan.billing_type === "monthly") periodLabel = "Duration (Months)";
+    else if (plan.billing_type === "usage_gb") periodLabel = "Data Amount (GB)";
+    else {
       const planName = String(plan.name);
       if (planName.match(/(\d+)\s*Days?/i) && !planName.toLowerCase().includes("daily")) showPeriod = false;
       else if (planName.toLowerCase().includes("daily")) periodLabel = "Duration (Days)";

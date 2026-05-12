@@ -7,12 +7,12 @@ module Admin
 
       # GET /admin/api/vms
       def index
-        vms = VmOrder.joins(:order).preload(:vm, :order => :orderable).order(created_at: :desc)
-        
+        vms = VmOrder.joins(:order).preload(:vm, order: :orderable).order(created_at: :desc)
+
         vms = vms.where(vm_type: params[:vm_type]) if params[:vm_type].present?
         vms = vms.where(status: params[:status]) if params[:status].present?
         vms = vms.where(orders: { orderable_type: params[:entity_type] }) if params[:entity_type].present?
-        
+
         if params[:q].present?
           vms = vms.left_joins(:vm).where('vms.hostname ILIKE :q OR vms.ip_address ILIKE :q OR vms.proxmox_vm_id::text ILIKE :q OR orders.id::text ILIKE :q', q: "%#{params[:q]}%")
         end
@@ -35,62 +35,52 @@ module Admin
 
       # POST /admin/api/vms/:id/start
       def start
-        begin
-          res = ProxmoxService.new.start_vm(@vm.vm_id)
-          @vm.update!(status: 'starting')
-          record_audit_log('vm.started', @vm)
-          render json: { message: 'VM start initiated', response: res }
-        rescue => e
-          render json: { error: e.message }, status: :unprocessable_entity
-        end
+        res = ProxmoxService.new.start_vm(@vm.vm_id)
+        @vm.update!(status: 'starting')
+        record_audit_log('vm.started', @vm)
+        render json: { message: 'VM start initiated', response: res }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       # POST /admin/api/vms/:id/stop
       def stop
-        begin
-          res = ProxmoxService.new.stop_vm(@vm.vm_id)
-          @vm.update!(status: 'stopping')
-          record_audit_log('vm.stopped', @vm)
-          render json: { message: 'VM stop initiated', response: res }
-        rescue => e
-          render json: { error: e.message }, status: :unprocessable_entity
-        end
+        res = ProxmoxService.new.stop_vm(@vm.vm_id)
+        @vm.update!(status: 'stopping')
+        record_audit_log('vm.stopped', @vm)
+        render json: { message: 'VM stop initiated', response: res }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       # POST /admin/api/vms/:id/reboot
       def reboot
-        begin
-          res = ProxmoxService.new.reboot_vm(@vm.vm_id)
-          @vm.update!(status: 'rebooting')
-          record_audit_log('vm.rebooted', @vm)
-          render json: { message: 'VM reboot initiated', response: res }
-        rescue => e
-          render json: { error: e.message }, status: :unprocessable_entity
-        end
+        res = ProxmoxService.new.reboot_vm(@vm.vm_id)
+        @vm.update!(status: 'rebooting')
+        record_audit_log('vm.rebooted', @vm)
+        render json: { message: 'VM reboot initiated', response: res }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       # GET /admin/api/vms/:id/status
       def status
-        begin
-          status = ProxmoxService.new.vm_status(@vm.vm_id)
-          render json: status
-        rescue => e
-          render json: { error: e.message }, status: :unprocessable_entity
-        end
+        status = ProxmoxService.new.vm_status(@vm.vm_id)
+        render json: status
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       # DELETE /admin/api/vms/:id
       def destroy
-        begin
-          # Dangerous! Only for admins
-          require_admin!
-          res = ProxmoxService.new.delete_vm(@vm.vm_id)
-          @vm.update!(status: 'terminated')
-          record_audit_log('vm.deleted', @vm)
-          render json: { message: 'VM deletion initiated', response: res }
-        rescue => e
-          render json: { error: e.message }, status: :unprocessable_entity
-        end
+        # Dangerous! Only for admins
+        require_admin!
+        res = ProxmoxService.new.delete_vm(@vm.vm_id)
+        @vm.update!(status: 'terminated')
+        record_audit_log('vm.deleted', @vm)
+        render json: { message: 'VM deletion initiated', response: res }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       private
@@ -122,8 +112,8 @@ module Admin
           entity_type: order&.orderable_type,
           plan_name: order&.product&.name
         }
-        if (full || true)
-           data[:rdp_password] = vm&.root_password || vm&.rdp_password_encrypted
+        if full || true
+          data[:rdp_password] = vm&.root_password || vm&.rdp_password_encrypted
         end
         data
       end

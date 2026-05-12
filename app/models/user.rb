@@ -43,7 +43,6 @@ class User < ApplicationRecord
   scope :platform_users, -> { where(owner_type: 'platform') }
   scope :reseller_managed, -> { where(owner_type: 'reseller_managed') }
 
-
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :username, presence: true, uniqueness: { case_sensitive: false },
                        length: { minimum: 3, maximum: 30 },
@@ -120,8 +119,6 @@ class User < ApplicationRecord
       Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
     elsif super.present? && (super.start_with?('http') || super.start_with?('/'))
       super
-    else
-      nil
     end
   end
 

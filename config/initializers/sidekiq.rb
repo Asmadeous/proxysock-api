@@ -5,7 +5,7 @@ Sidekiq.configure_server do |config|
 
   # Dual logging for Admin Dashboard (Sidekiq logs)
   # Always log to file so the Admin Monitoring dashboard can read it
-  file_logger = Sidekiq::Logger.new(Rails.root.join("log/sidekiq.log"))
+  file_logger = Sidekiq::Logger.new(Rails.root.join('log/sidekiq.log'))
   config.logger = ActiveSupport::BroadcastLogger.new(config.logger, file_logger)
 end
 

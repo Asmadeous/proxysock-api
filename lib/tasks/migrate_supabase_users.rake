@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 namespace :migrate do
-  desc "Migrate users from Supabase (auth.users + public.profiles) to Rails"
+  desc 'Migrate users from Supabase (auth.users + public.profiles) to Rails'
   task supabase_users: :environment do
     # ─── Configuration ───────────────────────────────────────────────
-    supabase_url = ENV.fetch("SUPABASE_DB_URL") do
+    supabase_url = ENV.fetch('SUPABASE_DB_URL') do
       abort <<~MSG
         ✖ SUPABASE_DB_URL not set.
 
@@ -16,18 +16,18 @@ namespace :migrate do
       MSG
     end
 
-    dry_run = ENV.fetch("DRY_RUN", "false") == "true"
+    dry_run = ENV.fetch('DRY_RUN', 'false') == 'true'
 
-    puts "=" * 60
-    puts dry_run ? "🔍 DRY RUN MODE (no records will be created)" : "🚀 LIVE MIGRATION"
-    puts "=" * 60
+    puts '=' * 60
+    puts dry_run ? '🔍 DRY RUN MODE (no records will be created)' : '🚀 LIVE MIGRATION'
+    puts '=' * 60
 
     # ─── Connect to Supabase ─────────────────────────────────────────
-    require "pg"
+    require 'pg'
 
     begin
       supabase = PG.connect(supabase_url)
-      puts "✔ Connected to Supabase database"
+      puts '✔ Connected to Supabase database'
     rescue PG::Error => e
       abort "✖ Failed to connect to Supabase: #{e.message}"
     end
@@ -61,7 +61,7 @@ namespace :migrate do
     puts "📋 Found #{total} users in Supabase"
 
     if total.zero?
-      puts "Nothing to migrate."
+      puts 'Nothing to migrate.'
       supabase.close
       next
     end
@@ -71,12 +71,12 @@ namespace :migrate do
     skipped   = 0
     failed    = 0
     balances_credited = 0
-    errors    = []
+    errors = []
 
     # ─── Process each user ───────────────────────────────────────────
     rows.each_with_index do |row, index|
-      supabase_id = row["id"]
-      email       = row["email"]&.downcase&.strip
+      supabase_id = row['id']
+      email       = row['email']&.downcase&.strip
       progress    = "[#{index + 1}/#{total}]"
 
       # Skip if already migrated (by UUID or email)
@@ -87,38 +87,38 @@ namespace :migrate do
       end
 
       # Username: from profiles, or derive from email
-      username = row["username"] || email&.split("@")&.first
+      username = row['username'] || email&.split('@')&.first
       base_username = username || "user_#{SecureRandom.hex(4)}"
       final_username = base_username
       counter = 0
-      while User.where("LOWER(username) = ?", final_username.downcase).exists?
+      while User.where('LOWER(username) = ?', final_username.downcase).exists?
         counter += 1
         final_username = "#{base_username}_#{counter}"
       end
 
       # Supabase bcrypt hashes ($2a$) are compatible with Rails has_secure_password
-      password_digest = row["encrypted_password"]
+      password_digest = row['encrypted_password']
 
-      email_verified_at = row["email_confirmed_at"].present? ? Time.parse(row["email_confirmed_at"]) : nil
+      email_verified_at = row['email_confirmed_at'].present? ? Time.parse(row['email_confirmed_at']) : nil
 
-      balance = BigDecimal(row["balance"] || "0")
+      balance = BigDecimal(row['balance'] || '0')
 
       # Only Rails users table columns
       attrs = {
-        id:                supabase_id,
-        email:             email,
-        username:          final_username,
-        first_name:        "User",            # Not in Supabase — default
-        last_name:         "Migrated",         # Not in Supabase — default
-        password_digest:   password_digest,
-        city:              row["city"],
-        country:           row["country"],
-        status:            "active",
-        owner_type:        "platform",
+        id: supabase_id,
+        email: email,
+        username: final_username,
+        first_name: 'User', # Not in Supabase — default
+        last_name: 'Migrated', # Not in Supabase — default
+        password_digest: password_digest,
+        city: row['city'],
+        country: row['country'],
+        status: 'active',
+        owner_type: 'platform',
         email_verified_at: email_verified_at,
-        metadata:          { migrated_from: "supabase", supabase_role: row["role"], migrated_at: Time.current.iso8601 },
-        created_at:        Time.parse(row["profile_created_at"] || row["auth_created_at"]),
-        updated_at:        Time.parse(row["profile_updated_at"] || row["auth_updated_at"])
+        metadata: { migrated_from: 'supabase', supabase_role: row['role'], migrated_at: Time.current.iso8601 },
+        created_at: Time.parse(row['profile_created_at'] || row['auth_created_at']),
+        updated_at: Time.parse(row['profile_updated_at'] || row['auth_updated_at'])
       }
 
       if dry_run
@@ -137,8 +137,8 @@ namespace :migrate do
           if balance.positive? && user.wallet.present?
             user.wallet.credit!(
               balance,
-              "Migrated balance from Supabase",
-              { source: "supabase_migration", original_balance: balance.to_s }
+              'Migrated balance from Supabase',
+              { source: 'supabase_migration', original_balance: balance.to_s }
             )
             balances_credited += 1
           end
@@ -157,24 +157,24 @@ namespace :migrate do
     supabase.close
 
     # ─── Summary ─────────────────────────────────────────────────────
-    puts ""
-    puts "=" * 60
+    puts ''
+    puts '=' * 60
     puts "Migration Summary#{' (DRY RUN)' if dry_run}"
-    puts "=" * 60
+    puts '=' * 60
     puts "  Total in Supabase:    #{total}"
     puts "  Created:              #{created}"
     puts "  Skipped (existing):   #{skipped}"
     puts "  Failed:               #{failed}"
     puts "  Balances credited:    #{balances_credited}"
-    puts "=" * 60
+    puts '=' * 60
 
     if errors.any?
-      puts ""
-      puts "⚠ Errors:"
+      puts ''
+      puts '⚠ Errors:'
       errors.each { |e| puts "  #{e}" }
     end
 
-    puts ""
-    puts dry_run ? "Run without DRY_RUN=true to execute for real." : "✔ Migration complete!"
+    puts ''
+    puts dry_run ? 'Run without DRY_RUN=true to execute for real.' : '✔ Migration complete!'
   end
 end

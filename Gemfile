@@ -68,8 +68,6 @@ group :development, :test do
   gem 'rubocop-rails-omakase', require: false
 end
 
-
-
 gem 'mocha', '~> 3.0', group: :test
 
 gem 'rswag-api', '~> 2.17'
@@ -95,6 +93,6 @@ gem 'prawn-table', '~> 0.2'
 
 gem 'resend', '~> 1.0'
 
-gem "net-ssh", "~> 7.3"
+gem 'net-ssh', '~> 7.3'
 
 gem 'roo', '~> 2.10'

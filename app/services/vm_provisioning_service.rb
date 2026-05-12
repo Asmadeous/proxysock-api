@@ -122,13 +122,13 @@ class VmProvisioningService
     uppercase = ('A'..'Z').to_a
     lowercase = ('a'..'z').to_a
     numbers = ('0'..'9').to_a
-    
+
     # Ensure at least one of each class is present
     password = [uppercase.sample, lowercase.sample, numbers.sample]
-    
+
     all_chars = uppercase + lowercase + numbers
     password += Array.new(length - 3) { all_chars.sample }
-    
+
     password.shuffle.join
   end
 
@@ -181,11 +181,12 @@ class VmProvisioningService
       # 2. Assign IP and Whitelist (Pre-Start to avoid collision)
       mac_address = get_vm_mac_address(pve_vmid)
       @logger.info("Allocated IP and whitelisting for VM #{pve_vmid} (MAC: #{mac_address})")
-      
+
       assigned_ip_record = IpAddress.claim_next_available(db_vm_id)
-      raise "No available IPs in the pool" unless assigned_ip_record
+      raise 'No available IPs in the pool' unless assigned_ip_record
+
       actual_ip = assigned_ip_record.address
-      
+
       # Update VM record with IP immediately
       Vm.find(db_vm_id).update!(ip_address: actual_ip) if db_vm_id
 
@@ -233,7 +234,6 @@ class VmProvisioningService
       dns_service = CloudflareDnsService.new(@logger)
       dns_name = dns_service.create_vm_dns(hostname, actual_ip)
       @logger.info("Cloudflare DNS: #{dns_name}") if dns_name
-
 
       # 9. Monitoring
       if management_type == 'managed'
@@ -309,19 +309,31 @@ class VmProvisioningService
 
     # Stop VM
     begin
+      @logger.debug("Attempting to stop VM #{pve_vmid} before destruction...")
       response = proxmox_post("/nodes/#{PROXMOX_NODE}/qemu/#{pve_vmid}/status/stop")
       wait_for_proxmox_task(response['data'])
     rescue StandardError => e
-      @logger.debug("VM stop failed (might be stopped): #{e.message}")
+      msg = e.message.downcase
+      if msg.include?('does not exist') || msg.include?('404') || msg.include?('not found')
+        @logger.debug("VM #{pve_vmid} already gone or config missing during stop: #{e.message}")
+      else
+        @logger.debug("VM stop failed (might already be stopped): #{e.message}")
+      end
     end
 
     # Destroy VM
     begin
+      @logger.debug("Attempting to destroy VM #{pve_vmid}...")
       response = proxmox_delete("/nodes/#{PROXMOX_NODE}/qemu/#{pve_vmid}?purge=1")
       wait_for_proxmox_task(response['data'])
       @logger.info("PVE VM #{pve_vmid} destroyed")
     rescue StandardError => e
-      @logger.error("Failed to destroy PVE VM #{pve_vmid}: #{e.message}")
+      msg = e.message.downcase
+      if msg.include?('does not exist') || msg.include?('404') || msg.include?('not found')
+        @logger.info("PVE VM #{pve_vmid} was already destroyed or config was missing")
+      else
+        @logger.error("Failed to destroy PVE VM #{pve_vmid}: #{e.message}")
+      end
     end
 
     # Clean inventory file
@@ -333,14 +345,12 @@ class VmProvisioningService
 
     if db_vm_id
       vm = Vm.find_by(id: db_vm_id)
-      if vm
-        # Delete Cloudflare DNS record for Windows VMs
-        if vm.hostname.present?
-          begin
-            CloudflareDnsService.new(@logger).delete_vm_dns(vm.hostname)
-          rescue StandardError => e
-            @logger.error("Failed to delete DNS record for #{vm.hostname}: #{e.message}")
-          end
+      # Delete Cloudflare DNS record for Windows VMs
+      if vm && vm.hostname.present?
+        begin
+          CloudflareDnsService.new(@logger).delete_vm_dns(vm.hostname)
+        rescue StandardError => e
+          @logger.error("Failed to delete DNS record for #{vm.hostname}: #{e.message}")
         end
       end
 
@@ -569,7 +579,9 @@ class VmProvisioningService
 
   def handle_api_response(response)
     unless response.success?
-      @logger.error("Proxmox API error: #{response.code} - #{response.body}")
+      # We log as debug here because many callers (like cleanup_vm) handle expected errors
+      # (e.g. 404 or "config not found") gracefully. The caller can log a more severe error if needed.
+      @logger.debug("Proxmox API response error: #{response.code} - #{response.body}")
       raise "Proxmox API error: #{response.code} - #{response.body}"
     end
     JSON.parse(response.body)

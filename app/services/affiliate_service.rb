@@ -74,7 +74,7 @@ class AffiliateService
     return if halted?
 
     entity = order.orderable
-    
+
     # 1. Did the user manually enter an affiliate code at checkout?
     explicit_code = order.metadata&.dig('promo_code')
     explicit_affiliate = nil
@@ -105,11 +105,11 @@ class AffiliateService
       # User explicitly typed an affiliate code at checkout (or it's the 2nd time).
       # Create a new direct converted referral so the affiliate gets paid for this order.
       AffiliateReferral.create!(
-        affiliate:       affiliate,
-        referred:        entity,
-        order:           order,
-        status:          'converted',
-        converted_at:    Time.current,
+        affiliate: affiliate,
+        referred: entity,
+        order: order,
+        status: 'converted',
+        converted_at: Time.current,
         commission_amount: commission,
         referee_discount_applied: order.metadata&.dig('promo_discount').to_f
       )
@@ -117,13 +117,13 @@ class AffiliateService
     end
 
     # Credit earnings wallet (only for linked affiliates with a platform account)
-    if owner.present?
-      # Ensure retail resellers don't get an earnings wallet even here
-      return if owner.is_a?(Reseller) && !owner.infrastructure?
+    return unless owner.present?
+    # Ensure retail resellers don't get an earnings wallet even here
+    return if owner.is_a?(Reseller) && !owner.infrastructure?
 
-      wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
-      wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
-    end
+    wallet = owner.earnings_wallet || owner.create_earnings_wallet!(wallet_type: 'earnings')
+    wallet.credit!(commission, "Affiliate commission — order ##{order.id}", { order_id: order.id })
+
     # For standalone affiliates, the commission is tracked in total_earned
     # and paid out manually via the admin payout flow
   end
@@ -146,9 +146,9 @@ class AffiliateService
         if withdrawable < amount
           raise InsufficientBalanceError, "Insufficient settled profit for payout. Available: #{withdrawable}. Please wait for monthly billing to settle."
         end
-      else
+      elsif affiliate.pending_balance < amount
         # Standard balance check for others
-        raise InsufficientBalanceError, 'Insufficient pending balance' if affiliate.pending_balance < amount
+        raise InsufficientBalanceError, 'Insufficient pending balance'
       end
 
       # Wallet payouts are instant internal transfers
@@ -258,7 +258,7 @@ class AffiliateService
 
   def default_commission_rate
     if @entity.is_a?(Reseller)
-      (@entity.try(:affiliate)&.commission_rate&.to_f || 12.0)
+      @entity.try(:affiliate)&.commission_rate&.to_f || 12.0
     else
       10.0
     end

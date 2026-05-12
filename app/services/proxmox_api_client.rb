@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ProxmoxApiClient
   include HTTParty
 
@@ -23,7 +25,7 @@ class ProxmoxApiClient
     return nil if node.blank? || vm_id.blank? || api_base.blank?
 
     url = "#{api_base}/nodes/#{node}/qemu/#{vm_id}/status/current"
-    
+
     response = get(url, headers: headers, verify: false, timeout: 5)
     if response.success?
       response['data']

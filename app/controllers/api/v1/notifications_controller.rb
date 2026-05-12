@@ -5,9 +5,9 @@ module Api
     class NotificationsController < BaseController
       def index
         notifications = Notification.where(recipient: current_reseller).recent.limit(50)
-        render json: { 
-          notifications: notifications, 
-          unread_count: Notification.where(recipient: current_reseller, read_at: nil).count 
+        render json: {
+          notifications: notifications,
+          unread_count: Notification.where(recipient: current_reseller, read_at: nil).count
         }
       end
 
@@ -37,7 +37,6 @@ module Api
         count = Notification.where(recipient: current_reseller, read_at: nil).count
         render json: { unread_count: count }
       end
-
     end
   end
 end

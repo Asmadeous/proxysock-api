@@ -9,11 +9,11 @@ module Api
         # Managed users' pending orders
         managed_order_count = Order.where(orderable: current_reseller.managed_users)
                                    .where(status: 'pending').count
-        
+
         # New managed users today
         new_users_today = current_reseller.managed_users
                                           .where('created_at >= ?', Time.current.beginning_of_day).count
-                                          
+
         # Unread notifications
         unread_notifications = current_reseller.notifications.unread.count
 
@@ -163,10 +163,10 @@ module Api
           ref = deposit.metadata['transaction_ref']
           product_path = service.create_dynamic_product(ref, amount, "Reseller Deposit (#{ref})")
           fs_session_id = service.create_session(current_reseller.email, product_path, {
-            deposit_id: deposit.id,
-            reference: ref,
-            reseller_id: current_reseller.id
-          })
+                                                   deposit_id: deposit.id,
+                                                   reference: ref,
+                                                   reseller_id: current_reseller.id
+                                                 })
           store_url = ENV['FASTSPRING_STORE_URL'] || 'https://proxysock.onfastspring.com'
           { url: "#{store_url.chomp('/')}/session/#{fs_session_id}", amount: amount, currency: 'USD' }
         end

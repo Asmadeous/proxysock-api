@@ -18,7 +18,7 @@ module Admin
       # Assume headers are on the first row
       raw_headers = sheet.row(1).map(&:to_s).map(&:strip)
       headers = raw_headers.map(&:upcase)
-      
+
       Rails.logger.info "[UsaEsimImportService] Detected Headers: #{raw_headers.join(', ')}"
 
       # Flexible header selection
@@ -47,10 +47,10 @@ module Admin
 
           credential.assign_attributes(
             qr_activation_code: row[act_idx].to_s.strip,
-            "PIN1" => row[pin1_idx],
-            "PUK1" => row[puk1_idx],
-            "PIN2" => row[pin2_idx],
-            "PUK2" => row[puk2_idx],
+            'PIN1' => row[pin1_idx],
+            'PUK1' => row[puk1_idx],
+            'PIN2' => row[pin2_idx],
+            'PUK2' => row[puk2_idx],
             provider: provider,
             status: 'available'
           )

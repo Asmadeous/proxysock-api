@@ -100,7 +100,7 @@ class Reseller < ApplicationRecord
     multiplier += (infrastructure_surcharge_percentage.to_f / 100.0) if infrastructure?
 
     # Apply the discount if present (works for all reseller types)
-    if discount_percentage.to_f > 0
+    if discount_percentage.to_f.positive?
       multiplier *= (1.0 - (discount_percentage.to_f / 100.0))
     end
 
@@ -176,12 +176,10 @@ class Reseller < ApplicationRecord
   end
 
   def profile_picture_url
-    if avatar.attached?
-      # Use full URL with host/protocol from default_url_options
-      Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
-    else
-      nil
-    end
+    return unless avatar.attached?
+
+    # Use full URL with host/protocol from default_url_options
+    Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: Rails.application.routes.default_url_options[:host], protocol: Rails.application.routes.default_url_options[:protocol] || (Rails.env.development? ? 'http' : 'https'))
   end
 
   def as_json(options = {})
@@ -199,6 +197,7 @@ class Reseller < ApplicationRecord
 
   def authenticate_api_key(key)
     return false if permanent_api_key.blank? || key.blank?
+
     ActiveSupport::SecurityUtils.secure_compare(permanent_api_key, key)
   end
 

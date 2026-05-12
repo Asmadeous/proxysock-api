@@ -32,7 +32,7 @@ class FastspringService
     }
 
     response = request(:post, '/products', payload)
-    
+
     unless response['result'] == 'success' || response.dig('products', 0, 'result') == 'success'
       # Sometimes FastSpring responds with products array detailing success per item
       # We'll consider it successful if not an explicit error at root level.
@@ -86,7 +86,7 @@ class FastspringService
     req.body = body.to_json if body
 
     response = http.request(req)
-    
+
     begin
       JSON.parse(response.body)
     rescue JSON::ParserError

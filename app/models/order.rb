@@ -44,7 +44,7 @@ class Order < ApplicationRecord
   has_one :vpn_account, through: :vpn_order, source: :vpn
   has_one :global_isp_proxy_order, dependent: :destroy
   has_one :global_isp_proxy, through: :global_isp_proxy_order
- 
+
   def all_provisioned_resources
     case product.product_type
     when 'vps', 'rdp', 'vm' then [vm].compact
@@ -204,7 +204,7 @@ class Order < ApplicationRecord
   def notify_staff_on_failure
     NotificationService.notify_staff(
       category: 'error',
-      title: "Order Provisioning Failed",
+      title: 'Order Provisioning Failed',
       message: "Order ##{order_number} for #{product&.name} failed during provisioning.",
       metadata: { order_id: id, order_number: order_number }
     )

@@ -8,18 +8,16 @@ class BillingRenewalWorker < ApplicationJob
   def perform
     Rails.logger.info '[BillingRenewal] Starting renewal check...'
 
-    [
-      'Vm', 'VpnAccount', 'MobileProxy', 'GlobalIspProxy',
-      'StaticDatacenterProxy', 'StaticIspProxy',
-      'StaticResidentialProxy', 'PremiumIspProxy',
-      'EsimOrder'
+    %w[
+      Vm VpnAccount MobileProxy GlobalIspProxy
+      StaticDatacenterProxy StaticIspProxy
+      StaticResidentialProxy PremiumIspProxy
+      EsimOrder
     ].each do |model_name|
-      begin
-        model_class = Object.const_get(model_name)
-        process_expiring_resources(model_class)
-      rescue NameError
-        Rails.logger.warn "[BillingRenewal] Model #{model_name} not defined, skipping."
-      end
+      model_class = Object.const_get(model_name)
+      process_expiring_resources(model_class)
+    rescue NameError
+      Rails.logger.warn "[BillingRenewal] Model #{model_name} not defined, skipping."
     end
 
     Rails.logger.info '[BillingRenewal] Renewal check complete.'
@@ -40,19 +38,19 @@ class BillingRenewalWorker < ApplicationJob
     # Resources expiring in the next 24 hours — send renewal reminder
     query.where(expires_at: Time.current..24.hours.from_now)
          .find_each do |resource|
-           send_renewal_reminder(resource) unless already_notified_today?(resource)
+      send_renewal_reminder(resource) unless already_notified_today?(resource)
     end
 
     # Resources expiring in the next 3 days — send early warning
     query.where(expires_at: 24.hours.from_now..3.days.from_now)
          .find_each do |resource|
-           send_early_warning(resource) unless already_notified_today?(resource)
+      send_early_warning(resource) unless already_notified_today?(resource)
     end
 
     # Auto-renew resources with wallet balance if metadata flag is set
     query.where(expires_at: Time.current..24.hours.from_now)
          .find_each do |resource|
-           attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
+      attempt_auto_renewal(resource) if auto_renew_enabled?(resource)
     end
   end
 
@@ -109,7 +107,7 @@ class BillingRenewalWorker < ApplicationJob
 
     renewal_amount = pricing.selling_price
     renewal_method = resource.metadata&.dig('renewal_method') || 'wallet'
-    
+
     # 1. Fallback to Gateway if balance is low and valid renewal method is set
     if owner.wallet.balance < renewal_amount && %w[paystack fastspring].include?(renewal_method)
       attempt_gateway_charge(owner, resource, renewal_amount, renewal_method)
@@ -167,13 +165,15 @@ class BillingRenewalWorker < ApplicationJob
     end
   rescue StandardError => e
     Rails.logger.error "[BillingRenewal] Auto-renewal failed for #{resource.class.name} ##{resource.id}: #{e.message}"
-    NotificationService.notify(
-      recipient: owner,
-      category: 'error',
-      title: 'Auto-Renewal System Error',
-      message: "An unexpected error occurred during auto-renewal of your #{resource.class.name.underscore.humanize}: #{e.message}. Please check your account manually.",
-      metadata: { resource_id: resource.id, error: e.message }
-    ) if owner
+    if owner
+      NotificationService.notify(
+        recipient: owner,
+        category: 'error',
+        title: 'Auto-Renewal System Error',
+        message: "An unexpected error occurred during auto-renewal of your #{resource.class.name.underscore.humanize}: #{e.message}. Please check your account manually.",
+        metadata: { resource_id: resource.id, error: e.message }
+      )
+    end
   end
 
   def attempt_gateway_charge(owner, resource, amount, method)
@@ -190,7 +190,7 @@ class BillingRenewalWorker < ApplicationJob
           rate = FixerService.get_rate('USD', 'NGN') || 1500.0 # Fallback safety
           amount_ngn = (amount * rate).round(2)
           amount_kobo = (amount_ngn * 100).to_i
-          
+
           resp = PaystackService.new.charge_authorization(owner.email, amount_kobo, auth_code, reference)
           if resp['status'] && resp.dig('data', 'status') == 'success'
             success = true
@@ -220,18 +220,18 @@ class BillingRenewalWorker < ApplicationJob
             currency: 'USD',
             payment_gateway: method,
             description: "Auto-Renewal Gateway Funding (#{method.capitalize})",
-            metadata: { 
-              gateway: method, 
-              gateway_ref: gateway_ref, 
-              renewal_reference: reference 
+            metadata: {
+              gateway: method,
+              gateway_ref: gateway_ref,
+              renewal_reference: reference
             }
           )
-          
-          owner.wallet.credit!(amount, "Auto-renewal funding via #{method}", { 
-            gateway: method, 
-            gateway_ref: gateway_ref 
-          }, transaction)
-          
+
+          owner.wallet.credit!(amount, "Auto-renewal funding via #{method}", {
+                                 gateway: method,
+                                 gateway_ref: gateway_ref
+                               }, transaction)
+
           # Update resource metadata to log the last successful charge
           resource.metadata ||= {}
           resource.metadata['last_gateway_charge_id'] = gateway_ref

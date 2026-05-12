@@ -26,15 +26,15 @@ RSpec.describe 'Webhooks::EsimAccess', type: :request do
       mock_client = double('EsimAccessService')
       allow(EsimAccessService).to receive(:new).and_return(mock_client)
       allow(mock_client).to receive(:fetch_profiles_by_order).with('B22102010075311').and_return([
-        {
-          'iccid' => '8900000000000000000',
-          'imsi' => '208000000000000',
-          'smdpStatus' => 'RELEASED',
-          'esimStatus' => 'GOT_RESOURCE',
-          'ac' => '1$smdp.com$matchingId',
-          'totalVolume' => 1000000
-        }
-      ])
+                                                                                                   {
+                                                                                                     'iccid' => '8900000000000000000',
+                                                                                                     'imsi' => '208000000000000',
+                                                                                                     'smdpStatus' => 'RELEASED',
+                                                                                                     'esimStatus' => 'GOT_RESOURCE',
+                                                                                                     'ac' => '1$smdp.com$matchingId',
+                                                                                                     'totalVolume' => 1_000_000
+                                                                                                   }
+                                                                                                 ])
 
       expect do
         post '/esim', params: {

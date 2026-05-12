@@ -70,7 +70,6 @@ Rails.application.routes.draw do
         end
       end
 
-
       get 'billing/balance', to: 'billing#balance'
       get 'billing/transactions', to: 'billing#transactions'
       post 'billing/transfer_earnings', to: 'billing#transfer_earnings'
@@ -104,7 +103,6 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
-
     end
   end
 
@@ -204,7 +202,6 @@ Rails.application.routes.draw do
         end
       end
 
-
       resources :tools, only: [] do
         collection do
           get :ip_lookup
@@ -295,7 +292,6 @@ Rails.application.routes.draw do
           post :mark_as_read
         end
       end
-
 
       namespace :analytics do
         get :dashboard
@@ -404,7 +400,7 @@ Rails.application.routes.draw do
       get 'monitoring/audit_logs', to: 'monitoring#audit_logs'
       get 'monitoring/system_logs', to: 'monitoring#system_logs'
       get 'monitoring/error_logs', to: 'monitoring#error_logs'
-      
+
       namespace :database do
         get 'tables'
         post 'query'

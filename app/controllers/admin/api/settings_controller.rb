@@ -88,6 +88,7 @@ module Admin
                    User.find_by(id: params[:entity_id]) || User.find_by(email: params[:email])
                  end
         render(json: { error: 'Entity not found' }, status: :not_found) && return unless entity
+
         entity
       end
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # # frozen_string_literal: true
 
 class VmHealthCheckJob < ApplicationJob
@@ -13,7 +15,7 @@ class VmHealthCheckJob < ApplicationJob
     active_vms.find_each do |vm|
       checked += 1
       hypervisor_status = check_hypervisor_status(vm)
-      
+
       # If hypervisor status is known and not running, it's 'down'
       if hypervisor_status && hypervisor_status != 'running'
         failed += 1
@@ -46,7 +48,7 @@ class VmHealthCheckJob < ApplicationJob
 
   def handle_failure(vm, status, reason)
     update_metadata(vm, status)
-    
+
     # Notify admins if VM has been problematic for 2+ consecutive checks
     consecutive_failures = (vm.metadata&.dig('consecutive_failures') || 0) + 1
     vm.metadata ||= {}

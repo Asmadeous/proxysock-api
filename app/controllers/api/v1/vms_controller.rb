@@ -72,16 +72,14 @@ module Api
       # GET /api/v1/vms/:id/status
       def status
         resource_usage = nil
-        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present?
-          if (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
-            resource_usage = {
-              cpu_percent: (pve_status['cpu'] || 0) * 100,
-              ram_percent: pve_status['maxmem'].to_f > 0 ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem'].to_f) * 100 : 0,
-              disk_percent: pve_status['maxdisk'].to_f > 0 ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk'].to_f) * 100 : 0,
-              uptime: pve_status['uptime'] || 0,
-              status: pve_status['status']
-            }
-          end
+        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present? && (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
+          resource_usage = {
+            cpu_percent: (pve_status['cpu'] || 0) * 100,
+            ram_percent: pve_status['maxmem'].to_f.positive? ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem']) * 100 : 0,
+            disk_percent: pve_status['maxdisk'].to_f.positive? ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk']) * 100 : 0,
+            uptime: pve_status['uptime'] || 0,
+            status: pve_status['status']
+          }
         end
 
         # Use cache for status if Proxmox fetch fails
@@ -153,7 +151,7 @@ module Api
             orderable: vm_order
           )
         end
-        
+
         order
       end
 
@@ -169,7 +167,7 @@ module Api
           proxmox_vm_id: vm.proxmox_vm_id,
           ssh_port: vm.ssh_port,
           rdp_port: vm.rdp_port,
-          auto_renew: !!(order&.metadata || {})['auto_renew'],
+          auto_renew: !(order&.metadata || {})['auto_renew'].nil?,
           renewal_method: (order&.metadata || {})['renewal_method'] || 'wallet',
           expires_at: vm.expires_at,
           created_at: vm.created_at

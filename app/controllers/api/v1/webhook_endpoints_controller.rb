@@ -41,14 +41,14 @@ module Api
       # POST /api/v1/webhook_endpoints/:id/verify
       def verify
         endpoint = current_reseller.webhook_endpoints.find(params[:id])
-  
+
         payload = {
           event: 'system.ping',
           reseller_id: current_reseller.id,
           timestamp: Time.current.iso8601,
           data: { message: 'Pulse verification from ProxySock' }
         }
-  
+
         begin
           response = Faraday.post(endpoint.url) do |req|
             req.headers['Content-Type'] = 'application/json'
@@ -56,7 +56,7 @@ module Api
             req.body = payload.to_json
             req.options.timeout = 10
           end
-  
+
           render json: {
             success: response.success?,
             status_code: response.status,

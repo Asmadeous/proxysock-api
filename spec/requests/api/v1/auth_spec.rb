@@ -10,7 +10,7 @@ RSpec.describe 'api/v1/auth', type: :request do
       consumes 'application/json'
       produces 'application/json'
       description 'API Only resellers use this to exchange their Permanent API Key for a single-use JWT. Enterprise resellers use their Dedicated API Key directly and do not need this.'
-      
+
       parameter name: :credentials, in: :body, schema: {
         type: :object,
         properties: {

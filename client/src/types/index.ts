@@ -171,6 +171,7 @@ export interface CartItem {
   effective_base_price?: number;
   residentalRotatingConfig?: ResidentalRotatingConfig;
   auto_renew?: boolean;
+  metadata?: Record<string, any>;
 }
 
 export interface Transaction {

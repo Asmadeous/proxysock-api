@@ -29,3 +29,7 @@ vm_garbage_collection:
 infrastructure_monthly_billing:
   cron: "0 1 1 * *"    # 1st of every month at 1 AM
   class: "InfrastructureMonthlyBillingJob"
+
+localtonet_bandwidth_sync:
+  cron: "*/15 * * * *" # Every 15 minutes
+  class: "LocaltonetBandwidthSyncJob"

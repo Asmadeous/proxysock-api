@@ -91,8 +91,8 @@ class Affiliate < ApplicationRecord
   def referral_code_not_promo_code
     return unless referral_code.present?
 
-    if PromoCode.where('UPPER(code) = ?', referral_code.upcase).exists?
-      errors.add(:referral_code, 'conflicts with an existing promo code')
-    end
+    return unless PromoCode.where('UPPER(code) = ?', referral_code.upcase).exists?
+
+    errors.add(:referral_code, 'conflicts with an existing promo code')
   end
 end
