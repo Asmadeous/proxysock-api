@@ -573,6 +573,9 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
           protocol,
         },
       }),
+      metadata: {
+        bandwidth_gb: (cartPlan.billing_type === "usage_gb") ? period : undefined
+      }
     };
 
     if (isDirectBuy && onDirectBuy) {

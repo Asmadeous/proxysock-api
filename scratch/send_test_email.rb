@@ -11,4 +11,4 @@ user.save!
 vm = Vm.last
 puts "Sending test email to #{user.email}..."
 VmMailer.with(owner: user, vm: vm).credentials_email.deliver_now
-puts "DONE."
+puts 'DONE.'

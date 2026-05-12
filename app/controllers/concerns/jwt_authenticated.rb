@@ -20,7 +20,6 @@ module JwtAuthenticated
     end
 
     begin
-
       @decoded_token = jwt_decode(token)
 
       if @decoded_token[:reseller_id] && @decoded_token[:jti]
@@ -81,14 +80,13 @@ module JwtAuthenticated
 
   def authenticate_dedicated_api_key(key)
     @current_reseller = Reseller.find_by(dedicated_api_key: key)
-    
+
     if @current_reseller
       @decoded_token = { reseller_id: @current_reseller.id, type: 'dedicated' }
     else
       render_unauthorized('Invalid dedicated API key')
     end
   end
-
 
   def jwt_decode(token)
     decoded = JWT.decode(token, Rails.application.secret_key_base, true, algorithm: 'HS256')[0]

@@ -44,8 +44,8 @@ module Rack
     # Resource Heavy Endpoints: 10 per minute per IP
     # Prevents scraping of documents or intensive tools
     throttle('heavy_resources/ip', limit: 10, period: 60) do |req|
-      if req.path.end_with?('/download_invoice') || 
-         req.path.end_with?('/download_ovpn') || 
+      if req.path.end_with?('/download_invoice') ||
+         req.path.end_with?('/download_ovpn') ||
          req.path.end_with?('/download_rdp_config') ||
          req.path.include?('/tools/ip_checker')
         req.ip

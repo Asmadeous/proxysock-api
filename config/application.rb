@@ -33,7 +33,7 @@ module ProxysockApi
 
     # Use Sidekiq for background jobs
     config.active_job.queue_adapter = :sidekiq
-    
+
     # Ensure jobs are enqueued ONLY after the database transaction commits
     # This prevents RecordNotFound errors in background jobs.
     config.active_job.enqueue_after_transaction_commit = true

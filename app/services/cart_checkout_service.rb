@@ -198,14 +198,14 @@ class CartCheckoutService
       fs = FastspringService.new
       # Create dynamic product for the cart
       product_path = fs.create_dynamic_product(reference, amount, "Proxysock Cart Checkout (#{reference})")
-      
+
       # Create FastSpring session with tags
       fs_session_id = fs.create_session(@actor.email, product_path, {
-        checkout_session_id: session.id,
-        reference: reference,
-        user_id: @actor.id
-      })
-      
+                                          checkout_session_id: session.id,
+                                          reference: reference,
+                                          user_id: @actor.id
+                                        })
+
       store_url = ENV['FASTSPRING_STORE_URL'] || 'https://proxysock.onfastspring.com'
       "#{store_url.chomp('/')}/session/#{fs_session_id}"
     end

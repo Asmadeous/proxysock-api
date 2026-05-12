@@ -7,10 +7,10 @@ module Admin
 
       def index
         credentials = UsaEsimCredential.all.order(created_at: :desc)
-        
+
         # Simple pagination or limit
         render json: {
-          credentials: credentials.map { |c| 
+          credentials: credentials.map do |c|
             {
               id: c.id,
               iccid: c.iccid,
@@ -23,7 +23,7 @@ module Admin
               assigned_at: c.assigned_at,
               order_id: c.order_id
             }
-          }
+          end
         }
       end
 
@@ -49,7 +49,7 @@ module Admin
 
       def destroy
         credential = UsaEsimCredential.find(params[:id])
-        
+
         if credential.status == 'assigned'
           return render json: { error: 'Cannot delete assigned credential' }, status: :forbidden
         end

@@ -73,4 +73,5 @@ export interface ISP {
     period: number | string;
     protocol: "http" | "socks5";
     totalPrice?: number;
+    metadata?: Record<string, any>;
   }

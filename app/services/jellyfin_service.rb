@@ -30,7 +30,7 @@ class JellyfinService
     ]
 
     Rails.logger.info("[JellyfinService] Attempting to create user '#{user.username}' via curl")
-    
+
     stdout, stderr, status = Open3.capture3(*cmd)
 
     if status.success? && stdout.include?('"Id":')

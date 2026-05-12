@@ -11,10 +11,10 @@ class ResellerEarningsService
       reseller = actor.reseller if actor.reseller&.infrastructure?
     end
 
-    return unless reseller && reseller.infrastructure?
+    return unless reseller&.infrastructure?
 
-    pricing = order.product_pricing
-    
+    order.product_pricing
+
     # Infrastructure resellers get GROSS revenue in real-time.
     # We manage everything and they pay a negotiated cost at month-end.
     commission = order.total_amount

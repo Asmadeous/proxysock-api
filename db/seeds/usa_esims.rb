@@ -81,4 +81,3 @@ usa_esims_data.each do |data|
 
   puts "==> Seeded USA eSIM: #{product.name} (MOQ: #{product.metadata['moq']})"
 end
-

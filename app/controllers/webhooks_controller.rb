@@ -12,7 +12,7 @@ class WebhooksController < ApplicationController
     event = JSON.parse(payload)
     if event['event'] == 'charge.success'
       # Pass full data to handle_payment to allow token extraction
-      handle_payment(event['data'], 'paystack') 
+      handle_payment(event['data'], 'paystack')
     end
     head :ok
   end
@@ -128,34 +128,38 @@ class WebhooksController < ApplicationController
       end
     end
 
-    data = JSON.parse(payload) rescue {}
+    data = begin
+      JSON.parse(payload)
+    rescue StandardError
+      {}
+    end
     events = data['events'] || []
 
     events.each do |event|
-      if event['type'] == 'order.completed'
-        fs_data = event['data']
-        # Extract tags from the session/order if present
-        metadata = fs_data['tags'] || {}
-        
-        # Determine reference from tags or product path (e.g. checkout-xyz)
-        reference = metadata['reference']
-        if reference.nil? && fs_data['items'].present?
-          product_path = fs_data['items'].first['product'].to_s
-          if product_path.start_with?('checkout-')
-            reference = product_path.sub('checkout-', '').upcase
-          end
+      next unless event['type'] == 'order.completed'
+
+      fs_data = event['data']
+      # Extract tags from the session/order if present
+      metadata = fs_data['tags'] || {}
+
+      # Determine reference from tags or product path (e.g. checkout-xyz)
+      reference = metadata['reference']
+      if reference.nil? && fs_data['items'].present?
+        product_path = fs_data['items'].first['product'].to_s
+        if product_path.start_with?('checkout-')
+          reference = product_path.sub('checkout-', '').upcase
         end
-
-        payment_data = {
-          'reference' => reference,
-          'amount' => fs_data['total'],
-          'currency' => fs_data['currency'],
-          'metadata' => metadata.merge('fastspring_order_id' => fs_data['order']),
-          'raw_data' => fs_data # Pass raw data to handle_payment for token extraction
-        }
-
-        handle_payment(payment_data, 'fastspring')
       end
+
+      payment_data = {
+        'reference' => reference,
+        'amount' => fs_data['total'],
+        'currency' => fs_data['currency'],
+        'metadata' => metadata.merge('fastspring_order_id' => fs_data['order']),
+        'raw_data' => fs_data # Pass raw data to handle_payment for token extraction
+      }
+
+      handle_payment(payment_data, 'fastspring')
     end
 
     head :ok
@@ -229,10 +233,10 @@ class WebhooksController < ApplicationController
         currency: 'USD',
         payment_gateway: gateway,
         description: "Deposit via #{gateway}",
-        metadata: { 
-          gateway: gateway, 
-          gateway_ref: reference, 
-          paid_amount_usd: paid_amount_usd 
+        metadata: {
+          gateway: gateway,
+          gateway_ref: reference,
+          paid_amount_usd: paid_amount_usd
         }
       )
 

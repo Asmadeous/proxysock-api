@@ -2,7 +2,7 @@
 
 class CreatePayouts < ActiveRecord::Migration[8.1]
   def change
-    create_table :payouts, id: :uuid, default: -> { "gen_random_uuid()" } do |t|
+    create_table :payouts, id: :uuid, default: -> { 'gen_random_uuid()' } do |t|
       t.uuid :reseller_id, null: false
       t.decimal :amount, precision: 10, scale: 2, null: false
       t.string :gateway, null: false

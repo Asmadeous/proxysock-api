@@ -530,11 +530,11 @@ module Admin
         services << check_service('Sidekiq') do
           redis_error = nil
           process_count = 0
-          
+
           redis_up = begin
             # First check if we can connect at all
             Sidekiq.redis { |c| c.ping == 'PONG' }
-            
+
             # If so, get stats
             stats = Sidekiq::Stats.new
             process_count = stats.processes_size
@@ -546,7 +546,11 @@ module Admin
           end
 
           {
-            status: (redis_up && process_count.positive?) ? 'healthy' : (redis_up ? 'warning' : 'down'),
+            status: if redis_up && process_count.positive?
+                      'healthy'
+                    else
+                      (redis_up ? 'warning' : 'down')
+                    end,
             details: redis_up ? "#{process_count} active processes" : "Redis Error: #{redis_error}",
             description: redis_up && process_count.zero? ? 'Sidekiq connected to Redis but no active processes found' : redis_error
           }

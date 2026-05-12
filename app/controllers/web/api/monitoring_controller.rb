@@ -5,13 +5,12 @@ module Web
     class MonitoringController < BaseController
       # This controller allows users to log into the monitoring dashboard
       # using their VM ID and VM Root Password.
-      
 
       def summary_counts
         authenticate_actor!
         actor = current_actor
         counts = {
-          orders: actor.orders.where(status: ['active', 'processing']).count,
+          orders: actor.orders.where(status: %w[active processing]).count,
           tickets: actor.tickets.where(status: 'open').count,
           notifications: actor.notifications.unread.count
         }

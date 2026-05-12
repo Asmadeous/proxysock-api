@@ -2,4 +2,5 @@
 
 class StaticIspProxyOrder < ApplicationRecord
   belongs_to :order
+  has_one :static_isp_proxy, dependent: :nullify
 end

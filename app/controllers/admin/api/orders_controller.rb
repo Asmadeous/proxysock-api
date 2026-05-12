@@ -8,16 +8,16 @@ module Admin
       # GET /admin/api/orders
       def index
         orders = Order.preload(:product, :orderable).order(created_at: :desc)
-        
+
         if params[:product_type].present?
-          case params[:product_type]
-          when 'proxy'
-            orders = orders.joins(:product).where(products: { product_type: Product::PROXY_TYPES })
-          when 'esim'
-            orders = orders.joins(:product).where(products: { product_type: ['esim', 'usa_esim'] })
-          else
-            orders = orders.joins(:product).where(products: { product_type: params[:product_type] })
-          end
+          orders = case params[:product_type]
+                   when 'proxy'
+                     orders.joins(:product).where(products: { product_type: Product::PROXY_TYPES })
+                   when 'esim'
+                     orders.joins(:product).where(products: { product_type: %w[esim usa_esim] })
+                   else
+                     orders.joins(:product).where(products: { product_type: params[:product_type] })
+                   end
         end
 
         orders = orders.where(status: params[:status]) if params[:status].present?
@@ -63,7 +63,6 @@ module Admin
           }
         }
       end
-
 
       # GET /admin/api/orders/:id
       def show
@@ -222,7 +221,7 @@ module Admin
 
         if new_order.save
           begin
-            # Admins can process immediately regardless of balance if they want, 
+            # Admins can process immediately regardless of balance if they want,
             # but here we follow the standard logic:
             OrderProvisioningService.new(new_order, @order.orderable).process!
             record_audit_log('order.reordered', @order, { new_order_id: new_order.id })

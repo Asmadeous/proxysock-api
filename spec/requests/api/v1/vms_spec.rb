@@ -34,14 +34,18 @@ RSpec.describe 'api/v1/vms', type: :request do
       }
 
       response(202, 'accepted') do
-        let(:reseller) { r = Reseller.create!(username: 'compute_provisioning_flow', email: 'provisioning@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York'); r.main_wallet.credit!(100.0, 'Initial'); r }
+        let(:reseller) do
+          r = Reseller.create!(username: 'compute_provisioning_flow', email: 'provisioning@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York')
+          r.main_wallet.credit!(100.0, 'Initial')
+          r
+        end
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        
+
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Standard Ubuntu Instance', product_type: 'vm', provider_type: 'proxmox', slug: 'ubuntu-22.04') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
         let(:vm) { { vm: { product_id: product.id, os_template: 'ubuntu-22.04', hostname: 'srv-01', vm_type: 'kvm', cpu_cores: 2, ram_gb: 4, storage_gb: 60 } } }
-        
+
         run_test!
       end
     end
@@ -59,14 +63,14 @@ RSpec.describe 'api/v1/vms', type: :request do
         let(:reseller) { Reseller.create!(username: 'instance_health_monitor', email: 'health@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        
+
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Premium Windows RDP', product_type: 'vm', provider_type: 'proxmox') }
         let(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
         let(:order) { Order.create!(orderable: reseller, product: product, product_pricing: pricing, status: 'active') }
         let(:vm_order) { VmOrder.create!(order: order, os_type: 'ubuntu-22.04', vm_type: 'kvm', status: 'active') }
         let(:vm_obj) { Vm.create!(vm_order: vm_order, status: 'active') }
         let(:id) { vm_obj.id }
-        
+
         run_test!
       end
     end

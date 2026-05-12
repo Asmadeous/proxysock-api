@@ -108,7 +108,7 @@ module Web
           base_data[:gb_min] ||= 0
           base_data[:gb_max] ||= 0
           base_data[:billing_type] ||= 'monthly'
-          
+
           if product.product_category&.slug == 'residential-rotating'
             config = product.product_category.metadata&.dig('residential_rotating_config') || product.product_category.metadata&.dig(:residential_rotating_config)
             base_data[:residential_rotating_config] = config if config.present?

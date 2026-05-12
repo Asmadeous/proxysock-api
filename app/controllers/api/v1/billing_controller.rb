@@ -67,13 +67,6 @@ module Api
               details: details
             )
 
-            render json: {
-              message: payout.crypto? ? 'Crypto payout processed' : 'Payout request submitted for review',
-              payout_id: payout.id,
-              amount: amount,
-              method: method,
-              status: payout.status
-            }, status: :created
           else
             # Fallback for resellers without affiliate — use PayoutService directly
             gateway = method == 'crypto' ? 'plisio' : 'manual'
@@ -83,14 +76,14 @@ module Api
               payment_details: details
             )
 
-            render json: {
-              message: payout.crypto? ? 'Crypto payout processed' : 'Payout request submitted for review',
-              payout_id: payout.id,
-              amount: amount,
-              method: method,
-              status: payout.status
-            }, status: :created
           end
+          render json: {
+            message: payout.crypto? ? 'Crypto payout processed' : 'Payout request submitted for review',
+            payout_id: payout.id,
+            amount: amount,
+            method: method,
+            status: payout.status
+          }, status: :created
         rescue AffiliateService::InsufficientBalanceError, PayoutService::InsufficientBalanceError => e
           render json: { error: e.message }, status: :unprocessable_entity
         rescue StandardError => e

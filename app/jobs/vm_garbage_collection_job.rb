@@ -35,7 +35,11 @@ class VmGarbageCollectionJob < ApplicationJob
     Rails.logger.info "[VmGarbageCollectionJob] Found #{stale_vms.count} expired VMs past #{EXPIRED_GRACE_PERIOD.inspect} grace period"
 
     stale_vms.find_each do |vm|
-      destroy_vm(vm, 'expired')
+      # Atomic check-and-set to prevent race conditions between concurrent jobs
+      affected = Vm.where(id: vm.id, status: 'expired').update_all(status: 'terminating', updated_at: Time.current)
+      if affected.positive?
+        destroy_vm(vm.reload, 'expired')
+      end
     end
   end
 
@@ -46,7 +50,11 @@ class VmGarbageCollectionJob < ApplicationJob
     Rails.logger.info "[VmGarbageCollectionJob] Found #{stale_vms.count} failed VMs past #{FAILED_GRACE_PERIOD.inspect} grace period"
 
     stale_vms.find_each do |vm|
-      destroy_vm(vm, 'failed')
+      # Atomic check-and-set to prevent race conditions between concurrent jobs
+      affected = Vm.where(id: vm.id, status: 'failed').update_all(status: 'terminating', updated_at: Time.current)
+      if affected.positive?
+        destroy_vm(vm.reload, 'failed')
+      end
     end
   end
 

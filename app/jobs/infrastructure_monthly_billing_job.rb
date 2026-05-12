@@ -22,14 +22,14 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
     # Since we credited them 100% of retail in real-time, we must collect the cost now.
     reseller_orders = reseller.orders.where(created_at: start_date..end_date)
     managed_user_orders = Order.where(orderable: reseller.managed_users, created_at: start_date..end_date)
-    
+
     total_wholesale_cost = reseller_orders.sum(:cost_price) + managed_user_orders.sum(:cost_price)
-    
+
     # 2. Negotiated Infrastructure Cost (Backend overhead)
     infra_cost = reseller.subscription_fee.to_f
-    
+
     grand_total = (total_wholesale_cost + infra_cost).round(2)
-    
+
     return if grand_total <= 0
 
     # 3. Create Consolidated Billing History Record
@@ -52,7 +52,7 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
 
   def attempt_payment(reseller, history)
     amount = history.amount_due
-    
+
     main_balance = reseller.main_wallet&.balance || 0
     earnings_balance = reseller.earnings_wallet&.balance || 0
     total_available = main_balance + earnings_balance
@@ -73,20 +73,20 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
 
         # Deduct from earnings first (as per user's "transfer income is dumb" logic)
         if earnings_balance >= amount
-          reseller.earnings_wallet.debit!(amount, "Monthly Bill Payment", { bill_id: history.id }, transaction)
+          reseller.earnings_wallet.debit!(amount, 'Monthly Bill Payment', { bill_id: history.id }, transaction)
         else
           # Use all earnings then take from main
-          reseller.earnings_wallet.debit!(earnings_balance, "Monthly Bill Payment (Partial)", { bill_id: history.id }, transaction) if earnings_balance.positive?
+          reseller.earnings_wallet.debit!(earnings_balance, 'Monthly Bill Payment (Partial)', { bill_id: history.id }, transaction) if earnings_balance.positive?
           remainder = amount - earnings_balance
-          reseller.main_wallet.debit!(remainder, "Monthly Bill Payment (Remainder)", { bill_id: history.id }, transaction)
+          reseller.main_wallet.debit!(remainder, 'Monthly Bill Payment (Remainder)', { bill_id: history.id }, transaction)
         end
 
         history.update!(status: 'paid', amount_paid: amount, amount_due: 0)
-        
+
         # After billing is done, the remaining balance in earnings is the profit available for payout
         reseller.update!(withdrawable_profit: (reseller.withdrawable_profit || 0) + reseller.earnings_wallet.balance)
       end
-      
+
       NotificationService.notify(
         recipient: reseller,
         category: 'success',
@@ -97,7 +97,7 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
     else
       # Insufficient funds
       history.update!(status: 'overdue')
-      
+
       NotificationService.notify(
         recipient: reseller,
         category: 'error',
@@ -105,7 +105,7 @@ class InfrastructureMonthlyBillingJob < ApplicationJob
         message: "Your monthly infrastructure bill for $#{amount} is overdue. Please top up your wallet to avoid service suspension.",
         metadata: { billing_history_id: history.id, amount_due: amount }
       )
-      
+
       # Notify Admin of overdue reseller bill
       Employee.admins.find_each do |admin|
         NotificationService.notify(

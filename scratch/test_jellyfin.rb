@@ -13,8 +13,8 @@ service = JellyfinService.new
 success = service.create_user(user)
 
 if success
-  puts "SUCCESS! Jellyfin account created and metadata updated."
+  puts 'SUCCESS! Jellyfin account created and metadata updated.'
   puts "Metadata: #{user.reload.metadata}"
 else
-  puts "FAILED. Check logs/development.log for details."
+  puts 'FAILED. Check logs/development.log for details.'
 end

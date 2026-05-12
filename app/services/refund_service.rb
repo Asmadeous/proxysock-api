@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Implements bullet-proof refunds for failed orders, providing atomic 
+# Implements bullet-proof refunds for failed orders, providing atomic
 # locks and safely handling both internal wallets and external fiat gateways.
 class RefundService
   class RefundError < StandardError; end
@@ -38,7 +38,7 @@ class RefundService
 
     # Validate that an actual debit transaction exists for this order before blindly refunding
     debit_txn = Transaction.find_by(reference: @order, transaction_type: 'debit', status: 'success')
-    
+
     if debit_txn.nil?
       # Fallback: check if the order was paid as part of a Cart Checkout (where reference is the owner)
       debit_txn = Transaction.where(transactable: owner, transaction_type: 'debit', status: 'success')
@@ -49,7 +49,7 @@ class RefundService
 
     # This debit!/credit! internally uses with_lock as well
     wallet.credit!(@order.total_amount, "Refund for failed order ##{@order.order_number}", { order_id: @order.id })
-    
+
     # Notify user
     NotificationService.notify(
       recipient: owner,
@@ -65,8 +65,8 @@ class RefundService
       # Execute actual API reversal
       PaystackService.new.refund(checkout.gateway_reference, @order.total_amount)
     when 'plisio', 'payvra', 'hundredpay'
-      # It is mechanically impossible to safely auto-reverse crypto APIs without 
-      # knowing the user's secure return wallet address. We cleanly halt this, 
+      # It is mechanically impossible to safely auto-reverse crypto APIs without
+      # knowing the user's secure return wallet address. We cleanly halt this,
       # which notifies the caller that manual crypto claiming is required.
       raise DeferredCryptoRefund, "Order paid via crypto (#{checkout.gateway}). User must provide wallet address from dashboard."
     else

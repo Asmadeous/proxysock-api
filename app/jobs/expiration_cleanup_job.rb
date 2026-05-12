@@ -41,6 +41,8 @@ class ExpirationCleanupJob < ApplicationJob
 
   def process_expiries_and_warnings(resources)
     resources.find_each do |resource|
+      next unless resource.expires_at.present?
+
       if resource.expires_at < Time.current
         expire_resource(resource)
       elsif resource.expires_at < 24.hours.from_now
@@ -61,7 +63,7 @@ class ExpirationCleanupJob < ApplicationJob
     return if metadata[sent_key].present?
 
     Rails.logger.info "Sending #{hours}h expiry warning for #{resource.class.name} ##{resource.id}"
-    
+
     Notification.create(
       recipient: order.orderable,
       category: 'warning',

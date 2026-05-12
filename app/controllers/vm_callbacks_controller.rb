@@ -83,7 +83,7 @@ class VmCallbacksController < ApplicationController
 
     # If still provisioning, fail it
     vm.fail! if vm.may_fail?
-    
+
     order = vm.vm_order&.order
     order.fail! if order&.may_fail?
 

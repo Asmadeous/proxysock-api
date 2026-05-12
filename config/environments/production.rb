@@ -31,18 +31,18 @@ Rails.application.configure do
   config.assume_ssl = true
 
   # Log to STDOUT with the current request id as a default log tag.
-  if ENV["RAILS_LOG_TO_STDOUT"].present?
+  if ENV['RAILS_LOG_TO_STDOUT'].present?
     config.log_tags = [:request_id]
-    
+
     # Create STDOUT logger
-    stdout_logger = ActiveSupport::Logger.new(STDOUT)
+    stdout_logger = ActiveSupport::Logger.new($stdout)
     stdout_logger.formatter = config.log_formatter
-    
+
     # Create File logger (unique per role if using shared volume)
-    log_suffix = ENV["SERVER_ROLE"].present? ? ".#{ENV["SERVER_ROLE"]}" : ""
+    log_suffix = ENV['SERVER_ROLE'].present? ? ".#{ENV['SERVER_ROLE']}" : ''
     file_logger = ActiveSupport::Logger.new(Rails.root.join("log/#{Rails.env}#{log_suffix}.log"))
     file_logger.formatter = config.log_formatter
-    
+
     # Broadcast to both
     config.logger = ActiveSupport::BroadcastLogger.new(stdout_logger, file_logger)
     config.logger = ActiveSupport::TaggedLogging.new(config.logger)

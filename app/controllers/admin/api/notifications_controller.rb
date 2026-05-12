@@ -5,9 +5,9 @@ module Admin
     class NotificationsController < BaseController
       def index
         notifications = Notification.where(recipient: current_employee).recent.limit(50)
-        render json: { 
-          notifications: notifications, 
-          unread_count: Notification.where(recipient: current_employee, read_at: nil).count 
+        render json: {
+          notifications: notifications,
+          unread_count: Notification.where(recipient: current_employee, read_at: nil).count
         }
       end
 
@@ -37,7 +37,6 @@ module Admin
         count = Notification.where(recipient: current_employee, read_at: nil).count
         render json: { unread_count: count }
       end
-
     end
   end
 end

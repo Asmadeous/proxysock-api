@@ -29,7 +29,6 @@ module Admin
           klass = case params[:affiliatable_type].to_s.downcase
                   when 'user' then User
                   when 'reseller' then Reseller
-                  else nil
                   end
 
           unless klass

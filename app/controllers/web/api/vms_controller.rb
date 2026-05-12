@@ -78,16 +78,14 @@ module Web
         end
 
         resource_usage = nil
-        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present?
-          if (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
-            resource_usage = {
-              cpu_percent: (pve_status['cpu'] || 0) * 100,
-              ram_percent: pve_status['maxmem'].to_f > 0 ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem'].to_f) * 100 : 0,
-              disk_percent: pve_status['maxdisk'].to_f > 0 ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk'].to_f) * 100 : 0,
-              uptime: pve_status['uptime'] || 0,
-              status: pve_status['status']
-            }
-          end
+        if @vm.proxmox_vm_id.present? && @vm.proxmox_node.present? && (pve_status = ProxmoxApiClient.get_vm_status(@vm.proxmox_node, @vm.proxmox_vm_id))
+          resource_usage = {
+            cpu_percent: (pve_status['cpu'] || 0) * 100,
+            ram_percent: pve_status['maxmem'].to_f.positive? ? ((pve_status['mem'] || 0).to_f / pve_status['maxmem']) * 100 : 0,
+            disk_percent: pve_status['maxdisk'].to_f.positive? ? ((pve_status['disk'] || 0).to_f / pve_status['maxdisk']) * 100 : 0,
+            uptime: pve_status['uptime'] || 0,
+            status: pve_status['status']
+          }
         end
 
         render json: {
@@ -175,7 +173,9 @@ module Web
           ram_gb: vm_order&.ram_gb,
           storage_gb: vm_order&.disk_gb,
           root_password: vm.root_password,
-          rdp_username: vm.rdp_username || (is_rdp ? (is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")) : nil),
+          rdp_username: vm.rdp_username || (if is_rdp
+                                              is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")
+                                            end),
           rdp_password: vm.root_password,
           ssh_username: vm.ssh_username || 'root',
           expires_at: vm.expires_at || order&.expires_at || (vm.created_at + 30.days),
@@ -183,7 +183,11 @@ module Web
           plan_name: product&.name,
           monthly_cost: pricing&.selling_price,
           proxmox_public_ip: ENV['PUBLIC_IP'] || '127.0.0.1',
-          username: vm.ssh_username || vm.rdp_username || (is_rdp ? (is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")) : 'root'),
+          username: vm.ssh_username || vm.rdp_username || (if is_rdp
+                                                             is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")
+                                                           else
+                                                             'root'
+                                                           end),
           node: vm.proxmox_node,
           dns_name: vm.dns_name,
           auto_renew: vm.metadata&.dig('auto_renew') == true,

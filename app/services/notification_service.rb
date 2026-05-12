@@ -14,6 +14,7 @@ class NotificationService
     Rails.logger.error("[NotificationService] Failed to notify: #{e.message}")
     nil
   end
+
   def self.notify_staff(title:, message:, category: 'info', metadata: {})
     staff_ids = Employee.where(active: true, role: %w[admin support]).pluck(:id)
     return if staff_ids.empty?
