@@ -28,7 +28,7 @@ type SortBy = 'name' | 'status' | 'created' | 'cost' | 'usage';
 type SortOrder = 'asc' | 'desc';
 
 import api, { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 const VPSManagement = () => {
   const [vpsInstances, setVpsInstances] = useState<VPSInstance[]>([]);

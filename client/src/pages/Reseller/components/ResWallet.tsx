@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { WalletIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "@heroicons/react/24/outline";
 import { AlertCircle, TrendingUp, ShieldCheckIcon, Clock, CheckCircle2 } from "lucide-react";
 import { fetchResellerBalance, fetchResellerTransactions, createResellerDeposit, requestResellerPayout } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ export default function ResWallet() {
             setEarningsBalance(balRes.data.earnings_balance || 0);
             setTransactions(transRes.data.transactions || []);
         } catch (error) {
-            console.error("Failed to fetch wallet data", error);
+            toast.error(getApiError(error, "Failed to load wallet data"));
         } finally {
             setLoading(false);
         }
@@ -68,8 +69,8 @@ export default function ResWallet() {
                 toast.success("Deposit initiated! Please follow the instructions.");
             }
             setIsDepositModalOpen(false);
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || "Deposit failed");
+        } catch (error) {
+            toast.error(getApiError(error, "Deposit failed"));
         } finally {
             setIsProcessing(false);
         }
@@ -110,8 +111,8 @@ export default function ResWallet() {
             setWithdrawAmount("");
             setWithdrawDetails({});
             fetchData();
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || "Withdrawal failed");
+        } catch (error) {
+            toast.error(getApiError(error, "Withdrawal failed"));
         } finally {
             setIsProcessing(false);
         }
@@ -195,7 +196,7 @@ export default function ResWallet() {
     };
 
     return (
-        <div className="space-y-8 max-w-6xl mx-auto py-6">
+        <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight">Financial Hub</h1>
@@ -206,7 +207,7 @@ export default function ResWallet() {
                 {isBalanceBased && (
                     <Button
                         onClick={() => setIsDepositModalOpen(true)}
-                        className="bg-primary text-primary-foreground shadow-xl hover:brightness-110 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
+                        className="bg-primary text-primary-foreground shadow-sm hover:brightness-110 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
                     >
                         <ArrowUpRightIcon className="h-6 w-6" />
                         Add Credits
@@ -215,7 +216,7 @@ export default function ResWallet() {
                 {isEnterprise && (
                     <Button
                         onClick={() => setIsWithdrawModalOpen(true)}
-                        className="bg-emerald-600 text-white shadow-xl hover:bg-emerald-700 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
+                        className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 px-8 py-7 rounded-2xl font-black text-lg gap-2 transition-all transform hover:scale-[1.02]"
                     >
                         <ArrowDownLeftIcon className="h-6 w-6" />
                         Request Payout
@@ -226,12 +227,14 @@ export default function ResWallet() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* Balance Card - API ONLY */}
                 {isBalanceBased && (
-                    <Card className="border-none bg-gradient-to-br from-primary to-indigo-700 text-white shadow-2xl relative overflow-hidden group rounded-3xl p-2">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                            <WalletIcon className="h-40 w-40" />
-                        </div>
+                    <Card className="border-none shadow-sm rounded-3xl p-2 bg-gradient-to-br from-red-600 via-red-500 to-pink-600 text-white overflow-hidden relative">
                         <CardHeader>
-                            <CardTitle className="text-xs font-black opacity-80 uppercase tracking-widest">Available Credits</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-xs font-black uppercase tracking-widest opacity-80">Available Credits</CardTitle>
+                                <div className="p-2 rounded-xl bg-white/10">
+                                    <WalletIcon className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-5xl font-black tracking-tighter">${balance.toFixed(2)}</div>
@@ -245,12 +248,14 @@ export default function ResWallet() {
 
                 {/* Earnings Card - ENTERPRISE ONLY */}
                 {isEnterprise && (
-                    <Card className="border-none bg-gradient-to-br from-emerald-600 to-teal-800 text-white shadow-2xl relative overflow-hidden group rounded-3xl p-2">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                            <TrendingUp className="h-40 w-40" />
-                        </div>
+                    <Card className="border-none shadow-sm rounded-3xl p-2 bg-gradient-to-br from-red-600 via-red-500 to-pink-600 text-white overflow-hidden relative">
                         <CardHeader>
-                            <CardTitle className="text-xs font-black opacity-80 uppercase tracking-widest">Total Earnings</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-xs font-black uppercase tracking-widest opacity-80">Total Earnings</CardTitle>
+                                <div className="p-2 rounded-xl bg-white/10">
+                                    <TrendingUp className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-5xl font-black tracking-tighter">${earningsBalance.toFixed(2)}</div>
@@ -264,7 +269,7 @@ export default function ResWallet() {
 
                 {/* Subscription Card - ENTERPRISE ONLY */}
                 {isEnterprise && (
-                    <Card className="border-none bg-card shadow-2xl relative overflow-hidden border border-border/50 rounded-3xl">
+                    <Card className="border border-border shadow-sm rounded-3xl">
                         <CardHeader>
                             <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-widest">Infrastructure Fee</CardTitle>
                         </CardHeader>
@@ -287,7 +292,7 @@ export default function ResWallet() {
                 )}
 
                 {/* Global Stats Card */}
-                <Card className="border-none bg-card shadow-2xl border border-border/50 rounded-3xl">
+                <Card className="border border-border shadow-sm rounded-3xl">
                     <CardHeader>
                         <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-widest">Account Velocity</CardTitle>
                     </CardHeader>
@@ -446,13 +451,13 @@ export default function ResWallet() {
                             <DialogDescription className="font-medium text-muted-foreground">Withdraw your accumulated earnings to your preferred destination.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-6 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between">
+                            <div className="bg-gradient-to-br from-red-600 via-red-500 to-pink-600 rounded-2xl p-5 flex items-center justify-between text-white">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Withdrawable</p>
-                                    <p className="text-2xl font-black tracking-tighter text-emerald-950">${earningsBalance.toFixed(2)}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">Withdrawable</p>
+                                    <p className="text-2xl font-black tracking-tighter">${earningsBalance.toFixed(2)}</p>
                                 </div>
-                                <div className="h-12 w-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
-                                    <TrendingUp className="h-6 w-6 text-emerald-600" />
+                                <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                                    <TrendingUp className="h-6 w-6 text-white" />
                                 </div>
                             </div>
 
@@ -487,7 +492,7 @@ export default function ResWallet() {
                             <Button
                                 onClick={handleWithdraw}
                                 disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                                className="rounded-2xl font-black py-6 px-8 bg-emerald-600 shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:scale-[1.02] transition-transform text-white"
+                                className="rounded-2xl font-black py-6 px-8 bg-primary shadow-sm hover:bg-primary/90 hover:scale-[1.02] transition-transform text-primary-foreground"
                             >
                                 {isProcessing ? "Processing..." : "Confirm Payout"}
                             </Button>
@@ -497,7 +502,7 @@ export default function ResWallet() {
             )}
 
             <div className="grid gap-8">
-                <Card className="border-none shadow-2xl rounded-3xl overflow-hidden bg-card border border-border/50">
+                <Card className="border border-border shadow-sm rounded-3xl overflow-hidden">
                     <CardHeader className="border-b border-border/30 bg-muted/20 px-8 py-6">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-xl font-black flex items-center gap-3 tracking-tight">

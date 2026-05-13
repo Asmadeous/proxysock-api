@@ -7,8 +7,11 @@ import { getCableConsumer } from "../../services/cable";
 import type { Subscription } from "@rails/actioncable";
 import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
-import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
-import { toast } from "react-hot-toast";
+import FormModal, { Field } from "../SuperAdmin/components/FormModal";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TicketRow {
     id: number;
@@ -132,8 +135,8 @@ export default function Tickets({ role = "User" }: TicketsProps) {
         <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Support Tickets</h2>
-                    <p className="text-sm text-gray-400 mt-1">Raise issues or track your ongoing support requests.</p>
+                    <h1 className="text-3xl font-bold text-foreground tracking-tight">Tickets</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Raise issues or track your ongoing support requests.</p>
                 </div>
                 <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors text-white rounded-xl text-sm font-medium">
                     <PlusIcon className="h-5 w-5" /> Open Ticket
@@ -160,27 +163,30 @@ export default function Tickets({ role = "User" }: TicketsProps) {
             {/* Create Ticket Modal */}
             <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Open New Ticket" onSubmit={handleCreate} submitLabel="Submit Ticket" loading={createLoading}>
                 <Field label="Subject *">
-                    <input className={inputClasses} value={createData.subject} onChange={(e) => setCreateData({ ...createData, subject: e.target.value })} required />
+                    <Input value={createData.subject} onChange={(e) => setCreateData({ ...createData, subject: e.target.value })} placeholder="Brief summary of your issue" required />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="Priority">
-                        <select className={inputClasses} value={createData.priority} onChange={(e) => setCreateData({ ...createData, priority: e.target.value })}>
-                            <option value="low">Low</option>
-                            <option value="normal">Normal</option>
-                            <option value="high">High</option>
-                        </select>
+                        <Select value={createData.priority} onValueChange={(v) => setCreateData({ ...createData, priority: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="normal">Normal</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </Field>
                     <Field label="Order ID (Optional)">
-                        <input className={inputClasses} value={createData.order_id} onChange={(e) => setCreateData({ ...createData, order_id: e.target.value })} placeholder="e.g. 12345" />
+                        <Input value={createData.order_id} onChange={(e) => setCreateData({ ...createData, order_id: e.target.value })} placeholder="e.g. 12345" />
                     </Field>
                 </div>
                 {createData.deposit_id && (
                     <Field label="Deposit ID">
-                        <input className={inputClasses} value={createData.deposit_id} readOnly disabled />
+                        <Input value={createData.deposit_id} readOnly disabled />
                     </Field>
                 )}
                 <Field label="Message *">
-                    <textarea className={`${inputClasses} h-32 resize-y`} value={createData.body} onChange={(e) => setCreateData({ ...createData, body: e.target.value })} required placeholder="Describe your issue..." />
+                    <Textarea className="h-32 resize-y" value={createData.body} onChange={(e) => setCreateData({ ...createData, body: e.target.value })} placeholder="Describe your issue in detail..." required />
                 </Field>
             </FormModal>
 
@@ -198,7 +204,7 @@ export default function Tickets({ role = "User" }: TicketsProps) {
                     ))}
                 </div>
                 <Field label="Your Reply">
-                    <textarea className={`${inputClasses} h-32 resize-y`} value={replyMsg} onChange={(e) => setReplyMsg(e.target.value)} required placeholder="Type your message here..." />
+                    <Textarea className="h-32 resize-y" value={replyMsg} onChange={(e) => setReplyMsg(e.target.value)} placeholder="Type your message here..." required />
                 </Field>
                 <p className="text-xs text-gray-400 mt-2">Replies are added immediately to the ticket thread.</p>
             </FormModal>

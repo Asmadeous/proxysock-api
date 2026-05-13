@@ -63,6 +63,14 @@ const ALL_CATEGORIES = [
     }
 ];
 
+const COLOR_MAP: Record<string, { bg: string; bgHover: string; text: string }> = {
+    blue:   { bg: "bg-blue-500/10",   bgHover: "group-hover:bg-blue-500/20",   text: "text-blue-500" },
+    purple: { bg: "bg-purple-500/10", bgHover: "group-hover:bg-purple-500/20", text: "text-purple-500" },
+    orange: { bg: "bg-orange-500/10", bgHover: "group-hover:bg-orange-500/20", text: "text-orange-500" },
+    green:  { bg: "bg-green-500/10",  bgHover: "group-hover:bg-green-500/20",  text: "text-green-500" },
+    red:    { bg: "bg-red-500/10",    bgHover: "group-hover:bg-red-500/20",    text: "text-red-500" },
+};
+
 // Map allowed_product_category_name to the store category IDs
 const CATEGORY_NAME_MAP: Record<string, string[]> = {
     "proxies": ["proxy"],
@@ -102,14 +110,13 @@ export default function ResStore({ onSelectCategory, resellerType, allowedCatego
                         transition={{ type: "spring", stiffness: 300 }}
                     >
                         <Card
-                            className="cursor-pointer hover:shadow-xl transition-all border-border hover:border-primary/50 group overflow-hidden relative"
+                            className="cursor-pointer shadow-sm hover:shadow-md dark:hover:shadow-xl transition-all border-border hover:border-primary/50 group"
                             onClick={() => onSelectCategory(cat.tabId)}
                         >
-                            <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 bg-${cat.color}-500/10 rounded-full blur-3xl group-hover:bg-${cat.color}-500/20 transition-colors`} />
 
                             <CardHeader>
-                                <div className={`w-12 h-12 rounded-xl bg-${cat.color}-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                                    <cat.icon className={`w-6 h-6 text-${cat.color}-500`} />
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${COLOR_MAP[cat.color]?.bg ?? "bg-muted"}`}>
+                                    <cat.icon className={`w-6 h-6 ${COLOR_MAP[cat.color]?.text ?? "text-muted-foreground"}`} />
                                 </div>
                                 <CardTitle className="text-xl">{cat.name}</CardTitle>
                                 <CardDescription>{cat.description}</CardDescription>

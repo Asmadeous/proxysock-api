@@ -11,7 +11,8 @@ import {
     CurrencyDollarIcon
 } from "@heroicons/react/24/outline";
 import { fetchResellerOrderStats, fetchResellerOrders, cancelResellerOrder, fetchOrderCredentials, refundResellerOrder } from "../../../services/resellerApi";
-import { toast } from "react-hot-toast";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,8 +103,8 @@ export default function ResOrders() {
             toast.success(r.data.message || "Order cancelled successfully");
             fetchOrders(page);
             fetchStats();
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Failed to cancel order");
+        } catch (e) {
+            toast.error(getApiError(e, "Failed to cancel order"));
         } finally {
             setCancellingId(null);
             setShowCancelDialog(false);
@@ -140,8 +141,8 @@ export default function ResOrders() {
         try {
             const r = await fetchOrderCredentials(orderId);
             setCredentialsModal({ open: true, data: r.data, loading: false });
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Credentials not available");
+        } catch (e) {
+            toast.error(getApiError(e, "Credentials not available"));
             setCredentialsModal({ open: false, data: null, loading: false });
         }
     };
@@ -157,10 +158,10 @@ export default function ResOrders() {
     };
 
     const statCards = [
-        { label: "Total Orders", value: stats?.total_orders ?? 0, icon: ShoppingCartIcon, color: "primary" },
-        { label: "Active Services", value: stats?.active_services ?? 0, icon: CheckCircleIcon, color: "emerald-500" },
-        { label: "Pending", value: stats?.pending_orders ?? 0, icon: ClockIcon, color: "amber-500" },
-        { label: "Total Spent", value: `$${(stats?.total_spent ?? 0).toFixed(2)}`, icon: ShoppingCartIcon, color: "blue-500" },
+        { label: "Total Orders",    value: stats?.total_orders ?? 0,                        icon: ShoppingCartIcon, bg: "bg-primary/10",        text: "text-primary" },
+        { label: "Active Services", value: stats?.active_services ?? 0,                     icon: CheckCircleIcon,  bg: "bg-emerald-500/10",    text: "text-emerald-500" },
+        { label: "Pending",         value: stats?.pending_orders ?? 0,                      icon: ClockIcon,        bg: "bg-amber-500/10",      text: "text-amber-500" },
+        { label: "Total Spent",     value: `$${(stats?.total_spent ?? 0).toFixed(2)}`,      icon: ShoppingCartIcon, bg: "bg-blue-500/10",       text: "text-blue-500" },
     ];
 
     const filters = [
@@ -173,7 +174,7 @@ export default function ResOrders() {
     ];
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
@@ -187,15 +188,15 @@ export default function ResOrders() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((s) => (
-                    <Card key={s.label} className="border-none shadow-lg">
+                    <Card key={s.label} className="border border-border shadow-sm">
                         <CardContent className="p-5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{s.label}</p>
                                     <p className="text-2xl font-bold mt-1">{s.value}</p>
                                 </div>
-                                <div className={`p-3 rounded-xl bg-${s.color}/10`}>
-                                    <s.icon className={`w-5 h-5 text-${s.color}`} />
+                                <div className={`p-3 rounded-xl ${s.bg}`}>
+                                    <s.icon className={`w-5 h-5 ${s.text}`} />
                                 </div>
                             </div>
                         </CardContent>
@@ -220,7 +221,7 @@ export default function ResOrders() {
             </div>
 
             {/* Orders Table */}
-            <Card className="border-none shadow-xl overflow-hidden">
+            <Card className="border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>

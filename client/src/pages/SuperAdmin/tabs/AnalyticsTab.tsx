@@ -1,13 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     ChartBarIcon, CurrencyDollarIcon, UsersIcon, GlobeAltIcon,
     ArrowTrendingUpIcon, ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
 import StatsCard from "../components/StatsCard";
+import { StatsCardSkeleton } from "../components/TableSkeleton";
 import {
-    fetchDashboardAnalytics, fetchProductAnalytics,
-    fetchRevenueAnalytics, fetchConversionAnalytics, fetchGeolocationAnalytics,
-} from "../../../services/adminApi";
+    useDashboardAnalytics,
+    useProductAnalytics,
+    useRevenueAnalytics,
+    useConversionAnalytics,
+    useGeolocationAnalytics,
+    type TopProduct,
+    type TypeBreakdown,
+} from "../queries/analytics.queries";
 
 // ── Pure SVG Mini-Charts ──
 
@@ -112,7 +118,6 @@ function FunnelChart({ data }: { data: { stage: string; count: number }[] }) {
     );
 }
 
-// ── Geo Heatmap (simplified country list) ──
 function GeoMap({ countries }: { countries: { country: string; users: number }[] }) {
     if (!countries.length) return <p className="text-muted-foreground text-sm text-center py-6">No geolocation data available</p>;
     const max = Math.max(...countries.map((c) => c.users), 1);
@@ -134,40 +139,40 @@ function GeoMap({ countries }: { countries: { country: string; users: number }[]
     );
 }
 
+function ChartLoader() {
+    return (
+        <div className="flex items-center justify-center h-44">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        </div>
+    );
+}
+
 // ── Main Tab ──
 
 export default function AnalyticsTab() {
-    const [loading, setLoading] = useState(true);
-    const [dashboard, setDashboard] = useState<Record<string, unknown>>({});
-    const [products, setProducts] = useState<{ top_products: Record<string, unknown>[]; type_breakdown: Record<string, unknown>[] }>({ top_products: [], type_breakdown: [] });
-    const [revenue, setRevenue] = useState<{ data: { date: string; value: number }[] }>({ data: [] });
-    const [conversions, setConversions] = useState<{ funnel: { stage: string; count: number }[]; conversion_rate: number; repeat_rate: number }>({ funnel: [], conversion_rate: 0, repeat_rate: 0 });
-    const [geo, setGeo] = useState<{ countries: { country: string; users: number }[]; total_countries: number }>({ countries: [], total_countries: 0 });
     const [dateRange, setDateRange] = useState("30");
 
-    useEffect(() => {
-        const params = { start_date: new Date(Date.now() - Number(dateRange) * 86400000).toISOString().split("T")[0] };
-        setLoading(true);
-        Promise.allSettled([
-            fetchDashboardAnalytics(params),
-            fetchProductAnalytics(params),
-            fetchRevenueAnalytics(params),
-            fetchConversionAnalytics(params),
-            fetchGeolocationAnalytics(),
-        ]).then(([d, p, r, c, g]) => {
-            if (d.status === "fulfilled") setDashboard(d.value.data);
-            if (p.status === "fulfilled") setProducts(p.value.data);
-            if (r.status === "fulfilled") {
-                const rev = r.value.data.data?.map((x: Record<string, unknown>) => ({ date: String(x.period).slice(0, 10), value: Number(x.total) })) || [];
-                setRevenue({ data: rev });
-            }
-            if (c.status === "fulfilled") setConversions(c.value.data);
-            if (g.status === "fulfilled") setGeo(g.value.data);
-            setLoading(false);
-        });
-    }, [dateRange]);
+    const startDate = new Date(Date.now() - Number(dateRange) * 86400000).toISOString().split("T")[0];
+    const params = { startDate };
 
-    const metrics = (dashboard as Record<string, Record<string, number>>).metrics || {};
+    const { data: dashboardData, isLoading: dashboardLoading } = useDashboardAnalytics(params);
+    const { data: productsData, isLoading: productsLoading } = useProductAnalytics(params);
+    const { data: revenueData, isLoading: revenueLoading } = useRevenueAnalytics(params);
+    const { data: conversionData, isLoading: conversionLoading } = useConversionAnalytics(params);
+    const { data: geoData, isLoading: geoLoading } = useGeolocationAnalytics();
+
+    const metrics = dashboardData?.metrics ?? {} as Record<string, number>;
+    const topProducts: TopProduct[] = productsData?.top_products ?? [];
+    const typeBreakdown: TypeBreakdown[] = productsData?.type_breakdown ?? [];
+    const revenueSeries = (revenueData?.data ?? []).map((x) => ({
+        date: x.period.slice(0, 10),
+        value: x.total,
+    }));
+    const funnel = conversionData?.funnel ?? [];
+    const conversionRate = conversionData?.conversion_rate ?? 0;
+    const repeatRate = conversionData?.repeat_rate ?? 0;
+    const countries = geoData?.countries ?? [];
+    const totalCountries = geoData?.total_countries ?? 0;
 
     return (
         <div className="space-y-6">
@@ -177,7 +182,11 @@ export default function AnalyticsTab() {
                     <h2 className="text-2xl font-bold text-foreground">Business Intelligence</h2>
                     <p className="text-muted-foreground text-sm mt-1">Product analytics, revenue trends, and user insights</p>
                 </div>
-                <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="px-3 py-1.5 bg-card border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:border-red-500">
+                <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value)}
+                    className="px-3 py-1.5 bg-card border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:border-primary"
+                >
                     <option value="7">Last 7 days</option>
                     <option value="30">Last 30 days</option>
                     <option value="90">Last 90 days</option>
@@ -187,41 +196,55 @@ export default function AnalyticsTab() {
 
             {/* KPI Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatsCard title="Revenue" value={`$${Number(metrics.total_revenue || 0).toLocaleString()}`} icon={CurrencyDollarIcon} loading={loading} />
-                <StatsCard title="Orders" value={Number(metrics.total_orders || 0)} icon={ShoppingCartIcon} loading={loading} />
-                <StatsCard title="New Users" value={Number(metrics.new_users || 0)} icon={UsersIcon} loading={loading} />
-                <StatsCard title="Avg Order Value" value={`$${Number(metrics.avg_order_value || 0).toFixed(2)}`} icon={ArrowTrendingUpIcon} loading={loading} />
+                {dashboardLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
+                ) : (
+                    <>
+                        <StatsCard title="Revenue" value={`$${Number(metrics.total_revenue || 0).toLocaleString()}`} icon={CurrencyDollarIcon} />
+                        <StatsCard title="Orders" value={Number(metrics.total_orders || 0)} icon={ShoppingCartIcon} />
+                        <StatsCard title="New Users" value={Number(metrics.new_users || 0)} icon={UsersIcon} />
+                        <StatsCard title="Avg Order Value" value={`$${Number(metrics.avg_order_value || 0).toFixed(2)}`} icon={ArrowTrendingUpIcon} />
+                    </>
+                )}
             </div>
 
             {/* Revenue Trend + Product Type Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2"><ArrowTrendingUpIcon className="h-5 w-5 text-red-500" />Revenue Trend</h3>
-                    {loading ? <div className="h-44 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500" /></div> : <LineChart data={revenue.data} />}
+                    <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                        <ArrowTrendingUpIcon className="h-5 w-5 text-primary" />Revenue Trend
+                    </h3>
+                    {revenueLoading ? <ChartLoader /> : <LineChart data={revenueSeries} />}
                 </div>
                 <div className="bg-card rounded-xl border border-border p-5">
                     <h3 className="text-base font-semibold text-foreground mb-3">Product Mix</h3>
-                    {loading ? <div className="h-32 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500" /></div> : <DonutChart data={products.type_breakdown} labelKey="type" valueKey="revenue" />}
+                    {productsLoading ? <ChartLoader /> : <DonutChart data={typeBreakdown} labelKey="type" valueKey="revenue" />}
                 </div>
             </div>
 
             {/* Top Products */}
             <div className="bg-card rounded-xl border border-border p-5">
-                <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2"><ChartBarIcon className="h-5 w-5 text-red-500" />Top Products by Revenue</h3>
-                {loading ? <div className="h-48 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500" /></div> : <BarChart data={products.top_products} labelKey="name" valueKey="revenue" />}
+                <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <ChartBarIcon className="h-5 w-5 text-primary" />Top Products by Revenue
+                </h3>
+                {productsLoading ? <ChartLoader /> : <BarChart data={topProducts} labelKey="name" valueKey="revenue" />}
             </div>
 
             {/* Conversion Funnel + Geolocation */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-card rounded-xl border border-border p-5">
                     <h3 className="text-base font-semibold text-foreground mb-1">Conversion Funnel</h3>
-                    <p className="text-xs text-muted-foreground mb-4">Rate: {conversions.conversion_rate}% signup→order · {conversions.repeat_rate}% repeat</p>
-                    {loading ? <div className="h-32 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500" /></div> : <FunnelChart data={conversions.funnel} />}
+                    <p className="text-xs text-muted-foreground mb-4">
+                        Rate: {conversionRate}% signup→order · {repeatRate}% repeat
+                    </p>
+                    {conversionLoading ? <ChartLoader /> : <FunnelChart data={funnel} />}
                 </div>
                 <div className="bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2"><GlobeAltIcon className="h-5 w-5 text-blue-500" />User Geolocation</h3>
-                    <p className="text-xs text-muted-foreground mb-4">{geo.total_countries} countries</p>
-                    {loading ? <div className="h-32 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500" /></div> : <GeoMap countries={geo.countries} />}
+                    <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
+                        <GlobeAltIcon className="h-5 w-5 text-blue-500" />User Geolocation
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-4">{totalCountries} countries</p>
+                    {geoLoading ? <ChartLoader /> : <GeoMap countries={countries} />}
                 </div>
             </div>
         </div>

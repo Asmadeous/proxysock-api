@@ -26,7 +26,7 @@ import {
 import ProxyCard from "@/components/dashboard/products/ProxyCard";
 import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
 import { subscribeToNotifications, unsubscribe } from "../../lib/actionCable";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface ProxyOrder {
   id: string;

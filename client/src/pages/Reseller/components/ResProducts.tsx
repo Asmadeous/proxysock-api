@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "react-hot-toast";
-import { getApiError } from "../../../utils/apiError";
+import { toast } from "sonner";
 import { Zap, CreditCard, Mail, AlertCircle } from "lucide-react";
 
 import { fetchResellerProducts, fetchResellerBalance, createResellerOrder } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

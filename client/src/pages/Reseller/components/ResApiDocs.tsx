@@ -18,7 +18,7 @@ import {
     Server,
     Headphones
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -327,7 +327,7 @@ export default function ResApiDocs() {
     const authValue = isEnterprise ? (user?.dedicated_api_key || "ps_live_...") : "YOUR_ROTATIONAL_TOKEN";
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card p-8 rounded-[2.5rem] border border-border/50 shadow-sm overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />

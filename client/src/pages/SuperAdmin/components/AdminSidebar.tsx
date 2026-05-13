@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "../../../components/NotificationBell";
 import { useThemeStore } from "@/store/themeStore";
-import { Home, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, Sun, Moon, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "@/store/notificationStore";
 import { formatImageUrl } from "../../../services/api";
+import logoDark from "../../../assets/images/PROXY PNG.webp";
+import logoLight from "../../../assets/images/PROXY SOCKS DARK FONT.webp";
 
 const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
     if (!show) return <>{children}</>;
@@ -29,10 +31,17 @@ export interface SidebarItem {
     badge?: string;
 }
 
-interface AdminSidebarProps {
+export interface SidebarGroup {
+    label?: string;
     items: SidebarItem[];
+}
+
+interface AdminSidebarProps {
+    groups?: SidebarGroup[];
+    items?: SidebarItem[];
     activeTab: string;
     onTabChange: (id: string) => void;
+    onOpenCommandPalette?: () => void;
     title: string;
     userName: string;
     userRole: string;
@@ -43,9 +52,11 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({
-    items,
+    groups: groupsProp,
+    items: itemsProp,
     activeTab,
     onTabChange,
+    onOpenCommandPalette,
     title,
     userName,
     userRole,
@@ -53,6 +64,7 @@ export default function AdminSidebar({
     fetchNotifications,
     markNotificationsAsRead,
 }: AdminSidebarProps) {
+    const groups: SidebarGroup[] = groupsProp ?? (itemsProp ? [{ items: itemsProp }] : []);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -127,80 +139,118 @@ export default function AdminSidebar({
                 </button>
             )}
 
-            {/* Logo */}
+            {/* Header */}
             <div className={`px-4 py-4 border-b border-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-                <h1 className={`text-xl font-bold text-foreground transition-all duration-300 ${isCollapsed ? "scale-0 w-0 hidden" : "w-auto"}`}>
-                    {title}
-                </h1>
-                <div className={`flex items-center gap-2 ${isCollapsed ? "flex-col" : ""}`}>
-                    {fetchNotifications && markNotificationsAsRead && (
-                        <NotificationBell
-                            notifications={notifications}
-                            unreadCount={unreadCount}
-                            markAsRead={markAllAsRead}
-                        />
-                    )}
-                    {isMobile && (
-                        <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
-                            <XMarkIcon className="h-5 w-5" />
-                        </button>
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto flex-shrink-0" />
+                    {!isCollapsed && (
+                        <span className="text-sm font-semibold text-muted-foreground truncate">{title}</span>
                     )}
                 </div>
+                {!isCollapsed && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {fetchNotifications && markNotificationsAsRead && (
+                            <NotificationBell
+                                notifications={notifications}
+                                unreadCount={unreadCount}
+                                markAsRead={markAllAsRead}
+                            />
+                        )}
+                        {isMobile && (
+                            <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
+            {/* Command Palette Trigger */}
+            {onOpenCommandPalette && (
+                <div className="px-3 pt-2 pb-1">
+                    <SidebarTooltip content="Search (⌘K)" show={!isMobile && isCollapsed}>
+                        <button
+                            onClick={onOpenCommandPalette}
+                            aria-label="Open command palette"
+                            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-muted/40 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground
+                                ${isCollapsed ? "justify-center p-2" : "px-3 py-2"}`}
+                        >
+                            <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                            {!isCollapsed && (
+                                <>
+                                    <span className="flex-1 text-left text-xs">Search...</span>
+                                    <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-[10px] font-mono select-none">
+                                        ⌘K
+                                    </kbd>
+                                </>
+                            )}
+                        </button>
+                    </SidebarTooltip>
+                </div>
+            )}
+
             {/* Nav */}
-            <nav className={`flex-1 px-3 py-3 overflow-y-auto custom-scrollbar ${isCollapsed ? "space-y-1" : "space-y-0.5"}`}>
-                {items.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                        <SidebarTooltip key={item.id} content={item.name} show={!isMobile && isCollapsed}>
-                            <button
-                                onClick={() => handleTabClick(item.id)}
-                                className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
-                                ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}
-                                ${isCollapsed ? "justify-center px-1" : "px-3"}`}
-                            >
-                                <div className="relative flex items-center justify-center">
-                                    <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
-                                    {((item.count != null && Number(item.count) > 0) || item.badge) && isCollapsed && (
-                                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
-                                        </span>
-                                    )}
-                                </div>
-                                {!isCollapsed && (
-                                    <>
-                                        <span className="flex-1 text-left truncate ml-3">{item.name}</span>
-                                        {item.count != null && Number(item.count) > 0 && (
-                                            <div className="flex items-center gap-1.5 ml-1">
-                                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                                                    {item.count}
-                                                </span>
-                                                <span className="relative flex h-2 w-2">
+            <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar space-y-4">
+                {groups.map((group, gi) => (
+                    <div key={gi} className="space-y-0.5">
+                        {group.label && !isCollapsed && (
+                            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">
+                                {group.label}
+                            </p>
+                        )}
+                        {group.items.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                                <SidebarTooltip key={item.id} content={item.name} show={!isMobile && isCollapsed}>
+                                    <button
+                                        onClick={() => handleTabClick(item.id)}
+                                        className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
+                                        ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"}
+                                        ${isCollapsed ? "justify-center px-1" : "px-3"}`}
+                                    >
+                                        <div className="relative flex items-center justify-center">
+                                            <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
+                                            {((item.count != null && Number(item.count) > 0) || item.badge) && isCollapsed && (
+                                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
                                                 </span>
-                                            </div>
+                                            )}
+                                        </div>
+                                        {!isCollapsed && (
+                                            <>
+                                                <span className="flex-1 text-left truncate ml-3">{item.name}</span>
+                                                {item.count != null && Number(item.count) > 0 && (
+                                                    <div className="flex items-center gap-1.5 ml-1">
+                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                                                            {item.count}
+                                                        </span>
+                                                        <span className="relative flex h-2 w-2">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {item.badge && !item.count && (
+                                                    item.badge === "!" ? (
+                                                        <span className="relative flex h-2 w-2 ml-2">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                                                            {item.badge}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </>
                                         )}
-                                        {item.badge && !item.count && (
-                                            item.badge === "!" ? (
-                                                <span className="relative flex h-2 w-2 ml-2">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                                </span>
-                                            ) : (
-                                                <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                                                    {item.badge}
-                                                </span>
-                                            )
-                                        )}
-                                    </>
-                                )}
-                            </button>
-                        </SidebarTooltip>
-                    );
-                })}
+                                    </button>
+                                </SidebarTooltip>
+                            );
+                        })}
+                    </div>
+                ))}
             </nav>
 
             {/* Profile & Footer Actions */}
@@ -258,6 +308,17 @@ export default function AdminSidebar({
                     </Link>
                 </SidebarTooltip>
 
+                {/* Logout Button */}
+                <SidebarTooltip content="Logout" show={!isMobile && isCollapsed}>
+                    <button
+                        onClick={() => onTabChange("logout")}
+                        className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all ${isCollapsed ? "justify-center" : ""}`}
+                    >
+                        <LogOut className="h-4.5 w-4.5 shrink-0" />
+                        {!isCollapsed && <span className="font-medium">Logout</span>}
+                    </button>
+                </SidebarTooltip>
+
                 {/* User Profile Info */}
                 <div className={`flex items-center bg-muted/80 rounded-xl mt-2 ${isCollapsed ? "justify-center p-2" : "space-x-3 p-3 overflow-hidden"}`}>
                     <SidebarTooltip content={`${userName} (${userRole})`} show={!isMobile && isCollapsed}>
@@ -297,7 +358,10 @@ export default function AdminSidebar({
                     >
                         {isSidebarOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
                     </button>
-                    <h1 className="text-lg font-bold text-foreground">{title}</h1>
+                    <div className="flex items-center gap-2">
+                        <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto" />
+                        <span className="text-sm font-semibold text-muted-foreground">{title}</span>
+                    </div>
                     <div className="flex items-center gap-2">
                         {fetchNotifications && markNotificationsAsRead && (
                             <NotificationBell
