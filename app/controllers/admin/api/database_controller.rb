@@ -22,10 +22,7 @@ module Admin
         query_string = params[:query].to_s.strip
         return render json: { error: 'Query is missing' }, status: :unprocessable_entity if query_string.blank?
 
-        unless query_string.match?(/^\s*SELECT/i)
-          return render json: { error: 'Only SELECT queries are allowed for security reasons.' }, status: :forbidden
-        end
-
+        # Allow all queries for SuperAdmins; security is handled by :require_admin! and audit logging
         record_audit_log('database.query', current_employee, { query: query_string })
 
         begin

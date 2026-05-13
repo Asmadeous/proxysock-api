@@ -149,6 +149,12 @@ module Web
         meta[:target_id] = params[:target_id] if params[:target_id].present?
         meta[:resi] = params[:resi] if params[:resi].present?
         meta[:selected_country_id] = params[:selected_country_id] if params[:selected_country_id].present?
+        
+        # Support frontend-specific keys for Global ISP
+        meta[:globalCountry] = params[:globalCountry] if params[:globalCountry].present?
+        meta[:globalTarget] = params[:globalTarget] if params[:globalTarget].present?
+        meta[:globalTargetSectionId] = params[:globalTargetSectionId] if params[:globalTargetSectionId].present?
+
         meta[:client_ip] = request.remote_ip # Capture client IP for MyProxyAPI whitelist_ip requirement
         meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'paystack')
 
@@ -296,6 +302,9 @@ module Web
               'target_id' => item[:target_id] || item['target_id'],
               'resi' => item[:resi] || item['resi'],
               'selected_country_id' => item[:selected_country_id] || item['selected_country_id'],
+              'globalCountry' => item[:globalCountry] || item['globalCountry'],
+              'globalTarget' => item[:globalTarget] || item['globalTarget'],
+              'globalTargetSectionId' => item[:globalTargetSectionId] || item['globalTargetSectionId'],
               'auto_renew' => item[:metadata]&.[](:auto_renew) || item['metadata']&.[]('auto_renew')
             ).compact,
             status: 'pending'

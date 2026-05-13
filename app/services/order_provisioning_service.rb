@@ -432,7 +432,19 @@ class OrderProvisioningService
       # 'locationsString' is the human-readable label (e.g. "Dallas, Texas") — NOT for the API.
       # For Residential Rotating, we avoid sending the human-readable "Global Residential Pool" to the API.
       locations = if category_slug == 'global-isp'
-                    @order.metadata['selected_country_id'] || @order.metadata['locationId'] || @product.metadata&.dig('selected_country_id')
+                    loc_id = @order.metadata['selected_country_id'] ||
+                             @order.metadata['locationId'] ||
+                             @order.metadata.dig('globalCountry', 'id') ||
+                             @product.metadata&.dig('selected_country_id')
+
+                    if loc_id.blank? && @order.metadata['locationsString'].present?
+                      # Fallback: Try to find country ID from locationsString (e.g. "Canada - Amazon")
+                      country_name = @order.metadata['locationsString'].split('-').first&.strip
+                      matched_country = @product.metadata&.dig('countries')&.find { |c| c['name'].to_s.casecmp?(country_name) }
+                      loc_id = matched_country['id'] if matched_country
+                    end
+
+                    loc_id
                   else
                     loc = @order.metadata['locationId'] || @order.metadata['locationsString']
                     loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating' ? loc : nil
@@ -441,21 +453,76 @@ class OrderProvisioningService
       # Determine debug label from payment method used
       payment_debug = @order.metadata['payment_debug'] || (@actor.is_a?(Reseller) ? 'reseller_balance' : 'balance')
 
+      # Sanitize whitelist_ip - API rejects localhost/ipv6 local addresses but requires a value
+      sanitized_client_ip = client_ip.to_s
+      if sanitized_client_ip.blank? || ['::1', '127.0.0.1'].include?(sanitized_client_ip)
+        sanitized_client_ip = '1.1.1.1' # Placeholder to satisfy API requirement
+      end
+
       provisioning_params = {
         user_id: user_id,
         product_api_id: api_id,
         period: period,
         protocol: protocol,
         locations: locations,
-        whitelist_ip: client_ip,
-        debug: payment_debug
+        whitelist_ip: sanitized_client_ip,
+        debug: payment_debug,
+        qty: @order.quantity
       }
 
       # Handle Global ISP specific parameters
       if category_slug == 'global-isp'
         provisioning_params[:type] = 'global-isp'
-        provisioning_params[:target_section_id] = @order.metadata['target_section_id'] || @order.metadata['targetSectionId'] || @product.metadata&.dig('target_section_id')
-        provisioning_params[:target_id] = @order.metadata['target_id'] || @order.metadata['targetId'] || @product.metadata&.dig('target_id')
+        
+        ts_id = @order.metadata['target_section_id'] ||
+                @order.metadata['targetSectionId'] ||
+                @order.metadata['globalTargetSectionId'] ||
+                @product.metadata&.dig('target_section_id')
+        
+        t_id = @order.metadata['target_id'] ||
+               @order.metadata['targetId'] ||
+               @order.metadata.dig('globalTarget', 'id') ||
+               @product.metadata&.dig('target_id')
+
+        # Fallback for target and section from locationsString or globalTarget name
+        if t_id.blank? || ts_id.blank?
+          target_name = @order.metadata.dig('globalTarget', 'name') || @order.metadata['locationsString']&.split('-')&.last&.strip
+          
+          if target_name.present?
+            @product.metadata&.dig('targets')&.each do |section|
+              matched = section['targets']&.find { |t| t['name'].to_s.casecmp?(target_name) }
+              if matched
+                t_id ||= matched['id']
+                ts_id ||= section['sectionId']
+              end
+            end
+          end
+        end
+
+        provisioning_params[:target_section_id] = ts_id
+        provisioning_params[:target_id] = t_id
+
+        # PRICE GUARD: Verify provider price before placing the order to avoid overcharging
+        begin
+          price_quote = client.get_price(
+            user_id: user_id,
+            product_api_id: api_id,
+            period: period,
+            type: 'global-isp',
+            qty: @order.quantity
+          )
+          
+          provider_cost = (price_quote.dig('data', 'price') || price_quote['price']).to_f
+          expected_cost = @order.product_pricing.cost_price.to_f * @order.quantity
+          
+          # Allow a small 5% margin for currency fluctuations if any, but block huge jumps (like x14)
+          if provider_cost > (expected_cost * 1.05)
+            raise "PRICE GUARD TRIGGERED: Provider attempted to charge $#{provider_cost} for an order expected to cost $#{expected_cost}. Aborting to prevent overcharge."
+          end
+        rescue StandardError => e
+          # If we can't verify the price, it's safer to fail than to proceed blindly
+          raise "Provisioning Aborted: Price verification failed. #{e.message}"
+        end
       end
 
       # Handle Residential Rotating V2 (resi: 1)
@@ -606,10 +673,11 @@ class OrderProvisioningService
       @order.metadata['my_proxy_api_response'] = response
       @order.metadata['provider_order_id'] = provider_order_id
       @order.save!
-      @order.activate!
 
-      # Save to specialized models after activation
+      # Save to specialized models BEFORE activation
       save_specialized_proxy_records(category_slug, provider_order_id, response)
+
+      @order.activate!
 
       # Send credentials email using the API response data — deferred to
       # after the implicit transaction commits.
@@ -815,22 +883,26 @@ class OrderProvisioningService
       order: @order,
       status: 'active',
       country_code: @product.metadata&.dig('country_code'),
-      quantity: @order.quantity || 1,
-      metadata: service_renewal_metadata
+      quantity: @order.quantity || 1
     )
 
     # Generate credentials
     username = "user_#{SecureRandom.hex(4)}"
     password = SecureRandom.hex(8)
 
-    proxy.update!(
+    proxy_update_params = {
       status: 'assigned',
       username: username,
       password: password,
       order_id: @order.id,
-      proxy_order_foreign_key => proxy_order.id,
-      metadata: (proxy.metadata || {}).merge(service_renewal_metadata)
-    )
+      proxy_order_foreign_key => proxy_order.id
+    }
+
+    if proxy.respond_to?(:metadata)
+      proxy_update_params[:metadata] = (proxy.metadata || {}).merge(service_renewal_metadata)
+    end
+
+    proxy.update!(proxy_update_params)
 
     proxy
   end
@@ -875,8 +947,7 @@ class OrderProvisioningService
           status: 'pending',
           provider: provider,
           quantity: quantity,
-          total_amount: @order.total_amount || 0.0,
-          metadata: service_renewal_metadata
+          total_amount: @order.total_amount || 0.0
         )
       end
 
@@ -1082,13 +1153,18 @@ class OrderProvisioningService
         o.myproxyapi_order_id = provider_order_id
         o.target_section_id = @order.metadata['target_section_id'] || @order.metadata['targetSectionId'] || @product.metadata&.dig('target_section_id')
         o.target_id         = @order.metadata['target_id'] || @order.metadata['targetId'] || @product.metadata&.dig('target_id')
-        o.metadata          = service_renewal_metadata
       end
 
-      if response['ips'].is_a?(Array)
-        response['ips'].each_with_index do |cred_string, idx|
+      ips_array = if response['ips'].is_a?(Hash)
+                    response.dig('ips', 'http') || response.dig('ips', 'socks5')
+                  else
+                    response['ips']
+                  end
+
+      if ips_array.is_a?(Array)
+        ips_array.each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
-          GlobalIspProxy.create!(
+          params = {
             order: @order,
             myproxyapi_order_id: provider_order_id,
             ip_address: parts[0],
@@ -1098,19 +1174,51 @@ class OrderProvisioningService
             country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
             city: response.dig('ips_info', idx)&.split(',')&.last&.strip,
             isp_name: response.dig('ips_info', idx)&.split(',')&.first&.strip,
-            status: 'active',
-            metadata: {
+            status: 'active'
+          }
+          if GlobalIspProxy.column_names.include?('metadata')
+            params[:metadata] = {
               original_cred: cred_string,
               info: response.dig('ips_info', idx),
               config: response['config']
             }.merge(service_renewal_metadata)
-          )
+          end
+          GlobalIspProxy.create!(params)
+        end
+      elsif response.dig('data', 0, 'ips').is_a?(Hash) # Handle the structure from the example
+        # Example structure: response['data'][0]['ips']['http']
+        ips_info = response.dig('data', 0, 'ips_info') || []
+        ips_config = response.dig('data', 0, 'config') || {}
+        
+        (response.dig('data', 0, 'ips', 'http') || []).each_with_index do |cred_string, idx|
+          parts = cred_string.split(':')
+          info = ips_info[idx] || {}
+          params = {
+            order: @order,
+            myproxyapi_order_id: provider_order_id,
+            ip_address: info['ip'] || parts[0],
+            port: parts[1],
+            username: parts[2],
+            password: parts[3],
+            country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
+            city: info['location']&.split(',')&.last&.strip,
+            isp_name: info['location']&.split(',')&.first&.strip,
+            status: 'active'
+          }
+          if GlobalIspProxy.column_names.include?('metadata')
+            params[:metadata] = {
+              original_cred: cred_string,
+              info: info,
+              config: ips_config
+            }.merge(service_renewal_metadata)
+          end
+          GlobalIspProxy.create!(params)
         end
       else
         # Handle both single proxy and multiple proxies (array)
         proxies_data = response.is_a?(Array) ? response : [response]
         proxies_data.each do |p_data|
-          GlobalIspProxy.create!(
+          params = {
             order: @order,
             myproxyapi_order_id: provider_order_id,
             ip_address: p_data['ip'] || p_data['ip_address'],
@@ -1120,9 +1228,12 @@ class OrderProvisioningService
             country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
             city: p_data['city'],
             isp_name: p_data['isp'] || p_data['isp_name'],
-            expires_at: p_data['expires_at'],
-            metadata: p_data.merge(service_renewal_metadata)
-          )
+            expires_at: p_data['expires_at']
+          }
+          if GlobalIspProxy.column_names.include?('metadata')
+            params[:metadata] = p_data.merge(service_renewal_metadata)
+          end
+          GlobalIspProxy.create!(params)
         end
       end
     when 'mobile'
@@ -1131,7 +1242,6 @@ class OrderProvisioningService
           mo.myproxyapi_order_id = provider_order_id
           mo.quantity = response['ips'].size
           mo.status = 'active'
-          mo.metadata = service_renewal_metadata
         end
         response['ips'].each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
@@ -1159,10 +1269,9 @@ class OrderProvisioningService
             mo.myproxyapi_order_id = provider_order_id
             mo.quantity = proxies_data.size
             mo.status = 'active'
-            mo.metadata = service_renewal_metadata
           end
 
-          MobileProxy.create!(
+          params = {
             order: @order,
             mobile_proxy_order: m_order,
             myproxyapi_order_id: provider_order_id,
@@ -1170,9 +1279,12 @@ class OrderProvisioningService
             username: p_data['username'],
             password: p_data['password'],
             port: p_data['port'],
-            status: 'active',
-            metadata: p_data.merge(service_renewal_metadata)
-          )
+            status: 'active'
+          }
+          if MobileProxy.column_names.include?('metadata')
+            params[:metadata] = p_data.merge(service_renewal_metadata)
+          end
+          MobileProxy.create!(params)
         end
       end
     when 'isp', 'datacenter', 'premium-isp', 'static-residential', 'static_residential', 'premium_isp'
@@ -1193,7 +1305,6 @@ class OrderProvisioningService
       # Create parent order record
       po = proxy_order_class.find_or_create_by!(order: @order) do |o|
         o.status = 'active' if o.respond_to?(:status=)
-        o.metadata = service_renewal_metadata
       end
       fk = "#{proxy_order_class.name.underscore}_id"
 
@@ -1207,34 +1318,40 @@ class OrderProvisioningService
           ip = parts[0].presence || response['ip'] || response['ip_address']
           port = parts[1].presence || response['port'] || response['http_port'] || response['socks5_port']
 
-          proxy_class.create!(
+          params = {
             order_id: @order.id,
             fk => po.id,
             ip_address: ip,
             port: port,
             username: parts[2] || response['username'],
             password: parts[3] || response['password'],
-            status: 'active',
-            metadata: {
+            status: 'active'
+          }
+          if proxy_class.column_names.include?('metadata')
+            params[:metadata] = {
               original_cred: cred_string,
               info: response.dig('ips_info', idx) || response['info'],
               config: response['config']
             }.merge(service_renewal_metadata)
-          )
+          end
+          proxy_class.create!(params)
         end
       else
         proxies_data = response.is_a?(Array) ? response : [response]
         proxies_data.each do |p_data|
-          proxy_class.create!(
+          params = {
             order_id: @order.id,
             fk => po.id,
             ip_address: p_data['ip'] || p_data['ip_address'],
             port: p_data['port'] || p_data['http_port'] || p_data['socks5_port'],
             username: p_data['username'],
             password: p_data['password'],
-            status: 'active',
-            metadata: p_data.merge(service_renewal_metadata)
-          )
+            status: 'active'
+          }
+          if proxy_class.column_names.include?('metadata')
+            params[:metadata] = p_data.merge(service_renewal_metadata)
+          end
+          proxy_class.create!(params)
         end
       end
     when 'residential-rotating', 'residential'
@@ -1246,7 +1363,6 @@ class OrderProvisioningService
         o.traffic_gb_used     = 0
         o.status              = 'active'
         o.traffic_expires_at  = order_data['end_time'] || order_data['expires_at']
-        o.metadata            = service_renewal_metadata
       end
 
       # Use credentials generated by generate_v2_res_rot_proxy (v2 flow),
@@ -1278,15 +1394,18 @@ class OrderProvisioningService
         end
       else
         # v1 / non-v2 fallback: single placeholder representing pool access
-        ResidentialRotatingProxy.create!(
+        params = {
           order: @order,
           residential_rotating_proxy_order: ro,
           myproxyapi_order_id: provider_order_id,
           traffic_gb_total: ro.traffic_gb_total,
           traffic_gb_used: 0,
-          status: 'active',
-          metadata: order_data.merge(service_renewal_metadata)
-        )
+          status: 'active'
+        }
+        if ResidentialRotatingProxy.column_names.include?('metadata')
+          params[:metadata] = order_data.merge(service_renewal_metadata)
+        end
+        ResidentialRotatingProxy.create!(params)
       end
     end
   end
