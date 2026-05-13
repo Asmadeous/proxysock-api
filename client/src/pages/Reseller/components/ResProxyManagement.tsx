@@ -24,7 +24,9 @@ import {
     whitelistDelete 
 } from "@/services/resellerApi";
 import resellerApi from "@/services/resellerApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+import { Skeleton } from "@/components/ui/skeleton";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 
 interface ProxyOrder {
@@ -90,7 +92,7 @@ export default function ResProxyManagement() {
                 setProxyOrders(transformedOrders);
             }
         } catch (error) {
-            console.error('Failed to fetch reseller proxy data:', error);
+            toast.error(getApiError(error, "Failed to load proxy orders"));
         } finally {
             setLoading(false);
         }
@@ -131,7 +133,7 @@ export default function ResProxyManagement() {
         setShowModal(true);
     };
 
-    const handleProxyAction = async (action: string, data?: any) => {
+    const handleProxyAction = async (action: string, data?: string) => {
         if (!selectedOrder) return;
         setActionLoading(true);
         try {
@@ -159,6 +161,7 @@ export default function ResProxyManagement() {
                     setNewIp('');
                     break;
                 case 'whitelist-delete':
+                    if (!data) return;
                     await whitelistDelete(selectedOrder.id, data);
                     toast.success('IP removed');
                     break;
@@ -174,7 +177,28 @@ export default function ResProxyManagement() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse text-muted-foreground">Loading Proxies...</div>;
+    if (loading) return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-card rounded-xl border p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-lg" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-20" />
+                        </div>
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-3 w-2/3" />
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                        <Skeleton className="h-8 rounded-lg" />
+                        <Skeleton className="h-8 rounded-lg" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <div className="space-y-6">
@@ -272,7 +296,7 @@ export default function ResProxyManagement() {
                                                 value={newCreds.username} 
                                                 onChange={e => setNewCreds({...newCreds, username: e.target.value})}
                                             />
-                                            <button onClick={() => copyToClipboard(newCreds.username)}><DocumentDuplicateIcon className="w-4 h-4 text-primary" /></button>
+                                            <button onClick={() => copyToClipboard(newCreds.username)} aria-label="Copy username"><DocumentDuplicateIcon className="w-4 h-4 text-primary" /></button>
                                         </div>
                                     </div>
                                     <div>
@@ -284,7 +308,7 @@ export default function ResProxyManagement() {
                                                 value={newCreds.password} 
                                                 onChange={e => setNewCreds({...newCreds, password: e.target.value})}
                                             />
-                                            <button onClick={() => copyToClipboard(newCreds.password)}><DocumentDuplicateIcon className="w-4 h-4 text-primary" /></button>
+                                            <button onClick={() => copyToClipboard(newCreds.password)} aria-label="Copy password"><DocumentDuplicateIcon className="w-4 h-4 text-primary" /></button>
                                         </div>
                                     </div>
                                     <button 
@@ -426,7 +450,7 @@ export default function ResProxyManagement() {
                                             {selectedOrder.credentials.endpoints.map(ep => (
                                                 <div key={ep} className="bg-muted/50 p-2.5 rounded-lg flex justify-between items-center group hover:bg-muted transition-colors border border-transparent hover:border-border">
                                                     <code className="text-xs truncate max-w-[280px] font-mono">{ep}</code>
-                                                    <button onClick={() => copyToClipboard(ep)} className="p-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity"><DocumentDuplicateIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => copyToClipboard(ep)} aria-label="Copy endpoint" className="p-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity"><DocumentDuplicateIcon className="w-4 h-4" /></button>
                                                 </div>
                                             ))}
                                         </div>

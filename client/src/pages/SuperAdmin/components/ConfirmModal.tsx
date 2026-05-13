@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
+import Button from "./Button";
 
 interface ConfirmModalProps {
     open: boolean;
@@ -22,6 +24,15 @@ export default function ConfirmModal({
     loading = false,
     destructive = true,
 }: ConfirmModalProps) {
+    useEffect(() => {
+        if (!open) return;
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [open, onClose]);
+
     if (!open) return null;
 
     return (
@@ -35,34 +46,39 @@ export default function ConfirmModal({
                     onClick={onClose}
                 />
                 <motion.div
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-title"
+                    aria-describedby="confirm-message"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative bg-gray-800 rounded-2xl border border-gray-700/50 shadow-2xl w-full max-w-sm p-6"
+                    className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-[95vw] sm:max-w-sm p-6"
                 >
                     <div className="flex items-center gap-3 mb-4">
-                        <div className={`p-2 rounded-full ${destructive ? "bg-red-500/10" : "bg-yellow-500/10"}`}>
-                            <ExclamationTriangleIcon className={`h-6 w-6 ${destructive ? "text-red-500" : "text-yellow-500"}`} />
+                        <div className={`p-2 rounded-full ${destructive ? "bg-destructive/10" : "bg-yellow-500/10"}`}>
+                            <ExclamationTriangleIcon
+                                className={`h-6 w-6 ${destructive ? "text-destructive" : "text-yellow-500"}`}
+                                aria-hidden="true"
+                            />
                         </div>
-                        <h3 className="text-lg font-semibold text-white">{title}</h3>
+                        <h3 id="confirm-title" className="text-lg font-semibold text-foreground">{title}</h3>
                     </div>
-                    <p className="text-sm text-gray-400 mb-6">{message}</p>
+                    <p id="confirm-message" className="text-sm text-muted-foreground mb-6">{message}</p>
                     <div className="flex items-center justify-end gap-3">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-700/50 transition-colors"
-                        >
+                        <Button variant="ghost" size="md" onClick={onClose} type="button">
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant={destructive ? "danger" : "primary"}
+                            size="md"
                             onClick={onConfirm}
-                            disabled={loading}
-                            className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${destructive ? "bg-red-500 hover:bg-red-600" : "bg-yellow-500 hover:bg-yellow-600"}`}
+                            loading={loading}
+                            type="button"
+                            className={!destructive ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
                         >
-                            {loading ? "Processing..." : confirmLabel}
-                        </button>
+                            {confirmLabel}
+                        </Button>
                     </div>
                 </motion.div>
             </div>

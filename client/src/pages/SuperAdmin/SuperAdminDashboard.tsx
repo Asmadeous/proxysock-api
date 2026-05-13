@@ -10,9 +10,12 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   ChatBubbleLeftRightIcon,
+  ChatBubbleOvalLeftIcon,
   ServerStackIcon,
   ArrowRightOnRectangleIcon,
   ChartBarSquareIcon,
+  CpuChipIcon,
+  CubeIcon,
   InboxIcon,
   TicketIcon,
   AdjustmentsHorizontalIcon,
@@ -21,7 +24,9 @@ import {
   BellIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
-import AdminSidebar, { type SidebarItem } from "./components/AdminSidebar";
+import AdminSidebar, { type SidebarGroup } from "./components/AdminSidebar";
+import CommandPalette from "./components/CommandPalette";
+import AdminErrorBoundary from "./components/AdminErrorBoundary";
 import { fetchAdminNotifications, markAdminNotificationsAsRead, fetchAdminSummaryCounts } from "../../services/adminApi";
 import { Loader2 } from "lucide-react";
 import { formatImageUrl } from "../../services/api";
@@ -51,28 +56,52 @@ const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 // Consolidated Management Tab
 const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
 
-const sidebarItems: SidebarItem[] = [
-  { id: "overview", name: "Overview", icon: HomeIcon },
-  { id: "analytics", name: "Analytics", icon: ChartBarSquareIcon },
-  { id: "users", name: "Users", icon: UsersIcon },
-  { id: "employees", name: "Employees", icon: UserGroupIcon },
-  { id: "resellers", name: "Resellers", icon: BuildingStorefrontIcon },
-  { id: "affiliates", name: "Affiliates", icon: LinkIcon },
-  { id: "orders", name: "Orders", icon: ShoppingCartIcon },
-  { id: "management", name: "Management", icon: Squares2X2Icon },
-  { id: "products", name: "Products", icon: BuildingStorefrontIcon },
-  { id: "transactions", name: "Transactions", icon: CurrencyDollarIcon },
-  { id: "blog", name: "Blog CMS", icon: DocumentTextIcon },
-  { id: "tickets", name: "Tickets", icon: ChatBubbleLeftRightIcon },
-  { id: "support_chats", name: "Support Chats", icon: InboxIcon },
-  { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleLeftRightIcon },
-  { id: "monitoring", name: "Monitoring", icon: ChartBarSquareIcon },
-  { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
-  { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
-  { id: "database", name: "Database", icon: CircleStackIcon },
-  { id: "notifications", name: "Notifications", icon: BellIcon },
-  { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
-  { id: "logs", name: "System Logs", icon: ServerStackIcon },
+const sidebarGroups: SidebarGroup[] = [
+  {
+    items: [
+      { id: "overview", name: "Overview", icon: HomeIcon },
+      { id: "analytics", name: "Analytics", icon: ChartBarSquareIcon },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { id: "users", name: "Users", icon: UsersIcon },
+      { id: "employees", name: "Employees", icon: UserGroupIcon },
+      { id: "resellers", name: "Resellers", icon: BuildingStorefrontIcon },
+      { id: "affiliates", name: "Affiliates", icon: LinkIcon },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { id: "orders", name: "Orders", icon: ShoppingCartIcon },
+      { id: "management", name: "Management", icon: Squares2X2Icon },
+      { id: "products", name: "Products", icon: CubeIcon },
+      { id: "transactions", name: "Transactions", icon: CurrencyDollarIcon },
+      { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { id: "blog", name: "Blog CMS", icon: DocumentTextIcon },
+      { id: "tickets", name: "Tickets", icon: ChatBubbleLeftRightIcon },
+      { id: "support_chats", name: "Support Chats", icon: InboxIcon },
+      { id: "guest_chats", name: "Guest Chats", icon: ChatBubbleOvalLeftIcon },
+      { id: "notifications", name: "Notifications", icon: BellIcon },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { id: "monitoring", name: "Monitoring", icon: CpuChipIcon },
+      { id: "database", name: "Database", icon: CircleStackIcon },
+      { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
+      { id: "logs", name: "System Logs", icon: ServerStackIcon },
+      { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
+    ],
+  },
 ];
 
 const TAB_COMPONENTS: Record<string, any> = {
@@ -125,168 +154,170 @@ const TabLoader = () => (
 
 
 export default function SuperAdminDashboard() {
-const [activeTab, setActiveTab] = useState("overview");
-const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
-const [counts, setCounts] = useState<any>({});
-// Track which tabs have been "seen" — red dot disappears on visit
-const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
-const navigate = useNavigate();
-const location = useLocation();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [adminUser, setAdminUser] = useState(() => JSON.parse(localStorage.getItem("adminUser") || "{}"));
+  const [counts, setCounts] = useState<any>({});
+  const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({});
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-// Sync tab with URL
-useEffect(() => {
-  const pathParts = location.pathname.split("/").filter(Boolean);
-  // /admin -> ["admin"]
-  // /admin/users -> ["admin", "users"]
-  const subPath = pathParts[1] || "overview";
-  setActiveTab(subPath);
-}, [location.pathname]);
+  // Sync tab with URL (path-based routing)
+  useEffect(() => {
+    const pathParts = location.pathname.split("/").filter(Boolean);
+    const subPath = pathParts[1] || "overview";
+    setActiveTab(subPath);
+  }, [location.pathname]);
 
-// Determine if a tab has unseen activity
-const hasUnseen = useCallback((tabId: string, count: number): boolean => {
-  if (count <= 0) return false;
-  // If the tab is currently active, it's been seen
-  if (seenTabs[tabId]) return false;
-  return true;
-}, [seenTabs]);
+  // Cmd+K / Ctrl+K to open command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
-// Fetch summary counts periodically
-useEffect(() => {
-const loadCounts = async () => {
-  try {
-    const data = await fetchAdminSummaryCounts();
-    setCounts(data);
-  } catch (e) {
-    console.error("Failed to load summary counts", e);
-  }
-};
+  // Determine if a tab has unseen activity
+  const hasUnseen = useCallback((tabId: string, count: number): boolean => {
+    if (count <= 0) return false;
+    if (seenTabs[tabId]) return false;
+    return true;
+  }, [seenTabs]);
 
-loadCounts();
-const interval = setInterval(loadCounts, 30000); // Every 30s
-return () => clearInterval(interval);
-}, []);
+  // Fetch summary counts periodically
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const data = await fetchAdminSummaryCounts();
+        setCounts(data);
+      } catch (e) {
+        console.error("Failed to load summary counts", e);
+      }
+    };
+    loadCounts();
+    const interval = setInterval(loadCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-// When activeTab changes, mark it as "seen"
-useEffect(() => {
-  markTabSeen(activeTab);
-  setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
-}, [activeTab]);
+  // When activeTab changes, mark it as "seen"
+  useEffect(() => {
+    markTabSeen(activeTab);
+    setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
+  }, [activeTab]);
 
-// When counts change, reset "seen" for tabs that have NEW activity
-useEffect(() => {
-  const newSeenState: Record<string, boolean> = {};
+  // When counts change, reset "seen" for tabs that have NEW activity
+  useEffect(() => {
+    const newSeenState: Record<string, boolean> = {};
+    for (const tabId of BADGE_TABS) {
+      newSeenState[tabId] = tabId === activeTab;
+    }
+    setSeenTabs(prev => ({ ...prev, ...newSeenState }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts]);
 
-  // For each badge tab, check if the admin has viewed it since the data existed
-  // If the count is > 0 and they haven't visited, it's unseen
-  for (const tabId of BADGE_TABS) {
-    newSeenState[tabId] = tabId === activeTab; // Currently active = seen
-  }
+  // Auth check & Storage sync
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      navigate("/admin/login");
+    }
+    const handleUpdate = () => {
+      setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
+    };
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("admin-user-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("admin-user-updated", handleUpdate);
+    };
+  }, [navigate]);
 
-  setSeenTabs(prev => ({ ...prev, ...newSeenState }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [counts]);
+  const userName = adminUser.full_name || adminUser.email || "Admin";
+  const userRole = adminUser.role || "admin";
 
-// Auth check & Storage sync
-useEffect(() => {
-const token = localStorage.getItem("adminToken");
-if (!token) {
-  navigate("/admin/login");
-}
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+    navigate("/admin/login");
+  };
 
-const handleUpdate = () => {
-  setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
-};
+  const ActiveComponent = TAB_COMPONENTS[activeTab] || OverviewTab;
 
-window.addEventListener("storage", handleUpdate);
-window.addEventListener("admin-user-updated", handleUpdate);
-return () => {
-  window.removeEventListener("storage", handleUpdate);
-  window.removeEventListener("admin-user-updated", handleUpdate);
-};
-}, [navigate]);
+  // Apply badge counts to grouped sidebar structure
+  const dynamicGroups: SidebarGroup[] = sidebarGroups.map(group => ({
+    ...group,
+    items: group.items.map(item => {
+      const newItem = { ...item };
+      const tabCount = (() => {
+        switch (item.id) {
+          case "orders": return counts.orders || 0;
+          case "tickets": return counts.tickets || 0;
+          case "affiliates": return counts.payouts || 0;
+          case "support_chats": return counts.support_chats || 0;
+          case "guest_chats": return counts.guest_chats || 0;
+          case "notifications": return counts.notifications || 0;
+          default: return 0;
+        }
+      })();
+      if (tabCount > 0) {
+        newItem.count = tabCount;
+        if (hasUnseen(item.id, tabCount)) {
+          newItem.badge = "!";
+        }
+      }
+      if (item.id === "monitoring" && counts.dead_jobs > 0) {
+        newItem.badge = "!";
+        newItem.count = counts.dead_jobs;
+      }
+      return newItem;
+    }),
+  }));
 
-const userName = adminUser.full_name || adminUser.email || "Admin";
-const userRole = adminUser.role || "admin";
+  const handleTabChange = (id: string) => {
+    if (id === "logout") {
+      handleLogout();
+      return;
+    }
+    const prefix = location.pathname.startsWith('/sadmin') ? '/sadmin' : '/admin';
+    navigate(`${prefix}/${id}`);
+  };
 
-const handleLogout = () => {
-localStorage.removeItem("adminToken");
-localStorage.removeItem("adminUser");
-navigate("/admin/login");
-};
+  return (
+    <div className="min-h-screen flex">
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        groups={dynamicGroups}
+        onNavigate={handleTabChange}
+        activeTab={activeTab}
+      />
+      <AdminSidebar
+        groups={dynamicGroups}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        onOpenCommandPalette={() => setCmdOpen(true)}
+        title="SuperAdmin"
+        userName={userName}
+        userRole={userRole}
+        profilePictureUrl={formatImageUrl(adminUser.profile_picture_url)}
+        fetchNotifications={fetchAdminNotifications}
+        markNotificationsAsRead={markAdminNotificationsAsRead}
+      />
 
-const ActiveComponent = TAB_COMPONENTS[activeTab] || OverviewTab;
-
-// Dynamic sidebar items with badges/counts — red dot only for UNSEEN events
-const dynamicItems = sidebarItems.map(item => {
-const newItem = { ...item };
-
-// Map counts to tabs
-const tabCount = (() => {
-  switch (item.id) {
-    case "orders": return counts.orders || 0;
-    case "tickets": return counts.tickets || 0;
-    case "affiliates": return counts.payouts || 0;
-    case "support_chats": return counts.support_chats || 0;
-    case "guest_chats": return counts.guest_chats || 0;
-    case "notifications": return counts.notifications || 0;
-    default: return 0;
-  }
-})();
-
-if (tabCount > 0) {
-  newItem.count = tabCount;
-  // Only show red dot if this tab hasn't been visited yet
-  if (hasUnseen(item.id, tabCount)) {
-    newItem.badge = "!";
-  }
-}
-
-// Dead jobs always show red dot — this is a critical system alert
-if (item.id === "monitoring" && counts.dead_jobs > 0) {
-  newItem.badge = "!";
-  newItem.count = counts.dead_jobs;
-}
-
-return newItem;
-});
-
-// Extend sidebar items with logout
-const allItems: SidebarItem[] = [
-...dynamicItems,
-{ id: "logout", name: "Logout", icon: ArrowRightOnRectangleIcon },
-];
-
-const handleTabChange = (id: string) => {
-if (id === "logout") {
-  handleLogout();
-  return;
-}
-const prefix = location.pathname.startsWith('/sadmin') ? '/sadmin' : '/admin';
-navigate(`${prefix}/${id}`);
-};
-
-return (
-<div className="min-h-screen flex">
-  <AdminSidebar
-    items={allItems}
-    activeTab={activeTab}
-    onTabChange={handleTabChange}
-    title="SuperAdmin"
-    userName={userName}
-    userRole={userRole}
-    profilePictureUrl={formatImageUrl(adminUser.profile_picture_url)}
-    fetchNotifications={fetchAdminNotifications}
-    markNotificationsAsRead={markAdminNotificationsAsRead}
-  />
-
-  {/* Main Content */}
-  <main className="flex-1 overflow-hidden">
-    <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
-      <Suspense fallback={<TabLoader />}>
-        <ActiveComponent />
-      </Suspense>
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden">
+        <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
+          <AdminErrorBoundary>
+            <Suspense fallback={<TabLoader />}>
+              <ActiveComponent />
+            </Suspense>
+          </AdminErrorBoundary>
+        </div>
+      </main>
     </div>
-  </main>
-</div>
-);
+  );
 }

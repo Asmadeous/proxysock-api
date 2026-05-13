@@ -9,16 +9,15 @@ import {
     ShoppingCartIcon,
     BanknotesIcon
 } from "@heroicons/react/24/outline";
-import { 
-    fetchResellerUsers, 
-    createResellerUser, 
-    updateResellerUser, 
+import {
+    fetchResellerUsers,
+    createResellerUser,
+    updateResellerUser,
     deleteResellerUser,
     fetchResellerUserOrders,
     fetchResellerUserTransactions
 } from "../../../services/resellerApi";
-import { toast } from "react-hot-toast";
-import { getApiError } from "../../../utils/apiError";
+import { toast } from "sonner";
 import StatusBadge from "../../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../../SuperAdmin/components/FormModal";
 
@@ -174,14 +173,14 @@ export default function ResUserManagement() {
                 </div>
                 <button 
                     onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}
-                    className="bg-primary text-white px-6 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="bg-primary text-white px-6 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                     <UserPlusIcon className="w-4 h-4" />
                     Create User
                 </button>
             </div>
 
-            <div className="bg-card border-none shadow-2xl rounded-3xl overflow-hidden">
+            <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden">
                 <div className="p-6 border-b border-border/50 flex gap-4">
                     <div className="relative flex-1 group">
                         <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />

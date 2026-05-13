@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { fetchResellerTickets, createResellerTicket, replyResellerTicket } from "../../../services/resellerApi";
 import DataTable from "../../SuperAdmin/components/DataTable";
 import StatusBadge from "../../SuperAdmin/components/StatusBadge";

@@ -13,8 +13,7 @@ import {
     retryMonitoringJob, deleteMonitoringJob, clearMonitoringQueue,
     clearMonitoringRetries, clearMonitoringDead, retryAllMonitoring,
 } from "../../../services/adminApi";
-import { toast } from "react-hot-toast";
-import { getApiError } from "../../../utils/apiError";
+import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyObj = Record<string, any>;

@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from "axios";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 // Rails API base URL (fall back to VITE_API_URL base + /web/api if VITE_RAILS_API_URL absent)
 const _base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '') : "http://localhost:3000";
