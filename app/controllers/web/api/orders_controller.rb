@@ -11,6 +11,13 @@ module Web
 
         if params[:product_type].present?
           types = params[:product_type].split(',')
+          if types.include?('proxy')
+            proxy_types = ['proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp']
+            types = (types - ['proxy'] + proxy_types).uniq
+          end
+          if types.include?('esim')
+            types = (types + ['usa_esim']).uniq
+          end
           scope = scope.joins(:product).where(products: { product_type: types })
         end
 
@@ -82,17 +89,27 @@ module Web
         end
 
         type_counts.each do |(type, status), count|
-          next unless type_stats.key?(type)
+          # Map sub-types to main categories for the dashboard cards
+          category = case type
+                    when 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
+                      'proxy'
+                    when 'usa_esim'
+                      'esim'
+                    else
+                      type
+                    end
 
-          type_stats[type][:total] += count
+          next unless type_stats.key?(category)
+
+          type_stats[category][:total] += count
           if active_statuses.include?(status)
-            type_stats[type][:active] += count
+            type_stats[category][:active] += count
           elsif pending_statuses.include?(status)
-            type_stats[type][:pending] += count
+            type_stats[category][:pending] += count
           elsif expired_statuses.include?(status)
-            type_stats[type][:expired] += count
+            type_stats[category][:expired] += count
           elsif failed_statuses.include?(status)
-            type_stats[type][:failed] += count
+            type_stats[category][:failed] += count
           end
         end
 
@@ -148,8 +165,9 @@ module Web
         meta[:target_section_id] = params[:target_section_id] if params[:target_section_id].present?
         meta[:target_id] = params[:target_id] if params[:target_id].present?
         meta[:resi] = params[:resi] if params[:resi].present?
+        meta[:locationId] = params[:locationId] if params[:locationId].present?
         meta[:selected_country_id] = params[:selected_country_id] if params[:selected_country_id].present?
-        
+
         # Support frontend-specific keys for Global ISP
         meta[:globalCountry] = params[:globalCountry] if params[:globalCountry].present?
         meta[:globalTarget] = params[:globalTarget] if params[:globalTarget].present?
@@ -298,6 +316,10 @@ module Web
             metadata: (item[:metadata] || item['metadata'] || {}).merge(
               'client_ip' => request.remote_ip,
               'payment_debug' => payment_debug,
+              'period' => item[:period] || item['period'] || item.dig(:metadata, :period) || item.dig('metadata', 'period'),
+              'locationId' => item[:locationId] || item['locationId'] || item.dig(:metadata, :locationId) || item.dig('metadata', 'locationId'),
+              'locationsString' => item[:locationsString] || item['locationsString'] || item.dig(:metadata, :locationsString) || item.dig('metadata', 'locationsString'),
+              'protocol' => item[:protocol] || item['protocol'] || item.dig(:metadata, :protocol) || item.dig('metadata', 'protocol'),
               'target_section_id' => item[:target_section_id] || item['target_section_id'],
               'target_id' => item[:target_id] || item['target_id'],
               'resi' => item[:resi] || item['resi'],

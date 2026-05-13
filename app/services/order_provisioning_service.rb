@@ -408,14 +408,21 @@ class OrderProvisioningService
       # 'period' = months/days string for static IPs, GB for residential rotating, IPs count for mobile
       raw_period = @order.metadata['period'] || @product.metadata&.dig('duration_value') || 1
 
-      # For Global ISP, strictly map period to '30d' or '7d' as per documentation
-      period = if category_slug == 'global-isp'
+      # For Global ISP, strictly map period to '30d' or '7d' as per documentation.
+      # For Residential VPN, period = the plan's own provider_product_id (per API docs).
+      # Each VPN plan (1-day, 3-day, 1-month etc.) is its own product with a unique ID.
+      period = if category_slug == 'residential-vpn' || (@product.product_type == 'vpn' && category_slug != 'global-isp')
+                 # VPN: period IS the provider_product_id (e.g. 144 for 1-month plan)
+                 @product.provider_product_id
+               elsif category_slug == 'global-isp'
                  if raw_period.to_s.include?('d')
                    raw_period
                  elsif raw_period.to_i == 7
                    '7d'
+                 elsif raw_period.to_i == 3
+                   '90d'
                  else
-                   '30d' # Default to 30 days for 1 month
+                   "#{raw_period.to_i * 30}d" # e.g. 1 => '30d', 2 => '60d'
                  end
                else
                  raw_period
@@ -445,6 +452,38 @@ class OrderProvisioningService
                     end
 
                     loc_id
+                  elsif category_slug == 'vpn' || category_slug == 'residential-vpn' || @product.product_type == 'vpn'
+                    loc_id = @order.metadata['locationId']
+                    if loc_id.blank? && @order.metadata['locationsString'].present?
+                      # Robust fallback for VPN: Match any part of the string against metadata names
+                      loc_str = @order.metadata['locationsString'].to_s.downcase
+                      
+                      @product.metadata&.dig('isp')&.each do |isp|
+                        # If ISP name is mentioned in the location string
+                        if loc_str.include?(isp['name'].to_s.downcase)
+                          isp['locations']&.each do |_country, data|
+                            # Look for a city name that is also mentioned in the string
+                            matched_city = data['cities']&.find { |c| loc_str.include?(c['name'].to_s.downcase) }
+                            if matched_city
+                              loc_id = matched_city['id']
+                              break
+                            end
+                          end
+                        end
+                        break if loc_id
+                      end
+                      
+                      # Final fallback: if no city match, but we matched the ISP, take the first city of that ISP
+                      if loc_id.blank?
+                        @product.metadata&.dig('isp')&.each do |isp|
+                          if loc_str.include?(isp['name'].to_s.downcase)
+                            loc_id = isp.dig('locations', 'US', 'cities', 0, 'id')
+                            break
+                          end
+                        end
+                      end
+                    end
+                    loc_id
                   else
                     loc = @order.metadata['locationId'] || @order.metadata['locationsString']
                     loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating' ? loc : nil
@@ -459,16 +498,22 @@ class OrderProvisioningService
         sanitized_client_ip = '1.1.1.1' # Placeholder to satisfy API requirement
       end
 
+      is_vpn = category_slug == 'residential-vpn' || @product.product_type == 'vpn'
+
       provisioning_params = {
         user_id: user_id,
         product_api_id: api_id,
         period: period,
-        protocol: protocol,
         locations: locations,
-        whitelist_ip: sanitized_client_ip,
-        debug: payment_debug,
-        qty: @order.quantity
+        debug: payment_debug
       }
+
+      # VPN does not accept protocol, whitelist_ip, or qty — omit them
+      unless is_vpn
+        provisioning_params[:protocol]     = protocol
+        provisioning_params[:whitelist_ip] = sanitized_client_ip
+        provisioning_params[:qty]          = @order.quantity
+      end
 
       # Handle Global ISP specific parameters
       if category_slug == 'global-isp'
@@ -547,6 +592,8 @@ class OrderProvisioningService
                          #   client.fetch_v2_residential_rotating_order(provider_order_id)
                          elsif category_slug == 'residential-rotating'
                            client.fetch_v1_residential_rotating_order(provider_order_id)
+                         elsif category_slug == 'residential-vpn' || @product.product_type == 'vpn'
+                           client.view_vpn_order(provider_order_id)
                          else
                            client.view_order(provider_order_id)
                          end
@@ -1044,6 +1091,9 @@ class OrderProvisioningService
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
+        # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials/config
+        sleep(60)
+        
         begin
           # VPN orders have their own view endpoint
           full_details = client.view_vpn_order(provider_order_id)
@@ -1085,16 +1135,26 @@ class OrderProvisioningService
 
       # Download and store the OVPN config file via Active Storage
       if provider_order_id.present?
+        attempts = 0
+        max_attempts = 3
         begin
+          attempts += 1
           ovpn_content = client.download_ovpn(provider_order_id)
           @order.ovpn_config.attach(
             io: StringIO.new(ovpn_content),
             filename: "vpn-#{provider_order_id}.ovpn",
             content_type: 'application/x-openvpn-profile'
           )
+          @order.save!
           Rails.logger.info("Stored OVPN config for order #{@order.id} (provider: #{provider_order_id})")
         rescue StandardError => e
-          Rails.logger.warn("Failed to download/store OVPN config for order #{@order.id}: #{e.message}")
+          if attempts < max_attempts
+            Rails.logger.warn("OVPN download attempt #{attempts} failed for order #{@order.id}: #{e.message}. Retrying in 30s...")
+            sleep(30)
+            retry
+          else
+            Rails.logger.error("Failed to download/store OVPN config for order #{@order.id} after #{max_attempts} attempts: #{e.message}")
+          end
         end
       end
 
@@ -1102,7 +1162,7 @@ class OrderProvisioningService
       owner = @actor || @order.orderable
       saved_order = @order
       ActiveRecord.after_all_transactions_commit do
-        InvoiceMailer.with(order: saved_order, owner: owner, api_response: response).api_proxy_credentials_email.deliver_later
+        VpnMailer.with(order: saved_order, owner: owner, api_response: response).credentials_email.deliver_later
       end
       return
     end
