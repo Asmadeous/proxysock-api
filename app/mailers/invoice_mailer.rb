@@ -31,7 +31,12 @@ class InvoiceMailer < ApplicationMailer
   def api_proxy_credentials_email
     @order        = params[:order]
     @owner        = params[:owner] || @order.orderable
-    @api_response = params[:api_response].is_a?(Array) ? params[:api_response].first : params[:api_response]
+    @api_response = params[:api_response]
+    if @api_response.is_a?(Hash) && @api_response['data'].is_a?(Array)
+      @api_response = @api_response['data'].first
+    elsif @api_response.is_a?(Array)
+      @api_response = @api_response.first
+    end
     @api_response ||= {}
     @title        = "Your Access Credentials - Order ##{@order.order_number}"
 

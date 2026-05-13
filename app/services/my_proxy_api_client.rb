@@ -141,7 +141,7 @@ class MyProxyApiClient
   # @param debug             [String]  Payment method indicator (e.g. 'balance', 'paystack', 'reseller_balance')
   # @return [Hash] API response
   def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil,
-                  whitelist_ip: nil, type: nil, target_section_id: nil, target_id: nil, resi: nil, debug: nil)
+                  whitelist_ip: nil, type: nil, target_section_id: nil, target_id: nil, resi: nil, debug: nil, qty: nil)
     payload = {
       user_id: user_id.to_i,
       product: product_api_id.to_i,
@@ -155,19 +155,21 @@ class MyProxyApiClient
     payload[:targetId]          = target_id.to_i         if target_id.present?
     payload[:resi]              = resi.to_i              if resi.present?
     payload[:debug]             = debug.to_s             if debug.present?
+    payload[:qty]               = qty.to_i               if qty.present?
 
     request(:post, "#{BASE_URL}/products/place-order", payload)
   end
 
   # Get price for a potential order.
   # Endpoint: POST /products/get-price
-  def get_price(user_id:, product_api_id:, period:, type: nil)
+  def get_price(user_id:, product_api_id:, period:, type: nil, qty: nil)
     payload = {
       user_id: user_id.to_i,
       product: product_api_id.to_i,
       period: period.to_s
     }
     payload[:type] = type.to_s if type.present?
+    payload[:qty]  = qty.to_i  if qty.present?
 
     request(:post, "#{BASE_URL}/products/get-price", payload)
   end
@@ -439,7 +441,9 @@ class MyProxyApiClient
     req['Accept']        = 'application/json'
     req.body = body.to_json if body
 
+    Rails.logger.info("MyProxyApi Request: #{method.upcase} #{url} | Body: #{body.to_json}")
     response = http.request(req)
+    Rails.logger.info("MyProxyApi Response: #{response.code} | Body: #{response.body}")
 
     if response.is_a?(Net::HTTPRedirection)
       new_url = response['location']
