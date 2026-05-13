@@ -146,6 +146,7 @@ export const usePaymentCheckoutHandlers = ({
         ...buildMetadata(item),
         auto_renew: !!item.auto_renew,
         ...(item.period ? { period: item.period } : {}),
+        ...(item.locationId ? { locationId: item.locationId } : {}),
         ...(item.locationsString ? { locationsString: item.locationsString } : {}),
         ...(item.protocol ? { protocol: item.protocol } : {})
       }
