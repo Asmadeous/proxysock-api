@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PaperAirplaneIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
+import { getApiError } from "@/utils/apiError";
 import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage } from "../../../services/resellerApi";
 import { getCableConsumer } from "../../../services/cable";
 

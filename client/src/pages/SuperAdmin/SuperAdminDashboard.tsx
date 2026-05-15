@@ -12,7 +12,6 @@ import {
   ChatBubbleLeftRightIcon,
   ChatBubbleOvalLeftIcon,
   ServerStackIcon,
-  ArrowRightOnRectangleIcon,
   ChartBarSquareIcon,
   CpuChipIcon,
   CubeIcon,

@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon,
     GlobeAltIcon, CpuChipIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, ShieldCheckIcon,
-    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon,
-    PhotoIcon, DocumentChartBarIcon, CheckCircleIcon, XCircleIcon
+    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon
 } from "@heroicons/react/24/outline";
 
 import DataTable from "../components/DataTable";
@@ -53,19 +52,6 @@ interface ProductRow {
     product_category_name?: string;
     product_category_id?: number;
     created_at: string;
-}
-
-interface UsaCredentialRow {
-    id: string;
-    iccid: string;
-    provider: string;
-    status: string;
-    has_qr_image: boolean;
-    qr_image_url?: string;
-    qr_activation_code?: string;
-    created_at: string;
-    assigned_at?: string;
-    order_id?: string;
 }
 
 const STORE_CATEGORIES = [
@@ -126,12 +112,6 @@ export default function ProductsTab() {
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
-    const [importModalOpen, setImportModalOpen] = useState(false);
-    const [actionLoading, setActionLoading] = useState(false);
-    const [excelFile, setExcelFile] = useState<File | null>(null);
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
-    const fileRef = useRef<HTMLInputElement>(null);
-    const imageRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -225,54 +205,6 @@ export default function ProductsTab() {
         if (!activeCatData) return;
         if (!window.confirm(`Are you sure you want to sync ${activeCatData.name} products?`)) return;
         syncProducts.mutate(activeCatData.syncType);
-    };
-
-    const handleImport = async () => {
-        if (!excelFile) {
-            toast.error("Please select an Excel file");
-            return;
-        }
-
-        setActionLoading(true);
-        try {
-            const formData = new FormData();
-            formData.append("file", excelFile);
-            formData.append("provider", "lyca");
-            imageFiles.forEach((file) => {
-                formData.append("images[]", file);
-            });
-
-            const res = await importUsaCredentials(formData);
-            const { imported, updated, image_matched } = res.data;
-
-            toast.success(`Imported: ${imported}, Updated: ${updated}, Matched ${image_matched} images.`);
-            
-            setImportModalOpen(false);
-            setExcelFile(null);
-            setImageFiles([]);
-            loadCredits();
-        } catch (err: any) {
-            toast.error(getApiError(err, "Failed to import credentials"));
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleDeleteCred = async (id: string) => {
-        if (!window.confirm("Are you sure?")) return;
-        try {
-            await deleteAdminUsaCredential(id);
-            toast.success("Credential deleted");
-            loadCredits();
-        } catch (err: any) {
-            toast.error(getApiError(err, "Failed to delete product"));
-        }
-    };
-
-    const toggleInventory = () => {
-        const next = !showInventory;
-        setShowInventory(next);
-        if (next) loadCredits();
     };
 
     const columns = [
@@ -393,7 +325,6 @@ export default function ProductsTab() {
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-foreground">{activeCatData?.name}</h2>
-                                    <span className="text-xs text-muted-foreground">{showInventory ? "Inventory Management" : "Product Configuration"}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -464,22 +395,6 @@ export default function ProductsTab() {
                 <Field label="Description"><textarea className={inputClasses} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></Field>
                 <Field label="Metadata (JSON)"><textarea className={`${inputClasses} font-mono text-xs h-32`} value={formData.metadataString} onChange={e => setFormData({ ...formData, metadataString: e.target.value })} /></Field>
                 <label className="flex items-center gap-2 cursor-pointer mt-2 text-sm font-medium"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} /> Active</label>
-            </FormModal>
-
-            {/* USA Import Modal */}
-            <FormModal open={importModalOpen} onClose={() => setImportModalOpen(false)} title="Bulk Import (Lyca)" onSubmit={handleImport} loading={actionLoading}>
-                <div className="space-y-4">
-                    <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer ${excelFile ? 'border-green-500 bg-green-500/5' : 'border-border'}`}>
-                        <DocumentChartBarIcon className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-sm mt-2">{excelFile ? excelFile.name : "Select Excel File (.xlsx)"}</span>
-                        <input type="file" ref={fileRef} className="hidden" accept=".xlsx" onChange={(e) => setExcelFile(e.target.files?.[0] || null)} />
-                    </div>
-                    <div onClick={() => imageRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center cursor-pointer ${imageFiles.length > 0 ? 'border-green-500 bg-green-500/5' : 'border-border'}`}>
-                        <PhotoIcon className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-sm mt-2">{imageFiles.length > 0 ? `${imageFiles.length} Images Selected` : "Select QR Code Images"}</span>
-                        <input type="file" ref={imageRef} className="hidden" multiple accept="image/png" onChange={(e) => setImageFiles(Array.from(e.target.files || []))} />
-                    </div>
-                </div>
             </FormModal>
 
             <ConfirmModal

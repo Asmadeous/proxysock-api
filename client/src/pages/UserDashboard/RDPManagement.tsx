@@ -21,7 +21,6 @@ import RDPCard, { RDPInstance } from "@/components/dashboard/products/RDPCard";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 import api, { fetchVms, startVm, stopVm, rebootVm, deleteVm, changeVmPassword } from "../../services/api";
 import { toast } from "sonner";
-import { PencilIcon } from "@heroicons/react/24/outline";
 
 
 

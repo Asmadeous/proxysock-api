@@ -18,6 +18,7 @@ import {
 } from "../queries/affiliates.queries";
 import { fetchAdminUsers, fetchResellers } from "../../../services/adminApi";
 import { toast } from "sonner";
+import { getApiError } from "../utils/errors";
 
 interface AffiliateRow {
     id: number;
@@ -71,6 +72,15 @@ export default function AffiliatesTab() {
     const deleteAffiliate = useDeleteAffiliate();
     const configureAffiliate = useConfigureAffiliate();
     const processPayout = useProcessAffiliatePayout();
+
+    const handleProcessPayout = async (id: number) => {
+        try {
+            await processPayout.mutateAsync(id);
+            toast.success("Payout processed successfully");
+        } catch (err) {
+            toast.error(getApiError(err, "Failed to process payout"));
+        }
+    };
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
@@ -132,10 +142,6 @@ export default function AffiliatesTab() {
     const selectEntity = (e: any) => {
         setCreateForm({ ...createForm, affiliatable_id: e.id, email: e.email, name: e.company_name || `${e.first_name} ${e.last_name}` });
         setEntitySearch("");
-    };
-
-    const handleProcessPayout = async (id: number) => {
-        await processPayout.mutateAsync(id);
     };
 
     const openConfig = (a: AffiliateRow) => {
@@ -269,7 +275,7 @@ export default function AffiliatesTab() {
                     actions={(row: PayoutRow) =>
                         row.status === "pending" ? (
                             <button
-                                onClick={() => processPayout.mutate(row.id)}
+                                onClick={() => handleProcessPayout(row.id)}
                                 className="px-3 py-1 text-xs bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
                             >
                                 Process

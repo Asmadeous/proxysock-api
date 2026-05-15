@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -7,10 +7,6 @@ import {
     CheckCircleIcon,
     ClockIcon,
     ExclamationCircleIcon,
-    ShoppingCartIcon,
-    DevicePhoneMobileIcon,
-    ComputerDesktopIcon,
-    ServerIcon,
     GlobeAltIcon,
     Cog6ToothIcon as CogIcon,
     KeyIcon,
@@ -23,13 +19,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
 import {
-    CheckCircle2, XCircle, Clock, RefreshCw,
-    Globe, Smartphone, Monitor, Server, ShieldCheck, ShoppingCart,
-    AlertCircle,
+    Globe, Smartphone, Monitor, Server, ShieldCheck, ShoppingCart
 } from "lucide-react";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import StatsCard from "../components/StatsCard";
 import ManagementFilters from "../components/ManagementFilters";
 import { getApiError } from "../utils/errors";
 import {
@@ -303,10 +296,10 @@ export default function OrdersTab() {
     ];
 
     const statuses = [
-        { id: "active", label: "Active", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10" },
-        { id: "pending", label: "Pending", icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10" },
-        { id: "failed", label: "Failed", icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
-        { id: "processing", label: "Processing", icon: RefreshCw, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { id: "active", label: "Active", icon: CheckCircleIcon, color: "text-green-500", bg: "bg-green-500/10" },
+        { id: "pending", label: "Pending", icon: ClockIcon, color: "text-yellow-500", bg: "bg-yellow-500/10" },
+        { id: "failed", label: "Failed", icon: ExclamationCircleIcon, color: "text-red-500", bg: "bg-red-500/10" },
+        { id: "processing", label: "Processing", icon: ArrowPathIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
     ];
 
     return (
