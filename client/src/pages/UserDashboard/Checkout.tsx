@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlesrs";
+import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlers";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 import { CartItem } from "@/types";
 import { useRedditTracking } from "@/utils/redditPixel";

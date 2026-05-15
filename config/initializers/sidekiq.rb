@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 Sidekiq.configure_server do |config|
-  config.redis = { url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/1') }
+  config.redis = { \
+    url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/1'),
+    namespace: "proxysock_#{Rails.env}"
+  }
 
   # Dual logging for Admin Dashboard (Sidekiq logs)
   # Always log to file so the Admin Monitoring dashboard can read it
@@ -10,7 +13,10 @@ Sidekiq.configure_server do |config|
 end
 
 Sidekiq.configure_client do |config|
-  config.redis = { url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/1') }
+  config.redis = { 
+    url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/1'),
+    namespace: "proxysock_#{Rails.env}"
+  }
 end
 
 # Ensure mailer jobs discard missing records to avoid DeserializationError log noise

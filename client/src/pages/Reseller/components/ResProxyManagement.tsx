@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getApiError } from "../../../utils/apiError";
+import { getApiError } from "@/utils/apiError";
 import { motion } from "framer-motion";
 import {
     GlobeAltIcon,
@@ -25,7 +25,6 @@ import {
 } from "@/services/resellerApi";
 import resellerApi from "@/services/resellerApi";
 import { toast } from "sonner";
-import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 
