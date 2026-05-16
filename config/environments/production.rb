@@ -84,7 +84,6 @@ Rails.application.configure do
   config.action_cable.allowed_request_origins = [
     'https://proxysock.com',
     'https://www.proxysock.com',
-    'https://testprod.proxysock.com',
     %r{https://.+\.proxysock\.com}
   ]
 end
