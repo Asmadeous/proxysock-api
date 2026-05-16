@@ -70,11 +70,13 @@ module Api
       def serialize_product(product)
         # Use find to leverage preloaded product_pricings instead of find_by
         pricing = product.product_pricings.find(&:active)
+        base_price = (pricing&.reseller_selling_price || pricing&.selling_price).to_f
+        
         {
           id: product.id,
           name: product.name,
           category: product.product_category&.name,
-          base_price: (pricing&.reseller_selling_price || pricing&.selling_price).to_f,
+          base_price: (base_price * current_reseller.price_multiplier).to_f,
           currency: pricing&.currency || 'USD',
           provider_type: product.provider,
           product_type: product.product_type

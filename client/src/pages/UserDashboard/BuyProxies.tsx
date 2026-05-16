@@ -60,6 +60,8 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   const [rrRegion, setRrRegion]       = useState<string>('ip-na.myproxyapi.com');
   const [rrQuantity, setRrQuantity]   = useState<number>(1);
   const [rrCountries, setRrCountries] = useState<{ id: string; name: string; isps?: { id: string; name: string }[]; states?: any[] }[]>([]);
+  
+  const isEnterpriseReseller = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type === "infrastructure";
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -329,6 +331,9 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
     setSelectedLocationCategory("");
     setShowMobileLocationCards(slug === "mobile");
     setShowMobilePlans(false);
+    setSelectedPlan(null);
+    setTotalPrice(null);
+    setError(null);
   };
 
   const handleLocationCategorySelection = (locationSlug: string) => {
@@ -800,7 +805,7 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
                           : `${period} ${selectedCategory === "mobile" ? "days" : "months"}`}{" "}
                     • {protocol.toUpperCase()}
                   </div>
-                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                  {!isEnterpriseReseller && (
                     <button
                       onClick={handleAddToCart}
                       disabled={

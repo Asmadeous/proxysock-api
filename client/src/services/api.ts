@@ -44,9 +44,16 @@ api.interceptors.response.use(
       response.data &&
       Array.isArray(response.data.products)
     ) {
+      const resellerUser = JSON.parse(localStorage.getItem("resellerUser") || "{}");
+      const multiplier = Number(resellerUser.price_multiplier) || 1.0;
+
       response.data.products = response.data.products.map((p: any) => {
-        if (p.pricings && p.pricings.length > 0 && p.pricings[0].reseller_selling_price !== undefined) {
-          p.price = p.pricings[0].reseller_selling_price;
+        // Use the first active pricing that has a reseller price, or fall back to selling price
+        const pricing = p.pricings?.find((pr: any) => pr.reseller_selling_price > 0) || p.pricings?.[0];
+        
+        if (pricing) {
+          const basePrice = Number(pricing.reseller_selling_price || pricing.selling_price || 0);
+          p.price = (basePrice * multiplier).toFixed(2);
         }
         return p;
       });

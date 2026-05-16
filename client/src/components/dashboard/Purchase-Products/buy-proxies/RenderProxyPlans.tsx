@@ -195,6 +195,15 @@ export const renderProxyPlans = ({
                 <CardTitle className="text-lg">
                   {plan.display_name || plan.name}
                 </CardTitle>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-primary">
+                    ${Number(plan.price || 0).toFixed(2)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {plan.billing_type === "usage_gb" ? "/GB" : 
+                     selectedCategory === "mobile" ? "/day" : "/month"}
+                  </span>
+                </div>
                 {plan.description && (
                   <CardDescription className="mt-2">
                     {plan.description}
@@ -309,6 +318,7 @@ export const renderProxyPlans = ({
                 ))}
               </div>
             )}
+
           </CardContent>
         </Card>
       ))}
