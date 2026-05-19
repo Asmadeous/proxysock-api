@@ -201,12 +201,7 @@ export const usePaymentCheckoutHandlers = ({
   };
 
   const handleDepositGateway = async (gatewayName: string, setLoadingState: React.Dispatch<React.SetStateAction<boolean>>) => {
-    if (usaEsimInCart) {
-      setError(
-        "Only Balance payment is accepted for USA eSIM purchases. Other methods will soon be functional.",
-      );
-      return;
-    }
+
     setLoadingState(true);
     setIsAnyPaymentProcessing(true);
     setError(null);
