@@ -27,7 +27,6 @@ interface UsePaymentCheckoutHandlersProps {
   // functions
   clearCart: () => void;
   // constants
-  usaEsimInCart: boolean;
   onSuccess?: (orderId: string) => void;
   promoCode?: string;
 }
@@ -47,7 +46,6 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingHundredpay,
   setIsLoadingFastspring,
   clearCart,
-  usaEsimInCart,
   onSuccess,
   promoCode,
 }: UsePaymentCheckoutHandlersProps) => {
