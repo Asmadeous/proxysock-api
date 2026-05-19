@@ -1,0 +1,22 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "ProxySock Staging DB",
+      "Group": "Staging",
+      "Host": "db-staging",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "proxysock_api",
+      "SSLMode": "prefer"
+    },
+    "2": {
+      "Name": "ProxySock Production DB",
+      "Group": "Production",
+      "Host": "db-production",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "proxysock_api",
+      "SSLMode": "prefer"
+    }
+  }
+}

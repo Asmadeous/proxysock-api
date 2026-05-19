@@ -251,6 +251,8 @@ export default function Register() {
         payload.append("user[first_name]", firstName);
         payload.append("user[last_name]", lastName);
         payload.append("user[username]", username);
+        payload.append("user[country_code]", country);
+        // We'll leave user[country] as the code too, or we can omit it since the backend only validates country_code
         payload.append("user[country]", country);
         payload.append("user[city]", city);
         payload.append("user[avatar]", profilePicture);
@@ -264,6 +266,7 @@ export default function Register() {
           last_name: lastName,
           username,
           country,
+          country_code: country,
           city,
           referral_code: referralCode || undefined,
         };
