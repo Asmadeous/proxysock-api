@@ -56,10 +56,6 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     } | null>(null);
     const [promoError, setPromoError] = useState<string | null>(null);
 
-    const usaEsimInCart = cartItems.some(
-        (item) => item.productType === "usa-esim"
-    );
-
     useEffect(() => {
         // 1. Load Cart
         const storedCart = localStorage.getItem("cartItems");
@@ -154,7 +150,6 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
             globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: 0 } }));
         },
 
-        usaEsimInCart,
         onSuccess,
         promoCode: promoApplied?.code,
     });
