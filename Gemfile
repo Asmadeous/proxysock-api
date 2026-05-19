@@ -42,7 +42,7 @@ gem 'jwt'
 gem 'kaminari'
 gem 'redis'
 gem 'sidekiq'
-gem 'sidekiq-cron', '~> 2.3'
+gem 'sidekiq-cron', '~> 2.4'
 
 # OAuth/SSO
 gem 'omniauth'
