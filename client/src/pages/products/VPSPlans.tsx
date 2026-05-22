@@ -46,7 +46,7 @@ interface VPSPlan {
   features: string[];
   locations: string[];
   is_active: boolean;
-  country_pricing?: Record<string, number>;
+  country_pricing?: Record<string, number | { reseller?: number; user?: number }>;
 }
 
 interface ManagementOption {
@@ -154,8 +154,13 @@ export default function VPSPlans({ country, onBack, isDirectBuy, onDirectBuy }: 
     const possibleKeys = countryName ? [countryName, selectedCountry] : [selectedCountry];
 
     for (const key of possibleKeys) {
-      if (plan.country_pricing[key] !== undefined) {
-        return Number(plan.country_pricing[key]);
+      const entry = plan.country_pricing[key];
+      if (entry !== undefined) {
+        // Support both flat number and role-based { reseller, user } object
+        if (typeof entry === "number") return entry;
+        if (typeof entry === "object" && entry !== null) {
+          return (entry as any).user ?? (entry as any).reseller ?? plan.price;
+        }
       }
     }
 

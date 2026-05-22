@@ -121,9 +121,9 @@ class EsimSyncService
       margin_percentage: 0 # We set selling prices directly
     )
 
-    # Margins: End-user +30%, Reseller +15%
-    reseller_price = (api_price * 1.15).round(2)
-    user_price     = (api_price * 1.30).round(2)
+    # Markup: reseller +20%, user +40% over API cost
+    reseller_price = (api_price * 1.20).round(2)
+    user_price     = (api_price * 1.40).round(2)
 
     pricing.selling_price = reseller_price
     pricing.user_selling_price = user_price

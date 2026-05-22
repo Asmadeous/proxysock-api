@@ -1,58 +1,5 @@
 [
   {
-    "name": "Standard Residential RDP",
-    "slug": "standard-residential-rdp",
-    "product_type": "rdp",
-    "provider": "inhouse",
-    "provider_product_id": "3002",
-    "provider_type": "inhouse",
-    "metadata": {
-      "cpu_cores": 2,
-      "ram_gb": 4,
-      "storage_gb": 80,
-      "concurrent_users": 1,
-      "session_duration_hours": 0,
-      "os_templates": [
-        "windows-server-2022-rdp",
-        "ubuntu-desktop-rdp",
-        "fedora-desktop-rdp"
-      ],
-      "features": [
-        "Residential IP",
-        "1 Concurrent Users",
-        "Multi-OS Support",
-        "Priority Support",
-        "DDoS Protection"
-      ],
-      "locations": [
-        "United States",
-        "United Kingdom",
-        "Canada"
-      ],
-      "service_type": "residential",
-      "management_types": [
-        "unmanaged",
-        "managed"
-      ],
-      "country_pricing": {
-        "Canada": 83
-      }
-    },
-    "active": true,
-    "available_to": "both",
-    "product_category_slug": "rdp",
-    "product_category_name": "RDP",
-    "pricings": [
-      {
-        "currency": "USD",
-        "selling_price": "95",
-        "duration_type": "month",
-        "duration_value": 1,
-        "active": true
-      }
-    ]
-  },
-  {
     "name": "Basic Residential RDP",
     "slug": "basic-residential-rdp",
     "product_type": "rdp",
@@ -87,7 +34,7 @@
         "managed"
       ],
       "country_pricing": {
-        "Canada": 28
+        "Canada": { "reseller": 40, "user": 50 }
       }
     },
     "active": true,
@@ -97,7 +44,120 @@
     "pricings": [
       {
         "currency": "USD",
-        "selling_price": "40",
+        "selling_price": "50",
+        "reseller_selling_price": "50",
+        "user_selling_price": "63",
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Standard Residential RDP",
+    "slug": "standard-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3002",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 2,
+      "ram_gb": 4,
+      "storage_gb": 80,
+      "concurrent_users": 1,
+      "session_duration_hours": 0,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "features": [
+        "Residential IP",
+        "1 Concurrent User",
+        "Multi-OS Support",
+        "Priority Support",
+        "DDoS Protection"
+      ],
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Canada"
+      ],
+      "service_type": "residential",
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "country_pricing": {
+        "Canada": { "reseller": 63, "user": 80 }
+      }
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "RDP",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "80",
+        "reseller_selling_price": "80",
+        "user_selling_price": "100",
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Premium Residential RDP",
+    "slug": "premium-residential-rdp",
+    "product_type": "rdp",
+    "provider": "inhouse",
+    "provider_product_id": "3003",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 3,
+      "ram_gb": 6,
+      "storage_gb": 120,
+      "concurrent_users": 1,
+      "session_duration_hours": 0,
+      "os_templates": [
+        "windows-server-2022-rdp",
+        "ubuntu-desktop-rdp",
+        "fedora-desktop-rdp"
+      ],
+      "features": [
+        "Residential IP",
+        "1 Concurrent User",
+        "Multi-OS Support",
+        "Priority Support",
+        "DDoS Protection",
+        "Backup Service"
+      ],
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Canada"
+      ],
+      "service_type": "residential",
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "country_pricing": {
+        "Canada": { "reseller": 88, "user": 110 }
+      }
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "rdp",
+    "product_category_name": "RDP",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "110",
+        "reseller_selling_price": "110",
+        "user_selling_price": "138",
         "duration_type": "month",
         "duration_value": 1,
         "active": true
@@ -142,61 +202,7 @@
         "managed"
       ],
       "country_pricing": {
-        "Canada": 208
-      }
-    },
-    "active": true,
-    "available_to": "both",
-    "product_category_slug": "rdp",
-    "product_category_name": "RDP",
-    "pricings": [
-      {
-        "currency": "USD",
-        "selling_price": "220",
-        "duration_type": "month",
-        "duration_value": 1,
-        "active": true
-      }
-    ]
-  },
-  {
-    "name": "Premium Residential RDP",
-    "slug": "premium-residential-rdp",
-    "product_type": "rdp",
-    "provider": "inhouse",
-    "provider_product_id": "3003",
-    "provider_type": "inhouse",
-    "metadata": {
-      "cpu_cores": 3,
-      "ram_gb": 6,
-      "storage_gb": 120,
-      "concurrent_users": 1,
-      "session_duration_hours": 0,
-      "os_templates": [
-        "windows-server-2022-rdp",
-        "ubuntu-desktop-rdp",
-        "fedora-desktop-rdp"
-      ],
-      "features": [
-        "Residential IP",
-        "1 Concurrent Users",
-        "Multi-OS Support",
-        "Priority Support",
-        "DDoS Protection",
-        "Backup Service"
-      ],
-      "locations": [
-        "United States",
-        "United Kingdom",
-        "Canada"
-      ],
-      "service_type": "residential",
-      "management_types": [
-        "unmanaged",
-        "managed"
-      ],
-      "country_pricing": {
-        "Canada": 138
+        "Canada": { "reseller": 120, "user": 150 }
       }
     },
     "active": true,
@@ -207,62 +213,8 @@
       {
         "currency": "USD",
         "selling_price": "150",
-        "duration_type": "month",
-        "duration_value": 1,
-        "active": true
-      }
-    ]
-  },
-  {
-    "name": "Premium Residential VPS",
-    "slug": "premium-residential-vps",
-    "product_type": "vps",
-    "provider": "inhouse",
-    "provider_product_id": "1002",
-    "provider_type": "inhouse",
-    "metadata": {
-      "cpu_cores": 3,
-      "ram_gb": 6,
-      "storage_gb": 120,
-      "bandwidth_gb": 0,
-      "os_templates": [
-        "ubuntu-server-vps",
-        "debian-server-vps",
-        "rocky-server-vps",
-        "alma-server-vps",
-        "windows-server-2022-vps"
-      ],
-      "features": [
-        "Residential IP",
-        "99.9% Uptime",
-        "NVMe SSD Storage",
-        "Priority Support",
-        "DDoS Protection"
-      ],
-      "locations": [
-        "United States",
-        "United Kingdom",
-        "Germany",
-        "Canada",
-        "Netherlands"
-      ],
-      "service_type": "residential",
-      "management_types": [
-        "unmanaged",
-        "managed"
-      ],
-      "country_pricing": {
-        "Canada": 53
-      }
-    },
-    "active": true,
-    "available_to": "both",
-    "product_category_slug": "vps",
-    "product_category_name": "VPS",
-    "pricings": [
-      {
-        "currency": "USD",
-        "selling_price": "65",
+        "reseller_selling_price": "150",
+        "user_selling_price": "188",
         "duration_type": "month",
         "duration_value": 1,
         "active": true
@@ -307,7 +259,7 @@
         "managed"
       ],
       "country_pricing": {
-        "Canada": 23
+        "Canada": { "reseller": 10, "user": 15 }
       }
     },
     "active": true,
@@ -317,7 +269,9 @@
     "pricings": [
       {
         "currency": "USD",
-        "selling_price": "35",
+        "selling_price": "15",
+        "reseller_selling_price": "15",
+        "user_selling_price": "20",
         "duration_type": "month",
         "duration_value": 1,
         "active": true
@@ -363,7 +317,7 @@
         "managed"
       ],
       "country_pricing": {
-        "Canada": 38
+        "Canada": { "reseller": 18, "user": 24 }
       }
     },
     "active": true,
@@ -373,7 +327,67 @@
     "pricings": [
       {
         "currency": "USD",
-        "selling_price": "50",
+        "selling_price": "25",
+        "reseller_selling_price": "25",
+        "user_selling_price": "33",
+        "duration_type": "month",
+        "duration_value": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "name": "Premium Residential VPS",
+    "slug": "premium-residential-vps",
+    "product_type": "vps",
+    "provider": "inhouse",
+    "provider_product_id": "1002",
+    "provider_type": "inhouse",
+    "metadata": {
+      "cpu_cores": 3,
+      "ram_gb": 6,
+      "storage_gb": 120,
+      "bandwidth_gb": 0,
+      "os_templates": [
+        "ubuntu-server-vps",
+        "debian-server-vps",
+        "rocky-server-vps",
+        "alma-server-vps",
+        "windows-server-2022-vps"
+      ],
+      "features": [
+        "Residential IP",
+        "99.9% Uptime",
+        "NVMe SSD Storage",
+        "Priority Support",
+        "DDoS Protection"
+      ],
+      "locations": [
+        "United States",
+        "United Kingdom",
+        "Germany",
+        "Canada",
+        "Netherlands"
+      ],
+      "service_type": "residential",
+      "management_types": [
+        "unmanaged",
+        "managed"
+      ],
+      "country_pricing": {
+        "Canada": { "reseller": 28, "user": 37 }
+      }
+    },
+    "active": true,
+    "available_to": "both",
+    "product_category_slug": "vps",
+    "product_category_name": "VPS",
+    "pricings": [
+      {
+        "currency": "USD",
+        "selling_price": "40",
+        "reseller_selling_price": "40",
+        "user_selling_price": "52",
         "duration_type": "month",
         "duration_value": 1,
         "active": true
@@ -403,7 +417,7 @@
         "Residential IP Address",
         "Full Root/Admin Access",
         "DDoS Protection",
-        "SSD Storage",
+        "NVMe SSD Storage",
         "Unlimited Bandwidth",
         "99.9% Uptime SLA",
         "Instant Setup",
@@ -422,7 +436,7 @@
         "managed"
       ],
       "country_pricing": {
-        "Canada": 88
+        "Canada": { "reseller": 42, "user": 55 }
       }
     },
     "active": true,
@@ -432,7 +446,9 @@
     "pricings": [
       {
         "currency": "USD",
-        "selling_price": "100.00",
+        "selling_price": "60",
+        "reseller_selling_price": "60",
+        "user_selling_price": "78",
         "duration_type": "month",
         "duration_value": 1,
         "active": true
