@@ -14,7 +14,7 @@ usa_esims_data = [
     'id' => 'colt-usa-1',
     'provider' => 'colt',
     'name' => 'Colt USA Premium',
-    'price' => 24.99,
+    'price' => 19.00,
     'currency_code' => 'USD',
     'voice_minutes' => 'Unlimited',
     'sms_included' => true,
@@ -29,7 +29,7 @@ usa_esims_data = [
     'id' => 'lyca-usa-1',
     'provider' => 'lyca',
     'name' => 'Lyca USA Essential',
-    'price' => 24.99,
+    'price' => 19.00,
     'currency_code' => 'USD',
     'voice_minutes' => 'Unlimited',
     'sms_included' => true,
@@ -73,10 +73,12 @@ usa_esims_data.each do |data|
   seeded_product_ids << product.id
 
   pricing = product.product_pricings.find_or_initialize_by(duration_type: data['duration_unit'])
-  pricing.selling_price = data['price']
-  pricing.currency = data['currency_code']
-  pricing.duration_value = data['duration']
-  pricing.active = true
+  pricing.selling_price          = data['price']           # reseller price is the selling price
+  pricing.reseller_selling_price = data['price']           # $19 for resellers
+  pricing.user_selling_price     = 25.00                   # $25 for end users
+  pricing.currency               = data['currency_code']
+  pricing.duration_value         = data['duration']
+  pricing.active                 = true
   pricing.save!
 
   puts "==> Seeded USA eSIM: #{product.name} (MOQ: #{product.metadata['moq']})"

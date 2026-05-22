@@ -78,13 +78,13 @@ module Admin
         refund_method = params[:refund_method] || 'wallet'
         checkout = @order.checkout_session
 
-        if refund_method == 'original' && checkout&.gateway.present?
+        if refund_method == 'original' && checkout&.payment_method.present?
           # Attempt gateway refund
           begin
             gateway_refund!(checkout, @order)
             @order.update!(status: 'refunded')
-            record_audit_log('order.refunded', @order, { method: 'gateway', gateway: checkout.gateway })
-            render json: { message: "Refunded via #{checkout.gateway}", order: order_json(@order) }
+            record_audit_log('order.refunded', @order, { method: 'gateway', gateway: checkout.payment_method })
+            render json: { message: "Refunded via #{checkout.payment_method}", order: order_json(@order) }
           rescue StandardError => e
             render json: { error: "Gateway refund failed: #{e.message}. Use wallet refund instead." }, status: :unprocessable_entity
           end
@@ -271,7 +271,7 @@ module Admin
         # Payment method info
         checkout = o.checkout_session
         if checkout
-          data[:payment_method] = checkout.gateway
+          data[:payment_method] = checkout.payment_method
           data[:checkout_session_id] = checkout.id
         else
           data[:payment_method] = 'balance'
@@ -284,7 +284,7 @@ module Admin
     private
 
     def gateway_refund!(checkout, order)
-      case checkout.gateway
+      case checkout.payment_method
       when 'paystack'
         PaystackService.new.refund(checkout.gateway_reference, order.total_amount)
       when 'plisio'
@@ -295,7 +295,7 @@ module Admin
       when 'hundredpay'
         raise 'HundredPay refunds must be processed manually'
       else
-        raise "Unsupported gateway: #{checkout.gateway}"
+        raise "Unsupported gateway: #{checkout.payment_method}"
       end
     end
   end

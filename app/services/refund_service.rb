@@ -60,7 +60,7 @@ class RefundService
   end
 
   def process_gateway_refund!(checkout)
-    case checkout.gateway
+    case checkout.payment_method
     when 'paystack'
       # Execute actual API reversal
       PaystackService.new.refund(checkout.gateway_reference, @order.total_amount)
@@ -68,9 +68,9 @@ class RefundService
       # It is mechanically impossible to safely auto-reverse crypto APIs without
       # knowing the user's secure return wallet address. We cleanly halt this,
       # which notifies the caller that manual crypto claiming is required.
-      raise DeferredCryptoRefund, "Order paid via crypto (#{checkout.gateway}). User must provide wallet address from dashboard."
+      raise DeferredCryptoRefund, "Order paid via crypto (#{checkout.payment_method}). User must provide wallet address from dashboard."
     else
-      raise RefundError, "Unsupported gateway refund for #{checkout.gateway}"
+      raise RefundError, "Unsupported gateway refund for #{checkout.payment_method}"
     end
   end
 end

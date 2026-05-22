@@ -66,8 +66,10 @@ class InHouseProductSyncService
       )
 
       pricing.assign_attributes(
-        selling_price: pricing_data['selling_price'],
-        cost_price: pricing_data['cost_price'],
+        selling_price:          pricing_data['selling_price'],
+        cost_price:             pricing_data['cost_price'],
+        reseller_selling_price: pricing_data['reseller_selling_price'] || pricing_data['selling_price'],
+        user_selling_price:     pricing_data['user_selling_price']     || pricing_data['selling_price'],
         active: pricing_data['active'] != false
       )
 

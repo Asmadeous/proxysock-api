@@ -6,34 +6,36 @@ category = ProductCategory.find_or_create_by!(slug: 'mobile') do |c|
   c.category_type = 'mobile'
 end
 
-# Prices can be adjusted later via Admin Panel, these are defaults.
+# Prices as specified by admin.
+# User selling prices: Per GB $5, Daily $15, Weekly $70, Monthly $150
+# Markup rule: user = cost * 1.40, reseller = cost * 1.20
 plans = [
   {
     name: 'USA Mobile Proxy - Per GB',
     duration_type: 'months',
     duration_value: 1, # Credentials valid for 1 month, billed per GB
-    price: 3.00, # $3 / GB API cost
+    user_price: 5.00,   # $5 / GB user selling price
     metadata: { 'billing_type' => 'usage_gb', 'country_code' => 'US', 'gb_min' => 1, 'gb_max' => 9999 }
   },
   {
     name: 'USA Mobile Proxy - Daily',
     duration_type: 'days',
     duration_value: 1,
-    price: 5.00, # $5 API cost
+    user_price: 15.00,  # $15 user selling price
     metadata: { 'billing_type' => 'monthly', 'country_code' => 'US' }
   },
   {
     name: 'USA Mobile Proxy - Weekly',
     duration_type: 'days',
     duration_value: 7,
-    price: 25.00, # $25 API cost
+    user_price: 70.00,  # $70 user selling price
     metadata: { 'billing_type' => 'monthly', 'country_code' => 'US' }
   },
   {
     name: 'USA Mobile Proxy - Monthly',
     duration_type: 'months',
     duration_value: 1,
-    price: 80.00, # $80 API cost
+    user_price: 150.00, # $150 user selling price
     metadata: { 'billing_type' => 'monthly', 'country_code' => 'US' }
   }
 ]
@@ -59,13 +61,18 @@ plans.each do |plan_data|
     duration_value: plan_data[:duration_value]
   )
 
+  # Markup rule: user_price = cost * 1.40, reseller_price = cost * 1.20
+  cost_price        = (plan_data[:user_price] / 1.40).round(2)
+  reseller_price    = (cost_price * 1.20).round(2)
+  user_price        = plan_data[:user_price]
+
   # Defaults (API cost, cost, reseller, user)
   pricing.assign_attributes(
-    api_price: plan_data[:price],
-    cost_price: plan_data[:price],
-    selling_price: (plan_data[:price] * 1.15).round(2),
-    reseller_selling_price: (plan_data[:price] * 1.15).round(2),
-    user_selling_price: (plan_data[:price] * 1.30).round(2),
+    api_price:              cost_price,
+    cost_price:             cost_price,
+    selling_price:          reseller_price,
+    reseller_selling_price: reseller_price,
+    user_selling_price:     user_price,
     active: true
   )
   pricing.save!
