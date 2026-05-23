@@ -740,10 +740,6 @@ class OrderProvisioningService
         ).api_proxy_credentials_email.deliver_later
       end
 
-    when 'static_datacenter', 'static_isp', 'residential', 'static-residential', 'premium-isp'
-      proxy = assign_proxy_from_inventory(@product.provider_type)
-      send_proxy_credentials(proxy)
-      @order.activate!
 
     else
       raise ProvisioningError, "Unknown proxy provider: #{@product.provider_type}"
@@ -893,68 +889,6 @@ class OrderProvisioningService
     Rails.logger.info("Provisioned USA mobile proxy via LocalToNet for order #{@order.order_number} (tunnel: #{new_tunnel_id})")
   end
 
-  def assign_proxy_from_inventory(provider_type)
-    # Find available proxy from synced inventory
-    proxy_class = case provider_type
-                  when 'static_datacenter' then StaticDatacenterProxy
-                  when 'static_isp' then StaticIspProxy
-                  when 'premium-isp' then PremiumIspProxy
-                  when 'static-residential' then StaticResidentialProxy
-                  else raise ProvisioningError, "#{provider_type} does not use local inventory"
-                  end
-
-    proxy_order_class = case provider_type
-                        when 'static_datacenter' then StaticDatacenterProxyOrder
-                        when 'static_isp' then StaticIspProxyOrder
-                        when 'premium-isp' then PremiumIspProxyOrder
-                        when 'static-residential' then StaticResidentialProxyOrder
-                        else raise ProvisioningError, "#{provider_type} does not use local inventory"
-                        end
-
-    proxy_order_foreign_key = case provider_type
-                              when 'static_datacenter' then :static_datacenter_proxy_order_id
-                              when 'static_isp' then :static_isp_proxy_order_id
-                              when 'premium-isp' then :premium_isp_proxy_order_id
-                              when 'static-residential' then :static_residential_proxy_order_id
-                              else raise ProvisioningError, "#{provider_type} does not use local inventory"
-                              end
-
-    proxy = proxy_class.lock.where(status: 'available').first
-    raise ProvisioningError, "No available #{provider_type} proxies" unless proxy
-
-    # Create ProxyOrder
-    proxy_order = proxy_order_class.create!(
-      order: @order,
-      status: 'active',
-      country_code: @product.metadata&.dig('country_code'),
-      quantity: @order.quantity || 1
-    )
-
-    # Generate credentials
-    username = "user_#{SecureRandom.hex(4)}"
-    password = SecureRandom.hex(8)
-
-    proxy_update_params = {
-      status: 'assigned',
-      username: username,
-      password: password,
-      proxy_order_foreign_key => proxy_order.id
-    }
-
-    # Some proxy models link to orders via join table only (no direct order_id column)
-    if proxy.class.column_names.include?('order_id')
-      proxy_update_params[:order_id] = @order.id
-    end
-
-    if proxy.respond_to?(:metadata)
-      proxy_update_params[:metadata] = (proxy.metadata || {}).merge(service_renewal_metadata)
-    end
-
-    proxy.update!(proxy_update_params)
-
-    proxy
-  end
-
   def send_proxy_credentials(proxy)
     target_email = @order.metadata&.dig('credentials_email').presence
     owner = @actor || @order.orderable
@@ -968,6 +902,8 @@ class OrderProvisioningService
       ).credentials_email.deliver_later
     end
   end
+
+
 
   # ========== eSIM Provisioning ==========
   def provision_esim!
