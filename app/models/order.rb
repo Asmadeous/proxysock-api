@@ -53,8 +53,8 @@ class Order < ApplicationRecord
       resources << MobileProxy.where(order_id: id).to_a
       resources << StaticDatacenterProxy.where(order_id: id).to_a
       resources << StaticIspProxy.where(order_id: id).to_a
-      resources << PremiumIspProxy.joins(:premium_isp_proxy_order).where(premium_isp_proxy_orders: { order_id: id }).to_a
-      resources << StaticResidentialProxy.joins(:static_residential_proxy_order).where(static_residential_proxy_orders: { order_id: id }).to_a
+      resources << PremiumIspProxy.where(order_id: id).to_a
+      resources << StaticResidentialProxy.where(order_id: id).to_a
       resources << ResidentialRotatingProxy.where(order_id: id).to_a
       resources << GlobalIspProxy.joins(:global_isp_proxy_order).where(global_isp_proxy_orders: { order_id: id }).to_a
       resources.flatten.compact
@@ -76,8 +76,8 @@ class Order < ApplicationRecord
     MobileProxy.find_by(order_id: id) ||
       StaticDatacenterProxy.find_by(order_id: id) ||
       StaticIspProxy.find_by(order_id: id) ||
-      PremiumIspProxy.joins(:premium_isp_proxy_order).find_by(premium_isp_proxy_orders: { order_id: id }) ||
-      StaticResidentialProxy.joins(:static_residential_proxy_order).find_by(static_residential_proxy_orders: { order_id: id }) ||
+      PremiumIspProxy.find_by(order_id: id) ||
+      StaticResidentialProxy.find_by(order_id: id) ||
       ResidentialRotatingProxy.find_by(order_id: id) ||
       GlobalIspProxy.joins(:global_isp_proxy_order).find_by(global_isp_proxy_orders: { order_id: id })
   end
@@ -194,7 +194,7 @@ class Order < ApplicationRecord
       transitions from: %i[pending processing], to: :failed, after: :notify_staff_on_failure
     end
 
-    event :refund do
+    event :refund, guard: :refundable? do
       transitions from: %i[active failed cancelled], to: :refunded
     end
   end
@@ -208,5 +208,17 @@ class Order < ApplicationRecord
       message: "Order ##{order_number} for #{product&.name} failed during provisioning.",
       metadata: { order_id: id, order_number: order_number }
     )
+  end
+
+  # Guard: Block refunds when a provider order has already been placed and charged.
+  # Any proxy/VPN purchased from MyProxyAPI — refunding the customer without
+  # cancelling the provider order means eating the cost.
+  def refundable?
+    provider_order_id = metadata&.dig('provider_order_id')
+    if provider_order_id.present?
+      errors.add(:base, "Cannot refund: provider order #{provider_order_id} was already placed and charged. Cancel the provider order first.")
+      return false
+    end
+    true
   end
 end
