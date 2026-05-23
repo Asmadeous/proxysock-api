@@ -900,8 +900,7 @@ class OrderProvisioningService
                   when 'static_isp' then StaticIspProxy
                   when 'premium-isp' then PremiumIspProxy
                   when 'static-residential' then StaticResidentialProxy
-                  when 'residential', 'residential-rotating' then ResidentialRotatingProxy
-                  else MobileProxy
+                  else raise ProvisioningError, "#{provider_type} does not use local inventory"
                   end
 
     proxy_order_class = case provider_type
@@ -909,8 +908,7 @@ class OrderProvisioningService
                         when 'static_isp' then StaticIspProxyOrder
                         when 'premium-isp' then PremiumIspProxyOrder
                         when 'static-residential' then StaticResidentialProxyOrder
-                        when 'residential', 'residential-rotating' then ResidentialRotatingProxyOrder
-                        else MobileProxyOrder
+                        else raise ProvisioningError, "#{provider_type} does not use local inventory"
                         end
 
     proxy_order_foreign_key = case provider_type
@@ -918,8 +916,7 @@ class OrderProvisioningService
                               when 'static_isp' then :static_isp_proxy_order_id
                               when 'premium-isp' then :premium_isp_proxy_order_id
                               when 'static-residential' then :static_residential_proxy_order_id
-                              when 'residential', 'residential-rotating' then :residential_rotating_proxy_order_id
-                              else :mobile_proxy_order_id
+                              else raise ProvisioningError, "#{provider_type} does not use local inventory"
                               end
 
     proxy = proxy_class.lock.where(status: 'available').first
