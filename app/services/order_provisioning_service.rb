@@ -941,9 +941,13 @@ class OrderProvisioningService
       status: 'assigned',
       username: username,
       password: password,
-      order_id: @order.id,
       proxy_order_foreign_key => proxy_order.id
     }
+
+    # Some proxy models link to orders via join table only (no direct order_id column)
+    if proxy.class.column_names.include?('order_id')
+      proxy_update_params[:order_id] = @order.id
+    end
 
     if proxy.respond_to?(:metadata)
       proxy_update_params[:metadata] = (proxy.metadata || {}).merge(service_renewal_metadata)
