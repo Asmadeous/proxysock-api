@@ -4,7 +4,7 @@ module Api
   module V1
     class SupportChatsController < BaseController
       def index
-        chat = SupportChat.find_or_create_by!(chatable: current_reseller)
+        chat = find_or_open_chat
         render json: {
           chat: serialize_chat(chat),
           messages: chat.support_chat_messages.includes(:sender).order(created_at: :asc).map do |m|
@@ -24,18 +24,23 @@ module Api
       end
 
       def add_message
-        chat = SupportChat.find_or_create_by!(chatable: current_reseller)
-        return render json: { error: 'Chat is closed' }, status: :forbidden if chat.status == 'closed'
+        chat = find_or_open_chat
 
         message = chat.support_chat_messages.create!(
           body: params[:message] || params[:body],
           sender: current_reseller
         )
 
-        render json: { message: serialize_message(message) }, status: :created
+        render json: { message: serialize_message(message), chat: serialize_chat(chat) }, status: :created
       end
 
       private
+
+      # Find the reseller's active (non-closed) chat, or create a fresh one.
+      def find_or_open_chat
+        SupportChat.where(chatable: current_reseller).where.not(status: 'closed').order(updated_at: :desc).first ||
+          SupportChat.create!(chatable: current_reseller)
+      end
 
       def serialize_chat(chat)
         {
