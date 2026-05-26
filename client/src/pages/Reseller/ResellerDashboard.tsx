@@ -24,6 +24,7 @@ import {
 import AdminSidebar from "../SuperAdmin/components/AdminSidebar";
 import ResellerErrorBoundary from "./components/ResellerErrorBoundary";
 import { formatImageUrl } from "../../services/api";
+import { useNotificationStore } from "@/store/notificationStore";
 
 // Directly imported components for core tabs
 import ResOverview from "./components/ResOverview";
@@ -120,6 +121,9 @@ export default function ResellerDashboard() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const notifications = useNotificationStore(state => state.notifications);
+    const unreadNotifications = useNotificationStore(state => state.unreadCount);
+
     // Fetch summary counts periodically
     useEffect(() => {
         const loadCounts = async () => {
@@ -188,7 +192,7 @@ export default function ResellerDashboard() {
         setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
     }, [activeTab]);
 
-    // Reset seen state when counts change (new activity)
+    // Reset seen state when counts or realtime notifications change (new activity)
     useEffect(() => {
         setSeenTabs(prev => {
             const next: Record<string, boolean> = {};
@@ -198,7 +202,7 @@ export default function ResellerDashboard() {
             return next;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [counts]);
+    }, [counts, unreadNotifications, notifications]);
 
 
     const isEnterprise = resellerUser?.reseller_type === "infrastructure";
@@ -322,14 +326,25 @@ export default function ResellerDashboard() {
                     const newItem: any = { ...t, name: t.label };
                     // Map counts per tab
                     const tabCount = (() => {
+                        let base = 0;
                         switch (t.id) {
-                            case "orders": return counts.orders || 0;
-                            case "users": return counts.users || 0;
-                            case "tickets": return counts.tickets || 0;
-                            case "support": return counts.support_chats || 0;
-                            case "notifications": return counts.notifications || 0;
-                            default: return 0;
+                            case "orders": base = counts.orders || 0; break;
+                            case "users": base = counts.users || 0; break;
+                            case "tickets": base = counts.tickets || 0; break;
+                            case "support": base = counts.support_chats || 0; break;
+                            case "notifications": return unreadNotifications || counts.notifications || 0;
                         }
+
+                        // Add real-time unread count from websocket notifications
+                        if (t.id === "tickets") {
+                            const rtUnread = notifications.filter(n => !n.read_at && n.metadata?.ticket_id).length;
+                            base = Math.max(base, rtUnread);
+                        }
+                        if (t.id === "support") {
+                            const rtUnread = notifications.filter(n => !n.read_at && n.metadata?.support_chat_id).length;
+                            base = Math.max(base, rtUnread);
+                        }
+                        return base;
                     })();
                     if (t.id === "cart") newItem.count = cartCount;
                     if (tabCount > 0) {

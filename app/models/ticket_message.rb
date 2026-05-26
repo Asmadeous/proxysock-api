@@ -33,29 +33,40 @@ class TicketMessage < ApplicationRecord
       if ticket.user
         NotificationService.notify(
           recipient: ticket.user,
-          category: 'info',
+          category: 'ticket',
           title: "Ticket ##{ticket.id} Updated",
           message: "Support replied to your ticket: #{ticket.subject}",
           metadata: { ticket_id: ticket.id }
         )
       end
-    elsif ticket.assigned_to
-      # Notify assigned employee or all staff if unassigned
-      NotificationService.notify(
-        recipient: ticket.assigned_to,
-        category: 'info',
-        title: "New Reply: Ticket ##{ticket.id}",
-        message: "Customer replied to ticket: #{ticket.subject}",
-        metadata: { ticket_id: ticket.id }
-      )
     else
-      # If unassigned, notify staff efficiently without N+1 queries
-      NotificationService.notify_staff(
-        category: 'info',
-        title: "New Ticket: ##{ticket.id}",
-        message: "A new ticket requires attention: #{ticket.subject}",
-        metadata: { ticket_id: ticket.id }
-      )
+      # If customer responding or creating a ticket
+      if ticket.ticket_messages.count <= 1
+        # It's a new ticket! Notify all staff
+        NotificationService.notify_staff(
+          category: 'ticket',
+          title: "New Ticket: ##{ticket.id}",
+          message: "A new ticket was created: #{ticket.subject}",
+          metadata: { ticket_id: ticket.id }
+        )
+      elsif ticket.assigned_to
+        # Just a reply, notify the assigned agent
+        NotificationService.notify(
+          recipient: ticket.assigned_to,
+          category: 'ticket',
+          title: "New Reply: Ticket ##{ticket.id}",
+          message: "Customer replied to ticket: #{ticket.subject}",
+          metadata: { ticket_id: ticket.id }
+        )
+      else
+        # Unassigned reply, notify all staff
+        NotificationService.notify_staff(
+          category: 'ticket',
+          title: "New Reply: Ticket ##{ticket.id}",
+          message: "Customer replied to unassigned ticket: #{ticket.subject}",
+          metadata: { ticket_id: ticket.id }
+        )
+      end
     end
   end
 end

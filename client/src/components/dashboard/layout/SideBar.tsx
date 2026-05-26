@@ -199,6 +199,7 @@ export const Sidebar = ({
   const [seenPaths, setSeenPaths] = useState<Record<string, boolean>>({});
 
   const unreadNotifications = useNotificationStore(state => state.unreadCount);
+  const storeNotifications = useNotificationStore(state => state.notifications);
   const fetchStoreNotifications = useNotificationStore(state => state.fetchNotifications);
   const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
   const subscribeToRealtime = useNotificationStore(state => state.subscribeToRealtime);
@@ -235,7 +236,7 @@ export const Sidebar = ({
     setSeenPaths(prev => ({ ...prev, [location.pathname]: true }));
   }, [location.pathname]);
 
-  // When counts change, reset seen state for tabs with activity (except currently active)
+  // When counts or realtime notifications change, reset seen state for tabs with activity (except currently active)
   useEffect(() => {
     setSeenPaths(prev => {
       const next: Record<string, boolean> = {};
@@ -245,13 +246,26 @@ export const Sidebar = ({
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counts]);
+  }, [counts, storeNotifications, unreadNotifications]);
 
   // Map href -> badge count (only meaningful counts, not "active orders")
   const getBadgeCount = (href: string): number => {
-    if (href === "/dashboard/tickets") return counts.tickets;
-    if (href === "/dashboard/notifications") return unreadNotifications || counts.notifications;
-    return 0;
+    let baseCount = 0;
+    if (href === "/dashboard/tickets") baseCount = counts.tickets || 0;
+    if (href === "/dashboard/support") baseCount = counts.support_chats || 0;
+    if (href === "/dashboard/notifications") return unreadNotifications || counts.notifications || 0;
+
+    // Check realtime notifications from store for accurate red dot
+    if (href === "/dashboard/tickets") {
+      const rtUnread = storeNotifications.filter(n => !n.read_at && n.metadata?.ticket_id).length;
+      return Math.max(baseCount, rtUnread);
+    }
+    if (href === "/dashboard/support") {
+      const rtUnread = storeNotifications.filter(n => !n.read_at && n.metadata?.support_chat_id).length;
+      return Math.max(baseCount, rtUnread);
+    }
+
+    return baseCount;
   };
 
   // Whether the red dot should show (unseen activity)

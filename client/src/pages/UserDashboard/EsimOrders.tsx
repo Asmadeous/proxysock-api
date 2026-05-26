@@ -786,7 +786,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                         <>
                           <Button
                             variant="outline"
-                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            onClick={() => navigate(`/dashboard/support?tab=tickets&order_id=${order.order_number}`)}
                             className="flex-1 gap-2"
                           >
                             <MessageSquare className="h-4 w-4" />

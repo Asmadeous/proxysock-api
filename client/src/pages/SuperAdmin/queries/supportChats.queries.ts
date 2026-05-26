@@ -41,6 +41,7 @@ export function useReplySupportChat() {
       toast.success("Reply sent");
       queryClient.invalidateQueries(adminQueryKeys.supportChats.detail(id));
       queryClient.invalidateQueries(adminQueryKeys.supportChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to send reply"),
   });
@@ -60,6 +61,7 @@ export function useAssignSupportChat() {
       toast.success("Chat assigned");
       queryClient.invalidateQueries(adminQueryKeys.supportChats.detail(id));
       queryClient.invalidateQueries(adminQueryKeys.supportChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to assign chat"),
   });
@@ -72,6 +74,7 @@ export function useCloseSupportChat() {
     onSuccess: () => {
       toast.success("Chat closed");
       queryClient.invalidateQueries(adminQueryKeys.supportChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to close chat"),
   });

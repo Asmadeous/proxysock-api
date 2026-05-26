@@ -776,7 +776,7 @@ Payment Method: ${order.payment_method || 'N/A'}
                       {(order.status === "failed" || order.status === "cancelled") && (
                         <>
                           <Button
-                            onClick={() => navigate("/dashboard/support?tab=tickets")}
+                            onClick={() => navigate(`/dashboard/support?tab=tickets&order_id=${order.order_number}`)}
                             className="col-span-2 flex items-center justify-center gap-2 text-xs"
                           >
                             <MessageSquare className="h-3.5 w-3.5" />

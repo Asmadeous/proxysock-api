@@ -33,7 +33,14 @@ export default function NotificationBell({ notifications: propNotifications, unr
     const navigate = useNavigate();
     const location = useLocation();
 
-    const handleOpen = () => setOpen(true);
+    const handleOpen = () => {
+        const path = location.pathname;
+        if (path.startsWith('/admin') || path.startsWith('/sadmin')) {
+            handleViewAll();
+        } else {
+            setOpen(true);
+        }
+    };
     const handleClose = () => setOpen(false);
 
     const handleMarkAllRead = async () => {
