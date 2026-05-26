@@ -15,6 +15,27 @@ import {
 import { useChatEmployees } from "../queries/guestChats.queries";
 import { adminQueryKeys } from "../queries/queryKeys";
 
+// Play a soft notification beep using Web Audio API — no asset required
+function playNotificationSound() {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+        osc.onended = () => ctx.close();
+    } catch {
+        // Audio not available — silently ignore
+    }
+}
+
 interface Chat {
     id: string;
     chatable_type: string;
@@ -73,6 +94,10 @@ export default function SupportChatsTab() {
                                 if (!old) return old;
                                 const msgs = old.messages || [];
                                 if (msgs.find((m) => m.id === data.message.id)) return old;
+                                // Play sound for incoming non-employee messages
+                                if (data.message.sender_type !== "Employee") {
+                                    playNotificationSound();
+                                }
                                 return { ...old, messages: [...msgs, data.message] };
                             }
                         );
@@ -97,8 +122,41 @@ export default function SupportChatsTab() {
 
     const handleReply = async () => {
         if (!reply.trim() || !selectedChatId) return;
-        await replyChat.mutateAsync({ id: selectedChatId, message: reply });
+        const msgText = reply.trim();
         setReply("");
+
+        // Optimistic update
+        const optimisticId = `opt-${Date.now()}`;
+        const optimisticMessage: Message = {
+            id: optimisticId,
+            body: msgText,
+            sender_type: "Employee",
+            sender_name: "You",
+            created_at: new Date().toISOString()
+        };
+
+        queryClient.setQueryData(
+            adminQueryKeys.supportChats.detail(selectedChatId),
+            (old: { messages?: Message[] } | undefined) => {
+                if (!old) return old;
+                return { ...old, messages: [...(old.messages || []), optimisticMessage] };
+            }
+        );
+
+        try {
+            await replyChat.mutateAsync({ id: selectedChatId, message: msgText });
+            // The mutation invalidates the query or websocket replaces it, 
+            // so we don't strictly need to manually swap it here.
+        } catch {
+            // Revert optimistic update on failure
+            queryClient.setQueryData(
+                adminQueryKeys.supportChats.detail(selectedChatId),
+                (old: { messages?: Message[] } | undefined) => {
+                    if (!old) return old;
+                    return { ...old, messages: (old.messages || []).filter(m => m.id !== optimisticId) };
+                }
+            );
+        }
     };
 
     const handleAssign = async (employeeId: string) => {
@@ -213,8 +271,8 @@ export default function SupportChatsTab() {
                                 ) : (
                                     messages.map((m) => (
                                         <div key={m.id} className={`flex ${m.sender_type === "Employee" ? "justify-end" : "justify-start"}`}>
-                                            <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${m.sender_type === "Employee" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
-                                                {m.sender_type === "Employee" && m.sender_name && (
+                                            <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${m.sender_type === "Employee" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"} ${String(m.id).startsWith("opt-") ? "opacity-70" : ""}`}>
+                                                {m.sender_type === "Employee" && m.sender_name && !String(m.id).startsWith("opt-") && (
                                                     <div className="flex items-center gap-1.5 mb-0.5">
                                                         <p className="text-[10px] text-primary-foreground/80 font-bold">{m.sender_name}</p>
                                                         <OnlineBadge online={!!m.sender_online} />
@@ -223,6 +281,7 @@ export default function SupportChatsTab() {
                                                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
                                                 <p className={`text-[10px] mt-1 ${m.sender_type === "Employee" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                                     {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                    {String(m.id).startsWith("opt-") && <span className="ml-1 opacity-60">· sending…</span>}
                                                 </p>
                                             </div>
                                         </div>

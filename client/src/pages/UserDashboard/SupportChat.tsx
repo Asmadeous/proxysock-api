@@ -10,12 +10,64 @@ interface SupportChatProps {
     role?: "User" | "Reseller";
 }
 
+// Play a soft notification beep using Web Audio API — no asset required
+function playNotificationSound() {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+        osc.onended = () => ctx.close();
+    } catch {
+        // Audio not available — silently ignore
+    }
+}
+
 export default function SupportChat({ role = "User" }: SupportChatProps) {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState("");
+    const [sending, setSending] = useState(false);
     const [loading, setLoading] = useState(true);
     const [chatMeta, setChatMeta] = useState<any>({});
     const endRef = useRef<HTMLDivElement>(null);
+    const chatIdRef = useRef<string | null>(null);
+    const subRef = useRef<Subscription | null>(null);
+
+    const subscribe = useCallback((chatId: string) => {
+        if (subRef.current) subRef.current.unsubscribe();
+        const consumer = getCableConsumer();
+        subRef.current = consumer.subscriptions.create(
+            { channel: "ChatChannel", chat_id: chatId, chat_type: "SupportChat" },
+            {
+                received: (data: any) => {
+                    if (data.action === "message_created") {
+                        setMessages(prev => {
+                            // Deduplicate — skip if real ID already present
+                            if (prev.find(m => m.id === data.message.id)) return prev;
+                            // Replace optimistic placeholder if body matches
+                            const idx = prev.findIndex(m => String(m.id).startsWith("opt-") && m.body === data.message.body);
+                            const next = idx >= 0
+                                ? prev.map((m, i) => i === idx ? data.message : m)
+                                : [...prev, data.message];
+                            // Play sound only for incoming (non-user) messages
+                            if (data.message.sender_type === "Employee") playNotificationSound();
+                            return next;
+                        });
+                    }
+                },
+                connected() { console.log("[ChatChannel] Connected to", chatId); },
+                disconnected() { console.log("[ChatChannel] Disconnected"); },
+            }
+        );
+    }, []);
 
     const loadChat = useCallback(async () => {
         try {
@@ -29,48 +81,59 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [role]);
 
     useEffect(() => {
-        let sub: Subscription | null = null;
-
         loadChat().then((chat) => {
             if (chat?.id) {
-                const consumer = getCableConsumer();
-                sub = consumer.subscriptions.create(
-                    { channel: "ChatChannel", chat_id: chat.id, chat_type: "SupportChat" },
-                    {
-                        received: (data: any) => {
-                            if (data.action === 'message_created') {
-                                setMessages(prev => {
-                                    if (prev.find(m => m.id === data.message.id)) return prev;
-                                    return [...prev, data.message];
-                                });
-                            }
-                        },
-                        connected() { console.log("[ChatChannel] Connected"); },
-                        disconnected() { console.log("[ChatChannel] Disconnected"); }
-                    }
-                );
+                chatIdRef.current = chat.id;
+                subscribe(chat.id);
             }
         });
-
-        return () => {
-            if (sub) sub.unsubscribe();
-        };
-    }, [loadChat]);
+        return () => { if (subRef.current) subRef.current.unsubscribe(); };
+    }, [loadChat, subscribe]);
 
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
-        const msg = input;
+        if (!input.trim() || sending) return;
+        const msg = input.trim();
         setInput("");
+        setSending(true);
+
+        // Optimistic update — show message immediately
+        const optimisticId = `opt-${Date.now()}`;
+        const optimistic = {
+            id: optimisticId,
+            body: msg,
+            sender_type: role === "User" ? "User" : "Reseller",
+            sender_name: "You",
+            created_at: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, optimistic]);
+
         try {
             const sendFn = role === "User" ? sendUserSupportMessage : sendResellerSupportMessage;
-            await sendFn(msg);
-            // No need to loadChat() here as WebSocket will broadcast it
-        } catch { toast.error("Failed to send message"); }
+            const { data } = await sendFn(msg);
+
+            // If the server returned a new chat (old one was closed), resubscribe
+            if (data?.chat?.id && data.chat.id !== chatIdRef.current) {
+                chatIdRef.current = data.chat.id;
+                setChatMeta(data.chat);
+                subscribe(data.chat.id);
+            }
+
+            // Replace optimistic with confirmed message from server
+            if (data?.message) {
+                setMessages(prev => prev.map(m => m.id === optimisticId ? data.message : m));
+            }
+        } catch {
+            // Remove failed optimistic message
+            setMessages(prev => prev.filter(m => m.id !== optimisticId));
+            toast.error("Failed to send message");
+        } finally {
+            setSending(false);
+        }
     };
 
     if (loading) return (
@@ -105,7 +168,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
 
             <div className="flex-1 bg-card rounded-[2rem] border border-border flex flex-col overflow-hidden shadow-sm relative">
                 {/* Decorative background element */}
-                <div className="absolute top-0 right-0 -trnaslate-y-1/2 translate-x-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                     {messages.length === 0 ? (
@@ -120,19 +183,21 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                         </div>
                     ) : (
                         messages.map((m: any) => (
-                            <div key={m.id} className={`flex ${m.sender_type === "User" ? "justify-end" : "justify-start"}`}>
-                                <div className={`group relative max-w-[80%] p-4 rounded-2xl text-sm transition-all shadow-sm ${m.sender_type === "User"
-                                    ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
-                                    : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
-                                    }`}>
+                            <div key={m.id} className={`flex ${m.sender_type === "User" || m.sender_type === "Reseller" ? "justify-end" : "justify-start"}`}>
+                                <div className={`group relative max-w-[80%] p-4 rounded-2xl text-sm transition-all shadow-sm ${
+                                    m.sender_type === "User" || m.sender_type === "Reseller"
+                                        ? "bg-primary text-primary-foreground rounded-br-none hover:shadow-primary/20"
+                                        : "bg-muted text-foreground rounded-bl-none border border-border/50 hover:shadow-md"
+                                } ${String(m.id).startsWith("opt-") ? "opacity-70" : ""}`}>
                                     {m.sender_type === "Employee" && (
                                         <div className="flex items-center gap-2 mb-1.5">
                                             <p className="text-[10px] font-bold text-primary tracking-widest uppercase">{m.sender_name || "Support Team"}</p>
                                         </div>
                                     )}
                                     <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
-                                    <p className={`text-[10px] mt-2 font-medium ${m.sender_type === "User" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                                        {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <p className={`text-[10px] mt-2 font-medium ${m.sender_type === "User" || m.sender_type === "Reseller" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                                        {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                        {String(m.id).startsWith("opt-") && <span className="ml-1 opacity-60">· sending…</span>}
                                     </p>
                                 </div>
                             </div>
@@ -160,7 +225,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                         </div>
                         <button
                             onClick={handleSend}
-                            disabled={!input.trim()}
+                            disabled={!input.trim() || sending}
                             className="bg-primary text-primary-foreground h-12 w-12 rounded-2xl flex items-center justify-center hover:bg-primary/90 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 transition-all shadow-lg shadow-primary/25 shrink-0"
                         >
                             <PaperAirplaneIcon className="h-6 w-6 -rotate-45" />

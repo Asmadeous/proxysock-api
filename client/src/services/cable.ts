@@ -7,10 +7,17 @@ let currentToken: string | null = null;
 let currentGuestToken: string | null = null;
 
 export const getCableConsumer = (): Consumer => {
-    // Determine the active token (try user, then reseller, then employee, then fallback to guest)
-    const activeToken = localStorage.getItem("authToken")
-        || localStorage.getItem("resellerToken")
-        || localStorage.getItem("employeeToken");
+    // Determine the active token based on current app section
+    let activeToken = null;
+    const path = window.location.pathname;
+
+    if (path.startsWith("/admin") || path.startsWith("/employee")) {
+        activeToken = localStorage.getItem("adminToken") || localStorage.getItem("employeeToken");
+    } else if (path.startsWith("/reseller")) {
+        activeToken = localStorage.getItem("resellerToken");
+    } else {
+        activeToken = localStorage.getItem("authToken");
+    }
 
     const activeGuestToken = localStorage.getItem("guestChat") ? JSON.parse(localStorage.getItem("guestChat")!).sessionToken : null;
 

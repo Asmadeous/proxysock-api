@@ -2,9 +2,9 @@
 # Usage: bin/dev or foreman start -f Procfile.dev
 #
 # Rails: http://localhost:3000 (API backend)
-# Vite:  http://localhost:3001 (Frontend dev server)
+# Vite: http://localhost:3001 (Frontend)
 
-rails: bin/rails server -p 3000
+rails: PORT=3000 bin/rails server
 vite: cd client && npm run dev -- --port 3001
 sidekiq: bundle exec sidekiq -C config/sidekiq.yml
 
