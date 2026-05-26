@@ -842,7 +842,7 @@ const TransactionsPage = () => {
                     className="w-full"
                     asChild
                   >
-                    <Link to={`/dashboard/tickets?deposit_id=${selectedDeposit.id}&subject=Issue with Deposit ${selectedDeposit.id}`}>
+                    <Link to={`/dashboard/tickets?deposit_id=${selectedDeposit.id.replace('dep_', '')}&subject=Issue with Deposit ${selectedDeposit.id.replace('dep_', '')}`}>
                       <FileText className="h-4 w-4 mr-2" />
                       Open Support Ticket
                     </Link>

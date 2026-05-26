@@ -50,6 +50,7 @@ export function useReplyGuestChat() {
       toast.success("Reply sent");
       queryClient.invalidateQueries(adminQueryKeys.guestChats.detail(id));
       queryClient.invalidateQueries(adminQueryKeys.guestChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to send reply"),
   });
@@ -69,6 +70,7 @@ export function useAssignGuestChat() {
       toast.success("Chat assigned");
       queryClient.invalidateQueries(adminQueryKeys.guestChats.detail(id));
       queryClient.invalidateQueries(adminQueryKeys.guestChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to assign chat"),
   });
@@ -81,6 +83,7 @@ export function useCloseGuestChat() {
     onSuccess: () => {
       toast.success("Chat closed");
       queryClient.invalidateQueries(adminQueryKeys.guestChats.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to close chat"),
   });

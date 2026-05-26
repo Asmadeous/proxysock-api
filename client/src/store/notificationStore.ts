@@ -13,6 +13,7 @@ import {
     disconnectConsumer,
 } from "../lib/actionCable";
 import type { Subscription } from "@rails/actioncable";
+import { toast } from "sonner";
 
 interface NotificationStore {
     notifications: Notification[];
@@ -91,6 +92,13 @@ export const useNotificationStore = create<NotificationStore>()(
                 if (soundEnabled) {
                     playNotificationSound();
                 }
+
+                // Show UI toast
+                toast(notification.title, { 
+                    description: notification.message,
+                    duration: 5000,
+                    icon: '🔔'
+                });
             },
 
             markAsRead: async (id: number) => {
@@ -169,6 +177,21 @@ export const useNotificationStore = create<NotificationStore>()(
                                 };
                                 addNotification(notification);
                             }
+                            break;
+
+                        case 'notifications_refresh':
+                            // Handle batch insert from backend (e.g. notify_staff)
+                            get().fetchNotifications();
+                            get().fetchUnreadCount();
+                            // Optional: play sound since it represents new incoming notifications
+                            if (get().soundEnabled) {
+                                get().playNotificationSound();
+                            }
+                            toast("New Updates", {
+                                description: "You have new notifications requiring attention.",
+                                duration: 5000,
+                                icon: '🔔'
+                            });
                             break;
 
                         case 'notifications_read_all':

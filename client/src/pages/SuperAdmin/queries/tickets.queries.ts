@@ -56,6 +56,7 @@ export function useUpdateTicketStatus() {
     onSuccess: () => {
       toast.success("Ticket status updated");
       queryClient.invalidateQueries(adminQueryKeys.tickets.all());
+      window.dispatchEvent(new Event('refreshAdminCounts'));
     },
     onError: () => toast.error("Failed to update ticket status"),
   });

@@ -206,7 +206,16 @@ export default function NotificationsPage() {
                                     if (title.includes("ticket")) {
                                         if (isAdmin) return `${adminPrefix}/tickets`;
                                         if (isReseller) return "/reseller/tickets";
-                                        return "/dashboard/tickets";
+                                        return "/dashboard/support?tab=tickets";
+                                    }
+                                    if (title.includes("guest chat")) {
+                                        if (isAdmin) return `${adminPrefix}/guest_chats`;
+                                        return null;
+                                    }
+                                    if (title.includes("support")) {
+                                        if (isAdmin) return `${adminPrefix}/support_chats`;
+                                        if (isReseller) return "/reseller/support";
+                                        return "/dashboard/support?tab=chat";
                                     }
                                     if (title.includes("transaction") || title.includes("payment") || title.includes("deposit") || title.includes("refund")) {
                                         if (isAdmin) return `${adminPrefix}/transactions`;

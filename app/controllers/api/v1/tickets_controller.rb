@@ -25,26 +25,44 @@ module Api
       def create
         # Resolve and Validate order_id
         processed_params = ticket_params.to_h
+        if processed_params[:order_id].blank? && processed_params[:deposit_id].blank?
+          return render json: { errors: { base: ['An Order ID or Deposit ID must be provided to open a ticket.'] } }, status: :unprocessable_entity
+        end
+
         if processed_params[:order_id].present?
           order = if processed_params[:order_id].to_s.match?(/\A\d+\z/)
-                    Order.find_by(id: processed_params[:order_id])
+                    current_reseller.orders.find_by(id: processed_params[:order_id])
                   else
-                    Order.find_by(order_number: processed_params[:order_id])
+                    current_reseller.orders.find_by(order_number: processed_params[:order_id])
                   end
 
           if order
             processed_params[:order_id] = order.id
           else
-            return render json: { errors: { order_id: ['is invalid or does not exist'] } },
+            return render json: { errors: { order_id: ['is invalid or does not belong to you'] } },
                           status: :unprocessable_entity
           end
+        end
+
+        if processed_params[:deposit_id].present?
+          deposit = current_reseller.deposits.find_by(id: processed_params[:deposit_id])
+          if deposit
+            processed_params[:deposit_id] = deposit.id
+          else
+            return render json: { errors: { deposit_id: ['is invalid or does not belong to you'] } },
+                          status: :unprocessable_entity
+          end
+        end
+
+        body_content = params[:body] || params[:message] || (params[:ticket] && params[:ticket][:body])
+        if body_content.blank?
+          return render json: { errors: { body: ["can't be blank"] } }, status: :unprocessable_entity
         end
 
         ticket = current_reseller.tickets.build(processed_params.except(:body))
 
         if ticket.save
           # Create initial message
-          body_content = params[:body] || params[:message] || (params[:ticket] && params[:ticket][:body])
           ticket.ticket_messages.create!(
             sender: current_reseller,
             body: body_content

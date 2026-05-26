@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+
 import { useLocation } from "react-router-dom";
 import { fetchTickets, createTicket, replyTicket } from "../../services/api";
 import { fetchResellerTickets, createResellerTicket, replyResellerTicket } from "../../services/resellerApi";
@@ -79,18 +79,33 @@ export default function Tickets({ role = "User" }: TicketsProps) {
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const depId = params.get("deposit_id");
+        const orderId = params.get("order_id");
         const subject = params.get("subject");
-        if (depId || subject) {
+        
+        if (depId || orderId || subject) {
+            let defaultBody = "";
+            if (orderId) {
+                defaultBody = `I am experiencing an issue with my failed order: ${orderId}. Please assist in resolving this.`;
+            } else if (depId) {
+                defaultBody = `I am experiencing an issue with my deposit: ${depId}. Please assist in resolving this.`;
+            }
+
             setCreateData(prev => ({
                 ...prev,
                 deposit_id: depId || "",
-                subject: subject || ""
+                order_id: orderId || "",
+                subject: subject || (orderId ? `Failed Order ${orderId}` : `Issue with Deposit ${depId}`),
+                body: defaultBody
             }));
             setShowCreate(true);
         }
     }, [location.search]);
 
     const handleCreate = async () => {
+        if (!createData.subject.trim() || !createData.body.trim()) {
+            toast.error("Subject and message are required");
+            return;
+        }
         setCreateLoading(true);
         try {
             // Need to pass body along with ticket data to create the initial message
@@ -108,7 +123,20 @@ export default function Tickets({ role = "User" }: TicketsProps) {
             setCreateData({ subject: "", priority: "normal", order_id: "", deposit_id: "", body: "" });
             load();
         } catch (err: any) {
-            toast.error(err.response?.data?.errors?.[0] || "Failed to create ticket");
+            let errorMsg = "Failed to create ticket";
+            const errors = err.response?.data?.errors;
+            if (errors) {
+                if (Array.isArray(errors)) {
+                    errorMsg = errors[0];
+                } else if (typeof errors === 'object') {
+                    const firstKey = Object.keys(errors)[0];
+                    if (firstKey) {
+                        const val = errors[firstKey];
+                        errorMsg = Array.isArray(val) ? `${firstKey} ${val[0]}` : `${firstKey} ${val}`;
+                    }
+                }
+            }
+            toast.error(errorMsg);
         } finally {
             setCreateLoading(false);
         }
@@ -138,9 +166,6 @@ export default function Tickets({ role = "User" }: TicketsProps) {
                     <h1 className="text-3xl font-bold text-foreground tracking-tight">Tickets</h1>
                     <p className="text-sm text-muted-foreground mt-1">Raise issues or track your ongoing support requests.</p>
                 </div>
-                <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 transition-colors text-white rounded-xl text-sm font-medium">
-                    <PlusIcon className="h-5 w-5" /> Open Ticket
-                </button>
             </div>
 
             <DataTable
@@ -176,15 +201,20 @@ export default function Tickets({ role = "User" }: TicketsProps) {
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field label="Order ID (Optional)">
-                        <Input value={createData.order_id} onChange={(e) => setCreateData({ ...createData, order_id: e.target.value })} placeholder="e.g. 12345" />
-                    </Field>
+                    {createData.order_id ? (
+                        <Field label="Order ID">
+                            <Input value={createData.order_id} readOnly className="bg-muted cursor-not-allowed text-muted-foreground" />
+                        </Field>
+                    ) : createData.deposit_id ? (
+                        <Field label="Deposit ID">
+                            <Input value={createData.deposit_id} readOnly className="bg-muted cursor-not-allowed text-muted-foreground" />
+                        </Field>
+                    ) : (
+                        <Field label="Reference ID">
+                            <Input value="None" readOnly className="bg-muted cursor-not-allowed text-muted-foreground" />
+                        </Field>
+                    )}
                 </div>
-                {createData.deposit_id && (
-                    <Field label="Deposit ID">
-                        <Input value={createData.deposit_id} readOnly disabled />
-                    </Field>
-                )}
                 <Field label="Message *">
                     <Textarea className="h-32 resize-y" value={createData.body} onChange={(e) => setCreateData({ ...createData, body: e.target.value })} placeholder="Describe your issue in detail..." required />
                 </Field>

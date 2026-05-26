@@ -27,6 +27,7 @@ import AdminSidebar, { type SidebarGroup } from "./components/AdminSidebar";
 import CommandPalette from "./components/CommandPalette";
 import AdminErrorBoundary from "./components/AdminErrorBoundary";
 import { fetchAdminNotifications, markAdminNotificationsAsRead, fetchAdminSummaryCounts } from "../../services/adminApi";
+import { useNotificationStore } from "@/store/notificationStore";
 import { Loader2 } from "lucide-react";
 import { formatImageUrl } from "../../services/api";
 
@@ -161,6 +162,9 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const notifications = useNotificationStore(state => state.notifications);
+  const unreadNotifications = useNotificationStore(state => state.unreadCount);
+
   // Sync tab with URL (path-based routing)
   useEffect(() => {
     const pathParts = location.pathname.split("/").filter(Boolean);
@@ -199,7 +203,11 @@ export default function SuperAdminDashboard() {
     };
     loadCounts();
     const interval = setInterval(loadCounts, 30000);
-    return () => clearInterval(interval);
+    window.addEventListener('refreshAdminCounts', loadCounts);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refreshAdminCounts', loadCounts);
+    };
   }, []);
 
   // When activeTab changes, mark it as "seen"
@@ -208,7 +216,7 @@ export default function SuperAdminDashboard() {
     setSeenTabs(prev => ({ ...prev, [activeTab]: true }));
   }, [activeTab]);
 
-  // When counts change, reset "seen" for tabs that have NEW activity
+  // When counts or notifications change, reset "seen" for tabs that have NEW activity
   useEffect(() => {
     const newSeenState: Record<string, boolean> = {};
     for (const tabId of BADGE_TABS) {
@@ -216,7 +224,7 @@ export default function SuperAdminDashboard() {
     }
     setSeenTabs(prev => ({ ...prev, ...newSeenState }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counts]);
+  }, [counts, unreadNotifications, notifications]);
 
   // Auth check & Storage sync
   useEffect(() => {
@@ -252,16 +260,33 @@ export default function SuperAdminDashboard() {
     items: group.items.map(item => {
       const newItem = { ...item };
       const tabCount = (() => {
+        let base = 0;
         switch (item.id) {
-          case "orders": return counts.orders || 0;
-          case "tickets": return counts.tickets || 0;
-          case "affiliates": return counts.payouts || 0;
-          case "support_chats": return counts.support_chats || 0;
-          case "guest_chats": return counts.guest_chats || 0;
-          case "notifications": return counts.notifications || 0;
-          default: return 0;
+          case "orders": base = counts.orders || 0; break;
+          case "tickets": base = counts.tickets || 0; break;
+          case "affiliates": base = counts.payouts || 0; break;
+          case "support_chats": base = counts.support_chats || 0; break;
+          case "guest_chats": base = counts.guest_chats || 0; break;
+          case "notifications": return unreadNotifications || counts.notifications || 0;
         }
+        
+        // Add real-time unread count from websocket notifications
+        if (item.id === "tickets") {
+            const rtUnread = notifications.filter(n => !n.read_at && n.metadata?.ticket_id).length;
+            base = Math.max(base, rtUnread);
+        }
+        if (item.id === "support_chats") {
+            const rtUnread = notifications.filter(n => !n.read_at && n.metadata?.support_chat_id).length;
+            base = Math.max(base, rtUnread);
+        }
+        if (item.id === "guest_chats") {
+            const rtUnread = notifications.filter(n => !n.read_at && n.metadata?.guest_chat_id).length;
+            base = Math.max(base, rtUnread);
+        }
+
+        return base;
       })();
+
       if (tabCount > 0) {
         newItem.count = tabCount;
         if (hasUnseen(item.id, tabCount)) {
