@@ -49,6 +49,8 @@ class TicketMessage < ApplicationRecord
           message: "A new ticket was created: #{ticket.subject}",
           metadata: { ticket_id: ticket.id }
         )
+        # Slack: New ticket notification
+        SlackNotifyJob.perform_later('new_ticket', ticket.id)
       elsif ticket.assigned_to
         # Just a reply, notify the assigned agent
         NotificationService.notify(
@@ -58,6 +60,8 @@ class TicketMessage < ApplicationRecord
           message: "Customer replied to ticket: #{ticket.subject}",
           metadata: { ticket_id: ticket.id }
         )
+        # Slack: Ticket reply notification
+        SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
       else
         # Unassigned reply, notify all staff
         NotificationService.notify_staff(
@@ -66,6 +70,8 @@ class TicketMessage < ApplicationRecord
           message: "Customer replied to unassigned ticket: #{ticket.subject}",
           metadata: { ticket_id: ticket.id }
         )
+        # Slack: Unassigned ticket reply notification
+        SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
       end
     end
   end
