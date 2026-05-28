@@ -45,6 +45,9 @@ class GuestChatMessage < ApplicationRecord
         metadata: { guest_chat_id: guest_chat.id, session_token: guest_chat.session_token }
       )
     end
+
+    # Slack: Guest chat notification
+    SlackNotifyJob.perform_later('guest_chat_message', id)
   end
 
   def touch_chat

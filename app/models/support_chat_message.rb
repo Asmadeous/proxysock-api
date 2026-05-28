@@ -45,6 +45,8 @@ class SupportChatMessage < ApplicationRecord
         message: body.truncate(50),
         metadata: { support_chat_id: support_chat.id, session_token: support_chat.session_token }
       )
+      # Slack: Support chat notification
+      SlackNotifyJob.perform_later('support_chat_message', id)
     else
       NotificationService.notify_staff(
         category: 'info',
@@ -52,6 +54,8 @@ class SupportChatMessage < ApplicationRecord
         message: body.truncate(50),
         metadata: { support_chat_id: support_chat.id, session_token: support_chat.session_token }
       )
+      # Slack: Support chat notification
+      SlackNotifyJob.perform_later('support_chat_message', id)
     end
   end
 

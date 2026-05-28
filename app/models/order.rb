@@ -208,6 +208,9 @@ class Order < ApplicationRecord
       message: "Order ##{order_number} for #{product&.name} failed during provisioning.",
       metadata: { order_id: id, order_number: order_number }
     )
+
+    # Slack: Provisioning failure alert
+    SlackNotifyJob.perform_later('provisioning_failed', id, error: "Order ##{order_number} failed via AASM state transition")
   end
 
   # Guard: Block refunds when a provider order has already been placed and charged.

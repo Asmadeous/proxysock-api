@@ -154,6 +154,9 @@ class OrderProvisioningService
       end
     end
 
+    # Slack: Provisioning failure alert
+    SlackNotifyJob.perform_later('provisioning_failed', @order.id, error: e.message)
+
     raise e
   end
 
