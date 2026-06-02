@@ -8,6 +8,9 @@ class CheckoutSession < ApplicationRecord
 
   PAYMENT_METHODS = %w[wallet paystack plisio payvra hundredpay fastspring].freeze
 
+  # Alias for controllers that reference the gateway by this name
+  alias_attribute :gateway, :payment_method
+
   validates :total_amount, presence: true, numericality: { greater_than: 0 }
   validates :payment_method, presence: true, inclusion: { in: PAYMENT_METHODS }
   validates :gateway_reference, uniqueness: true, allow_nil: true

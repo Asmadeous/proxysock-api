@@ -54,22 +54,23 @@ class OrderProvisioningService
     #     is committed and visible to Sidekiq when the mailer job runs.
     InvoiceMailer.with(order: @order).invoice_email.deliver_later
 
-    # 4. Provision based on product type
-    provision_product!
-
-    # 4a. Create Jellyfin account if user doesn't have one
+    # 4. Create Jellyfin account BEFORE provisioning so credentials are
+    #    available when the product-specific email is rendered/enqueued.
     if @actor.is_a?(User) && !@actor.jellyfin_account_created?
       JellyfinService.new.create_user(@actor)
     end
 
-    # 5. Generate and store invoice PDF via Active Storage
+    # 5. Provision based on product type (may enqueue credentials emails)
+    provision_product!
+
+    # 6. Generate and store invoice PDF via Active Storage
     begin
       InvoicePdfService.new(@order).generate_and_attach!
     rescue StandardError => e
       Rails.logger.warn("Failed to generate invoice PDF for order #{@order.id}: #{e.message}")
     end
 
-    # 6. Record reseller profit share (replaced affiliate commission)
+    # 7. Record reseller profit share (replaced affiliate commission)
     ResellerEarningsService.record_profit_share!(@order)
 
     # Notify Admins and Support on success ONLY (as per requirements)
