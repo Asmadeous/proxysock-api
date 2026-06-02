@@ -9,6 +9,13 @@ class UsaEsimMailer < ApplicationMailer
     @order = params[:order]
     @title = "Your USA eSIM Credentials - Order ##{@order.order_number}"
 
+    # Attach any uploaded QR code images
+    @credentials.each do |cred|
+      if cred.qr_code_image.attached?
+        attachments[cred.qr_code_image.filename.to_s] = cred.qr_code_image.download
+      end
+    end
+
     mail(
       to: params[:target_email].presence || @owner.email,
       subject: "Your USA eSIM Credentials are Ready - Order ##{@order.order_number}"

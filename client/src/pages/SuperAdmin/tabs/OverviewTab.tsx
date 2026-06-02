@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
     UsersIcon,
     CurrencyDollarIcon,
@@ -11,14 +12,28 @@ import {
     ChatBubbleLeftRightIcon,
     TicketIcon,
     ArrowRightIcon,
+    WalletIcon,
 } from "@heroicons/react/24/outline";
 import StatsCard from "../components/StatsCard";
 import StatusBadge from "../components/StatusBadge";
 import { StatsCardSkeleton } from "../components/TableSkeleton";
 import { useOverviewStats } from "../queries/overview.queries";
+import { fetchProviderBalances } from "../../../services/adminApi";
+import { adminQueryKeys } from "../queries/queryKeys";
+
+// Lucide icons for provider cards
+import { Globe, Wifi } from "lucide-react";
 
 export default function OverviewTab() {
     const { isLoading, stats, recentOrders } = useOverviewStats();
+
+    // Fetch provider balances (auto-refresh every 5 minutes)
+    const { data: balances, isLoading: balancesLoading } = useQuery({
+        queryKey: adminQueryKeys.providerBalances.all(),
+        queryFn: fetchProviderBalances,
+        staleTime: 1000 * 60 * 5,
+        refetchInterval: 1000 * 60 * 5,
+    });
 
     const alerts = isLoading ? [] : [
         stats.failedOrders > 0 && {
@@ -46,6 +61,12 @@ export default function OverviewTab() {
             dot: "bg-purple-500",
         },
     ].filter(Boolean) as { label: string; href: string; color: string; dot: string }[];
+
+    // Format balance for display
+    const formatBalance = (val: number | string | undefined | null) => {
+        if (val === undefined || val === null) return "—";
+        return `$${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
 
     return (
         <div className="space-y-6">
@@ -79,6 +100,108 @@ export default function OverviewTab() {
                     </ul>
                 </div>
             )}
+
+            {/* Provider Balances */}
+            <div>
+                <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <WalletIcon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                    Provider Balances
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* MyProxyApi Balance */}
+                    <div className="relative overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
+                        <div className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] pointer-events-none">
+                            <Globe className="w-full h-full" />
+                        </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 rounded-lg bg-gradient-to-br from-blue-500/15 to-cyan-500/10 ring-1 ring-blue-500/20">
+                                <Globe className="h-5 w-5 text-blue-500" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">MyProxyApi</p>
+                                <p className="text-xs text-muted-foreground">Proxy provider balance</p>
+                            </div>
+                        </div>
+                        {balancesLoading ? (
+                            <div className="space-y-2">
+                                <div className="h-8 w-28 bg-muted animate-pulse rounded" />
+                                <div className="h-3 w-20 bg-muted/70 animate-pulse rounded" />
+                            </div>
+                        ) : balances?.myproxy?.error ? (
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                                <p className="text-sm text-destructive">Connection failed</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-3xl font-bold text-foreground tracking-tight">
+                                    {formatBalance(balances?.myproxy?.available_balance)}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {balances?.myproxy?.currency || "USD"} • Available balance
+                                </p>
+                                {balances?.myproxy?.deposited_amount != null && (
+                                    <div className="flex gap-4 mt-3 pt-3 border-t border-border/50">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Deposited</p>
+                                            <p className="text-sm font-medium text-foreground">
+                                                {formatBalance(balances.myproxy.deposited_amount)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Spent on orders</p>
+                                            <p className="text-sm font-medium text-foreground">
+                                                {formatBalance(balances.myproxy.order_amount)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* eSIM Access Balance */}
+                    <div className="relative overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
+                        <div className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] pointer-events-none">
+                            <Wifi className="w-full h-full" />
+                        </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 rounded-lg bg-gradient-to-br from-emerald-500/15 to-teal-500/10 ring-1 ring-emerald-500/20">
+                                <Wifi className="h-5 w-5 text-emerald-500" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">eSIM Access</p>
+                                <p className="text-xs text-muted-foreground">eSIM provider balance</p>
+                            </div>
+                        </div>
+                        {balancesLoading ? (
+                            <div className="space-y-2">
+                                <div className="h-8 w-28 bg-muted animate-pulse rounded" />
+                                <div className="h-3 w-20 bg-muted/70 animate-pulse rounded" />
+                            </div>
+                        ) : balances?.esim_access?.error ? (
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                                <p className="text-sm text-destructive">Connection failed</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-3xl font-bold text-foreground tracking-tight">
+                                    {formatBalance(balances?.esim_access?.balance)}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {balances?.esim_access?.currency || "USD"} • Available balance
+                                </p>
+                            </>
+                        )}
+                    </div>
+                </div>
+                {balances?.fetched_at && (
+                    <p className="text-[11px] text-muted-foreground/60 mt-2 text-right">
+                        Last updated: {new Date(balances.fetched_at).toLocaleTimeString()}
+                    </p>
+                )}
+            </div>
 
             {/* Primary Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
