@@ -263,23 +263,78 @@ class OrderProvisioningService
       # ── USA VMs: Use self-hosted LocalToNet mobile proxy instead of MyProxyApi ──
       if vm_order.country_code.to_s.upcase == 'US'
         tunnel = LocaltonetTunnel.available.first
-        if tunnel
-          # Create a dedicated client credential for this VM on the shared proxy
-          vm_username = "vm_#{SecureRandom.hex(4)}"
-          vm_password = SecureRandom.hex(12)
+
+        if tunnel.nil?
           begin
             ltn_client = LocaltonetApiClient.new
-            ltn_client.add_client(
-              tunnel.localtonet_tunnel_id,
-              username: vm_username,
-              password: vm_password,
-              description: "VM #{vm.id} - Order #{@order.order_number}"
-            )
-          rescue LocaltonetApiClient::ApiError => e
-            Rails.logger.warn("LocalToNet client creation failed for VM #{vm.id}: #{e.message}, falling back to tunnel auth")
-            # Fall back to tunnel-level auth if shared proxy client fails
-            vm_username = tunnel.metadata&.dig('auth_username')
-            vm_password = tunnel.metadata&.dig('auth_password')
+            tokens = ltn_client.list_auth_tokens
+            active_token = tokens.find { |t| t['clientIsOnline'] == true }
+
+            if active_token
+              tunnel_data = ltn_client.create_proxy_tunnel(
+                auth_token: active_token['token'],
+                protocol_type: 6, # HTTP
+                server_code: 'us10',
+                ip_restrictions: ['0.0.0.0/0']
+              )
+              new_tunnel_id = tunnel_data['id'] || tunnel_data['tunnelId']
+
+              vm_username = "vm_#{SecureRandom.hex(4)}"
+              vm_password = SecureRandom.hex(12)
+              ltn_client.set_authentication(new_tunnel_id, enabled: true, username: vm_username, password: vm_password)
+              ltn_client.start_tunnel(new_tunnel_id)
+
+              updated_data = nil
+              3.times do |i|
+                sleep(0.5) if i.positive?
+                updated_data = ltn_client.get_tunnel(new_tunnel_id)
+                break if updated_data['serverPort'].present?
+              end
+
+              tunnel = LocaltonetTunnel.create!(
+                localtonet_tunnel_id: new_tunnel_id,
+                auth_token: active_token['token'],
+                hostname: updated_data['serverDomain'] || updated_data['serverIp'],
+                port: updated_data['serverPort'],
+                protocol_type: 'http',
+                status: 'active',
+                title: "VM Order #{@order.order_number}",
+                country_code: 'US',
+                metadata: {
+                  auth_username: vm_username,
+                  auth_password: vm_password
+                }
+              )
+              Rails.logger.info("Provisioned new LocalToNet dedicated tunnel #{new_tunnel_id} for USA VM #{vm.id}")
+            end
+          rescue StandardError => e
+            Rails.logger.error("Failed to provision new LocalToNet tunnel for USA VM: #{e.message}")
+          end
+        end
+
+        if tunnel
+          if tunnel.metadata&.dig('auth_username') && tunnel.metadata&.dig('auth_password')
+            # It's a dedicated tunnel we just created
+            vm_username = tunnel.metadata['auth_username']
+            vm_password = tunnel.metadata['auth_password']
+          else
+            # Create a dedicated client credential for this VM on the shared proxy
+            vm_username = "vm_#{SecureRandom.hex(4)}"
+            vm_password = SecureRandom.hex(12)
+            begin
+              ltn_client = LocaltonetApiClient.new
+              ltn_client.add_client(
+                tunnel.localtonet_tunnel_id,
+                username: vm_username,
+                password: vm_password,
+                description: "VM #{vm.id} - Order #{@order.order_number}"
+              )
+            rescue LocaltonetApiClient::ApiError => e
+              Rails.logger.warn("LocalToNet client creation failed for VM #{vm.id}: #{e.message}, falling back to tunnel auth")
+              # Fall back to tunnel-level auth if shared proxy client fails
+              vm_username = tunnel.metadata&.dig('auth_username')
+              vm_password = tunnel.metadata&.dig('auth_password')
+            end
           end
 
           job_params['proxy'] = {
@@ -292,26 +347,21 @@ class OrderProvisioningService
 
           Rails.logger.info("Assigned LocalToNet proxy (tunnel #{tunnel.localtonet_tunnel_id}) to USA VM '#{vm.id}'")
         else
-          Rails.logger.warn("No active LocalToNet tunnel for USA VM #{vm.id}, falling back to MyProxyApi")
-          # Fall through to existing MyProxyApi logic below
+          Rails.logger.warn("No active LocalToNet tunnel for USA VM #{vm.id}")
         end
-      end
-
-      # ── Non-USA VMs (or USA fallback): Use MyProxyApi ──
-      if job_params['proxy'].blank?
+      elsif job_params['proxy'].blank?
+        # ── Non-USA/Non-Canada VMs: Use MyProxyApi ──
         proxy_slug = @product.product_type == 'rdp' || @product.metadata&.dig('rdp').to_s == 'true' ? 'static-residential' : 'datacenter'
 
-        # Find a base 1x product corresponding to the target slug
         proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where(
           'products.name LIKE ?', '1 x%'
         ).first
+        
         if proxy_pr.nil?
           Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
           raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
         end
 
-        # Determine location ID from product metadata for the API call
-        # The API expects a numeric location/city ID, not a country code.
         location_id = nil
         if proxy_pr.metadata['isp'].is_a?(Array)
           proxy_pr.metadata['isp'].each do |isp|
@@ -319,10 +369,15 @@ class OrderProvisioningService
 
             city = isp['locations'][country]['cities']&.first
             if city
-              location_id = city['id']
+              location_id = city['id'].to_s
               break
             end
           end
+        end
+
+        if proxy_pr.nil?
+          Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule for country #{country}")
+          raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
         end
 
         # Execute MyProxyApi Purchase
