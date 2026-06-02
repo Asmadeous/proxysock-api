@@ -12,7 +12,7 @@ class UsaEsimMailer < ApplicationMailer
     # Attach any uploaded QR code images
     @credentials.each do |cred|
       if cred.qr_code_image.attached?
-        attachments[cred.qr_code_image.filename.to_s] = cred.qr_code_image.download
+        attachments.inline[cred.qr_code_image.filename.to_s] = cred.qr_code_image.download
       end
     end
 
