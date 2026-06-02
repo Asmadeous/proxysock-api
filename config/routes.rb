@@ -257,6 +257,10 @@ Rails.application.routes.draw do
       post 'auth/login', to: 'auth#login'
       get 'auth/failure', to: 'auth#failure'
 
+      # Admin Profile
+      get 'profile', to: 'profile#show'
+      patch 'profile', to: 'profile#update'
+
       # Admin routes
       resources :employees do
         member do
@@ -406,6 +410,9 @@ Rails.application.routes.draw do
         post 'query'
       end
       resources :transactions, only: %i[index show]
+
+      # Upstream provider balances (MyProxyApi + eSIM Access)
+      get 'provider_balances', to: 'provider_balances#index'
     end
   end
 

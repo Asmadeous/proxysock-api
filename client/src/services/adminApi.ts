@@ -39,6 +39,18 @@ adminApi.interceptors.response.use(
 export const adminLogin = (email: string, password: string) =>
     adminApi.post("/auth/login", { email, password });
 
+// ── Admin Profile ─────────────────────────────────
+export const fetchAdminProfile = () =>
+    adminApi.get("/profile");
+export const updateAdminProfile = (data: Record<string, unknown> | FormData) => {
+    if (data instanceof FormData) {
+        return adminApi.patch("/profile", data, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+    }
+    return adminApi.patch("/profile", data);
+};
+
 // ── Users ─────────────────────────────────────────
 export const fetchAdminUsers = (params?: Record<string, string>) =>
     adminApi.get("/users", { params });
@@ -287,6 +299,10 @@ export const fetchErrorLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/error_logs", { params });
 export const fetchAdminSummaryCounts = () =>
     adminApi.get("/monitoring/summary_counts").then(res => res.data);
+
+// ── Provider Balances (MyProxyApi + eSIM Access) ──
+export const fetchProviderBalances = () =>
+    adminApi.get("/provider_balances").then(res => res.data);
 
 // ── Transactions (Admin) ──────────────────────────
 export const fetchAdminTransactions = (params?: Record<string, string>) =>

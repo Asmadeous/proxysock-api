@@ -22,6 +22,7 @@ import {
   DevicePhoneMobileIcon,
   BellIcon,
   Squares2X2Icon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import AdminSidebar, { type SidebarGroup } from "./components/AdminSidebar";
 import CommandPalette from "./components/CommandPalette";
@@ -55,6 +56,7 @@ const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 
 // Consolidated Management Tab
 const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
+const ProfileTab = lazy(() => import("./tabs/ProfileTab"));
 
 const sidebarGroups: SidebarGroup[] = [
   {
@@ -100,6 +102,7 @@ const sidebarGroups: SidebarGroup[] = [
       { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
       { id: "logs", name: "System Logs", icon: ServerStackIcon },
       { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
+      { id: "profile", name: "My Profile", icon: UserCircleIcon },
     ],
   },
 ];
@@ -126,6 +129,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   usa_credentials: UsaCredentialsTab,
   notifications: NotificationsPage,
   logs: SystemLogsTab,
+  profile: ProfileTab,
 };
 
 // Tabs that can have "unseen" events

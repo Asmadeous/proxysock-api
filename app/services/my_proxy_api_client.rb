@@ -55,6 +55,14 @@ class MyProxyApiClient
     extract_proxy_plans(request(:get, "#{ROOT_URL}/v1/products/global-isp"))
   end
 
+  # Fetch reseller account info including available balance.
+  # Endpoint: GET /account-info
+  # Returns: { deposited_amount, deposit_transactions, order_amount, order_count,
+  #            available_balance, currency, reseller_id, username, discount }
+  def account_info
+    request(:get, "#{BASE_URL}/account-info")
+  end
+
   # ==========================================================================
   # Residential Rotating V2 Endpoints (COMMENTED OUT)
   # ==========================================================================

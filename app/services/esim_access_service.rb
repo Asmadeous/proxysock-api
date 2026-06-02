@@ -93,6 +93,16 @@ class EsimAccessService
     raise "eSIM Access Top-up Failed: #{response['errorMessage']}"
   end
 
+  # Query the reseller account balance.
+  # Endpoint: POST /balance/query
+  # Balance value is expressed * 10,000 (e.g. 100000 = $10.00)
+  def balance_query
+    response = request(:post, '/balance/query', {})
+    return response['obj'] if response['success'] == true
+
+    raise "eSIM Access Balance Query Failed: #{response['errorMessage']}"
+  end
+
   private
 
   # Build and sign an HTTP request with HMAC-SHA256.

@@ -52,6 +52,9 @@ export const adminQueryKeys = {
   overview: {
     stats: () => ["admin", "overview", "stats"] as const,
   },
+  providerBalances: {
+    all: () => ["admin", "provider_balances"] as const,
+  },
   products: {
     all: () => ["admin", "products"] as const,
     list: () => ["admin", "products", "list"] as const,
@@ -59,6 +62,9 @@ export const adminQueryKeys = {
   settings: {
     categories: () => ["admin", "settings", "categories"] as const,
     systemInfo: () => ["admin", "settings", "system_info"] as const,
+  },
+  profile: {
+    me: () => ["admin", "profile", "me"] as const,
   },
   logs: {
     audit: (p: object) => ["admin", "logs", "audit", p] as const,
