@@ -18,14 +18,15 @@ module Admin
         begin
           client = MyProxyApiClient.new
           response = client.account_info
-          data = response['data'] || response
+          reseller_data = response.dig('data', 'reseller') || {}
+          account_data = response['reseller_account'] || {}
           balances[:myproxy] = {
-            available_balance: data['available_balance'] || data['balance'],
-            deposited_amount: data['deposited_amount'],
-            order_amount: data['order_amount'],
-            currency: data['currency'] || 'USD',
-            username: data['username'],
-            discount: data['discount']
+            available_balance: reseller_data['available_balance'] || reseller_data['balance'],
+            deposited_amount: reseller_data['total_deposited'],
+            order_amount: reseller_data['total_orders_amount'],
+            currency: reseller_data['currency'] || 'USD',
+            username: account_data['username'],
+            discount: account_data['discount']
           }
         rescue StandardError => e
           Rails.logger.error("Provider balance fetch failed (MyProxyApi): #{e.message}")
