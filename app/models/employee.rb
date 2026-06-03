@@ -35,15 +35,25 @@ class Employee < ApplicationRecord
       raise SecurityError, "Email domain #{domain} not authorized for employee access"
     end
 
-    where(provider: auth.provider, uid: auth.uid).first_or_create do |employee|
-      employee.email = email
-      employee.work_email = email
-      employee.first_name = auth.info.first_name || auth.info.name&.split&.first || 'Employee'
-      employee.last_name = auth.info.last_name || auth.info.name&.split&.last || ''
-      employee.password = SecureRandom.hex(16)
-      employee.role = 'support' # Use valid role from ROLES
-      employee.active = true
-      employee.department = Department.find_or_create_by(name: 'General')
+    employee = find_by(email: email)
+
+    if employee
+      # Link the SSO account to the existing employee profile
+      employee.update(provider: auth.provider, uid: auth.uid) if employee.provider.blank?
+      employee
+    else
+      create do |emp|
+        emp.email = email
+        emp.work_email = email
+        emp.provider = auth.provider
+        emp.uid = auth.uid
+        emp.first_name = auth.info.first_name || auth.info.name&.split&.first || 'Employee'
+        emp.last_name = auth.info.last_name || auth.info.name&.split&.last || ''
+        emp.password = SecureRandom.hex(16)
+        emp.role = 'support' # Use valid role from ROLES
+        emp.active = true
+        emp.department = Department.find_or_create_by(name: 'General')
+      end
     end
   end
 
