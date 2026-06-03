@@ -404,6 +404,8 @@ Rails.application.routes.draw do
       get 'monitoring/audit_logs', to: 'monitoring#audit_logs'
       get 'monitoring/system_logs', to: 'monitoring#system_logs'
       get 'monitoring/error_logs', to: 'monitoring#error_logs'
+      get 'monitoring/resource_alerts', to: 'monitoring#resource_alerts'
+      post 'monitoring/resource_alerts/:id/acknowledge', to: 'monitoring#acknowledge_alert'
 
       namespace :database do
         get 'tables'

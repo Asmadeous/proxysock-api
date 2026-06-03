@@ -33,3 +33,7 @@ infrastructure_monthly_billing:
 localtonet_bandwidth_sync:
   cron: "*/15 * * * *" # Every 15 minutes
   class: "LocaltonetBandwidthSyncJob"
+
+resource_alert_check:
+  cron: "*/5 * * * *"   # Every 5 minutes
+  class: "ResourceAlertCheckJob"

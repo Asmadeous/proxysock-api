@@ -262,11 +262,46 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/targets:/etc/prometheus/targets
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+    environment:
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - ADMIN_ALERT_EMAIL=${ADMIN_ALERT_EMAIL:-admin@proxysock.com}
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
     restart: unless-stopped
 
   grafana:
@@ -313,6 +348,7 @@ volumes:
   postgres_staging_data:
   redis_staging_data:
   prometheus_data:
+  alertmanager_data:
   grafana_data:
   proxysock_api_logs:
   pgadmin_data:

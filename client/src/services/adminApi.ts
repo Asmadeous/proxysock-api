@@ -299,6 +299,10 @@ export const fetchErrorLogs = (params?: Record<string, string>) =>
     adminApi.get("/monitoring/error_logs", { params });
 export const fetchAdminSummaryCounts = () =>
     adminApi.get("/monitoring/summary_counts").then(res => res.data);
+export const fetchResourceAlerts = (params?: Record<string, string>) =>
+    adminApi.get("/monitoring/resource_alerts", { params });
+export const acknowledgeResourceAlert = (id: string) =>
+    adminApi.post(`/monitoring/resource_alerts/${id}/acknowledge`);
 
 // ── Provider Balances (MyProxyApi + eSIM Access) ──
 export const fetchProviderBalances = () =>

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, type FormEvent } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
     EnvelopeIcon,
@@ -8,6 +8,7 @@ import {
     EyeSlashIcon,
     ArrowRightIcon,
     ShieldCheckIcon,
+    BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { adminLogin } from "../../services/adminApi";
 import AuthLogo from "../../components/auth/AuthLogo";
@@ -21,6 +22,18 @@ export default function AdminLoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const errorParam = params.get("error");
+        const messageParam = params.get("message");
+        if (errorParam) {
+            setError(messageParam || errorParam);
+            // Optional: clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, [location]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -170,6 +183,28 @@ export default function AdminLoginPage() {
                                     )}
                                 </button>
                             </form>
+
+                            <div className="relative my-6">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-border"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, '');
+                                    window.location.href = `${baseUrl}/admin/api/auth/zoho`;
+                                }}
+                                disabled={loading}
+                                className="w-full bg-background hover:bg-muted border border-border text-foreground py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <BuildingOfficeIcon className="h-5 w-5 text-blue-500" />
+                                <span>Sign in with Zoho SSO</span>
+                            </button>
                         </div>
 
                         <p className="text-center text-xs text-muted-foreground mt-6">

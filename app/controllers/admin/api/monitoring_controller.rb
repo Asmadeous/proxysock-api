@@ -426,6 +426,26 @@ module Admin
         render json: { errors: [], total: 0, error: e.message }
       end
 
+      # GET /admin/api/monitoring/resource_alerts
+      def resource_alerts
+        status = params[:status] || 'firing'
+        limit = (params[:limit] || 50).to_i
+        
+        alerts = ResourceAlert.order(updated_at: :desc).limit(limit)
+        alerts = alerts.where(status: status) if status != 'all'
+        
+        render json: { alerts: alerts }
+      end
+
+      # POST /admin/api/monitoring/resource_alerts/:id/acknowledge
+      def acknowledge_alert
+        alert = ResourceAlert.find(params[:id])
+        alert.resolve! # Using resolve! as pseudo-acknowledge
+        render json: { success: true, alert: alert }
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: 'Alert not found' }, status: :not_found
+      end
+
       private
 
       def system_metrics
