@@ -5,6 +5,28 @@ OmniAuth.config.allowed_request_methods = %i[get post]
 # Suppress OmniAuth 2.0+ deprecation warnings for GET requests
 OmniAuth.config.silence_get_warning = true
 
+# Fix omniauth-zoho gem: The gem is hardcoded to fetch from the Zoho CRM API.
+# We override it here to fetch from the standard Zoho Accounts profile endpoint for SSO.
+require 'omniauth/strategies/zoho'
+module OmniAuth
+  module Strategies
+    class Zoho < OmniAuth::Strategies::OAuth2
+      def raw_info
+        # Use the standard Zoho profile API endpoint instead of CRM
+        @raw_info ||= access_token.get('https://accounts.zoho.com/oauth/user/info').parsed
+      end
+
+      info do
+        {
+          email: raw_info['Email'],
+          first_name: raw_info['First_Name'],
+          last_name: raw_info['Last_Name']
+        }
+      end
+    end
+  end
+end
+
 Rails.application.config.middleware.use OmniAuth::Builder do
   # User SSO
   provider :google_oauth2, ENV['GOOGLE_CLIENT_ID'], ENV['GOOGLE_CLIENT_SECRET']
