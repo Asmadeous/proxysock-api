@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_02_122554) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -907,6 +907,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_02_122554) do
     t.decimal "traffic_gb_total"
     t.decimal "traffic_gb_used"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "resource_alerts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "metric", null: false
+    t.datetime "notified_at"
+    t.string "recipient_email"
+    t.uuid "recipient_id"
+    t.string "recipient_type"
+    t.datetime "resolved_at"
+    t.string "resource_id"
+    t.string "resource_name"
+    t.string "resource_type", null: false
+    t.string "status", default: "firing", null: false
+    t.float "threshold", default: 90.0, null: false
+    t.datetime "updated_at", null: false
+    t.float "value", null: false
+    t.index ["resource_type", "resource_id", "metric", "status"], name: "idx_resource_alerts_unique_firing", where: "((status)::text = 'firing'::text)"
+    t.index ["resource_type"], name: "index_resource_alerts_on_resource_type"
+    t.index ["status"], name: "index_resource_alerts_on_status"
   end
 
   create_table "static_datacenter_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

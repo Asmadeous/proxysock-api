@@ -12,6 +12,7 @@ import {
     fetchMonitoringDeadJobs, fetchMonitoringScheduled,
     retryMonitoringJob, deleteMonitoringJob, clearMonitoringQueue,
     clearMonitoringRetries, clearMonitoringDead, retryAllMonitoring,
+    fetchResourceAlerts, acknowledgeResourceAlert
 } from "../../../services/adminApi";
 import { toast } from "sonner";
 import { getApiError } from "../../../utils/apiError";
@@ -61,17 +62,26 @@ export default function MonitoringTab() {
     const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => Promise<void> } | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
+    const [alerts, setAlerts] = useState<AnyObj[]>([]);
+    const [loadingAlerts, setLoadingAlerts] = useState(false);
+
     const loadData = useCallback(async () => {
         try {
             setError(null);
             const res = await fetchMonitoringData();
             setData(res.data);
             setLastRefresh(new Date());
+            
+            // Also load alerts
+            setLoadingAlerts(true);
+            const alertRes = await fetchResourceAlerts({ status: 'firing' });
+            setAlerts(alertRes.data.alerts || []);
         } catch (err) {
             console.error("Monitoring load error:", err);
             setError("Failed to fetch monitoring data");
         } finally {
             setLoading(false);
+            setLoadingAlerts(false);
         }
     }, []);
 
@@ -98,6 +108,16 @@ export default function MonitoringTab() {
     useEffect(() => { loadJobs(); }, [loadJobs]);
 
     const handleRefresh = () => { setLoading(true); loadData(); loadJobs(); };
+
+    const handleAcknowledgeAlert = async (id: string) => {
+        try {
+            await acknowledgeResourceAlert(id);
+            toast.success("Alert acknowledged (resolved)");
+            setAlerts(alerts.filter(a => a.id !== id));
+        } catch (err) {
+            toast.error(getApiError(err, "Failed to acknowledge alert"));
+        }
+    };
 
     const handleRetryJob = async (jid: string) => {
         try { await retryMonitoringJob(jid); toast.success(`Job ${jid.slice(0, 8)} retried`); loadJobs(); }
@@ -202,6 +222,60 @@ export default function MonitoringTab() {
                     })}
                 </div>
             </div>
+
+            {/* ── Active Alerts ───────────────────────────────── */}
+            {(alerts.length > 0 || loadingAlerts) && (
+                <div className="bg-card rounded-xl border border-destructive/50 p-5 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-destructive flex items-center gap-2">
+                            <ExclamationTriangleIcon className="h-5 w-5" /> Active Resource Alerts
+                            <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs font-bold">{alerts.length}</span>
+                        </h3>
+                    </div>
+                    
+                    {loadingAlerts && alerts.length === 0 ? (
+                        <div className="animate-pulse flex space-x-4">
+                            <div className="flex-1 space-y-4 py-1">
+                                <div className="h-4 bg-muted rounded w-3/4"></div>
+                                <div className="h-4 bg-muted rounded w-1/2"></div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {alerts.map(alert => (
+                                <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20 gap-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="px-2 py-0.5 rounded bg-destructive text-destructive-foreground text-[10px] font-bold uppercase tracking-wider">
+                                                {alert.resource_type}
+                                            </span>
+                                            <span className="font-semibold text-foreground">{alert.resource_name || alert.resource_id}</span>
+                                        </div>
+                                        <div className="text-sm text-muted-foreground flex items-center gap-4">
+                                            <span><strong className="text-destructive">{alert.metric.toUpperCase()}</strong>: {alert.value}% (Threshold: {alert.threshold}%)</span>
+                                            {alert.recipient_email && (
+                                                <span className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                    Notified: {alert.recipient_email}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Started: {new Date(alert.created_at).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleAcknowledgeAlert(alert.id)}
+                                        className="px-4 py-2 bg-background border border-border rounded-lg text-sm font-medium hover:bg-muted transition shrink-0"
+                                    >
+                                        Acknowledge
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* System Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
