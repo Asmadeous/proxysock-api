@@ -30,7 +30,6 @@ export default function TawkWidget() {
     s1.async = true;
     s1.src = `https://embed.tawk.to/${TAWK_PROPERTY_ID}/${TAWK_WIDGET_ID}`;
     s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
     
     if (s0 && s0.parentNode) {
         s0.parentNode.insertBefore(s1, s0);
@@ -60,7 +59,7 @@ export default function TawkWidget() {
               email: data.email,
               hash: data.hash
             }, function (error: any) {
-               if (error) console.error("Tawk Set Attributes Error:", error);
+               if (error && error !== true) console.error("Tawk Set Attributes Error:", error);
             });
           }
         } catch (err) {

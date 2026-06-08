@@ -489,6 +489,7 @@
       };
 
       console.error = function (...args) {
+        if (args.length === 1 && args[0] === true) return;
         const message = args.join(" ");
         const suppressedErrors = [
           "Cannot read properties of undefined (reading 'reportIncident')",
