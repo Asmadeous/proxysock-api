@@ -66,7 +66,8 @@
         https://*.cloudflareinsights.com
         https://proxysock.com
         https://*.proxysock.com
-        https://challenges.cloudflare.com;
+        https://challenges.cloudflare.com
+        https://*.tawk.to;
 
       style-src 'self' 'unsafe-inline'
         https://fonts.googleapis.com
@@ -74,10 +75,12 @@
 
         https://checkout.paystack.com
         https://paystack.com
-        https://js.paystack.co;
+        https://js.paystack.co
+        https://*.tawk.to;
 
       font-src 'self'
         https://fonts.gstatic.com
+        https://*.tawk.to
         data:;
 
       img-src 'self' data: blob: http://localhost:* https://*.trycloudflare.com
@@ -102,7 +105,8 @@
         https://img.freepik.com
         https://*.paystack.co
         https://api.dicebear.com
-        https://apitest.proxysock.net;
+        https://apitest.proxysock.net
+        https://*.tawk.to;
 
       connect-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com https://*.proxysock.net wss://*.proxysock.net https://*.proxysock.com wss://*.proxysock.com
         https://www.google-analytics.com
@@ -121,11 +125,13 @@
         https://*.cloudflareinsights.com
         https://proxysock.com
         https://*.proxysock.com
-        https://challenges.cloudflare.com;
+        https://challenges.cloudflare.com
+        https://*.tawk.to wss://*.tawk.to;
 
       frame-src 'self'
         https://checkout.paystack.com
-        https://challenges.cloudflare.com;
+        https://challenges.cloudflare.com
+        https://*.tawk.to;
 
       object-src 'none';
       base-uri 'self';
@@ -841,6 +847,20 @@
 
   <!-- React app entry point -->
   <script type="module" src="/src/main.tsx"></script>
+
+  <!--Start of Tawk.to Script-->
+  <script type="text/javascript">
+  var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+  (function(){
+  var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+  s1.async=true;
+  s1.src='https://embed.tawk.to/6a270967be9ae91c2b2df4f5/1jqk7pfvr';
+  s1.charset='UTF-8';
+  s1.setAttribute('crossorigin','*');
+  s0.parentNode.insertBefore(s1,s0);
+  })();
+  </script>
+  <!--End of Tawk.to Script-->
 </body>
 
 </html>

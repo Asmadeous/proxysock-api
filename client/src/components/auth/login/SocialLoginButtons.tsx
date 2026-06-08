@@ -1,4 +1,5 @@
 
+import { motion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogle, faXTwitter } from "@fortawesome/free-brands-svg-icons";
 
@@ -18,48 +19,63 @@ export default function SocialLoginButtons({
   isOAuthDisabled,
 }: SocialLoginButtonsProps) {
   return (
-    <div className="space-y-4">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.5 }}
+      className="space-y-3"
+    >
       {/* Google Button */}
-      <button
+      <motion.button
         type="button"
         onClick={onGoogleSignIn}
         disabled={isOAuthDisabled}
-        className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+        whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
+        whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
+        className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white dark:bg-white/95 hover:bg-gray-50 dark:hover:bg-white border border-gray-200/80 dark:border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
       >
         {googleLoading ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500 mr-3"></div>
+          <motion.div
+            className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
         ) : (
           <FontAwesomeIcon
             icon={faGoogle}
-            className="h-5 w-5 text-red-500 mr-3 group-hover:scale-110 transition-transform"
+            className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-200"
           />
         )}
-        <span className="text-gray-800 font-semibold">
-          {googleLoading
-            ? "Connecting to Google..."
-            : "Continue with Google"}
+        <span className="text-gray-700 font-semibold text-sm font-inter">
+          {googleLoading ? "Connecting..." : "Continue with Google"}
         </span>
-      </button>
+      </motion.button>
 
       {/* X (Twitter) Button */}
-      <button
+      <motion.button
         type="button"
         onClick={onXSignIn}
         disabled={isOAuthDisabled}
-        className="w-full flex items-center justify-center px-6 py-4 bg-black hover:bg-gray-900 border border-gray-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
+        whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
+        whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
+        className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-[#0a0a0a] hover:bg-black border border-gray-800 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
       >
         {xLoading ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+          <motion.div
+            className="w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
         ) : (
           <FontAwesomeIcon
             icon={faXTwitter}
-            className="h-5 w-5 text-white mr-3 group-hover:scale-110 transition-transform"
+            className="h-5 w-5 text-white group-hover:scale-110 transition-transform duration-200"
           />
         )}
-        <span className="text-white font-semibold">
-          {xLoading ? "Connecting to X..." : "Continue with X"}
+        <span className="text-white font-semibold text-sm font-inter">
+          {xLoading ? "Connecting..." : "Continue with X"}
         </span>
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 }

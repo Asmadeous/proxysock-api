@@ -9,23 +9,23 @@ import {
 const loginFeatures = [
   {
     icon: ShieldCheckIcon,
-    title: "Secure Login",
-    description: "Advanced security measures protect your account and data at all times."
+    title: "Enterprise Security",
+    description: "Military-grade encryption and SOC2-compliant infrastructure keep your data safe around the clock."
   },
   {
     icon: BoltIcon,
-    title: "Fast Access",
-    description: "Lightning-fast login process to get you to your dashboard instantly."
+    title: "Lightning Fast",
+    description: "Sub-millisecond response times with our globally distributed proxy network of 10M+ IPs."
   },
   {
     icon: GlobeAltIcon,
-    title: "Global Network",
-    description: "Access your ProxySock account from anywhere in the world."
+    title: "190+ Countries",
+    description: "Access geo-restricted content from anywhere with residential and datacenter proxies worldwide."
   },
   {
     icon: SparklesIcon,
-    title: "Premium Features",
-    description: "Unlock advanced proxy features and management tools."
+    title: "Premium Tools",
+    description: "Advanced rotation, sticky sessions, API access, and real-time analytics at your fingertips."
   },
 ];
 

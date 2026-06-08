@@ -4,7 +4,7 @@ import { Outlet } from "react-router-dom";
 import { useThemeStore } from "@/store/themeStore";
 import { Footer } from "@/components/landing/layout/Footer";
 import Navbar from "./Navbar";
-import ChatWidget from "@/components/ChatWidget";
+
 
 export default function PublicLayout() {
   const dark = useThemeStore((state) => state.dark);
@@ -21,7 +21,7 @@ export default function PublicLayout() {
           <Outlet />
         </main>
         <Footer />
-        <ChatWidget />
+
       </div>
     </div>
   );

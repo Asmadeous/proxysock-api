@@ -14,7 +14,7 @@ import AuthLayout from "./components/landing/layout/AuthLayout";
 import { Toaster } from "sonner";
 import { Toaster as HotToaster } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import ChatWidget from "./components/ChatWidget";
+import TawkWidget from "./components/TawkWidget";
 
 // ─── Public pages ──────────────────────────────────────────
 const Home = lazy(() => import("./pages/public/Home"));
@@ -266,7 +266,7 @@ export default function App() {
             </Routes>
           </Suspense>
           <CookieConsentBanner />
-          <ChatWidget />
+          <TawkWidget />
         </AutoSEO>
       </HelmetProvider>
     </AuthProvider>

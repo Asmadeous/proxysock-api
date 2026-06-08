@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useThemeStore } from "@/store/themeStore";
-import ChatWidget from "@/components/ChatWidget";
+
 
 export default function AuthLayout() {
   const dark = useThemeStore((state) => state.dark);
@@ -11,7 +11,7 @@ export default function AuthLayout() {
         }`}
     >
       <Outlet />
-      <ChatWidget />
+
     </div>
   );
 }

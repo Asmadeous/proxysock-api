@@ -243,6 +243,11 @@ Rails.application.routes.draw do
       resources :support_chats, only: %i[index show] do
         post :messages, on: :collection, action: :add_message
       end
+      resources :tawk, only: [] do
+        collection do
+          get :secure_hash
+        end
+      end
       get 'monitoring/summary_counts', to: 'monitoring#summary_counts'
       post 'monitoring/login', to: 'monitoring#login'
     end
@@ -446,6 +451,8 @@ Rails.application.routes.draw do
     get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'fastspring', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    
+    post 'tawk', to: 'webhooks/tawk#create'
   end
 
   post 'esim', to: 'webhooks/esim_access#webhook'
