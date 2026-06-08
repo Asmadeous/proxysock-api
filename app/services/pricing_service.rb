@@ -57,7 +57,7 @@ class PricingService
     # For some products, duration is passed as 'period' (months) or 'duration_days'
     # For Global ISP, period is a string like '30d' or '7d' and should NOT be used as a multiplier
     # as the price is already for that specific period.
-    return 1 if global_isp?
+    return 1 if global_isp? || @product.product_type == 'vpn' || @product.product_type == 'residential_vpn'
 
     if @metadata['period'].present?
       period = @metadata['period'].to_s

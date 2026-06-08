@@ -1079,9 +1079,7 @@ class OrderProvisioningService
         user_id: user_id,
         product_api_id: api_id,
         period: period,
-        protocol: protocol,
         locations: locations,
-        whitelist_ip: client_ip,
         debug: payment_debug
       }
 
