@@ -1066,7 +1066,7 @@ class OrderProvisioningService
       period    = @order.metadata['period'] || 1
       locations = @order.metadata['locationId'] || @order.metadata['locationsString']
       client_ip = @order.metadata['client_ip']
-      protocol  = @order.metadata['protocol'] || 'http'
+      protocol  = 'http'
       api_id    = @product.provider_product_id
 
       client = MyProxyApiClient.new
@@ -1080,7 +1080,9 @@ class OrderProvisioningService
         product_api_id: api_id,
         period: period,
         locations: locations,
-        debug: payment_debug
+        debug: payment_debug,
+        protocol: 'http',
+        whitelist_ip: @order.metadata['whitelist_ip'] || client_ip
       }
 
       response = client.place_order(**provisioning_params)
