@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 
 // Replace these with actual Tawk Property ID and Widget ID from env or config
-const TAWK_PROPERTY_ID = import.meta.env.VITE_TAWK_PROPERTY_ID || "YOUR_PROPERTY_ID";
-const TAWK_WIDGET_ID = import.meta.env.VITE_TAWK_WIDGET_ID || "default";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+const TAWK_PROPERTY_ID = import.meta.env.VITE_TAWK_PROPERTY_ID;
+const TAWK_WIDGET_ID = import.meta.env.VITE_TAWK_WIDGET_ID;
+const API_URL = import.meta.env.VITE_API_URL 
 
 declare global {
   interface Window {

@@ -77,6 +77,8 @@ jobs:
                       VITE_RAILS_API_URL=${{ secrets.VITE_RAILS_API_URL }}
                       VITE_WS_URL=${{ secrets.VITE_WS_URL }}
                       VITE_HUNDREDPAY_PUBLIC_KEY=${{ secrets.VITE_HUNDREDPAY_PUBLIC_KEY }}
+                      VITE_TAWK_PROPERTY_ID=${{ secrets.VITE_TAWK_PROPERTY_ID }}
+                      VITE_TAWK_WIDGET_ID=${{ secrets.VITE_TAWK_WIDGET_ID }}
                   cache-from: type=gha,scope=client
                   cache-to: type=gha,scope=client,mode=max
 
