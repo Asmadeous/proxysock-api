@@ -1063,7 +1063,7 @@ class OrderProvisioningService
   # ========== VPN Provisioning ==========
   def provision_vpn!
     if @product.provider_type == 'myproxyapi'
-      period    = @order.metadata['period'] || 1
+      period    = 1
       locations = @order.metadata['locationId'] || @order.metadata['locationsString']
       client_ip = @order.metadata['client_ip']
       protocol  = 'http'
