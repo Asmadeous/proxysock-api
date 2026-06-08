@@ -361,7 +361,7 @@ export default function Register() {
   return (
     <div className="flex h-screen bg-background">
       {/* Left Panel - Aurora Background with Benefits */}
-      <div className="hidden lg:flex w-[45%] xl:w-[40%] relative">
+      <div className="hidden lg:flex w-[45%] xl:w-[42%] relative">
         <AuroraBackground />
 
         {/* Register Benefits Carousel */}
@@ -372,38 +372,74 @@ export default function Register() {
           <AuthLogo variant="dark" />
         </div>
 
-        {/* Welcome Text */}
-        <div className="absolute bottom-8 left-8 right-8 z-10">
-          <div className="bg-white/[0.08] backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-white/90 text-lg font-medium leading-relaxed mb-2">
+        {/* Welcome Text + Stats */}
+        <div className="absolute bottom-8 left-8 right-8 z-10 space-y-3">
+          {/* Trust indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1 }}
+            className="flex gap-3"
+          >
+            {[
+              { value: "50K+", label: "Users" },
+              { value: "Free", label: "Trial" },
+              { value: "< 1 min", label: "Setup" },
+            ].map((stat, idx) => (
+              <div
+                key={idx}
+                className="flex-1 bg-white/[0.06] backdrop-blur-xl rounded-xl px-3 py-2.5 border border-white/8 text-center"
+              >
+                <div className="text-white font-bold text-sm font-manrope">
+                  {stat.value}
+                </div>
+                <div className="text-white/45 text-[10px] font-inter font-medium uppercase tracking-wider mt-0.5">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Welcome card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="bg-white/[0.06] backdrop-blur-2xl rounded-2xl p-5 border border-white/8 shadow-2xl"
+          >
+            <h3 className="text-white/90 text-lg font-semibold leading-relaxed mb-1.5 font-manrope">
               Join ProxySock Today
             </h3>
-            <p className="text-white/60 text-sm">
+            <p className="text-white/50 text-sm font-inter leading-relaxed">
               Get instant access to premium proxies, RDP, VPS, and global eSIM solutions
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Right Panel - Registration Form */}
-      <div className="flex-1 flex flex-col bg-background">
+      <div className="flex-1 flex flex-col bg-background relative">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+          backgroundSize: '32px 32px',
+        }} />
+
         {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-center py-8 px-6">
           <AuthLogo variant="auto" size="sm" />
         </div>
 
-        <div className="flex-1 flex flex-col p-6 lg:p-12 overflow-y-auto">
+        <div className="flex-1 flex flex-col p-6 lg:p-12 overflow-y-auto relative">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="w-full max-w-lg m-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            className="w-full max-w-[480px] m-auto"
           >
             <div className="space-y-6">
               {/* Form Header */}
               <RegisterHeader />
-
-
 
               {/* Registration Form */}
               <RegisterForm
@@ -440,50 +476,77 @@ export default function Register() {
                 onSubmit={handleSubmit}
               />
 
-              {/* Social Login Buttons */}
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-6">
-                <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={isOAuthDisabled}
-                    className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
-                  >
-                    {googleLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500 mr-3"></div>
-                    ) : (
-                      <FontAwesomeIcon
-                        icon={faGoogle}
-                        className="h-5 w-5 text-red-500 mr-3"
-                      />
-                    )}
-                    <span className="text-gray-800 font-medium">
-                      {googleLoading
-                        ? "Connecting to Google..."
-                        : "Continue with Google"}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleXSignIn}
-                    disabled={isOAuthDisabled}
-                    className="w-full flex items-center justify-center px-6 py-4 bg-black hover:bg-gray-900 border border-gray-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] disabled:scale-100 shadow-lg hover:shadow-xl group"
-                  >
-                    {xLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    ) : (
-                      <FontAwesomeIcon
-                        icon={faXTwitter}
-                        className="h-5 w-5 text-white mr-3"
-                      />
-                    )}
-                    <span className="text-white font-medium">
-                      {xLoading ? "Connecting to X..." : "Continue with X"}
-                    </span>
-                  </button>
+              {/* Social Login Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/40"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-4 bg-background text-muted-foreground/60 font-inter font-medium uppercase tracking-widest">
+                    or continue with
+                  </span>
                 </div>
               </div>
+
+              {/* Social Login Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="space-y-3"
+              >
+                <motion.button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isOAuthDisabled}
+                  whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
+                  whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white dark:bg-white/95 hover:bg-gray-50 dark:hover:bg-white border border-gray-200/80 dark:border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
+                >
+                  {googleLoading ? (
+                    <motion.div
+                      className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                  ) : (
+                    <FontAwesomeIcon
+                      icon={faGoogle}
+                      className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-200"
+                    />
+                  )}
+                  <span className="text-gray-700 font-semibold text-sm font-inter">
+                    {googleLoading
+                      ? "Connecting..."
+                      : "Continue with Google"}
+                  </span>
+                </motion.button>
+
+                <motion.button
+                  type="button"
+                  onClick={handleXSignIn}
+                  disabled={isOAuthDisabled}
+                  whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
+                  whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-[#0a0a0a] hover:bg-black border border-gray-800 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
+                >
+                  {xLoading ? (
+                    <motion.div
+                      className="w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                  ) : (
+                    <FontAwesomeIcon
+                      icon={faXTwitter}
+                      className="h-5 w-5 text-white group-hover:scale-110 transition-transform duration-200"
+                    />
+                  )}
+                  <span className="text-white font-semibold text-sm font-inter">
+                    {xLoading ? "Connecting..." : "Continue with X"}
+                  </span>
+                </motion.button>
+              </motion.div>
             </div>
           </motion.div>
         </div>

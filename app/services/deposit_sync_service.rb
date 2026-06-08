@@ -14,8 +14,12 @@ class DepositSyncService
       process_completion(verification[:amount])
       true
     else
+      handle_deposit_failure(verification[:error] || "Payment verification returned status: #{verification[:status]}")
       false
     end
+  rescue StandardError => e
+    handle_deposit_failure("Gateway error: #{e.message}")
+    false
   end
 
   private
@@ -51,5 +55,29 @@ class DepositSyncService
 
       Rails.logger.info("Successfully synced deposit #{@deposit.id} (#{@deposit.metadata['transaction_ref']})")
     end
+  end
+
+  def handle_deposit_failure(error_message)
+    Rails.logger.error("[DepositSyncService] Deposit #{@deposit.id} failed: #{error_message}")
+
+    # Update deposit status to failed if possible
+    @deposit.update(status: 'failed') if @deposit.respond_to?(:status)
+
+    # Auto-create a support ticket and sync to Tawk.to
+    TicketCreatorService.create_for_failed_deposit(@deposit, error_message)
+
+    # Notify the depositor
+    if @deposit.depositable
+      NotificationService.notify(
+        recipient: @deposit.depositable,
+        category: 'error',
+        title: 'Deposit Failed',
+        message: "Your deposit via #{@gateway} could not be processed. A support ticket has been created.",
+        metadata: { deposit_id: @deposit.id }
+      )
+    end
+
+    # Slack: Deposit failure alert
+    SlackNotifyJob.perform_later('deposit_failed', @deposit.id, error: error_message)
   end
 end

@@ -155,6 +155,9 @@ class OrderProvisioningService
       end
     end
 
+    # Auto-create a support ticket and sync to Tawk.to
+    TicketCreatorService.create_for_failed_order(@order, e.message)
+
     # Slack: Provisioning failure alert
     SlackNotifyJob.perform_later('provisioning_failed', @order.id, error: e.message)
 

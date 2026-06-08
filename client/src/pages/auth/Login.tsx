@@ -109,7 +109,7 @@ export default function Login() {
   return (
     <div className="flex h-screen bg-background">
       {/* Left Panel - Aurora Background with Features */}
-      <div className="hidden lg:flex w-[45%] xl:w-[40%] relative">
+      <div className="hidden lg:flex w-[45%] xl:w-[42%] relative">
         <AuroraBackground />
 
         {/* Login Features Carousel */}
@@ -120,32 +120,70 @@ export default function Login() {
           <AuthLogo variant="dark" />
         </div>
 
-        {/* Welcome Text */}
-        <div className="absolute bottom-8 left-8 right-8 z-10">
-          <div className="bg-white/[0.08] backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-white/90 text-lg font-medium leading-relaxed mb-2">
+        {/* Welcome Text + Stats */}
+        <div className="absolute bottom-8 left-8 right-8 z-10 space-y-3">
+          {/* Trust indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1 }}
+            className="flex gap-3"
+          >
+            {[
+              { value: "99.9%", label: "Uptime" },
+              { value: "190+", label: "Countries" },
+              { value: "24/7", label: "Support" },
+            ].map((stat, idx) => (
+              <div
+                key={idx}
+                className="flex-1 bg-white/[0.06] backdrop-blur-xl rounded-xl px-3 py-2.5 border border-white/8 text-center"
+              >
+                <div className="text-white font-bold text-sm font-manrope">
+                  {stat.value}
+                </div>
+                <div className="text-white/45 text-[10px] font-inter font-medium uppercase tracking-wider mt-0.5">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Welcome card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="bg-white/[0.06] backdrop-blur-2xl rounded-2xl p-5 border border-white/8 shadow-2xl"
+          >
+            <h3 className="text-white/90 text-lg font-semibold leading-relaxed mb-1.5 font-manrope">
               Welcome Back
             </h3>
-            <p className="text-white/60 text-sm">
+            <p className="text-white/50 text-sm font-inter leading-relaxed">
               Access premium proxies, RDP, VPS, and global eSIM solutions
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex-1 flex flex-col bg-background">
+      <div className="flex-1 flex flex-col bg-background relative">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+          backgroundSize: '32px 32px',
+        }} />
+
         {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-center py-8 px-6">
           <AuthLogo variant="auto" size="sm" />
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12 relative">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="w-full max-w-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            className="w-full max-w-[440px]"
           >
             <div className="space-y-6">
               {/* Form Header */}
@@ -168,13 +206,13 @@ export default function Login() {
               />
 
               {/* Divider */}
-              <div className="relative my-6 lg:my-8">
+              <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/20"></div>
+                  <div className="w-full border-t border-border/40"></div>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-gradient-to-r from-transparent via-white/10 to-transparent text-foreground font-medium rounded-full py-1 backdrop-blur-sm">
-                    OR
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-4 bg-background text-muted-foreground/60 font-inter font-medium uppercase tracking-widest">
+                    or continue with
                   </span>
                 </div>
               </div>
