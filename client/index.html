@@ -592,6 +592,23 @@
     globalThis.getServiceStatus = () => globalThis.serviceStatus;
 
     log.info("🚀 ProxySock initialization complete");
+
+    // Unregister any old Service Workers from Netlify
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        let unregisteredAny = false;
+        for(let registration of registrations) {
+          registration.unregister();
+          unregisteredAny = true;
+          log.info("🗑️ Unregistered old service worker");
+        }
+        // Force a page reload if we killed a ghost cache so the user sees the new site immediately
+        if (unregisteredAny) {
+          log.info("🔄 Auto-refreshing to load fresh content...");
+          window.location.reload();
+        }
+      });
+    }
   </script>
 </head>
 
