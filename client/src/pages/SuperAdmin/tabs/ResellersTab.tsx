@@ -550,7 +550,7 @@ export default function ResellersTab() {
                             <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
                         </div>
                         <Field label="Allowed Product Category ID">
-                            <input className={inputClasses} type="number" value={configForm.allowed_product_category_id} onChange={(e) => setConfigForm({ ...configForm, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                            <input className={inputClasses} type="text" value={configForm.allowed_product_category_id} onChange={(e) => setConfigForm({ ...configForm, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
                         </Field>
                     </>
                 )}
