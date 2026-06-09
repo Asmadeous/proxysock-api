@@ -157,7 +157,7 @@ module Admin
           created_at: r.created_at
         }
         if full
-          data[:users] = r.users.select(:id, :email, :first_name, :last_name, :status, :created_at).map do |u|
+          data[:users] = r.managed_users.select(:id, :email, :first_name, :last_name, :status, :created_at).map do |u|
             { id: u.id, email: u.email, name: "#{u.first_name} #{u.last_name}".strip, status: u.status, created_at: u.created_at }
           end
           data[:orders] = r.orders.order(created_at: :desc).limit(20).map do |o|
