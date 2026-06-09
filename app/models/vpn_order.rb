@@ -2,5 +2,5 @@
 
 class VpnOrder < ApplicationRecord
   belongs_to :order
-  has_one :vpn, dependent: :destroy
+  has_many :vpns, dependent: :destroy
 end

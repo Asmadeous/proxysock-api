@@ -13,10 +13,10 @@ module Web
         email = current_actor.email
         hash = OpenSSL::HMAC.hexdigest('SHA256', ENV['TAWK_API_KEY'], email)
 
-        render json: { 
-          hash: hash, 
-          email: email, 
-          name: current_actor.try(:name) || current_actor.try(:company_name) || email 
+        render json: {
+          hash: hash,
+          email: email,
+          name: current_actor.try(:name) || current_actor.try(:company_name) || email
         }
       end
     end

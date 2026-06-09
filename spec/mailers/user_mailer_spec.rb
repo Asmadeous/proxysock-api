@@ -15,7 +15,7 @@ RSpec.describe UserMailer, type: :mailer do
     end
 
     it 'renders the body' do
-      expect(mail.body.encoded).to match('Thanks for signing up for ProxySock!')
+      expect(mail.body.encoded).to match('Welcome to ProxySock!')
     end
   end
 
@@ -29,7 +29,7 @@ RSpec.describe UserMailer, type: :mailer do
     end
 
     it 'renders the body' do
-      expect(mail.body.encoded).to match('We received a request to reset your ProxySock password.')
+      expect(mail.body.encoded).to match('We received a request to reset your password for your ProxySock account.')
     end
   end
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddOrderIdToStaticResidentialProxies < ActiveRecord::Migration[7.1]
   def change
     add_column :static_residential_proxies, :order_id, :uuid

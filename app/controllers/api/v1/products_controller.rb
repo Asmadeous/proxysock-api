@@ -71,7 +71,7 @@ module Api
         # Use find to leverage preloaded product_pricings instead of find_by
         pricing = product.product_pricings.find(&:active)
         base_price = (pricing&.reseller_selling_price || pricing&.selling_price).to_f
-        
+
         {
           id: product.id,
           name: product.name,

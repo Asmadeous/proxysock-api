@@ -91,7 +91,7 @@ export default function ResWallet() {
         try {
             let details: Record<string, string> = {};
             if (withdrawMethod === "crypto") {
-                details = { crypto_currency: withdrawDetails.crypto_currency || "USDT", crypto_address: withdrawDetails.crypto_address };
+                details = { crypto_currency: withdrawDetails.crypto_currency || "USDT", crypto_address: withdrawDetails.crypto_address, crypto_gateway: withdrawDetails.crypto_gateway || "plisio" };
             } else if (withdrawMethod === "manual") {
                 details = { 
                     account_name: withdrawDetails.account_name, 
@@ -165,6 +165,28 @@ export default function ResWallet() {
         if (withdrawMethod === "crypto") {
             return (
                 <div className="grid gap-4 pt-2">
+                    <div className="grid gap-2">
+                        <Label className="text-sm font-bold">Gateway</Label>
+                        <Select value={withdrawDetails.crypto_gateway || "plisio"} onValueChange={(v) => setWithdrawDetails({ ...withdrawDetails, crypto_gateway: v })}>
+                            <SelectTrigger className="rounded-xl border-border/50">
+                                <SelectValue placeholder="Select gateway" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="plisio">
+                                    <div className="flex items-center gap-2">
+                                        <img src="/plisio.webp" alt="Plisio" className="w-5 h-5 object-contain" />
+                                        Plisio
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="heleket">
+                                    <div className="flex items-center gap-2">
+                                        <img src="/heleket.webp" alt="Heleket" className="w-5 h-5 object-contain" />
+                                        Heleket
+                                    </div>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="grid gap-2">
                         <Label className="text-sm font-bold">Currency</Label>
                         <Select value={withdrawDetails.crypto_currency || "USDT"} onValueChange={(v) => setWithdrawDetails({ ...withdrawDetails, crypto_currency: v })}>
@@ -409,8 +431,25 @@ export default function ResWallet() {
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "plisio" ? "border-orange-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
 
-                                    {/* Payvra Option */}
+                                    {/* Heleket Option */}
                                     <div 
+                                        onClick={() => setPaymentGateway("heleket")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "heleket" ? "border-emerald-500 bg-emerald-500/5" : "border-border/50 hover:bg-muted/50"}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
+                                                <img src="/heleket.webp" alt="Heleket" className="w-full h-full object-contain" />
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-sm uppercase tracking-tight">Heleket Crypto</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
+                                            </div>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "heleket" ? "border-emerald-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                    </div>
+
+                                    {/* Payvra Option */}
+                                    {/* <div 
                                         onClick={() => setPaymentGateway("payvra")}
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "payvra" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
@@ -424,7 +463,7 @@ export default function ResWallet() {
                                             </div>
                                         </div>
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "payvra" ? "border-blue-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
-                                    </div>
+                                    </div> */}
                                 </div>
                             </div>
                         </div>

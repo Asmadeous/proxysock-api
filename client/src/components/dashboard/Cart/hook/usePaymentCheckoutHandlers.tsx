@@ -24,6 +24,7 @@ interface UsePaymentCheckoutHandlersProps {
   setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingFastspring: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingHeleket?: React.Dispatch<React.SetStateAction<boolean>>;
   // functions
   clearCart: () => void;
   // constants
@@ -45,6 +46,7 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingPaystack,
   setIsLoadingHundredpay,
   setIsLoadingFastspring,
+  setIsLoadingHeleket,
   clearCart,
   onSuccess,
   promoCode,
@@ -241,6 +243,7 @@ export const usePaymentCheckoutHandlers = ({
   const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
   const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
   const handleFastSpringCheckout = () => handleDepositGateway('fastspring', setIsLoadingFastspring);
+  const handleHeleketCheckout = () => setIsLoadingHeleket && handleDepositGateway('heleket', setIsLoadingHeleket);
 
   return {
     handleBalancePayment,
@@ -249,5 +252,6 @@ export const usePaymentCheckoutHandlers = ({
     handlePaystackCheckout,
     handleHundredpayCheckout,
     handleFastSpringCheckout,
+    handleHeleketCheckout,
   };
 };

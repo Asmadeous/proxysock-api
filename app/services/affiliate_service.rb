@@ -175,6 +175,7 @@ class AffiliateService
       if method == 'crypto'
         address = details['crypto_address']
         currency = details['crypto_currency'] || 'USDT'
+        gateway = details['crypto_gateway'] || 'plisio'
         raise 'Missing crypto_address in payment details' if address.blank?
 
         payout = AffiliatePayout.create!(
@@ -186,8 +187,12 @@ class AffiliateService
         )
 
         begin
-          PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
-          payout.update!(metadata: { gateway: 'plisio' })
+          if gateway == 'heleket'
+            HeleketService.new.create_withdrawal(payout.amount, currency, address)
+          else
+            PlisioService.new.withdraw(payout.amount, currency, address, "AFF-#{payout.id}-#{SecureRandom.hex(2)}")
+          end
+          payout.update!(metadata: { gateway: gateway })
           payout.mark_paid!
           @entity.decrement!(:withdrawable_profit, amount) if @entity.is_a?(Reseller) && @entity.infrastructure?
         rescue StandardError => e

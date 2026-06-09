@@ -26,4 +26,3 @@ class VpnMailer < ApplicationMailer
     )
   end
 end
-

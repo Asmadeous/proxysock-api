@@ -42,6 +42,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
+
     const [isAnyPaymentProcessing, setIsAnyPaymentProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +130,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         handlePayvraCheckout,
         handlePlisioCheckout,
         handleFastSpringCheckout,
+        handleHeleketCheckout,
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
@@ -143,6 +145,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         setIsLoadingPaystack,
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
+
         clearCart: () => {
             localStorage.removeItem("cartItems");
             localStorage.removeItem("enterprise_customer_email");
@@ -160,6 +163,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "payvra") handlePayvraCheckout();
+        else if (selectedPaymentMethod === "heleket") handleHeleketCheckout();
         else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
     };
 
@@ -315,16 +319,16 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                     </Label>
                                 </div>
 
-                                {/* Payvra Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "payvra" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="payvra" id="payvra" className="sr-only" />
-                                    <Label htmlFor="payvra" className="flex items-center gap-4 w-full cursor-pointer">
+                                {/* Heleket Option */}
+                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "heleket" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                    <RadioGroupItem value="heleket" id="heleket" className="sr-only" />
+                                    <Label htmlFor="heleket" className="flex items-center gap-4 w-full cursor-pointer">
                                         <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
-                                            <img src="/payvra.webp" alt="Payvra" className="w-full h-full object-contain" />
+                                            <img src="/heleket.webp" alt="Heleket" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-semibold">Crypto (Payvra)</div>
-                                            <div className="text-sm text-muted-foreground">Alternative Crypto Gateway</div>
+                                            <div className="font-semibold">Crypto (Heleket)</div>
+                                            <div className="text-sm text-muted-foreground">Fast Crypto Payments</div>
                                         </div>
                                     </Label>
                                 </div>

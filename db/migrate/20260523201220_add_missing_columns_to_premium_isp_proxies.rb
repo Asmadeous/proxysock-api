@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddMissingColumnsToPremiumIspProxies < ActiveRecord::Migration[7.1]
   def change
     add_column :premium_isp_proxies, :order_id, :uuid

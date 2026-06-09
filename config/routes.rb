@@ -443,6 +443,7 @@ Rails.application.routes.draw do
     post 'paystack', to: 'webhooks#paystack'
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
+    post 'heleket', to: 'webhooks#heleket'
     post 'hundredpay', to: 'webhooks#hundredpay'
     post 'fastspring', to: 'webhooks#fastspring'
 
@@ -450,9 +451,10 @@ Rails.application.routes.draw do
     get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
+    get 'heleket', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'hundredpay', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'fastspring', to: redirect { ENV['FRONTEND_URL'] || '/' }
-    
+
     post 'tawk', to: 'webhooks/tawk#create'
   end
 

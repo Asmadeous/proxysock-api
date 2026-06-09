@@ -37,7 +37,11 @@ RSpec.describe 'api/v1/tickets', type: :request do
         let(:reseller) { Reseller.create!(username: 'partner_v1_ticket', email: 'v1_ticket@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
-        let(:ticket) { { subject: 'Integration help', priority: 'low', message: 'How do I verify signatures?' } }
+        let(:product_category) { ProductCategory.create!(name: 'Test Category', category_type: 'proxy', active: true) }
+        let(:product) { Product.create!(name: 'Test Product', product_type: 'proxy', available_to: 'both', active: true, product_category: product_category) }
+        let(:pricing) { ProductPricing.create!(product: product, selling_price: 10.0, duration_type: 'monthly', duration_value: 1, active: true) }
+        let(:order) { Order.create!(orderable: reseller, product: product, product_pricing: pricing, quantity: 1, status: 'active') }
+        let(:ticket) { { subject: 'Integration help', priority: 'low', order_id: order.order_number, body: 'How do I verify signatures?' } }
         run_test!
       end
     end

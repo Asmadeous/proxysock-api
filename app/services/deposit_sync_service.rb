@@ -34,6 +34,9 @@ class DepositSyncService
       # Payvra needs its own ID usually. Checking if we saved it.
       invoice_id = @deposit.metadata['payvra_invoice_id'] || @deposit.metadata['transaction_ref']
       PayvraService.new.verify_transaction(invoice_id)
+    when 'heleket'
+      invoice_id = @deposit.metadata['heleket_invoice_id'] || @deposit.metadata['transaction_ref']
+      HeleketService.new.verify_transaction(invoice_id)
     when 'hundredpay'
       # 100Pay uses charge_id for verification. We might have stored it in metadata or use transaction_ref
       charge_id = @deposit.metadata['hundredpay_charge_id'] || @deposit.metadata['transaction_ref']

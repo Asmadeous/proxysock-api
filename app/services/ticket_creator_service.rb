@@ -86,30 +86,30 @@ class TicketCreatorService
 
     def build_order_failure_body(order, error_message)
       lines = []
-      lines << "⚠️ **Automated Ticket — Failed Order**"
-      lines << ""
+      lines << '⚠️ **Automated Ticket — Failed Order**'
+      lines << ''
       lines << "**Order Number:** #{order.order_number}"
       lines << "**Customer:** #{order.orderable&.try(:email) || order.orderable&.try(:username) || 'Unknown'}"
       lines << "**Amount:** $#{order.total_amount}" if order.respond_to?(:total_amount)
       lines << "**Error:** #{error_message}"
       lines << "**Time:** #{Time.current.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-      lines << ""
-      lines << "A refund has been automatically attempted. Please review and follow up with the customer."
+      lines << ''
+      lines << 'A refund has been automatically attempted. Please review and follow up with the customer.'
       lines.join("\n")
     end
 
     def build_deposit_failure_body(deposit, error_message)
       lines = []
-      lines << "⚠️ **Automated Ticket — Failed Deposit**"
-      lines << ""
+      lines << '⚠️ **Automated Ticket — Failed Deposit**'
+      lines << ''
       lines << "**Deposit ID:** #{deposit.id}"
       lines << "**Gateway:** #{deposit.gateway}"
       lines << "**Customer:** #{deposit.depositable&.try(:email) || deposit.depositable&.try(:username) || 'Unknown'}"
       lines << "**Amount:** $#{deposit.amount}" if deposit.respond_to?(:amount)
       lines << "**Error:** #{error_message}"
       lines << "**Time:** #{Time.current.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-      lines << ""
-      lines << "Please investigate the failed deposit and follow up with the customer."
+      lines << ''
+      lines << 'Please investigate the failed deposit and follow up with the customer.'
       lines.join("\n")
     end
   end

@@ -28,6 +28,7 @@ export default function AffiliateDashboard() {
     const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("wallet");
     const [cryptoCurrency, setCryptoCurrency] = useState("USDT");
     const [cryptoAddress, setCryptoAddress] = useState("");
+    const [cryptoGateway, setCryptoGateway] = useState("plisio");
     const [manualDetails, setManualDetails] = useState({ account_name: "", account_number: "", bank_name: "", country: "" });
 
     useEffect(() => {
@@ -60,7 +61,7 @@ export default function AffiliateDashboard() {
         try {
             let details: Record<string, string> = {};
             if (payoutMethod === "crypto") {
-                details = { crypto_currency: cryptoCurrency, crypto_address: cryptoAddress.trim() };
+                details = { crypto_currency: cryptoCurrency, crypto_address: cryptoAddress.trim(), crypto_gateway: cryptoGateway };
             } else if (payoutMethod === "manual") {
                 details = { ...manualDetails };
             }
@@ -213,6 +214,27 @@ export default function AffiliateDashboard() {
 
                 {payoutMethod === "crypto" && (
                     <>
+                        <Field label="Crypto Gateway">
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { id: "plisio", name: "Plisio", color: "text-orange-400", logo: "/plisio.webp" },
+                                    { id: "heleket", name: "Heleket", color: "text-green-400", logo: "/heleket.webp" }
+                                ].map((g) => (
+                                    <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => setCryptoGateway(g.id)}
+                                        className={`p-2 rounded-lg border text-sm font-medium transition-all flex items-center justify-center gap-2 ${cryptoGateway === g.id
+                                            ? "border-red-500 bg-red-500/10 text-white"
+                                            : "border-gray-700 text-gray-400 hover:border-gray-600"
+                                        }`}
+                                    >
+                                        {g.logo && <img src={g.logo} alt={g.name} className="h-4 w-auto object-contain" />}
+                                        <span className={g.color}>{g.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </Field>
                         <Field label="Crypto Currency">
                             <div className="grid grid-cols-2 gap-2">
                                 {CRYPTO_CURRENCIES.map((c) => (

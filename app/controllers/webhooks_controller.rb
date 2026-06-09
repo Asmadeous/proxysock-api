@@ -82,8 +82,40 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
+  def heleket
+    payload = request.body.read
+    signature = request.headers['x-heleket-signature'] || request.headers['HTTP_X_HELEKET_SIGNATURE']
+
+    # If Heleket requires signature verification
+    if ENV['HELEKET_WEBHOOK_SECRET'].present? && signature.present?
+      expected = OpenSSL::HMAC.hexdigest('SHA256', ENV['HELEKET_WEBHOOK_SECRET'], payload)
+      unless Rack::Utils.secure_compare(expected, signature.to_s)
+        Rails.logger.warn('[Webhook] Heleket signature mismatch — rejecting')
+        return head :bad_request
+      end
+    end
+
+    data = begin
+      JSON.parse(payload)
+    rescue StandardError
+      {}
+    end
+
+    # Heleket typically sends status PAID or COMPLETED
+    if %w[PAID COMPLETED].include?(data['status'].to_s.upcase)
+      webhook_params = ActionController::Parameters.new(data).permit(
+        :status, :id, :amount, :currency, :orderId
+      )
+
+      webhook_params[:order_number] = data['orderId'] || data['id']
+      webhook_params[:reference] = data['orderId'] || data['id']
+      handle_payment(webhook_params, 'heleket')
+    end
+
+    head :ok
+  end
+
   def hundredpay
-    # 100Pay sends a POST with charge data.
     # We'll use the chargeId to verify the transaction status server-side for security.
     data = params.to_unsafe_h
     charge_id = data['chargeId'] || data['id'] || data.dig('data', 'chargeId')
@@ -203,6 +235,8 @@ class WebhooksController < ApplicationController
         data['source_amount'].to_f
       when 'hundredpay'
         # 100Pay billing amounts are in USD (unless specified otherwise, but we use USD)
+        data['amount'].to_f
+      when 'heleket'
         data['amount'].to_f
       else
         data['amount'].to_f # Payvra — amounts already in USD

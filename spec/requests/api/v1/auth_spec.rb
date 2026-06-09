@@ -35,7 +35,7 @@ RSpec.describe 'api/v1/auth', type: :request do
                  }
                }
 
-        let(:reseller) { Reseller.create!(username: 'partner_credential_access', email: 'partner_auth@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only', permanent_api_key: 'secure_integration_key', country_code: 'US', city: 'New York') }
+        let(:reseller) { Reseller.create!(username: 'partner_credential_access', email: 'partner_auth@example.com', password: 'password', company_name: 'Test Company', reseller_type: 'api_only', permanent_api_key: 'secure_integration_key', country_code: 'US', city: 'New York', email_verified_at: Time.current) }
         let(:credentials) { { username: reseller.username, api_key: reseller.permanent_api_key } }
         run_test!
       end
@@ -79,7 +79,7 @@ RSpec.describe 'api/v1/auth', type: :request do
       }
 
       response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'dashboard_user', email: 'dash@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
+        let(:reseller) { Reseller.create!(username: 'dashboard_user', email: 'dash@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York', email_verified_at: Time.current) }
         let(:login_data) { { email: reseller.email, password: 'password' } }
         run_test!
       end

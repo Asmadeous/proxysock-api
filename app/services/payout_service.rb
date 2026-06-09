@@ -15,7 +15,7 @@ class PayoutService
   MINIMUM_PAYOUT = 50 # Minimum withdrawal amount in USD
 
   # Gateways that are automatically dispatched to crypto providers
-  CRYPTO_GATEWAYS = %w[plisio payvra].freeze
+  CRYPTO_GATEWAYS = %w[plisio payvra heleket].freeze
 
   # Gateways that require manual admin processing
   MANUAL_GATEWAYS = %w[paystack hundredpay manual].freeze
@@ -88,6 +88,8 @@ class PayoutService
                  dispatch_plisio(payout)
                when 'payvra'
                  dispatch_payvra(payout)
+               when 'heleket'
+                 dispatch_heleket(payout)
                end
 
     payout.update!(gateway_response: response || {})
@@ -139,6 +141,19 @@ class PayoutService
     address = payout.payment_details['crypto_address']
     currency = payout.payment_details['crypto_currency'] || 'USDT'
     raise PayoutError, 'Payvra payouts require a crypto_address in payment_details' if address.blank?
+
+    service.create_withdrawal(
+      payout.amount,
+      currency,
+      address
+    )
+  end
+
+  def dispatch_heleket(payout)
+    service = HeleketService.new
+    address = payout.payment_details['crypto_address']
+    currency = payout.payment_details['crypto_currency'] || 'USDT'
+    raise PayoutError, 'Heleket payouts require a crypto_address in payment_details' if address.blank?
 
     service.create_withdrawal(
       payout.amount,

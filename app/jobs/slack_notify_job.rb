@@ -9,11 +9,11 @@ class SlackNotifyJob < ApplicationJob
   #   SlackNotifyJob.perform_later("provisioning_failed", order.id, error: "timeout")
 
   EVENT_MODELS = {
-    'new_ticket'            => 'Ticket',
-    'ticket_reply'          => 'Ticket',
-    'guest_chat_message'    => 'GuestChatMessage',
-    'support_chat_message'  => 'SupportChatMessage',
-    'provisioning_failed'   => 'Order'
+    'new_ticket' => 'Ticket',
+    'ticket_reply' => 'Ticket',
+    'guest_chat_message' => 'GuestChatMessage',
+    'support_chat_message' => 'SupportChatMessage',
+    'provisioning_failed' => 'Order'
   }.freeze
 
   def perform(event, record_id, **opts)
