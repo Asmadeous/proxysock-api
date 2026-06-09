@@ -122,6 +122,43 @@ class User < ApplicationRecord
     end
   end
 
+  # ── Security: Account Locking ──────────────────────────────────────────
+  MAX_FAILED_ATTEMPTS = 5
+
+  def access_locked?
+    locked_at.present?
+  end
+
+  def lock_access!
+    update_columns(
+      locked_at: Time.current,
+      unlock_token: SecureRandom.urlsafe_base64(32)
+    )
+  end
+
+  def unlock_access!
+    update_columns(
+      locked_at: nil,
+      unlock_token: nil,
+      failed_attempts: 0
+    )
+  end
+
+  def register_failed_attempt!
+    new_count = (failed_attempts || 0) + 1
+    update_columns(failed_attempts: new_count)
+    lock_access! if new_count >= MAX_FAILED_ATTEMPTS
+    new_count
+  end
+
+  def reset_failed_attempts!
+    update_columns(failed_attempts: 0) if failed_attempts.to_i > 0
+  end
+
+  def email_verified?
+    email_verified_at.present?
+  end
+
   private
 
   def avatar_security_checks

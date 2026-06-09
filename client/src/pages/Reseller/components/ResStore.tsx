@@ -72,11 +72,26 @@ const COLOR_MAP: Record<string, { bg: string; bgHover: string; text: string }> =
 };
 
 // Map allowed_product_category_name to the store category IDs
+// Supports both internal slugs and full database names (case-insensitive)
 const CATEGORY_NAME_MAP: Record<string, string[]> = {
+    // Internal slugs
     "proxies": ["proxy"],
     "vpn": ["vpn"],
     "esims": ["esim"],
     "vms": ["vps", "rdp"],
+    // Full database category names
+    "virtual private servers": ["vps"],
+    "rdp servers": ["rdp"],
+    "datacenter": ["proxy"],
+    "isp": ["proxy"],
+    "premium isp": ["proxy"],
+    "global isp": ["proxy"],
+    "static residential": ["proxy"],
+    "mobile": ["proxy"],
+    "residential rotating": ["proxy"],
+    "residential vpn": ["vpn"],
+    "global esim": ["esim"],
+    "usa esim": ["esim"],
 };
 
 export default function ResStore({ onSelectCategory, resellerType, allowedCategoryName }: ResStoreProps) {

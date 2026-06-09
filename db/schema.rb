@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_09_174413) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -843,11 +843,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.string "dedicated_api_key"
     t.decimal "discount_percentage"
     t.string "email"
+    t.string "email_confirmation_token"
+    t.datetime "email_verified_at"
+    t.integer "failed_attempts", default: 0, null: false
     t.decimal "infrastructure_surcharge_percentage", precision: 5, scale: 2, default: "0.0"
     t.datetime "last_seen_at"
+    t.datetime "locked_at"
     t.integer "myproxyapi_country_id"
     t.string "myproxyapi_user_id"
     t.string "password_digest"
+    t.datetime "password_reset_sent_at"
+    t.string "password_reset_token"
     t.string "permanent_api_key"
     t.string "referred_by_code"
     t.string "reseller_type", default: "api_only"
@@ -857,14 +863,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.datetime "token_issued_at"
     t.integer "token_request_count", default: 0
     t.integer "token_version", default: 1, null: false
+    t.string "unlock_token"
     t.datetime "updated_at", null: false
     t.string "username"
     t.decimal "withdrawable_profit"
     t.index ["allowed_product_category_id"], name: "index_resellers_on_allowed_product_category_id"
     t.index ["current_token_jti"], name: "index_resellers_on_current_token_jti", unique: true
     t.index ["email"], name: "index_resellers_on_email"
+    t.index ["email_confirmation_token"], name: "index_resellers_on_email_confirmation_token", unique: true
+    t.index ["password_reset_token"], name: "index_resellers_on_password_reset_token", unique: true
     t.index ["referred_by_code"], name: "index_resellers_on_referred_by_code"
     t.index ["reseller_type"], name: "index_resellers_on_reseller_type"
+    t.index ["unlock_token"], name: "index_resellers_on_unlock_token", unique: true
     t.index ["username"], name: "index_resellers_on_username"
   end
 
@@ -1167,6 +1177,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.string "email"
     t.string "email_confirmation_token"
     t.datetime "email_verified_at"
+    t.integer "failed_attempts", default: 0, null: false
     t.string "first_name"
     t.string "ip_address"
     t.boolean "jellyfin_account_created", default: false
@@ -1175,6 +1186,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.datetime "last_login_at"
     t.string "last_name"
     t.datetime "last_seen_at"
+    t.datetime "locked_at"
     t.jsonb "metadata"
     t.integer "myproxyapi_country_id"
     t.string "myproxyapi_user_id"
@@ -1190,6 +1202,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.string "status"
     t.integer "token_version", default: 1, null: false
     t.string "uid"
+    t.string "unlock_token"
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["email"], name: "index_users_on_email"
@@ -1197,6 +1210,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_03_142707) do
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["referred_by_code"], name: "index_users_on_referred_by_code"
     t.index ["reseller_id"], name: "index_users_on_reseller_id"
+    t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

@@ -1,0 +1,45 @@
+Welcome to ProxySock, <%= @name %>!
+
+Your premium reseller account has been officially provisioned and is ready for use.
+
+To finalize your registration and activate your account, please confirm your email address by clicking the link below:
+<%= @confirmation_url %>
+(This confirmation link will expire in 30 minutes)
+
+*** YOUR LOGIN CREDENTIALS ***
+Below are your temporary login credentials. For your security, please change your password immediately upon your first login.
+
+Login URL: <%= @login_url %>
+Email: <%= @user.email %>
+Password: <%= @password.present? ? @password : "(Not provided or hidden for security)" %>
+
+⚠️ Never share your password or API keys with anyone.
+
+<% if @user.reseller_type == 'api_only' %>
+*** API INTEGRATION ***
+As an API Only reseller, you have full programmatic access to our infrastructure. You can provision, manage, and scale proxies dynamically through our REST API.
+API Documentation: <%= @swagger_url %>
+<% elsif @user.reseller_type == 'single_product' %>
+*** SINGLE PRODUCT RESELLING ***
+As a Single Product reseller, your dashboard has been streamlined and specialized for your approved product category. You have access to exclusive bulk pricing and management tools tailored specifically for your vertical.
+<% elsif @user.reseller_type == 'infrastructure' %>
+*** ENTERPRISE INFRASTRUCTURE ***
+As an Enterprise Infrastructure partner, you have unrestricted access to our full suite of products at the highest volume discounts, dedicated support, and advanced infrastructure controls.
+API Documentation: <%= @swagger_url %>
+<% end %>
+
+*** FUNDING & MINIMUM DEPOSITS ***
+To begin provisioning orders, you will need to fund your Main Wallet. ProxySock operates on a prepaid balance system.
+- Minimum Deposit: <%= number_to_currency(@user.min_deposit_amount) %> USD
+- Payment Methods: Cryptocurrency (BTC, ETH, USDT, LTC, etc.) via Plisio/Payvra, and Credit Cards via Paystack. Top up directly from your Reseller Dashboard under "Wallet & Billing".
+
+*** TERMS OF SERVICE ***
+By using your ProxySock Reseller account, you agree to our comprehensive Terms of Service:
+- Zero Tolerance for Abuse: Our proxies and servers strictly prohibit illegal activities, hacking, spamming, and network abuse.
+- KYC / AML: We reserve the right to request identity verification for large transactions or suspicious activity.
+- Refund Policy: Wallet top-ups are non-refundable once used to purchase services.
+
+If you have any questions or require assistance setting up your integration, our support team is available 24/7 via the ticketing system in your dashboard.
+
+Best regards,
+The ProxySock Team

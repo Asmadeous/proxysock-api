@@ -124,6 +124,7 @@ Rails.application.routes.draw do
       post 'auth/resend_confirmation', to: 'auth#resend_confirmation'
       post 'auth/forgot_password', to: 'auth#forgot_password'
       post 'auth/reset_password', to: 'auth#reset_password'
+      get 'auth/unlock_account', to: 'auth#unlock_account'
       get 'auth/google', to: 'auth#google'
       get 'auth/google/callback', to: 'auth#google_callback'
       get 'auth/twitter', to: 'auth#twitter'

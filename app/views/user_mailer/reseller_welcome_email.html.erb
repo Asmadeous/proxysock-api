@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+      .container { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px; }
+      .header { text-align: center; margin-bottom: 20px; }
+      .title { color: #111827; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+      .content { background-color: white; padding: 20px; border-radius: 6px; border: 1px solid #e5e7eb; margin-bottom: 20px; }
+      .credentials { background-color: #f3f4f6; padding: 15px; border-radius: 6px; font-family: monospace; margin: 15px 0; border-left: 4px solid #3b82f6; }
+      .warning { color: #b91c1c; font-size: 14px; font-weight: bold; margin-top: 10px; }
+      .button { display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white !important; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; margin: 20px 0; }
+      .section-title { font-weight: bold; font-size: 18px; color: #1f2937; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+      .list { padding-left: 20px; margin-bottom: 15px; }
+      .list li { margin-bottom: 8px; }
+      .footer { text-align: center; font-size: 12px; color: #6b7280; margin-top: 30px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1 class="title">Welcome to ProxySock</h1>
+        <p>Your premium reseller account has been created.</p>
+      </div>
+
+      <div class="content">
+        <p>Dear <%= @name %>,</p>
+        <p>We are thrilled to welcome you to the ProxySock Reseller Program! Your account has been officially provisioned and is ready for use.</p>
+
+        <p>To finalize your registration and activate your account, please confirm your email address by clicking the button below:</p>
+        
+        <div style="text-align: center;">
+          <a href="<%= @confirmation_url %>" class="button">Confirm Email & Activate Account</a>
+        </div>
+        
+        <p style="font-size: 12px; color: #6b7280; text-align: center;">This confirmation link will expire in 30 minutes.</p>
+
+        <h3 class="section-title">Your Login Credentials</h3>
+        <p>Below are your temporary login credentials. For your security, <strong>please change your password immediately</strong> upon your first login.</p>
+        <div class="credentials">
+          <strong>Login URL:</strong> <a href="<%= @login_url %>"><%= @login_url %></a><br>
+          <strong>Email:</strong> <%= @user.email %><br>
+          <strong>Password:</strong> <%= @password.present? ? @password : "(Not provided or hidden for security)" %>
+        </div>
+        <p class="warning">⚠️ Never share your password or API keys with anyone.</p>
+
+        <% if @user.reseller_type == 'api_only' %>
+          <h3 class="section-title">API Integration</h3>
+          <p>As an <strong>API Only</strong> reseller, you have full programmatic access to our infrastructure. You can provision, manage, and scale proxies dynamically through our REST API.</p>
+          <p>To get started with your integration, please review our comprehensive API documentation:</p>
+          <p>👉 <a href="<%= @swagger_url %>">ProxySock Swagger API Documentation</a></p>
+        <% elsif @user.reseller_type == 'single_product' %>
+          <h3 class="section-title">Single Product Reselling</h3>
+          <p>As a <strong>Single Product</strong> reseller, your dashboard has been streamlined and specialized for your approved product category. You have access to exclusive bulk pricing and management tools tailored specifically for your vertical.</p>
+        <% elsif @user.reseller_type == 'infrastructure' %>
+          <h3 class="section-title">Enterprise Infrastructure</h3>
+          <p>As an <strong>Enterprise Infrastructure</strong> partner, you have unrestricted access to our full suite of products at the highest volume discounts, dedicated support, and advanced infrastructure controls.</p>
+          <p>You can manage your extensive operations programmatically via our API:</p>
+          <p>👉 <a href="<%= @swagger_url %>">ProxySock Swagger API Documentation</a></p>
+        <% end %>
+
+        <h3 class="section-title">Funding & Minimum Deposits</h3>
+        <p>To begin provisioning orders, you will need to fund your Main Wallet. ProxySock operates on a prepaid balance system.</p>
+        <ul class="list">
+          <li><strong>Minimum Deposit:</strong> The minimum deposit amount required to activate purchasing capabilities is <%= number_to_currency(@user.min_deposit_amount) %> USD.</li>
+          <li><strong>Payment Methods:</strong> We accept Cryptocurrency (BTC, ETH, USDT, LTC, etc.) via Plisio/Payvra, as well as Credit Cards via Paystack. You can top up your wallet directly from your Reseller Dashboard under the "Wallet & Billing" section.</li>
+        </ul>
+
+        <h3 class="section-title">Terms of Service</h3>
+        <p>By using your ProxySock Reseller account, you agree to our comprehensive Terms of Service. Key highlights include:</p>
+        <ul class="list">
+          <li><strong>Zero Tolerance for Abuse:</strong> Our proxies and servers strictly prohibit illegal activities, hacking, spamming, and network abuse.</li>
+          <li><strong>KYC / AML:</strong> We reserve the right to request identity verification for large transactions or suspicious activity.</li>
+          <li><strong>Refund Policy:</strong> Wallet top-ups are non-refundable once used to purchase services. Please refer to our site for full details.</li>
+        </ul>
+
+        <p>If you have any questions or require assistance setting up your integration, our support team is available 24/7 via the ticketing system in your dashboard.</p>
+        
+        <p>Best regards,<br>The ProxySock Team</p>
+      </div>
+
+      <div class="footer">
+        <p>&copy; <%= Time.current.year %> ProxySock. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

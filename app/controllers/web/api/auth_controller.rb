@@ -11,7 +11,7 @@ module Web
       # POST /web/api/auth/register
       skip_before_action :authenticate_request,
                          only: %i[register login check_username confirm_email resend_confirmation forgot_password reset_password google twitter
-                                  google_callback twitter_callback failure]
+                                  google_callback twitter_callback failure unlock_account]
 
       def register
         # Extract referral_code before creating user (it's not a DB column)
@@ -53,11 +53,9 @@ module Web
             ::UserMailer.confirmation_email(saved_user).deliver_later
           end
 
-          token = user.generate_jwt
           render json: {
-            message: 'Registration successful. Please check your email to confirm your account.',
-            user: serialize_user(user),
-            token: token
+            message: 'Registration successful. Please check your email to verify your account before logging in.',
+            requires_verification: true
           }, status: :created
         else
           Rails.logger.warn "Registration failed for #{user.email}: #{user.errors.full_messages.join(', ')}"
@@ -69,7 +67,21 @@ module Web
       def login
         user = User.find_by(email: login_params[:email])
 
+        # Check if account is locked
+        if user&.access_locked?
+          return render json: { error: 'Your account has been locked due to too many failed login attempts. Please check your email for unlock instructions.' }, status: :forbidden
+        end
+
         if user&.authenticate(login_params[:password])
+          # Block login if email not verified
+          unless user.email_verified?
+            return render json: {
+              error: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+              requires_verification: true
+            }, status: :forbidden
+          end
+
+          user.reset_failed_attempts!
           user.update(last_login_at: Time.current, ip_address: request.remote_ip)
 
           duration = if login_params[:remember_me].in?([true, 'true',
@@ -87,6 +99,20 @@ module Web
             token: token
           }
         else
+          # Register failed attempt if user exists
+          if user
+            attempts = user.register_failed_attempt!
+            if user.access_locked?
+              # Send unlock email
+              saved_user = user
+              ActiveRecord.after_all_transactions_commit do
+                ::UserMailer.unlock_account_email(saved_user).deliver_later
+              end
+              return render json: { error: 'Your account has been locked due to too many failed login attempts. An unlock email has been sent.' }, status: :forbidden
+            end
+            remaining = User::MAX_FAILED_ATTEMPTS - attempts
+            return render json: { error: "Invalid email or password. #{remaining} attempt(s) remaining before account lock." }, status: :unauthorized
+          end
           render json: { error: 'Invalid email or password' }, status: :unauthorized
         end
       end
@@ -191,7 +217,12 @@ module Web
 
       # POST /web/api/auth/change_password
       def change_password
-        unless current_user.authenticate(params[:current_password])
+        actor = current_user || current_reseller
+        unless actor
+          return render json: { error: 'Unauthorized' }, status: :unauthorized
+        end
+
+        unless actor.authenticate(params[:current_password])
           return render json: { error: 'Current password is incorrect' }, status: :unprocessable_entity
         end
 
@@ -203,10 +234,10 @@ module Web
           return render json: { error: 'Password confirmation does not match' }, status: :unprocessable_entity
         end
 
-        if current_user.update(password: params[:new_password], password_confirmation: params[:password_confirmation])
+        if actor.update(password: params[:new_password], password_confirmation: params[:password_confirmation])
           render json: { message: 'Password changed successfully' }
         else
-          render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
+          render json: { errors: actor.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
@@ -241,75 +272,180 @@ module Web
 
       # GET /web/api/auth/confirm_email?token=xxx
       def confirm_email
+        # Try User first, then Reseller
         user = User.find_by(email_confirmation_token: params[:token])
-        if user.nil?
-          redirect_to_frontend '/login?error=invalid_token'
-        elsif user.email_verified_at.present?
-          token = user.generate_jwt
-          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=already_confirmed"
-        else
-          user.update!(email_verified_at: Time.current, email_confirmation_token: nil)
-          token = user.generate_jwt
-          redirect_to_frontend "/auth/callback?auth_token=#{token}&message=confirmed"
+        if user
+          # Check 30-minute expiry using updated_at (token was set at creation or resend)
+          if user.email_verified_at.present?
+            token = user.generate_jwt
+            redirect_to_frontend "/auth/callback?auth_token=#{token}&message=already_confirmed"
+          else
+            user.update!(email_verified_at: Time.current, email_confirmation_token: nil)
+            token = user.generate_jwt
+            redirect_to_frontend "/auth/callback?auth_token=#{token}&message=confirmed"
+          end
+          return
         end
+
+        # Check Reseller
+        reseller = Reseller.find_by(email_confirmation_token: params[:token])
+        if reseller
+          if reseller.email_verified?
+            redirect_to_frontend "/reseller/login?message=already_confirmed"
+          else
+            reseller.confirm_email!
+            redirect_to_frontend "/reseller/login?message=confirmed"
+          end
+          return
+        end
+
+        redirect_to_frontend '/login?error=invalid_token'
       end
 
       # POST /web/api/auth/resend_confirmation
       def resend_confirmation
-        user = User.find_by(email: params[:email])
-        if user.nil?
-          render json: { message: 'If an account with that email exists, a confirmation email has been sent.' }
-        elsif user.email_verified_at.present?
-          render json: { message: 'Email is already confirmed.' }
-        else
-          user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
-          saved_user = user
-          ActiveRecord.after_all_transactions_commit do
-            ::UserMailer.confirmation_email(saved_user).deliver_later
+        email = params[:email]
+        account_type = params[:account_type] || 'user'
+
+        if account_type == 'reseller'
+          reseller = Reseller.find_by(email: email)
+          if reseller.nil?
+            render json: { message: 'If an account with that email exists, a confirmation email has been sent.' }
+          elsif reseller.email_verified?
+            render json: { message: 'Email is already confirmed.' }
+          else
+            reseller.generate_confirmation_token!
+            saved = reseller
+            ActiveRecord.after_all_transactions_commit do
+              ::UserMailer.confirmation_email(saved).deliver_later
+            end
+            render json: { message: 'Verification email resent! Check your inbox.' }
           end
-          render json: { message: 'Verification email resent! Check your inbox.' }
+        else
+          user = User.find_by(email: email)
+          if user.nil?
+            render json: { message: 'If an account with that email exists, a confirmation email has been sent.' }
+          elsif user.email_verified_at.present?
+            render json: { message: 'Email is already confirmed.' }
+          else
+            user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
+            saved_user = user
+            ActiveRecord.after_all_transactions_commit do
+              ::UserMailer.confirmation_email(saved_user).deliver_later
+            end
+            render json: { message: 'Verification email resent! Check your inbox.' }
+          end
         end
       end
 
       # POST /web/api/auth/forgot_password
       def forgot_password
-        user = User.find_by(email: params[:email])
-        if user
-          user.update!(
-            password_reset_token: SecureRandom.urlsafe_base64(32),
-            password_reset_sent_at: Time.current
-          )
-          saved_user = user
-          ActiveRecord.after_all_transactions_commit do
-            ::UserMailer.password_reset_email(saved_user).deliver_later
+        account_type = params[:account_type] || 'user'
+
+        if account_type == 'reseller'
+          reseller = Reseller.find_by(email: params[:email])
+          if reseller
+            # Require email verification before allowing password reset
+            unless reseller.email_verified?
+              return render json: { error: 'Please verify your email address first before requesting a password reset.' }, status: :unprocessable_entity
+            end
+
+            reseller.generate_password_reset_token!
+            saved = reseller
+            ActiveRecord.after_all_transactions_commit do
+              ::UserMailer.password_reset_email(saved).deliver_later
+            end
+          end
+        else
+          user = User.find_by(email: params[:email])
+          if user
+            # Require email verification before allowing password reset
+            unless user.email_verified?
+              return render json: { error: 'Please verify your email address first before requesting a password reset.' }, status: :unprocessable_entity
+            end
+
+            user.update!(
+              password_reset_token: SecureRandom.urlsafe_base64(32),
+              password_reset_sent_at: Time.current
+            )
+            saved_user = user
+            ActiveRecord.after_all_transactions_commit do
+              ::UserMailer.password_reset_email(saved_user).deliver_later
+            end
           end
         end
+
         render json: { message: 'If an account with that email exists, password reset instructions have been sent.' }
       end
 
       # POST /web/api/auth/reset_password
       def reset_password
+        # Try User first, then Reseller
         user = User.find_by(password_reset_token: params[:token])
-        if user.nil?
-          render json: { error: 'Invalid or expired reset token' }, status: :unprocessable_entity
-        elsif user.password_reset_sent_at < 2.hours.ago
-          render json: { error: 'Reset token has expired. Please request a new one.' }, status: :unprocessable_entity
-        elsif params[:password].blank? || params[:password].length < 8
-          render json: { error: 'Password must be at least 8 characters' }, status: :unprocessable_entity
-        elsif params[:password] != params[:password_confirmation]
-          render json: { error: 'Password confirmation does not match' }, status: :unprocessable_entity
+        if user
+          if user.password_reset_sent_at < 30.minutes.ago
+            return render json: { error: 'Reset token has expired. Please request a new one.' }, status: :unprocessable_entity
+          end
+          return process_password_reset(user)
+        end
+
+        reseller = Reseller.find_by(password_reset_token: params[:token])
+        if reseller
+          if reseller.password_reset_sent_at < 30.minutes.ago
+            return render json: { error: 'Reset token has expired. Please request a new one.' }, status: :unprocessable_entity
+          end
+          return process_password_reset(reseller)
+        end
+
+        render json: { error: 'Invalid or expired reset token' }, status: :unprocessable_entity
+      end
+
+      # GET /web/api/auth/unlock_account?token=xxx
+      def unlock_account
+        # Try User first, then Reseller
+        user = User.find_by(unlock_token: params[:token])
+        if user
+          user.unlock_access!
+          return redirect_to_frontend "/login?message=unlocked"
+        end
+
+        reseller = Reseller.find_by(unlock_token: params[:token])
+        if reseller
+          reseller.unlock_access!
+          return redirect_to_frontend "/reseller/login?message=unlocked"
+        end
+
+        redirect_to_frontend '/login?error=invalid_token'
+      end
+
+      private
+
+      def process_password_reset(account)
+        if params[:password].blank? || params[:password].length < 8
+          return render json: { error: 'Password must be at least 8 characters' }, status: :unprocessable_entity
+        end
+
+        if params[:password] != params[:password_confirmation]
+          return render json: { error: 'Password confirmation does not match' }, status: :unprocessable_entity
+        end
+
+        if account.is_a?(Reseller)
+          account.update!(
+            password: params[:password],
+            password_confirmation: params[:password_confirmation]
+          )
+          account.clear_password_reset!
         else
-          user.update!(
+          account.update!(
             password: params[:password],
             password_confirmation: params[:password_confirmation],
             password_reset_token: nil,
             password_reset_sent_at: nil
           )
-          render json: { message: 'Password has been reset successfully. You can now log in.' }
         end
-      end
 
-      private
+        render json: { message: 'Password has been reset successfully. You can now log in.' }
+      end
 
       def register_params
         params.require(:user).permit(:email, :password, :password_confirmation, :first_name, :last_name, :phone,
