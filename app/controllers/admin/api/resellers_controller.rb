@@ -48,7 +48,18 @@ module Admin
       # POST /admin/api/resellers — onboard new reseller
       def create
         require_admin!
-        reseller = Reseller.create!(reseller_create_params)
+        
+        plain_password = params[:password]
+        reseller = Reseller.new(reseller_create_params)
+        reseller.email_confirmation_token = SecureRandom.urlsafe_base64(32)
+        reseller.save!
+
+        # Send welcome email to the new reseller
+        saved = reseller
+        ActiveRecord.after_all_transactions_commit do
+          ::UserMailer.reseller_welcome_email(saved, plain_password).deliver_later
+        end
+
         record_audit_log('reseller.created', reseller)
         render json: reseller_json(reseller), status: :created
       end
@@ -121,9 +132,11 @@ module Admin
       end
 
       def reseller_params
-        params.require(:reseller).permit(:email, :username, :company_name, :reseller_type, :infrastructure_surcharge_percentage,
+        p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :infrastructure_surcharge_percentage,
                                          :subscription_fee, :discount_percentage, :dedicated_api_key, :customer_email, :allowed_product_category_id,
                                          :country_code, :country, :city)
+        p.delete(:password) if p[:password].blank?
+        p
       end
 
       def reseller_create_params

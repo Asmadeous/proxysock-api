@@ -201,6 +201,64 @@ class Reseller < ApplicationRecord
     ActiveSupport::SecurityUtils.secure_compare(permanent_api_key, key)
   end
 
+  # ── Security: Account Locking ──────────────────────────────────────────
+  MAX_FAILED_ATTEMPTS = 5
+
+  def access_locked?
+    locked_at.present?
+  end
+
+  def lock_access!
+    update_columns(
+      locked_at: Time.current,
+      unlock_token: SecureRandom.urlsafe_base64(32)
+    )
+  end
+
+  def unlock_access!
+    update_columns(
+      locked_at: nil,
+      unlock_token: nil,
+      failed_attempts: 0
+    )
+  end
+
+  def register_failed_attempt!
+    new_count = (failed_attempts || 0) + 1
+    update_columns(failed_attempts: new_count)
+    lock_access! if new_count >= MAX_FAILED_ATTEMPTS
+    new_count
+  end
+
+  def reset_failed_attempts!
+    update_columns(failed_attempts: 0) if failed_attempts.to_i > 0
+  end
+
+  # ── Security: Email Verification ───────────────────────────────────────
+  def email_verified?
+    email_verified_at.present?
+  end
+
+  def generate_confirmation_token!
+    update_columns(email_confirmation_token: SecureRandom.urlsafe_base64(32))
+  end
+
+  def confirm_email!
+    update_columns(email_verified_at: Time.current, email_confirmation_token: nil)
+  end
+
+  # ── Security: Password Reset ───────────────────────────────────────────
+  def generate_password_reset_token!
+    update_columns(
+      password_reset_token: SecureRandom.urlsafe_base64(32),
+      password_reset_sent_at: Time.current
+    )
+  end
+
+  def clear_password_reset!
+    update_columns(password_reset_token: nil, password_reset_sent_at: nil)
+  end
+
   private
 
   def generate_api_key

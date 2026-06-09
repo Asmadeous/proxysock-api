@@ -1,0 +1,21 @@
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #DC2626;">Account Locked</h1>
+
+<p style="margin-bottom: 24px;">Hi <%= @name %>,</p>
+
+<p style="margin-bottom: 16px; color: #4B5563;">
+    Your ProxySock account has been locked due to <strong>5 consecutive failed login attempts</strong>. 
+    This is a security measure to protect your account.
+</p>
+
+<p style="margin-bottom: 32px; color: #4B5563;">
+    If this was you, click the button below to unlock your account. If you didn't attempt to log in, 
+    someone may be trying to access your account — please reset your password immediately after unlocking.
+</p>
+
+<div style="text-align: center; margin: 40px 0;">
+    <a href="<%= @unlock_url %>" class="btn" style="background-color: #DC2626;">Unlock My Account</a>
+</div>
+
+<p style="font-size: 14px; color: #6B7280; margin-top: 40px; border-top: 1px solid #E5E7EB; padding-top: 24px;">
+    If you need assistance, contact our support team.
+</p>

@@ -18,6 +18,11 @@ module Api
           return render json: { error: 'Invalid credentials' }, status: :unauthorized
         end
 
+        # Check if account is locked
+        if reseller.access_locked?
+          return render json: { error: 'Your account has been locked due to too many failed login attempts. Please check your email for unlock instructions.' }, status: :forbidden
+        end
+
         authenticated = if params[:api_key].present?
                           reseller.authenticate_api_key(params[:api_key])
                         else
@@ -25,9 +30,27 @@ module Api
                         end
 
         unless authenticated
-          return render json: { error: 'Invalid credentials' }, status: :unauthorized
+          attempts = reseller.register_failed_attempt!
+          if reseller.access_locked?
+            saved = reseller
+            ActiveRecord.after_all_transactions_commit do
+              ::UserMailer.unlock_account_email(saved).deliver_later
+            end
+            return render json: { error: 'Your account has been locked due to too many failed login attempts. An unlock email has been sent.' }, status: :forbidden
+          end
+          remaining = Reseller::MAX_FAILED_ATTEMPTS - attempts
+          return render json: { error: "Invalid credentials. #{remaining} attempt(s) remaining before account lock." }, status: :unauthorized
         end
 
+        # Require email verification
+        unless reseller.email_verified?
+          return render json: {
+            error: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+            requires_verification: true
+          }, status: :forbidden
+        end
+
+        reseller.reset_failed_attempts!
         token = reseller.generate_rotating_token
         # For compatibility with tests that expect a refresh_token
         refresh_token = SecureRandom.hex(32)
@@ -45,10 +68,36 @@ module Api
       def login
         reseller = Reseller.find_by(email: params[:email])
 
+        # Check if account is locked
+        if reseller&.access_locked?
+          return render json: { error: 'Your account has been locked due to too many failed login attempts. Please check your email for unlock instructions.' }, status: :forbidden
+        end
+
         unless reseller&.authenticate(params[:password])
+          if reseller
+            attempts = reseller.register_failed_attempt!
+            if reseller.access_locked?
+              saved = reseller
+              ActiveRecord.after_all_transactions_commit do
+                ::UserMailer.unlock_account_email(saved).deliver_later
+              end
+              return render json: { error: 'Your account has been locked due to too many failed login attempts. An unlock email has been sent.' }, status: :forbidden
+            end
+            remaining = Reseller::MAX_FAILED_ATTEMPTS - attempts
+            return render json: { error: "Invalid email or password. #{remaining} attempt(s) remaining before account lock." }, status: :unauthorized
+          end
           return render json: { error: 'Invalid email or password' }, status: :unauthorized
         end
 
+        # Require email verification
+        unless reseller.email_verified?
+          return render json: {
+            error: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+            requires_verification: true
+          }, status: :forbidden
+        end
+
+        reseller.reset_failed_attempts!
         token = generate_reseller_jwt(reseller)
 
         render json: {

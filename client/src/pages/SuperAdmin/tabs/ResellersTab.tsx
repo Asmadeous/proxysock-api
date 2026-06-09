@@ -22,6 +22,7 @@ import {
     useConfigureReseller,
     useRevokeResellerTokens,
 } from "../queries/resellers.queries";
+import { useAdminProductCategories } from "../queries/settings.queries";
 
 interface ResellerRow {
     id: string;
@@ -105,6 +106,9 @@ export default function ResellersTab() {
     const configureResellerMutation = useConfigureReseller();
     const revokeTokensMutation = useRevokeResellerTokens();
 
+    const { data: categoriesData } = useAdminProductCategories();
+    const categories = categoriesData?.categories || categoriesData || [];
+
     const validateForm = (isCreate: boolean): ValidationErrors => ({
         email: validEmail(form.email),
         username: required(form.username, "Username"),
@@ -115,7 +119,10 @@ export default function ResellersTab() {
     const handleCreate = async () => {
         const errors = validateForm(true);
         if (hasErrors(errors)) { setFormErrors(errors); return; }
-        await createResellerMutation.mutateAsync(form as unknown as Record<string, unknown>);
+        const data: any = { ...form };
+        if (data.allowed_product_category_id === "none") data.allowed_product_category_id = "";
+        
+        await createResellerMutation.mutateAsync(data as unknown as Record<string, unknown>);
         setShowCreate(false);
         setForm(EMPTY_FORM);
         setFormErrors({});
@@ -125,7 +132,13 @@ export default function ResellersTab() {
         if (!editTarget) return;
         const errors = validateForm(false);
         if (hasErrors(errors)) { setFormErrors(errors); return; }
-        const { password: _pw, ...data } = form;
+        
+        const data: any = { ...form };
+        if (!data.password) {
+            delete data.password;
+        }
+        if (data.allowed_product_category_id === "none") data.allowed_product_category_id = "";
+        
         await updateResellerMutation.mutateAsync({ id: editTarget.id, data: data as unknown as Record<string, unknown> });
         setEditTarget(null);
         setFormErrors({});
@@ -141,7 +154,9 @@ export default function ResellersTab() {
 
     const handleConfigure = async () => {
         if (!configTarget) return;
-        await configureResellerMutation.mutateAsync({ id: configTarget.id, data: configForm as Record<string, unknown> });
+        const data = { ...configForm };
+        if (data.allowed_product_category_id === "none") data.allowed_product_category_id = "";
+        await configureResellerMutation.mutateAsync({ id: configTarget.id, data: data as Record<string, unknown> });
         setConfigTarget(null);
     };
 
@@ -459,8 +474,18 @@ export default function ResellersTab() {
                         <div className="border-t border-border pt-3 mt-2">
                             <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
                         </div>
-                        <Field label="Allowed Product Category ID">
-                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        <Field label="Allowed Product Category">
+                            <Select value={(form as any).allowed_product_category_id || ""} onValueChange={(v) => setForm({ ...form, allowed_product_category_id: v })}>
+                                <SelectTrigger className={inputClasses}>
+                                    <SelectValue placeholder="Select Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {categories.map((c: any) => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </Field>
                     </>
                 )}
@@ -471,6 +496,14 @@ export default function ResellersTab() {
                 <Field label="Email" error={formErrors.email}><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Username" error={formErrors.username}><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
                 <Field label="Company Name" error={formErrors.company_name}><input className={inputClasses} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+                <Field label="Password (leave blank to keep current)" error={formErrors.password}>
+                    <div className="relative">
+                        <input className={inputClasses} type={showPassword ? "text" : "password"} value={form.password || ""} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="New password" />
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? "Hide password" : "Show password"}>
+                            {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        </button>
+                    </div>
+                </Field>
                 <Field label="Country">
                     <CountrySelect
                         value={form.country_code}
@@ -493,8 +526,18 @@ export default function ResellersTab() {
                         <div className="border-t border-border pt-3 mt-2">
                             <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
                         </div>
-                        <Field label="Allowed Product Category ID">
-                            <input className={inputClasses} type="text" value={(form as any).allowed_product_category_id || ""} onChange={(e) => setForm({ ...form, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                        <Field label="Allowed Product Category">
+                            <Select value={(form as any).allowed_product_category_id || ""} onValueChange={(v) => setForm({ ...form, allowed_product_category_id: v })}>
+                                <SelectTrigger className={inputClasses}>
+                                    <SelectValue placeholder="Select Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {categories.map((c: any) => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </Field>
                     </>
                 )}
@@ -550,7 +593,17 @@ export default function ResellersTab() {
                             <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
                         </div>
                         <Field label="Allowed Product Category ID">
-                            <input className={inputClasses} type="text" value={configForm.allowed_product_category_id} onChange={(e) => setConfigForm({ ...configForm, allowed_product_category_id: e.target.value })} placeholder="Category ID" />
+                            <Select value={configForm.allowed_product_category_id || ""} onValueChange={(v) => setConfigForm({ ...configForm, allowed_product_category_id: v })}>
+                                <SelectTrigger className={inputClasses}>
+                                    <SelectValue placeholder="Select Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {categories.map((c: any) => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </Field>
                     </>
                 )}

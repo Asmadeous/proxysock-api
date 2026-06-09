@@ -4,6 +4,7 @@ import { fetchResellerProfile, updateResellerProfile } from "../../../services/r
 import { toast } from "sonner";
 import { formatImageUrl } from "../../../services/api";
 import CountrySelect from "../../../components/ui/CountrySelect";
+import ChangePassword from "../../UserDashboard/ChangePassword";
 
 export default function ResSettings() {
     const [loading, setLoading] = useState(true);
@@ -228,6 +229,10 @@ export default function ResSettings() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="mt-8">
+                <ChangePassword />
             </div>
         </div>
     );
