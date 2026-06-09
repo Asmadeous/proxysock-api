@@ -291,10 +291,10 @@ module Web
         reseller = Reseller.find_by(email_confirmation_token: params[:token])
         if reseller
           if reseller.email_verified?
-            redirect_to_frontend "/reseller/login?message=already_confirmed"
+            redirect_to_frontend '/reseller/login?message=already_confirmed'
           else
             reseller.confirm_email!
-            redirect_to_frontend "/reseller/login?message=confirmed"
+            redirect_to_frontend '/reseller/login?message=confirmed'
           end
           return
         end
@@ -386,6 +386,7 @@ module Web
           if user.password_reset_sent_at < 30.minutes.ago
             return render json: { error: 'Reset token has expired. Please request a new one.' }, status: :unprocessable_entity
           end
+
           return process_password_reset(user)
         end
 
@@ -394,6 +395,7 @@ module Web
           if reseller.password_reset_sent_at < 30.minutes.ago
             return render json: { error: 'Reset token has expired. Please request a new one.' }, status: :unprocessable_entity
           end
+
           return process_password_reset(reseller)
         end
 
@@ -406,13 +408,13 @@ module Web
         user = User.find_by(unlock_token: params[:token])
         if user
           user.unlock_access!
-          return redirect_to_frontend "/login?message=unlocked"
+          return redirect_to_frontend '/login?message=unlocked'
         end
 
         reseller = Reseller.find_by(unlock_token: params[:token])
         if reseller
           reseller.unlock_access!
-          return redirect_to_frontend "/reseller/login?message=unlocked"
+          return redirect_to_frontend '/reseller/login?message=unlocked'
         end
 
         redirect_to_frontend '/login?error=invalid_token'

@@ -32,11 +32,11 @@ legacy_slugs.each do |slug|
   product = Product.find_by(slug: slug)
   next unless product
 
-  if product.update(active: false)
-    product.product_pricings.update_all(active: false)
-    puts "  ✗ Deactivated: #{product.name} (#{slug})"
-    deactivated += 1
-  end
+  next unless product.update(active: false)
+
+  product.product_pricings.update_all(active: false)
+  puts "  ✗ Deactivated: #{product.name} (#{slug})"
+  deactivated += 1
 end
 
 puts "── Done: #{deactivated} legacy plan(s) deactivated ──"
@@ -45,16 +45,16 @@ puts '── Syncing canonical inhouse VPS/RDP plans ──'
 
 # Ensure categories exist (InHouseProductSyncService creates them but guard here too)
 ProductCategory.find_or_create_by!(slug: 'vps') do |c|
-  c.name     = 'VPS'
+  c.name = 'VPS'
   c.category_type = 'vm'
-  c.active   = true
+  c.active = true
   c.available_to = 'both'
 end
 
 ProductCategory.find_or_create_by!(slug: 'rdp') do |c|
-  c.name     = 'RDP'
+  c.name = 'RDP'
   c.category_type = 'vm'
-  c.active   = true
+  c.active = true
   c.available_to = 'both'
 end
 

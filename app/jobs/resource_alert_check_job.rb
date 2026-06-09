@@ -4,7 +4,7 @@ class ResourceAlertCheckJob < ApplicationJob
   queue_as :default
 
   def perform
-    Rails.logger.info("Starting ResourceAlertCheckJob")
+    Rails.logger.info('Starting ResourceAlertCheckJob')
 
     # 1. Check Proxmox Server
     check_proxmox_server
@@ -35,6 +35,7 @@ class ResourceAlertCheckJob < ApplicationJob
     storage = svc.send(:proxmox_get, "/nodes/#{node}/storage")['data'] || []
     storage.each do |s|
       next unless s['active'] == 1 && s['total']&.positive?
+
       usage_pct = ((s['used'].to_f / s['total']) * 100).round(1)
       evaluate_threshold('proxmox_server', node, 'storage', usage_pct, resource_name: "#{node} - #{s['storage']}")
     end
@@ -45,7 +46,7 @@ class ResourceAlertCheckJob < ApplicationJob
   def check_vms
     node = ENV['PROXMOX_NODE'] || 'pve'
     vms_data = ProxmoxApiClient.list_vms(node)
-    
+
     return if vms_data.empty?
 
     # Get mapping of proxmox_vm_id to our DB VM to resolve ownership
@@ -53,6 +54,7 @@ class ResourceAlertCheckJob < ApplicationJob
 
     vms_data.each do |vm_data|
       next unless vm_data['status'] == 'running'
+
       vmid = vm_data['vmid'].to_s
       vm = active_vmid_to_vm[vmid]
       next unless vm # Skip VMs not in our DB or not active
@@ -107,18 +109,18 @@ class ResourceAlertCheckJob < ApplicationJob
     )
 
     # Send Email
-    if alert.recipient_email.present?
-      alert_hash = {
-        resource_type: resource_type,
-        resource_name: resource_name,
-        resource_id: resource_id,
-        metric: metric,
-        value: value,
-        threshold: threshold,
-        owner_name: recipient_data[:name]
-      }
-      AlertMailer.resource_alert(alert.recipient_email, alert_hash).deliver_later
-    end
+    return unless alert.recipient_email.present?
+
+    alert_hash = {
+      resource_type: resource_type,
+      resource_name: resource_name,
+      resource_id: resource_id,
+      metric: metric,
+      value: value,
+      threshold: threshold,
+      owner_name: recipient_data[:name]
+    }
+    AlertMailer.resource_alert(alert.recipient_email, alert_hash).deliver_later
   end
 
   def handle_resolved_threshold(resource_type, resource_id, metric, value, threshold, resource_name, recipient_data)
@@ -129,18 +131,18 @@ class ResourceAlertCheckJob < ApplicationJob
     alert.resolve!
 
     # Send resolution email if we previously sent an alert email
-    if alert.recipient_email.present?
-      alert_hash = {
-        resource_type: resource_type,
-        resource_name: resource_name,
-        resource_id: resource_id,
-        metric: metric,
-        value: value,
-        threshold: threshold,
-        owner_name: recipient_data&.dig(:name)
-      }
-      AlertMailer.resource_resolved(alert.recipient_email, alert_hash).deliver_later
-    end
+    return unless alert.recipient_email.present?
+
+    alert_hash = {
+      resource_type: resource_type,
+      resource_name: resource_name,
+      resource_id: resource_id,
+      metric: metric,
+      value: value,
+      threshold: threshold,
+      owner_name: recipient_data&.dig(:name)
+    }
+    AlertMailer.resource_resolved(alert.recipient_email, alert_hash).deliver_later
   end
 
   def resolve_ownership(vm)
@@ -148,7 +150,7 @@ class ResourceAlertCheckJob < ApplicationJob
     return default_admin_recipient unless order
 
     orderable = order.orderable
-    
+
     if orderable.is_a?(User)
       if orderable.owner_type == 'platform'
         { type: 'user', email: orderable.email, id: orderable.id, name: orderable.first_name || orderable.email }

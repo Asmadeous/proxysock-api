@@ -2,13 +2,13 @@
 
 class CreateResourceAlerts < ActiveRecord::Migration[8.1]
   def change
-    create_table :resource_alerts, id: :uuid, default: -> { "gen_random_uuid()" } do |t|
-      t.string :resource_type, null: false  # 'proxmox_server', 'vm', 'container'
-      t.string :resource_id               # proxmox_vm_id, container name, or 'pve'
+    create_table :resource_alerts, id: :uuid, default: -> { 'gen_random_uuid()' } do |t|
+      t.string :resource_type, null: false # 'proxmox_server', 'vm', 'container'
+      t.string :resource_id # proxmox_vm_id, container name, or 'pve'
       t.string :metric, null: false        # 'cpu', 'memory', 'disk', 'storage'
       t.float :value, null: false          # Current percentage at time of alert
       t.float :threshold, null: false, default: 90.0
-      t.string :status, default: 'firing', null: false  # 'firing', 'resolved'
+      t.string :status, default: 'firing', null: false # 'firing', 'resolved'
       t.string :recipient_email
       t.string :recipient_type             # 'admin', 'user', 'reseller'
       t.uuid :recipient_id

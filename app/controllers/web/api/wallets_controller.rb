@@ -40,7 +40,7 @@ module Web
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra hundredpay fastspring].include?(gateway)
+                                                                                         payvra hundredpay fastspring heleket].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
@@ -116,6 +116,19 @@ module Web
           )
           # Store Payvra's txn_id (invoice id) so DepositSyncService can verify via their API later.
           deposit.metadata['payvra_invoice_id'] = result[:txn_id]
+          deposit.save!
+          { url: result[:url], amount: amount, currency: 'USD' }
+
+        when 'heleket'
+          service = HeleketService.new
+          result = service.create_invoice(
+            amount: amount,
+            currency: currency,
+            order_number: deposit.metadata['transaction_ref'],
+            callback_url: callback_url,
+            email: current_actor.email
+          )
+          deposit.metadata['heleket_invoice_id'] = result[:txn_id]
           deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
 

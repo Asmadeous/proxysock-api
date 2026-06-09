@@ -13,10 +13,8 @@ module Admin
         employee = current_employee
 
         # Validate current password if changing password or email
-        if profile_params[:password].present? || profile_params[:email].present?
-          unless employee.authenticate(params[:current_password])
-            return render json: { error: 'Current password is incorrect' }, status: :unprocessable_entity
-          end
+        if (profile_params[:password].present? || profile_params[:email].present?) && !employee.authenticate(params[:current_password])
+          return render json: { error: 'Current password is incorrect' }, status: :unprocessable_entity
         end
 
         attrs = profile_params.to_h.reject { |_, v| v.blank? }

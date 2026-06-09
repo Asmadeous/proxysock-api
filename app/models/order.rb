@@ -41,9 +41,10 @@ class Order < ApplicationRecord
   has_one :esim_order, dependent: :destroy
   has_one :usa_esim_order, dependent: :destroy
   has_one :vpn_order, dependent: :destroy
-  has_one :vpn_account, through: :vpn_order, source: :vpn
-  has_one :global_isp_proxy_order, dependent: :destroy
-  has_one :global_isp_proxy, through: :global_isp_proxy_order
+  has_many :vpns, through: :vpn_order, source: :vpns
+  has_many :vpn_accounts, dependent: :destroy
+  has_many :global_isp_proxy_orders, dependent: :destroy
+  has_many :global_isp_proxies, dependent: :destroy
 
   def all_provisioned_resources
     case product.product_type
@@ -60,7 +61,7 @@ class Order < ApplicationRecord
       resources.flatten.compact
     when 'esim' then [esim_order].compact
     when 'usa_esim' then [usa_esim_order].compact
-    when 'vpn' then [vpn_account].compact
+    when 'vpn' then vpns.to_a
     else []
     end
   end

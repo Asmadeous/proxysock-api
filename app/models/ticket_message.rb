@@ -39,40 +39,38 @@ class TicketMessage < ApplicationRecord
           metadata: { ticket_id: ticket.id }
         )
       end
-    else
+    elsif ticket.ticket_messages.count <= 1
       # If customer responding or creating a ticket
-      if ticket.ticket_messages.count <= 1
-        # It's a new ticket! Notify all staff
-        NotificationService.notify_staff(
-          category: 'ticket',
-          title: "New Ticket: ##{ticket.id}",
-          message: "A new ticket was created: #{ticket.subject}",
-          metadata: { ticket_id: ticket.id }
-        )
-        # Slack: New ticket notification
-        SlackNotifyJob.perform_later('new_ticket', ticket.id)
-      elsif ticket.assigned_to
-        # Just a reply, notify the assigned agent
-        NotificationService.notify(
-          recipient: ticket.assigned_to,
-          category: 'ticket',
-          title: "New Reply: Ticket ##{ticket.id}",
-          message: "Customer replied to ticket: #{ticket.subject}",
-          metadata: { ticket_id: ticket.id }
-        )
-        # Slack: Ticket reply notification
-        SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
-      else
-        # Unassigned reply, notify all staff
-        NotificationService.notify_staff(
-          category: 'ticket',
-          title: "New Reply: Ticket ##{ticket.id}",
-          message: "Customer replied to unassigned ticket: #{ticket.subject}",
-          metadata: { ticket_id: ticket.id }
-        )
-        # Slack: Unassigned ticket reply notification
-        SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
-      end
+      NotificationService.notify_staff(
+        category: 'ticket',
+        title: "New Ticket: ##{ticket.id}",
+        message: "A new ticket was created: #{ticket.subject}",
+        metadata: { ticket_id: ticket.id }
+      )
+      # Slack: New ticket notification
+      SlackNotifyJob.perform_later('new_ticket', ticket.id)
+    # It's a new ticket! Notify all staff
+    elsif ticket.assigned_to
+      # Just a reply, notify the assigned agent
+      NotificationService.notify(
+        recipient: ticket.assigned_to,
+        category: 'ticket',
+        title: "New Reply: Ticket ##{ticket.id}",
+        message: "Customer replied to ticket: #{ticket.subject}",
+        metadata: { ticket_id: ticket.id }
+      )
+      # Slack: Ticket reply notification
+      SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
+    else
+      # Unassigned reply, notify all staff
+      NotificationService.notify_staff(
+        category: 'ticket',
+        title: "New Reply: Ticket ##{ticket.id}",
+        message: "Customer replied to unassigned ticket: #{ticket.subject}",
+        metadata: { ticket_id: ticket.id }
+      )
+      # Slack: Unassigned ticket reply notification
+      SlackNotifyJob.perform_later('ticket_reply', ticket.id, message_body: body)
     end
   end
 end

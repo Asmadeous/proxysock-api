@@ -15,4 +15,3 @@ class Vpn < ApplicationRecord
     metadata&.dig('server_ip') || metadata&.dig('hostname') || 'See OVPN Config'
   end
 end
-

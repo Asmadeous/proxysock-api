@@ -12,7 +12,7 @@ module Web
         if params[:product_type].present?
           types = params[:product_type].split(',')
           if types.include?('proxy')
-            proxy_types = ['proxy', 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp']
+            proxy_types = %w[proxy datacenter isp static_residential residential_rotating premium_isp mobile global_isp]
             types = (types - ['proxy'] + proxy_types).uniq
           end
           if types.include?('esim')
@@ -91,13 +91,13 @@ module Web
         type_counts.each do |(type, status), count|
           # Map sub-types to main categories for the dashboard cards
           category = case type
-                    when 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
-                      'proxy'
-                    when 'usa_esim'
-                      'esim'
-                    else
-                      type
-                    end
+                     when 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
+                       'proxy'
+                     when 'usa_esim'
+                       'esim'
+                     else
+                       type
+                     end
 
           next unless type_stats.key?(category)
 
@@ -846,7 +846,7 @@ module Web
           end
 
           checkout = order.checkout_session
-          unless %w[plisio payvra hundredpay].include?(checkout&.gateway)
+          unless %w[plisio payvra hundredpay heleket].include?(checkout&.gateway)
             return render json: { error: 'This order does not qualify for a crypto refund.' }, status: :unprocessable_entity
           end
 
@@ -880,6 +880,8 @@ module Web
               PlisioService.new.withdraw(order.total_amount, network || 'USDT', address, "REFUND-#{order.order_number}")
             when 'payvra'
               PayvraService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
+            when 'heleket'
+              HeleketService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
             when 'hundredpay'
               return render json: { error: 'HundredPay refunds must be claimed via support momentarily.' }, status: :unprocessable_entity
             end
@@ -1181,6 +1183,18 @@ module Web
             amount: amount,
             currency: 'USD'
           }
+        when 'heleket'
+          {
+            url: HeleketService.new.create_invoice(
+              order_number: "ORD_#{order.id}",
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
         when 'hundredpay'
           {
             url: HundredpayService.new.create_invoice(
@@ -1233,6 +1247,18 @@ module Web
         when 'payvra'
           {
             url: PayvraService.new.create_invoice(
+              order_number: reference,
+              amount: amount,
+              currency: 'USD',
+              callback_url: callback_url,
+              email: current_actor.email
+            )[:url],
+            amount: amount,
+            currency: 'USD'
+          }
+        when 'heleket'
+          {
+            url: HeleketService.new.create_invoice(
               order_number: reference,
               amount: amount,
               currency: 'USD',

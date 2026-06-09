@@ -13,7 +13,7 @@ RSpec.describe UsaEsimOrder, type: :model do
       association = described_class.reflect_on_association(:usa_esim_credentials)
       expect(association.macro).to eq :has_many
       expect(association.options[:foreign_key]).to eq 'order_id'
-      expect(association.options[:dependent]).to eq :nullify
+      expect(association.options[:dependent]).to eq :destroy
     end
   end
 end

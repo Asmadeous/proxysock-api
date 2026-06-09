@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ChangePinAndPukToStringInUsaEsimCredentials < ActiveRecord::Migration[8.1]
   def up
     change_column :usa_esim_credentials, :PIN1, :string, default: '1111', null: false

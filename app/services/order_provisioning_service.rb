@@ -104,10 +104,10 @@ class OrderProvisioningService
 
     begin
       RefundService.new(@order).process!
-    rescue RefundService::DeferredCryptoRefund => ce
-      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{ce.message}")
-    rescue StandardError => re
-      Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{re.message}")
+    rescue RefundService::DeferredCryptoRefund => e
+      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{e.message}")
+    rescue StandardError => e
+      Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{e.message}")
     end
 
     # Notify the Actor (Customer or Reseller)
@@ -317,7 +317,7 @@ class OrderProvisioningService
         end
 
         if tunnel
-          if tunnel.metadata&.dig('auth_username') && tunnel.metadata&.dig('auth_password')
+          if tunnel.metadata&.dig('auth_username') && tunnel.metadata['auth_password']
             # It's a dedicated tunnel we just created
             vm_username = tunnel.metadata['auth_username']
             vm_password = tunnel.metadata['auth_password']
@@ -360,7 +360,7 @@ class OrderProvisioningService
         proxy_pr = Product.joins(:product_category).where(product_categories: { slug: proxy_slug }, active: true).where(
           'products.name LIKE ?', '1 x%'
         ).first
-        
+
         if proxy_pr.nil?
           Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule")
           raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
@@ -514,16 +514,16 @@ class OrderProvisioningService
                     end
 
                     loc_id
-                  elsif category_slug == 'vpn' || category_slug == 'residential-vpn' || @product.product_type == 'vpn'
+                  elsif %w[vpn residential-vpn].include?(category_slug) || @product.product_type == 'vpn'
                     loc_id = @order.metadata['locationId']
                     if loc_id.blank? && @order.metadata['locationsString'].present?
                       # Robust fallback for VPN: Match any part of the string against metadata names
                       loc_str = @order.metadata['locationsString'].to_s.downcase
-                      
+
                       @product.metadata&.dig('isp')&.each do |isp|
                         # If ISP name is mentioned in the location string
                         if loc_str.include?(isp['name'].to_s.downcase)
-                          isp['locations']&.each do |_country, data|
+                          isp['locations']&.each_value do |data|
                             # Look for a city name that is also mentioned in the string
                             matched_city = data['cities']&.find { |c| loc_str.include?(c['name'].to_s.downcase) }
                             if matched_city
@@ -534,7 +534,7 @@ class OrderProvisioningService
                         end
                         break if loc_id
                       end
-                      
+
                       # Final fallback: if no city match, but we matched the ISP, take the first city of that ISP
                       if loc_id.blank?
                         @product.metadata&.dig('isp')&.each do |isp|
@@ -580,12 +580,12 @@ class OrderProvisioningService
       # Handle Global ISP specific parameters
       if category_slug == 'global-isp'
         provisioning_params[:type] = 'global-isp'
-        
+
         ts_id = @order.metadata['target_section_id'] ||
                 @order.metadata['targetSectionId'] ||
                 @order.metadata['globalTargetSectionId'] ||
                 @product.metadata&.dig('target_section_id')
-        
+
         t_id = @order.metadata['target_id'] ||
                @order.metadata['targetId'] ||
                @order.metadata.dig('globalTarget', 'id') ||
@@ -594,7 +594,7 @@ class OrderProvisioningService
         # Fallback for target and section from locationsString or globalTarget name
         if t_id.blank? || ts_id.blank?
           target_name = @order.metadata.dig('globalTarget', 'name') || @order.metadata['locationsString']&.split('-')&.last&.strip
-          
+
           if target_name.present?
             @product.metadata&.dig('targets')&.each do |section|
               matched = section['targets']&.find { |t| t['name'].to_s.casecmp?(target_name) }
@@ -618,10 +618,10 @@ class OrderProvisioningService
             type: 'global-isp',
             qty: @order.quantity
           )
-          
+
           provider_cost = (price_quote.dig('data', 'price') || price_quote['price']).to_f
           expected_cost = @order.product_pricing.cost_price.to_f * @order.quantity
-          
+
           # Allow a small 5% margin for currency fluctuations if any, but block huge jumps (like x14)
           if provider_cost > (expected_cost * 1.05)
             raise "PRICE GUARD TRIGGERED: Provider attempted to charge $#{provider_cost} for an order expected to cost $#{expected_cost}. Aborting to prevent overcharge."
@@ -802,7 +802,6 @@ class OrderProvisioningService
         ).api_proxy_credentials_email.deliver_later
       end
 
-
     else
       raise ProvisioningError, "Unknown proxy provider: #{@product.provider_type}"
     end
@@ -965,8 +964,6 @@ class OrderProvisioningService
     end
   end
 
-
-
   # ========== eSIM Provisioning ==========
   def provision_esim!
     EsimProvisioningService.new(@order).provision!
@@ -1066,8 +1063,7 @@ class OrderProvisioningService
       period    = 1
       locations = @order.metadata['locationId'] || @order.metadata['locationsString']
       client_ip = @order.metadata['client_ip']
-      protocol  = 'http'
-      api_id    = @product.provider_product_id
+      api_id = @product.provider_product_id
 
       client = MyProxyApiClient.new
       user_id = client.reseller_user_id
@@ -1092,7 +1088,7 @@ class OrderProvisioningService
       if provider_order_id.present?
         # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials/config
         sleep(60)
-        
+
         begin
           # VPN orders have their own view endpoint
           full_details = client.view_vpn_order(provider_order_id)
@@ -1248,7 +1244,7 @@ class OrderProvisioningService
         # Example structure: response['data'][0]['ips']['http']
         ips_info = response.dig('data', 0, 'ips_info') || []
         ips_config = response.dig('data', 0, 'config') || {}
-        
+
         (response.dig('data', 0, 'ips', 'http') || []).each_with_index do |cred_string, idx|
           parts = cred_string.split(':')
           info = ips_info[idx] || {}

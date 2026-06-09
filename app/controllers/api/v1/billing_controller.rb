@@ -69,7 +69,7 @@ module Api
 
           else
             # Fallback for resellers without affiliate — use PayoutService directly
-            gateway = method == 'crypto' ? 'plisio' : 'manual'
+            gateway = method == 'crypto' ? (details['crypto_gateway'] || 'plisio') : 'manual'
             payout = PayoutService.new(current_reseller).withdraw!(
               amount: amount,
               gateway: gateway,

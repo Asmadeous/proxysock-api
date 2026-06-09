@@ -10,18 +10,18 @@ class SlackNotifierService
 
   # Maps logical channels to ENV variable names (lazy-loaded)
   CHANNEL_ENV_MAP = {
-    general:  'SLACK_WEBHOOK_URL',
-    support:  'SLACK_WEBHOOK_SUPPORT',
-    alerts:   'SLACK_WEBHOOK_ALERTS'
+    general: 'SLACK_WEBHOOK_URL',
+    support: 'SLACK_WEBHOOK_SUPPORT',
+    alerts: 'SLACK_WEBHOOK_ALERTS'
   }.freeze
 
   # Routes event types to channels
   EVENT_CHANNELS = {
-    new_ticket:            :support,
-    ticket_reply:          :support,
-    guest_chat_message:    :support,
-    support_chat_message:  :support,
-    provisioning_failed:   :alerts
+    new_ticket: :support,
+    ticket_reply: :support,
+    guest_chat_message: :support,
+    support_chat_message: :support,
+    provisioning_failed: :alerts
   }.freeze
 
   class << self
@@ -98,7 +98,7 @@ class SlackNotifierService
       when :guest_chat_message
         "💬 Guest chat message from #{record.guest_chat&.guest_name}"
       when :support_chat_message
-        "💬 Support chat message"
+        '💬 Support chat message'
       when :provisioning_failed
         "🚨 Provisioning failed: Order ##{record.order_number}"
       end
@@ -119,9 +119,9 @@ class SlackNotifierService
 
       # Identify actor type for context
       actor_type = case user
-                   when Reseller then "Reseller"
-                   when User then user.reseller.present? ? "Managed User" : "User"
-                   else user&.class&.name || "Unknown"
+                   when Reseller then 'Reseller'
+                   when User then user.reseller.present? ? 'Managed User' : 'User'
+                   else user&.class&.name || 'Unknown'
                    end
 
       fields = [
@@ -188,9 +188,9 @@ class SlackNotifierService
                    end
 
       actor_type = case user
-                   when Reseller then "Reseller"
-                   when User then user.reseller.present? ? "Managed User" : "User"
-                   else user&.class&.name || "Unknown"
+                   when Reseller then 'Reseller'
+                   when User then user.reseller.present? ? 'Managed User' : 'User'
+                   else user&.class&.name || 'Unknown'
                    end
 
       [
@@ -222,9 +222,9 @@ class SlackNotifierService
                     end
 
       actor_type = case owner
-                   when Reseller then "Reseller"
-                   when User then owner.reseller.present? ? "Managed User" : "User"
-                   else owner&.class&.name || "Unknown"
+                   when Reseller then 'Reseller'
+                   when User then owner.reseller.present? ? 'Managed User' : 'User'
+                   else owner&.class&.name || 'Unknown'
                    end
 
       [

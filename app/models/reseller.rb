@@ -231,7 +231,7 @@ class Reseller < ApplicationRecord
   end
 
   def reset_failed_attempts!
-    update_columns(failed_attempts: 0) if failed_attempts.to_i > 0
+    update_columns(failed_attempts: 0) if failed_attempts.to_i.positive?
   end
 
   # ── Security: Email Verification ───────────────────────────────────────

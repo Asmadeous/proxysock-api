@@ -2,5 +2,5 @@
 
 class MobileProxyOrder < ApplicationRecord
   belongs_to :order
-  has_one :mobile_proxy, dependent: :destroy
+  has_many :mobile_proxies, dependent: :destroy
 end

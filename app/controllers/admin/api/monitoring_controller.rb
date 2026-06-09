@@ -430,10 +430,10 @@ module Admin
       def resource_alerts
         status = params[:status] || 'firing'
         limit = (params[:limit] || 50).to_i
-        
+
         alerts = ResourceAlert.order(updated_at: :desc).limit(limit)
         alerts = alerts.where(status: status) if status != 'all'
-        
+
         render json: { alerts: alerts }
       end
 

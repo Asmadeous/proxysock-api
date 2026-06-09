@@ -68,11 +68,11 @@ plans.each do |plan_data|
 
   # Defaults (API cost, cost, reseller, user)
   pricing.assign_attributes(
-    api_price:              cost_price,
-    cost_price:             cost_price,
-    selling_price:          reseller_price,
+    api_price: cost_price,
+    cost_price: cost_price,
+    selling_price: reseller_price,
     reseller_selling_price: reseller_price,
-    user_selling_price:     user_price,
+    user_selling_price: user_price,
     active: true
   )
   pricing.save!

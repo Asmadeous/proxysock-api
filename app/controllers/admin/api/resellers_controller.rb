@@ -48,7 +48,7 @@ module Admin
       # POST /admin/api/resellers — onboard new reseller
       def create
         require_admin!
-        
+
         plain_password = params[:password]
         reseller = Reseller.new(reseller_create_params)
         reseller.email_confirmation_token = SecureRandom.urlsafe_base64(32)
@@ -133,8 +133,8 @@ module Admin
 
       def reseller_params
         p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :infrastructure_surcharge_percentage,
-                                         :subscription_fee, :discount_percentage, :dedicated_api_key, :customer_email, :allowed_product_category_id,
-                                         :country_code, :country, :city)
+                                             :subscription_fee, :discount_percentage, :dedicated_api_key, :customer_email, :allowed_product_category_id,
+                                             :country_code, :country, :city)
         p.delete(:password) if p[:password].blank?
         p
       end

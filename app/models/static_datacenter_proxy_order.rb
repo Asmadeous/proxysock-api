@@ -2,5 +2,5 @@
 
 class StaticDatacenterProxyOrder < ApplicationRecord
   belongs_to :order
-  has_one :static_datacenter_proxy, dependent: :destroy
+  has_many :static_datacenter_proxies, dependent: :destroy
 end
