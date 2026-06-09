@@ -2,5 +2,5 @@
 
 class PremiumIspProxyOrder < ApplicationRecord
   belongs_to :order
-  has_one :premium_isp_proxy, dependent: :nullify
+  has_one :premium_isp_proxy, dependent: :destroy
 end
