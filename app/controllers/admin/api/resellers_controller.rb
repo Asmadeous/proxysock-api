@@ -127,7 +127,7 @@ module Admin
       end
 
       def reseller_create_params
-        p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee, :country_code, :country, :city)
+        p = params.require(:reseller).permit(:email, :username, :company_name, :password, :reseller_type, :subscription_fee, :country_code, :country, :city, :allowed_product_category_id)
         p[:password] ||= params[:password] if params[:password].present?
         p
       end
