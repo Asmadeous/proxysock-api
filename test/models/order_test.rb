@@ -66,9 +66,9 @@ class OrderTest < ActiveSupport::TestCase
     assert order.respond_to?(:vm)
   end
 
-  test 'has one vpn_account association' do
+  test 'has many vpn_accounts association' do
     order = Order.new
-    assert order.respond_to?(:vpn_account)
+    assert order.respond_to?(:vpn_accounts)
   end
 
   test 'has one esim_order association' do

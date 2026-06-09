@@ -7,6 +7,7 @@ module Web
     class AuthControllerTest < ActionDispatch::IntegrationTest
       setup do
         @user = users(:one)
+        @user.update!(email_verified_at: Time.current)
       end
 
       test 'should login with valid credentials' do
@@ -50,7 +51,7 @@ module Web
         end
 
         assert_response :created
-        assert_not_nil json_response['token']
+        assert json_response['requires_verification']
       end
     end
   end
