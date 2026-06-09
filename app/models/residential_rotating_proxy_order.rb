@@ -2,5 +2,5 @@
 
 class ResidentialRotatingProxyOrder < ApplicationRecord
   belongs_to :order
-  has_one :residential_rotating_proxy, dependent: :nullify
+  has_one :residential_rotating_proxy, dependent: :destroy
 end
