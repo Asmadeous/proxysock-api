@@ -104,10 +104,10 @@ class OrderProvisioningService
 
     begin
       RefundService.new(@order).process!
-    rescue RefundService::DeferredCryptoRefund => e
-      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{e.message}")
-    rescue StandardError => e
-      Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{e.message}")
+    rescue RefundService::DeferredCryptoRefund => refund_err
+      Rails.logger.info("Order #{@order.id} paid via crypto. Awaiting user-provided refund address: #{refund_err.message}")
+    rescue StandardError => refund_err
+      Rails.logger.error("Auto-refund completely failed for order #{@order.id}: #{refund_err.message}")
     end
 
     # Notify the Actor (Customer or Reseller)

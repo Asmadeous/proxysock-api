@@ -119,6 +119,9 @@ export default function MainLandingPage() {
           content="residential vpn, vpn service, proxy service, RDP hosting, VPS hosting, eSIM cards, datacenter proxy, residential proxy, ISP proxy, Windows RDP, Linux VPS, digital infrastructure, secure vpn"
         />
 
+        {/* Domain Verification */}
+        <meta name="heleket" content="29da0c7a" />
+
         {/* Canonical URL for canonicalization */}
         <link rel="canonical" href="https://www.proxysock.com/" />
 

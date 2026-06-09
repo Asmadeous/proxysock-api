@@ -13,7 +13,8 @@ module Api
           password: 'password123',
           reseller_type: 'api_only',
           country_code: 'US',
-          city: 'New York'
+          city: 'New York',
+          email_verified_at: Time.current
         )
         # Use the automatically initialized wallet
         wallet = @reseller.wallet
