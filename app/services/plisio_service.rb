@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class PlisioService
-  BASE_URL = 'https://plisio.net/api/v1'
+  BASE_URL = 'https://api.plisio.net/api/v1'
 
   def initialize
     @secret_key = ENV['PLISIO_SECRET_KEY']
@@ -33,8 +33,9 @@ class PlisioService
                          order_number: order_number
                        })
 
-    if response['status'] == 'success' && response['data'].is_a?(Array)
-      op = response['data'].find { |t| t['order_number'] == order_number }
+    operations = response.dig('data', 'operations')
+    if response['status'] == 'success' && operations.is_a?(Array)
+      op = operations.find { |t| t['order_number'].to_s == order_number.to_s }
       if op && %w[completed mismatch].include?(op['status'])
         return {
           status: 'success',
@@ -51,13 +52,18 @@ class PlisioService
   end
 
   # Request a withdrawal to a crypto address.
-  def withdraw(amount, currency, address, order_number)
-    request(:get, '/withdraw', {
+  def withdraw(amount, currency, address, order_number = nil)
+    request(:get, '/operations/withdraw', {
               currency: currency,
+              type: 'cash_out',
               amount: amount,
-              address: address,
+              to: address,
               order_number: order_number
-            })
+            }.compact)
+  end
+
+  def balances(currency)
+    request(:get, "/balances/#{currency}")
   end
 
   def verify_callback(params); end

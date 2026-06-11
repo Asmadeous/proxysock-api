@@ -11,6 +11,7 @@ import {
   syncAdminVPN,
   syncAdminRDP,
   fetchAdminProductCategories,
+  createAdminOrder,
 } from "../../../services/adminApi";
 import { adminQueryKeys } from "./queryKeys";
 
@@ -90,5 +91,18 @@ export function useSyncProducts() {
       queryClient.invalidateQueries(adminQueryKeys.products.all());
     },
     onError: (_err, type) => toast.error(`Failed to sync ${type}`),
+  });
+}
+
+export function useAdminPurchaseProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { product_id: number; customer_email: string; quantity?: number; metadata?: Record<string, unknown> }) =>
+      createAdminOrder(data),
+    onSuccess: () => {
+      toast.success("Order created and provisioning started");
+      queryClient.invalidateQueries(adminQueryKeys.orders.all());
+    },
+    onError: (err: any) => toast.error(err.message || "Purchase failed"),
   });
 }

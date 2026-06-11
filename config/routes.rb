@@ -336,7 +336,7 @@ Rails.application.routes.draw do
         post :import, on: :collection
       end
 
-      resources :orders, only: %i[index show] do
+      resources :orders, only: %i[index show create] do
         post :refund,   on: :member
         post :rescue,   on: :member
         get :credentials, on: :member

@@ -72,8 +72,7 @@ module Api
 
         min = current_reseller.min_deposit_amount
         return render json: { error: "Minimum deposit is $#{min}" }, status: :bad_request if amount < min
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra hundredpay fastspring heleket].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio hundredpay fastspring heleket].include?(gateway)
 
         # Create Pending Deposit
         transaction_ref = "DEP_#{SecureRandom.hex(8)}"
@@ -128,21 +127,6 @@ module Api
             phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
             country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
           )
-          { url: result[:url], amount: amount, currency: 'USD' }
-        when 'payvra'
-          service = PayvraService.new
-          result = service.create_invoice(
-            amount: amount,
-            currency: currency,
-            order_number: deposit.metadata['transaction_ref'],
-            callback_url: frontend_callback_url,
-            email: current_reseller.email,
-            phone: current_reseller.try(:phone) || current_reseller.metadata.to_h['phone'],
-            country: current_reseller.try(:country) || current_reseller.metadata.to_h['country']
-          )
-          # Store Payvra's txn_id so DepositSyncService can verify it later.
-          deposit.metadata['payvra_invoice_id'] = result[:txn_id]
-          deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
         when 'heleket'
           service = HeleketService.new

@@ -3,11 +3,11 @@
 class Payout < ApplicationRecord
   belongs_to :reseller
 
-  GATEWAYS = %w[paystack plisio payvra hundredpay manual heleket].freeze
+  GATEWAYS = %w[paystack plisio hundredpay manual heleket].freeze
   STATUSES = %w[pending processing completed failed].freeze
 
   # Crypto gateways are auto-dispatched; others are manually processed by admin
-  CRYPTO_GATEWAYS = %w[plisio payvra heleket].freeze
+  CRYPTO_GATEWAYS = %w[plisio heleket].freeze
 
   # Supported crypto currencies for withdrawal
   CRYPTO_CURRENCIES = %w[BTC USDC ETH USDT].freeze

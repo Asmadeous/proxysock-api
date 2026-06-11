@@ -64,10 +64,10 @@ class RefundService
     when 'paystack'
       # Execute actual API reversal
       PaystackService.new.refund(checkout.gateway_reference, @order.total_amount)
-    when 'plisio', 'payvra', 'hundredpay', 'heleket'
-      # It is mechanically impossible to safely auto-reverse crypto APIs without
-      # knowing the user's secure return wallet address. We cleanly halt this,
-      # which notifies the caller that manual crypto claiming is required.
+    when 'plisio', 'hundredpay', 'heleket'
+      # These gateways usually require sending crypto via a withdrawal or manual transfer,
+      # or they don't support automated direct refunds.
+      # Create an internal Payout object instead to queue it for the admin or auto-dispatch.e caller that manual crypto claiming is required.
       raise DeferredCryptoRefund, "Order paid via crypto (#{checkout.payment_method}). User must provide wallet address from dashboard."
     else
       raise RefundError, "Unsupported gateway refund for #{checkout.payment_method}"

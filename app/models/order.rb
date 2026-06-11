@@ -22,6 +22,8 @@ class Order < ApplicationRecord
   belongs_to :product
   belongs_to :product_pricing
   belongs_to :checkout_session, optional: true
+  
+  has_one :order_fund_split, dependent: :destroy
   # belongs_to :reseller, optional: true # Reseller orders - Replaced by orderable
 
   def reseller

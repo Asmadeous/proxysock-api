@@ -5,6 +5,49 @@ module Admin
     class OrdersController < Admin::Api::BaseController
       before_action :set_order, only: %i[show refund rescue_order credentials update_credentials change_protocol rotate_ip whitelist_add whitelist_delete renew reorder]
 
+      # POST /admin/api/orders
+      # Admin-initiated purchase: finds user by email, creates order, provisions without payment.
+      def create
+        require_admin!
+
+        product = Product.find(params[:product_id])
+        pricing = product.product_pricings.find_by(active: true)
+        return render json: { error: 'No active pricing for this product' }, status: :not_found unless pricing
+
+        email = params[:customer_email].to_s.strip.downcase
+        return render json: { error: 'customer_email is required' }, status: :bad_request if email.blank?
+
+        user = User.find_by(email: email)
+        return render json: { error: "No user found with email: #{email}" }, status: :not_found unless user
+
+        # Ensure user has a wallet for provisioning service compatibility
+        user.create_wallet! unless user.wallet
+
+        order = Order.create!(
+          orderable: user,
+          product: product,
+          product_pricing: pricing,
+          quantity: params[:quantity] || 1,
+          metadata: {
+            'admin_provisioned' => true,
+            'provisioned_by' => current_employee.id,
+            'credentials_email' => email,
+            'client_ip' => request.remote_ip
+          }.merge(params[:metadata]&.to_unsafe_h || {}),
+          status: 'pending'
+        )
+
+        OrderProvisioningJob.perform_later(order.id, user.id, 'User')
+        record_audit_log('order.admin_created', order, { customer_email: email, product_name: product.name })
+
+        render json: {
+          message: "Order ##{order.order_number} created. Provisioning started — credentials will be emailed to #{email}.",
+          order: order_json(order)
+        }, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
       # GET /admin/api/orders
       def index
         orders = Order.preload(:product, :orderable).order(created_at: :desc)

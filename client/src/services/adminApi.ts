@@ -138,6 +138,12 @@ export const reorderOrder = (id: number) =>
     adminApi.post(`/orders/${id}/reorder`);
 export const fetchOrderCredentials = (id: number) =>
     adminApi.get(`/orders/${id}/credentials`);
+export const createAdminOrder = (data: {
+    product_id: number;
+    customer_email: string;
+    quantity?: number;
+    metadata?: Record<string, unknown>;
+}) => adminApi.post("/orders", data);
 export const updateProxyCredentials = (id: number, data: { username?: string; password?: string }) =>
     adminApi.post(`/orders/${id}/update_credentials`, data);
 export const rotateProxyIp = (id: number) =>

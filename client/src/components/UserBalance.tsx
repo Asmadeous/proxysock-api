@@ -21,7 +21,7 @@ interface BalanceProps {
   variant?: "default" | "sidebar";
 }
 
-type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_payvra' | 'crypto_hundredpay' | 'fastspring';
+type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_hundredpay' | 'fastspring' | 'crypto_heleket';
 
 const PaymentMethodCard = ({
   title,
@@ -265,7 +265,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     colorClass="purple"
                     loading={loading}
                   />
-                  {/* <PaymentMethodCard
+                  <PaymentMethodCard
                     id="crypto_heleket"
                     title="Pay with Crypto (Heleket)"
                     description="BTC, ETH, USDT & more"
@@ -274,7 +274,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     onClick={() => setPaymentMethod('crypto_heleket')}
                     colorClass="blue"
                     loading={loading}
-                  /> */}
+                  />
                   <PaymentMethodCard
                     id="crypto_plisio"
                     title="Pay with Crypto (Plisio)"

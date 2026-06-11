@@ -15,6 +15,7 @@ import { Toaster } from "sonner";
 import { Toaster as HotToaster } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import TawkWidget from "./components/TawkWidget";
+import PopAd from "./components/PopAd";
 
 // ─── Public pages ──────────────────────────────────────────
 const Home = lazy(() => import("./pages/public/Home"));
@@ -267,6 +268,7 @@ export default function App() {
           </Suspense>
           <CookieConsentBanner />
           <TawkWidget />
+          <PopAd />
         </AutoSEO>
       </HelmetProvider>
     </AuthProvider>

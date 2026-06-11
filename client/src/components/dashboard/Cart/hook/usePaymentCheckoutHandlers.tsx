@@ -20,7 +20,7 @@ interface UsePaymentCheckoutHandlersProps {
   ) => string;
   setUserBalance: React.Dispatch<React.SetStateAction<number>>;
   setIsLoadingPlisio: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsLoadingPayvra: React.Dispatch<React.SetStateAction<boolean>>;
+
   setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingFastspring: React.Dispatch<React.SetStateAction<boolean>>;
@@ -42,7 +42,7 @@ export const usePaymentCheckoutHandlers = ({
   storeOrderDataForSuccess,
   setUserBalance,
   setIsLoadingPlisio,
-  setIsLoadingPayvra,
+
   setIsLoadingPaystack,
   setIsLoadingHundredpay,
   setIsLoadingFastspring,
@@ -239,7 +239,7 @@ export const usePaymentCheckoutHandlers = ({
   };
 
   const handlePlisioCheckout = () => handleDepositGateway('plisio', setIsLoadingPlisio);
-  const handlePayvraCheckout = () => handleDepositGateway('payvra', setIsLoadingPayvra);
+
   const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
   const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
   const handleFastSpringCheckout = () => handleDepositGateway('fastspring', setIsLoadingFastspring);
@@ -248,7 +248,7 @@ export const usePaymentCheckoutHandlers = ({
   return {
     handleBalancePayment,
     handlePlisioCheckout,
-    handlePayvraCheckout,
+
     handlePaystackCheckout,
     handleHundredpayCheckout,
     handleFastSpringCheckout,
