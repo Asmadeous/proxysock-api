@@ -447,23 +447,6 @@ export default function ResWallet() {
                                         </div>
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "heleket" ? "border-emerald-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
-
-                                    {/* Payvra Option */}
-                                    {/* <div 
-                                        onClick={() => setPaymentGateway("payvra")}
-                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "payvra" ? "border-blue-500 bg-blue-500/5" : "border-border/50 hover:bg-muted/50"}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
-                                                <img src="/payvra.webp" alt="Payvra" className="w-full h-full object-contain" />
-                                            </div>
-                                            <div>
-                                                <p className="font-black text-sm uppercase tracking-tight">Payvra Crypto</p>
-                                                <p className="text-[10px] font-medium text-muted-foreground">BTC, ETH, USDT & more</p>
-                                            </div>
-                                        </div>
-                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "payvra" ? "border-blue-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
-                                    </div> */}
                                 </div>
                             </div>
                         </div>

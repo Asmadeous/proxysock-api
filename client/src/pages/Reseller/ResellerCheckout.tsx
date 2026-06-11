@@ -38,7 +38,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("balance");
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
-    const [isLoadingPayvra, setIsLoadingPayvra] = useState(false);
+
     const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
@@ -127,7 +127,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         handleBalancePayment,
         handlePaystackCheckout,
         handleHundredpayCheckout,
-        handlePayvraCheckout,
+
         handlePlisioCheckout,
         handleFastSpringCheckout,
         handleHeleketCheckout,
@@ -141,7 +141,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         storeOrderDataForSuccess,
         setUserBalance,
         setIsLoadingPlisio,
-        setIsLoadingPayvra,
+
         setIsLoadingPaystack,
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
@@ -162,7 +162,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         else if (selectedPaymentMethod === "paystack") handlePaystackCheckout();
         else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
-        else if (selectedPaymentMethod === "payvra") handlePayvraCheckout();
+        else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
         else if (selectedPaymentMethod === "heleket") handleHeleketCheckout();
         else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
     };
@@ -210,7 +210,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     };
 
     const isProcessing =
-        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingPayvra || isLoadingFastspring || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isAnyPaymentProcessing;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">

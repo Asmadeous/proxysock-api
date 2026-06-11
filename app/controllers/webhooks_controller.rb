@@ -45,43 +45,6 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
-  def payvra
-    payload = request.body.read
-
-    # Payvra webhook verification: HMAC-SHA512 of raw POST body
-    # using Webhook Secret Key, sent in the "HMAC" HTTP header.
-    # Docs: https://docs.payvra.com/webhook
-    hmac_header = request.headers['HMAC'] || request.headers['HTTP_HMAC']
-
-    if ENV['PAYVRA_WEBHOOK_SECRET'].present? && hmac_header.present?
-      expected = OpenSSL::HMAC.hexdigest('SHA512', ENV['PAYVRA_WEBHOOK_SECRET'], payload)
-      unless Rack::Utils.secure_compare(expected, hmac_header.to_s)
-        Rails.logger.warn('[Webhook] Payvra HMAC signature mismatch — rejecting')
-        return head :bad_request
-      end
-    end
-
-    data = begin
-      JSON.parse(payload)
-    rescue StandardError
-      {}
-    end
-    event_type = data['eventType']
-
-    # Payvra sends eventType: PAYMENT_COMPLETED when payment is confirmed
-    if event_type == 'PAYMENT_COMPLETED' || data['status'] == 'COMPLETED'
-      webhook_params = ActionController::Parameters.new(data).permit(
-        :status, :id, :amount, :amountCurrency, :eventType
-      )
-      # Map Payvra fields to our handle_payment format
-      webhook_params[:order_number] = data.dig('metadata', 'order_number') || data['id']
-      webhook_params[:reference] = data.dig('metadata', 'reference') || data['id']
-      handle_payment(webhook_params, 'payvra')
-    end
-
-    head :ok
-  end
-
   def heleket
     payload = request.body.read
     signature = request.headers['x-heleket-signature'] || request.headers['HTTP_X_HELEKET_SIGNATURE']
@@ -239,7 +202,7 @@ class WebhooksController < ApplicationController
       when 'heleket'
         data['amount'].to_f
       else
-        data['amount'].to_f # Payvra — amounts already in USD
+        data['amount'].to_f # Plisio uses source_amount for fiat, but we handle that elsewhere or assume crypto
       end
 
     # Allow a small tolerance (±1%) for floating-point / FX rounding

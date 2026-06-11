@@ -3,7 +3,7 @@
 class CartCheckoutService
   class CheckoutError < StandardError; end
 
-  SUPPORTED_GATEWAYS = %w[paystack plisio payvra fastspring heleket].freeze
+  SUPPORTED_GATEWAYS = %w[paystack plisio fastspring heleket].freeze
 
   def initialize(actor, cart, payment_method: 'wallet')
     @actor = actor
@@ -178,15 +178,6 @@ class CartCheckoutService
 
     when 'plisio'
       PlisioService.new.create_invoice(
-        amount: amount,
-        currency: 'USD',
-        order_number: reference,
-        callback_url: callback_url,
-        email: @actor.email
-      )[:url]
-
-    when 'payvra'
-      PayvraService.new.create_invoice(
         amount: amount,
         currency: 'USD',
         order_number: reference,

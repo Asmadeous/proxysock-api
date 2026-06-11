@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     PlusIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon,
     GlobeAltIcon, CpuChipIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, ShieldCheckIcon,
-    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon
+    ArrowLeftIcon, BuildingStorefrontIcon, ArrowRightIcon, ShoppingCartIcon
 } from "@heroicons/react/24/outline";
 
 import DataTable from "../components/DataTable";
@@ -13,6 +13,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import EmptyState from "../components/EmptyState";
 import Button from "../components/Button";
+import AdminPurchaseView from "./AdminPurchaseView";
 
 import {
     useAdminProducts,
@@ -108,6 +109,7 @@ const STORE_CATEGORIES = [
 ];
 
 export default function ProductsTab() {
+    const [tabMode, setTabMode] = useState<"root" | "management" | "purchase">("root");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
@@ -207,6 +209,7 @@ export default function ProductsTab() {
         syncProducts.mutate(activeCatData.syncType);
     };
 
+
     const columns = [
         { key: "id", label: "ID", render: (row: ProductRow) => <span className="text-muted-foreground">#{row.id}</span> },
         {
@@ -251,6 +254,48 @@ export default function ProductsTab() {
 
 
 
+    if (tabMode === "purchase") {
+        return <AdminPurchaseView onBack={() => setTabMode("root")} />;
+    }
+
+    if (tabMode === "root") {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">Products & Provisioning</h1>
+                    <p className="text-sm text-muted-foreground">Manage the product catalog or provision products for users.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        onClick={() => setTabMode("management")}
+                        className="bg-card cursor-pointer border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden hover:border-blue-500/50"
+                    >
+                        <div className="absolute -right-4 -top-4 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors" />
+                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <BuildingStorefrontIcon className="w-6 h-6 text-blue-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-1">Product Management</h3>
+                        <p className="text-sm text-muted-foreground">Create, edit, sync, and delete products from the catalog.</p>
+                    </motion.div>
+                    
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        onClick={() => setTabMode("purchase")}
+                        className="bg-card cursor-pointer border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden hover:border-green-500/50"
+                    >
+                        <div className="absolute -right-4 -top-4 w-32 h-32 bg-green-500/5 rounded-full blur-2xl group-hover:bg-green-500/10 transition-colors" />
+                        <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <ShoppingCartIcon className="w-6 h-6 text-green-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-1">Provision Service</h3>
+                        <p className="text-sm text-muted-foreground">Configure and instantly provision a product to a user's email.</p>
+                    </motion.div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <AnimatePresence mode="wait">
@@ -263,13 +308,20 @@ export default function ProductsTab() {
                         transition={{ duration: 0.2 }}
                         className="space-y-6"
                     >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
+                            <button
+                                onClick={() => setTabMode("root")}
+                                className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
+                            >
+                                <ArrowLeftIcon className="h-5 w-5" />
+                            </button>
+                            <div className="h-8 w-px bg-border" />
                             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
                                 <BuildingStorefrontIcon className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-foreground">Service Store</h1>
-                                <p className="text-sm text-muted-foreground">Select a category to browse and manage services.</p>
+                                <h1 className="text-xl font-bold text-foreground">Service Catalog</h1>
+                                <p className="text-sm text-muted-foreground">Manage existing products and stock.</p>
                             </div>
                         </div>
 

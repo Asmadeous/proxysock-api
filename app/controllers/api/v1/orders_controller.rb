@@ -745,18 +745,6 @@ module Api
             amount: amount,
             currency: 'USD'
           }
-        when 'payvra'
-          {
-            url: PayvraService.new.create_invoice(
-              order_number: reference,
-              amount: amount,
-              currency: 'USD',
-              callback_url: frontend_callback_url,
-              email: email
-            )[:url],
-            amount: amount,
-            currency: 'USD'
-          }
         when 'hundredpay'
           {
             url: HundredpayService.new.create_invoice(

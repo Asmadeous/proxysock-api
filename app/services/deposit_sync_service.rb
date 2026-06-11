@@ -30,10 +30,8 @@ class DepositSyncService
       PaystackService.new.verify_transaction(@deposit.metadata['transaction_ref'])
     when 'plisio'
       PlisioService.new.verify_transaction(@deposit.metadata['transaction_ref'])
-    when 'payvra'
-      # Payvra needs its own ID usually. Checking if we saved it.
-      invoice_id = @deposit.metadata['payvra_invoice_id'] || @deposit.metadata['transaction_ref']
-      PayvraService.new.verify_transaction(invoice_id)
+    when 'heleket'
+      # Heleket doesn't require polling per se, or if it does, it's done similarly.
     when 'heleket'
       invoice_id = @deposit.metadata['heleket_invoice_id'] || @deposit.metadata['transaction_ref']
       HeleketService.new.verify_transaction(invoice_id)

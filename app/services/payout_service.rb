@@ -4,7 +4,7 @@
 # Only available for infrastructure resellers who earn commissions.
 #
 # Payout routing:
-#   - crypto (plisio/payvra): Automatically dispatched to the gateway
+#   - crypto (plisio): Automatically dispatched to the gateway
 #   - non-crypto (paystack/hundredpay/manual): Creates a pending payout and
 #     notifies admin for manual processing with account details
 class PayoutService
@@ -15,7 +15,7 @@ class PayoutService
   MINIMUM_PAYOUT = 50 # Minimum withdrawal amount in USD
 
   # Gateways that are automatically dispatched to crypto providers
-  CRYPTO_GATEWAYS = %w[plisio payvra heleket].freeze
+  CRYPTO_GATEWAYS = %w[plisio heleket].freeze
 
   # Gateways that require manual admin processing
   MANUAL_GATEWAYS = %w[paystack hundredpay manual].freeze
@@ -86,8 +86,6 @@ class PayoutService
     response = case payout.gateway
                when 'plisio'
                  dispatch_plisio(payout)
-               when 'payvra'
-                 dispatch_payvra(payout)
                when 'heleket'
                  dispatch_heleket(payout)
                end
@@ -133,19 +131,6 @@ class PayoutService
       currency,
       address,
       payout.reference
-    )
-  end
-
-  def dispatch_payvra(payout)
-    service = PayvraService.new
-    address = payout.payment_details['crypto_address']
-    currency = payout.payment_details['crypto_currency'] || 'USDT'
-    raise PayoutError, 'Payvra payouts require a crypto_address in payment_details' if address.blank?
-
-    service.create_withdrawal(
-      payout.amount,
-      currency,
-      address
     )
   end
 

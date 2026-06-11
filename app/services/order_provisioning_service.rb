@@ -73,6 +73,9 @@ class OrderProvisioningService
     # 7. Record reseller profit share (replaced affiliate commission)
     ResellerEarningsService.record_profit_share!(@order)
 
+    # 8. Record fund splits for Heleket capital payout
+    FundSplitterService.process_order!(@order)
+
     # Notify Admins and Support on success ONLY (as per requirements)
     [Employee.admins, Employee.support_agents].each do |scope|
       scope.find_each do |employee|

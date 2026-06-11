@@ -35,12 +35,11 @@ module Web
       # POST /web/api/wallet/deposit
       def deposit
         amount = params[:amount].to_f
-        gateway = params[:gateway] # 'paystack', 'plisio', 'payvra'
+        gateway = params[:gateway] # 'paystack', 'plisio', 'hundredpay', 'fastspring', 'heleket'
         currency = params[:currency] || 'USD'
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio
-                                                                                         payvra hundredpay fastspring heleket].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio hundredpay fastspring heleket].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
@@ -101,22 +100,6 @@ module Web
             phone: current_actor.try(:phone),
             country: current_actor.try(:country)
           )
-          { url: result[:url], amount: amount, currency: 'USD' }
-
-        when 'payvra'
-          service = PayvraService.new
-          result = service.create_invoice(
-            amount: amount,
-            currency: currency,
-            order_number: deposit.metadata['transaction_ref'],
-            callback_url: callback_url,
-            email: current_actor.email,
-            phone: current_actor.try(:phone),
-            country: current_actor.try(:country)
-          )
-          # Store Payvra's txn_id (invoice id) so DepositSyncService can verify via their API later.
-          deposit.metadata['payvra_invoice_id'] = result[:txn_id]
-          deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
 
         when 'heleket'

@@ -846,7 +846,7 @@ module Web
           end
 
           checkout = order.checkout_session
-          unless %w[plisio payvra hundredpay heleket].include?(checkout&.gateway)
+          unless %w[plisio hundredpay heleket].include?(checkout&.gateway)
             return render json: { error: 'This order does not qualify for a crypto refund.' }, status: :unprocessable_entity
           end
 
@@ -878,8 +878,6 @@ module Web
             case checkout.gateway
             when 'plisio'
               PlisioService.new.withdraw(order.total_amount, network || 'USDT', address, "REFUND-#{order.order_number}")
-            when 'payvra'
-              PayvraService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
             when 'heleket'
               HeleketService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
             when 'hundredpay'
