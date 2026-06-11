@@ -24,10 +24,10 @@ class HeleketService
 
     response = request('/v1/payment', body, @payment_api_key)
 
-    # Heleket returns an object containing the URL
+    # Heleket returns an object containing the URL inside the 'result' key
     {
-      url: response['paymentUrl'] || response['url'] || response.dig('data', 'url'),
-      txn_id: response['uuid'] || response['id'] || response.dig('data', 'uuid') || response.dig('data', 'id')
+      url: response['paymentUrl'] || response['url'] || response.dig('data', 'url') || response.dig('result', 'url'),
+      txn_id: response['uuid'] || response['id'] || response.dig('data', 'uuid') || response.dig('data', 'id') || response.dig('result', 'uuid') || response.dig('result', 'id')
     }
   rescue StandardError => e
     Rails.logger.error("Heleket Create Invoice Error: #{e.message}")
@@ -37,10 +37,10 @@ class HeleketService
   def verify_transaction(invoice_id)
     response = request('/v1/payment/info', { uuid: invoice_id }, @payment_api_key)
 
-    status = response['status'] || response.dig('data', 'status')
+    status = response['status'] || response.dig('data', 'status') || response.dig('result', 'status')
 
     if %w[PAID COMPLETED SUCCESS].include?(status.to_s.upcase)
-      { status: 'success', amount: response['amount'] || response.dig('data', 'amount'), currency: response['currency'] || response.dig('data', 'currency') }
+      { status: 'success', amount: response['amount'] || response.dig('data', 'amount') || response.dig('result', 'amount'), currency: response['currency'] || response.dig('data', 'currency') || response.dig('result', 'currency') }
     else
       { status: 'pending', internal_status: status }
     end
