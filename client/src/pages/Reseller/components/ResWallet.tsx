@@ -398,7 +398,7 @@ export default function ResWallet() {
                                     </div> */}
 
                                     {/* 100Pay Option */}
-                                    <div 
+                                    {/* <div 
                                         onClick={() => setPaymentGateway("hundredpay")}
                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "hundredpay" ? "border-purple-500 bg-purple-500/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
@@ -412,7 +412,7 @@ export default function ResWallet() {
                                             </div>
                                         </div>
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "hundredpay" ? "border-purple-500 bg-white shadow-inner" : "border-muted-foreground/30"}`} />
-                                    </div>
+                                    </div> */}
 
                                     {/* Plisio Option */}
                                     <div 

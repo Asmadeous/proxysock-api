@@ -306,7 +306,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                 </div>
 
                                 {/* 100Pay Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                {/* <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
                                     <RadioGroupItem value="hundredpay" id="hundredpay" className="sr-only" />
                                     <Label htmlFor="hundredpay" className="flex items-center gap-4 w-full cursor-pointer">
                                         <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
@@ -317,7 +317,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                             <div className="text-sm text-muted-foreground">Universal Payment Gateway</div>
                                         </div>
                                     </Label>
-                                </div>
+                                </div> */}
 
                                 {/* Heleket Option */}
                                 <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "heleket" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
