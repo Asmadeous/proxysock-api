@@ -255,7 +255,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     colorClass="cyan"
                     loading={loading}
                   />
-                  <PaymentMethodCard
+                  {/* <PaymentMethodCard
                     id="crypto_hundredpay"
                     title="100Pay (Card & Crypto)"
                     description="Global Payment Hub (USD)"
@@ -264,7 +264,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                     onClick={() => setPaymentMethod('crypto_hundredpay')}
                     colorClass="purple"
                     loading={loading}
-                  />
+                  /> */}
                   <PaymentMethodCard
                     id="crypto_heleket"
                     title="Pay with Crypto (Heleket)"
