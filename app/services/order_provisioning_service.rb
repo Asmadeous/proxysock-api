@@ -653,10 +653,10 @@ class OrderProvisioningService
           # Re-fetch full details (IPs, credentials) from the provider
           full_details = if category_slug == 'mobile'
                            client.view_mobile_order(provider_order_id)
-                         # elsif category_slug == 'residential-rotating' && provisioning_params[:resi] == 1
-                         #   client.fetch_v2_residential_rotating_order(provider_order_id)
                          elsif category_slug == 'residential-rotating'
-                           client.fetch_v1_residential_rotating_order(provider_order_id)
+                           client.fetch_v2_residential_rotating_order(provider_order_id)
+                         elsif category_slug == 'global-isp'
+                           client.view_global_isp_order(provider_order_id)
                          elsif category_slug == 'residential-vpn' || @product.product_type == 'vpn'
                            client.view_vpn_order(provider_order_id)
                          else
@@ -725,7 +725,7 @@ class OrderProvisioningService
       # end
       # ========== END RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
 
-      # ========== RESIDENTIAL ROTATING V1 CREDENTIAL GENERATION ==========
+      # ========== RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
       if category_slug == 'residential-rotating' && provider_order_id.present?
         begin
           proxy_rotation = @order.metadata['residentalRotatingConfig']&.dig('rotationStrategy') || '0'
@@ -743,14 +743,7 @@ class OrderProvisioningService
               proxy_password = @order.metadata['residentalRotatingConfig']&.dig('customPassword') || SecureRandom.hex(12)
             end
 
-            # Determine targeting type based on provided filters
-            targeting = if @order.metadata['residentalRotatingConfig']&.dig('isp').present?
-                          'isp'
-                        else
-                          'state_city'
-                        end
-
-            proxy_creds = client.generate_v1_res_rot_proxy(
+            proxy_creds = client.generate_v2_res_rot_proxy(
               user_id: user_id,
               hostname: proxy_hostname,
               username: proxy_username,
@@ -762,8 +755,7 @@ class OrderProvisioningService
               country: @order.metadata['residentalRotatingConfig']&.dig('country'),
               state: @order.metadata['residentalRotatingConfig']&.dig('state'),
               city: @order.metadata['residentalRotatingConfig']&.dig('city'),
-              isp: @order.metadata['residentalRotatingConfig']&.dig('isp'),
-              targeting: targeting
+              isp: @order.metadata['residentalRotatingConfig']&.dig('isp')
             )
             all_credentials << proxy_creds
           end
@@ -779,7 +771,7 @@ class OrderProvisioningService
           raise ProvisioningError, "Failed to generate proxy credentials: #{e.message}"
         end
       end
-      # ========== END RESIDENTIAL ROTATING V1 CREDENTIAL GENERATION ================
+      # ========== END RESIDENTIAL ROTATING V2 CREDENTIAL GENERATION ==========
 
       @order.metadata ||= {}
       @order.metadata['my_proxy_api_response'] = response

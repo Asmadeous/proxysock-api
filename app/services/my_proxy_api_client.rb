@@ -64,43 +64,43 @@ class MyProxyApiClient
   end
 
   # ==========================================================================
-  # Residential Rotating V2 Endpoints (COMMENTED OUT)
+  # Residential Rotating V2 Endpoints
   # ==========================================================================
 
-  # def fetch_v2_residential_rotating_orders
-  #   request(:get, "#{ROOT_URL}/v2/orders-residential-rotating")
-  # end
+  def fetch_v2_residential_rotating_orders
+    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating")
+  end
 
-  # def fetch_v2_residential_rotating_order(order_id)
-  #   request(:get, "#{ROOT_URL}/v2/orders-residential-rotating/#{order_id}")
-  # end
+  def fetch_v2_residential_rotating_order(order_id)
+    request(:get, "#{ROOT_URL}/v2/orders-residential-rotating/#{order_id}")
+  end
 
-  # def fetch_v2_res_rot_settings
-  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-settings")
-  # end
+  def fetch_v2_res_rot_settings
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-settings")
+  end
 
-  # def fetch_v2_res_rot_countries
-  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")
-  # end
+  def fetch_v2_res_rot_countries
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-countries")
+  end
 
-  # def fetch_v2_res_rot_states(country_code)
-  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")
-  # end
+  def fetch_v2_res_rot_states(country_code)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-states/#{country_code}")
+  end
 
-  # def fetch_v2_res_rot_cities(country_code, state_slug)
-  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")
-  # end
+  def fetch_v2_res_rot_cities(country_code, state_slug)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-cities/#{country_code}/#{state_slug}")
+  end
 
-  # def fetch_v2_res_rot_isp(country_code)
-  #   request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")
-  # end
+  def fetch_v2_res_rot_isp(country_code)
+    request(:get, "#{ROOT_URL}/v2/residential-rotating/get-isp/#{country_code}")
+  end
 
-  # def generate_v2_res_rot_proxy(payload)
-  #   request(:post, "#{ROOT_URL}/v2/residential-rotating/generate-proxy", payload)
-  # end
+  def generate_v2_res_rot_proxy(payload)
+    request(:post, "#{ROOT_URL}/v2/residential-rotating/generate-proxy", payload)
+  end
 
   # ==========================================================================
-  # Residential Rotating V1 Endpoints (Temp fallback)
+  # Residential Rotating V1 Endpoints (Deprecated)
   # ==========================================================================
 
   def fetch_v1_residential_rotating_orders
