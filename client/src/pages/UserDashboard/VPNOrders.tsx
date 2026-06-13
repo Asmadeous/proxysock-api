@@ -21,10 +21,9 @@ import {
     Lock,
     MessageSquare,
 } from "lucide-react";
-import { toast } from "sonner";
+
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -72,8 +71,6 @@ const VPNOrdersPage: FC = () => {
     const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "failed">("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
-    const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
-    const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
     const { user, accessToken } = useAuth();
 
     // Stats
@@ -255,23 +252,6 @@ Country: ${order.country || "Global"}
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-        }
-    };
-
-    const handleWalletRefund = async (order: ProxyOrder) => {
-        if (!confirm("Are you sure you want to refund this VPN order to your wallet? If the order was already processed externally, a support ticket will be created instead.")) return;
-        
-        try {
-            setRefundingOrderId(order.id);
-            const response = await api.post(`/web/api/orders/${order.id}/refund`);
-            toast.success(response.data.message || "Order successfully refunded to wallet.");
-            fetchVPNOrders();
-        } catch (error: any) {
-            const msg = error.response?.data?.error || "Failed to refund order.";
-            toast.error(msg, { duration: 5000 });
-            fetchVPNOrders();
-        } finally {
-            setRefundingOrderId(null);
         }
     };
 
@@ -704,27 +684,6 @@ Country: ${order.country || "Global"}
                                                         <MessageSquare className="h-4 w-4" />
                                                         Open Ticket
                                                     </Button>
-                                                    {order.payment_method === "wallet" && (
-                                                        <Button
-                                                            variant="outline"
-                                                            onClick={() => handleWalletRefund(order)}
-                                                            className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                                                            disabled={refundingOrderId === order.id}
-                                                        >
-                                                            <DollarSign className="h-4 w-4" />
-                                                            {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
-                                                        </Button>
-                                                    )}
-                                                    {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                                                        <Button
-                                                            variant="destructive"
-                                                            onClick={() => setRefundDialogOrderId(order.id)}
-                                                            className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                                                        >
-                                                            <DollarSign className="h-4 w-4" />
-                                                            Refund
-                                                        </Button>
-                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -834,12 +793,6 @@ Country: ${order.country || "Global"}
                 </DialogContent>
             </Dialog>
 
-            <CryptoRefundModal
-                orderId={refundDialogOrderId}
-                isOpen={!!refundDialogOrderId}
-                onClose={() => setRefundDialogOrderId(null)}
-                onSuccess={fetchVPNOrders}
-            />
         </div>
     );
 };

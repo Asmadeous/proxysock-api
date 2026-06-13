@@ -7,16 +7,30 @@ class PlisioService
     @secret_key = ENV['PLISIO_SECRET_KEY']
   end
 
-  def create_invoice(amount:, currency:, order_number:, callback_url:, email: nil)
+  def create_invoice(amount:, currency:, order_number:, callback_url: nil, success_url: nil, email: nil, **_extra)
+    # Plisio's `callback_url` is the server-to-server IPN endpoint (NOT the user redirect).
+    # It MUST point at our backend webhook, and non-PHP integrations MUST add `json=true`
+    # so the callback arrives as JSON we can verify (Plisio docs).
+    #
+    # Any URL a caller passes via `callback_url`/`success_url` is the page the *user* should
+    # land on after paying, so we wire it to Plisio's invoice success/fail buttons instead.
+    redirect_url = success_url || callback_url
+
+    params = {
+      source_currency: currency || 'USD',
+      source_amount: amount,
+      order_number: order_number,
+      order_name: "Order #{order_number}",
+      callback_url: ipn_callback_url,
+      email: email || 'customer@example.com'
+    }
+    if redirect_url.present?
+      params[:success_invoice_url] = redirect_url
+      params[:fail_invoice_url] = redirect_url
+    end
+
     # Plisio uses GET for everything by default, which is unusual for invoice creation but documented.
-    response = request(:get, '/invoices/new', {
-                         source_currency: currency || 'USD',
-                         source_amount: amount,
-                         order_number: order_number,
-                         order_name: "Order #{order_number}",
-                         callback_url: callback_url,
-                         email: email || 'customer@example.com'
-                       })
+    response = request(:get, '/invoices/new', params)
 
     if response['status'] == 'success'
       return {
@@ -66,9 +80,14 @@ class PlisioService
     request(:get, "/balances/#{currency}")
   end
 
-  def verify_callback(params); end
-
   private
+
+  # Backend IPN endpoint Plisio POSTs invoice status updates to.
+  # `json=true` is required so the callback is delivered as JSON (Plisio docs, non-PHP).
+  def ipn_callback_url
+    base = ENV['APP_URL'].to_s.gsub(%r{/$}, '')
+    "#{base}/webhooks/plisio?json=true"
+  end
 
   def request(method, endpoint, params = {})
     params[:api_key] = @secret_key
