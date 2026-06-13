@@ -646,8 +646,8 @@ class OrderProvisioningService
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
-        # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials
-        sleep(60)
+        # Sleep for 3 minutes to allow the provider to assign an IP/credentials
+        sleep(180)
 
         begin
           # Re-fetch full details (IPs, credentials) from the provider
@@ -1081,8 +1081,8 @@ class OrderProvisioningService
       provider_order_id = response.dig('data', 'order_id') || response['order_id']
 
       if provider_order_id.present?
-        # Sleep for 1 minute as requested to allow the provider to assign an IP/credentials/config
-        sleep(60)
+        # Sleep for 3 minutes to allow the provider to assign an IP/credentials/config
+        sleep(180)
 
         begin
           # VPN orders have their own view endpoint
