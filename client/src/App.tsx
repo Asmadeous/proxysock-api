@@ -268,7 +268,7 @@ export default function App() {
           </Suspense>
           <CookieConsentBanner />
           <TawkWidget />
-          <PopAd />
+          {/* <PopAd /> */}
         </AutoSEO>
       </HelmetProvider>
     </AuthProvider>
