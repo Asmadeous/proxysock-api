@@ -24,10 +24,9 @@ import {
   ArrowLeft,
   MessageSquare,
 } from "lucide-react";
-import { toast } from "sonner";
+
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -89,8 +88,6 @@ const ESIMOrdersPage = () => {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "esim" | "usa_esim">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<ESIMOrder | null>(null);
-  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
-  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const { accessToken } = useAuth();
 
   // Stats
@@ -288,23 +285,6 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  };
-
-  const handleWalletRefund = async (order: ESIMOrder) => {
-    if (!confirm("Are you sure you want to refund this eSIM order to your wallet?")) return;
-    
-    try {
-      setRefundingOrderId(order.id);
-      const response = await api.post(`/web/api/orders/${order.id}/refund`);
-      toast.success(response.data.message || "Order successfully refunded to wallet.");
-      fetchESIMOrders();
-    } catch (error: any) {
-      const msg = error.response?.data?.error || "Failed to refund order.";
-      toast.error(msg, { duration: 5000 });
-      fetchESIMOrders();
-    } finally {
-      setRefundingOrderId(null);
-    }
   };
 
   const handleReorder = async (orderId: string) => {
@@ -792,28 +772,6 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                             <MessageSquare className="h-4 w-4" />
                             Open Ticket
                           </Button>
-                          
-                          {order.payment_method === "wallet" && (
-                            <Button
-                              variant="outline"
-                              onClick={() => handleWalletRefund(order)}
-                              className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                              disabled={refundingOrderId === order.id}
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              {refundingOrderId === order.id ? "Refunding..." : "Wallet Refund"}
-                            </Button>
-                          )}
-                          {(order.status === "failed" || order.status === "cancelled") && ["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => setRefundDialogOrderId(order.id)}
-                              className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              Refund
-                            </Button>
-                          )}
                         </>
                       )}
                     </div>
@@ -955,12 +913,6 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
           )}
         </DialogContent>
       </Dialog>
-      <CryptoRefundModal
-        orderId={refundDialogOrderId}
-        isOpen={!!refundDialogOrderId}
-        onClose={() => setRefundDialogOrderId(null)}
-        onSuccess={fetchESIMOrders}
-      />
     </div>
   );
 };

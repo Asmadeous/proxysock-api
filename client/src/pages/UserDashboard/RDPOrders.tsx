@@ -24,10 +24,9 @@ import {
   ArrowLeft,
   MessageSquare,
 } from "lucide-react";
-import { toast } from "sonner";
+
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -92,8 +91,6 @@ const RDPOrdersPage = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'terminated'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<RDPOrder | null>(null);
-  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
-  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const { accessToken } = useAuth();
 
   // Stats
@@ -287,23 +284,6 @@ Payment Method: ${order.payment_method || 'N/A'}
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  };
-
-  const handleWalletRefund = async (order: RDPOrder) => {
-    if (!confirm("Are you sure you want to refund this RDP order to your wallet?")) return;
-    
-    try {
-      setRefundingOrderId(order.id);
-      const response = await api.post(`/web/api/orders/${order.id}/refund`);
-      toast.success(response.data.message || "Order successfully refunded to wallet.");
-      fetchRDPOrders();
-    } catch (error: any) {
-      const msg = error.response?.data?.error || "Failed to refund order.";
-      toast.error(msg, { duration: 5000 });
-      fetchRDPOrders();
-    } finally {
-      setRefundingOrderId(null);
-    }
   };
 
   if (!accessToken) {
@@ -782,29 +762,6 @@ Payment Method: ${order.payment_method || 'N/A'}
                             <MessageSquare className="h-3.5 w-3.5" />
                             Open Ticket
                           </Button>
-
-                          {order.payment_method === "wallet" && (
-                            <Button
-                              variant="outline"
-                              onClick={() => handleWalletRefund(order)}
-                              className="col-span-2 flex items-center justify-center gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                              disabled={refundingOrderId === order.id}
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
-                            </Button>
-                          )}
-                          
-                          {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => setRefundDialogOrderId(order.id)}
-                              className="col-span-2 flex items-center justify-center gap-2"
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              Refund
-                            </Button>
-                          )}
                         </>
                       )}
                     </div>
@@ -967,12 +924,6 @@ Payment Method: ${order.payment_method || 'N/A'}
           )}
         </DialogContent>
       </Dialog>
-      <CryptoRefundModal
-        orderId={refundDialogOrderId}
-        isOpen={!!refundDialogOrderId}
-        onClose={() => setRefundDialogOrderId(null)}
-        onSuccess={fetchRDPOrders}
-      />
     </div>
   );
 };

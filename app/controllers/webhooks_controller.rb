@@ -18,21 +18,23 @@ class WebhooksController < ApplicationController
   end
 
   def plisio
-    # Plisio sends callback data as POST with a verify_hash field.
-    # Verification: remove verify_hash, sort remaining params by key,
-    # JSON-encode them, then HMAC-SHA1 with your API secret key.
-    # Callback URL must have ?json=true appended for JSON format.
-    received_hash = params[:verify_hash]
+    # Plisio (with `json=true` on the callback URL) POSTs the invoice update as a JSON body
+    # with a `verify_hash` field. Verification (Plisio docs, Node example): take the raw JSON,
+    # remove verify_hash, re-encode the REMAINING fields in their received order (NO sorting),
+    # then HMAC-SHA1 with the secret key. We must work from the raw body, not Rails `params`,
+    # because params stringify values and can change ordering.
+    data =
+      begin
+        JSON.parse(request.raw_post)
+      rescue StandardError
+        params.to_unsafe_h.except('controller', 'action', 'format')
+      end
+
+    received_hash = data['verify_hash']
 
     if ENV['PLISIO_SECRET_KEY'].present? && received_hash.present?
-      # Build the data hash excluding verify_hash and Rails internal params
-      callback_data = params.to_unsafe_h.except('verify_hash', 'controller', 'action', 'format')
-
-      # Sort by key alphabetically and JSON-encode (must be compact JSON, no spaces)
-      sorted_data = JSON.generate(callback_data.sort.to_h)
-
-      # HMAC-SHA1 with secret key
-      expected = OpenSSL::HMAC.hexdigest('SHA1', ENV['PLISIO_SECRET_KEY'], sorted_data)
+      payload = JSON.generate(data.except('verify_hash'))
+      expected = OpenSSL::HMAC.hexdigest('SHA1', ENV['PLISIO_SECRET_KEY'], payload)
 
       unless Rack::Utils.secure_compare(expected, received_hash.to_s)
         Rails.logger.warn("[Webhook] Plisio verify_hash mismatch — rejecting. Expected: #{expected}, Got: #{received_hash}")
@@ -40,8 +42,7 @@ class WebhooksController < ApplicationController
       end
     end
 
-    webhook_params = params.permit(:status, :order_number, :order_name, :amount, :currency, :txn_id, :source_amount, :source_currency)
-    handle_payment(webhook_params, 'plisio') if webhook_params[:status] == 'completed'
+    handle_payment(data, 'plisio') if data['status'] == 'completed'
     head :ok
   end
 

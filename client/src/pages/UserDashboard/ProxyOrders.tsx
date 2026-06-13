@@ -24,10 +24,9 @@ import {
   ArrowLeft,
   MessageSquare,
 } from "lucide-react";
-import { toast } from "sonner";
+
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { CryptoRefundModal } from "@/components/dashboard/Orders/CryptoRefundModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -76,8 +75,6 @@ const ProxyOrdersPage: FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
   
-  // Refund states
-  const [refundDialogOrderId, setRefundDialogOrderId] = useState<string | null>(null);
 
   const { user, accessToken } = useAuth();
 
@@ -257,25 +254,6 @@ IPs Included: ${order.ips_included || 0}
     URL.revokeObjectURL(url);
   };
   
-  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
-
-  const handleWalletRefund = async (order: ProxyOrder) => {
-    if (!confirm("Are you sure you want to refund this order to your wallet? If the order was already processed externally, a support ticket will be created instead.")) return;
-    
-    try {
-      setRefundingOrderId(order.id);
-      const response = await api.post(`/web/api/orders/${order.id}/refund`);
-      toast.success(response.data.message || "Order successfully refunded to wallet.");
-      fetchProxyOrders();
-    } catch (error: any) {
-      const msg = error.response?.data?.error || "Failed to refund order.";
-      toast.error(msg, { duration: 5000 });
-      fetchProxyOrders();
-    } finally {
-      setRefundingOrderId(null);
-    }
-  };
-
   if (!accessToken || !user) {
     return (
       <Card>
@@ -776,27 +754,6 @@ IPs Included: ${order.ips_included || 0}
                             <MessageSquare className="h-4 w-4" />
                             Open Ticket
                           </Button>
-                          {order.payment_method === "wallet" && (
-                            <Button
-                              variant="outline"
-                              onClick={() => handleWalletRefund(order)}
-                              className="flex-1 gap-2 border-amber-500 text-amber-500 hover:bg-amber-50"
-                              disabled={refundingOrderId === order.id}
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              {refundingOrderId === order.id ? "Refunding..." : "Refund to Wallet"}
-                            </Button>
-                          )}
-                          {["plisio", "payvra", "hundredpay"].includes(order.payment_method) && (
-                            <Button
-                              variant="destructive"
-                              onClick={() => setRefundDialogOrderId(order.id)}
-                              className="flex-1 gap-2 border-destructive text-destructive-foreground"
-                            >
-                              <DollarSign className="h-4 w-4" />
-                              Refund
-                            </Button>
-                          )}
                         </>
                       )}
                     </div>
@@ -923,13 +880,6 @@ IPs Included: ${order.ips_included || 0}
         </DialogContent>
       </Dialog>
 
-      {/* Crypto Refund Modal */}
-      <CryptoRefundModal
-        orderId={refundDialogOrderId}
-        isOpen={!!refundDialogOrderId}
-        onClose={() => setRefundDialogOrderId(null)}
-        onSuccess={fetchProxyOrders}
-      />
     </div>
   );
 };
