@@ -44,7 +44,9 @@
           retries: 5
           delay: 15
 
-        
+        - name: "Grow C: drive to fill the provisioned storage"
+          include_tasks: tasks/windows_grow_disk.yml
+
         - name: Display Windows version
           debug:
             msg: "Configuring {{ ansible_distribution }} {{ ansible_distribution_version }}"

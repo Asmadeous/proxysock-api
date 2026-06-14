@@ -56,6 +56,9 @@
             mode: '0755'
           when: proxy_config is defined
 
+        - name: Grow root disk to fill the provisioned storage
+          include_tasks: tasks/grow_disk.yml
+
         - name: Update package cache
           dnf:
             update_cache: yes
