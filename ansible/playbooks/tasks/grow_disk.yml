@@ -1,0 +1,72 @@
+---
+# Expand the root partition and filesystem to use the full virtual disk.
+#
+# Proxmox resizes the *virtual* disk to the ordered size at clone time
+# (see VmProvisioningService#create_vm), but the guest partition table and
+# filesystem stay at the template's size until grown from inside the VM.
+# Without this step a VM ordered with 80GB still reports the template's size.
+#
+# Self-contained and distro-agnostic: installs growpart when missing and
+# handles plain partitions, LVM, and ext*/xfs/btrfs. Idempotent — re-running
+# is a no-op (growpart returns "NOCHANGE" once the disk is already full).
+- name: Grow root partition and filesystem to fill the provisioned disk
+  become: yes
+  shell: |
+    set -uo pipefail
+    log() { echo "[grow_disk] $*"; }
+
+    # 1. Ensure the growpart tool is available
+    if ! command -v growpart >/dev/null 2>&1; then
+      if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -qq || true
+        DEBIAN_FRONTEND=noninteractive apt-get install -y cloud-guest-utils >/dev/null 2>&1 \
+          || DEBIAN_FRONTEND=noninteractive apt-get install -y cloud-utils >/dev/null 2>&1 || true
+      elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y cloud-utils-growpart >/dev/null 2>&1 || true
+      elif command -v yum >/dev/null 2>&1; then
+        yum install -y cloud-utils-growpart >/dev/null 2>&1 || true
+      fi
+    fi
+
+    ROOT_SRC=$(findmnt -n -o SOURCE / 2>/dev/null)
+    FSTYPE=$(findmnt -n -o FSTYPE / 2>/dev/null)
+    log "root device=$ROOT_SRC fstype=$FSTYPE"
+    [ -z "$ROOT_SRC" ] && { log "could not determine root device; skipping"; exit 0; }
+
+    grow_partition() {
+      local part="$1" disk pnum
+      disk=$(lsblk -ndo pkname "$part" 2>/dev/null)
+      [ -z "$disk" ] && { log "no parent disk for $part; skipping growpart"; return 0; }
+      pnum=$(echo "$part" | grep -oE '[0-9]+$')
+      log "growpart /dev/$disk $pnum"
+      growpart "/dev/$disk" "$pnum" || true   # non-zero exit on NOCHANGE is fine
+    }
+
+    # 2. Grow the partition (handle LVM-backed roots too)
+    if command -v lvs >/dev/null 2>&1 && lvs "$ROOT_SRC" >/dev/null 2>&1; then
+      PV=$(pvs --noheadings -o pv_name 2>/dev/null | awk 'NR==1{$1=$1;print}')
+      log "LVM root, physical volume=$PV"
+      [ -n "$PV" ] && { grow_partition "$PV"; pvresize "$PV" || true; }
+      lvextend -l +100%FREE "$ROOT_SRC" || true
+    else
+      grow_partition "$ROOT_SRC"
+    fi
+
+    # 3. Grow the filesystem on the (now larger) partition/volume
+    case "$FSTYPE" in
+      xfs)            xfs_growfs / || true ;;
+      ext2|ext3|ext4) resize2fs "$ROOT_SRC" || true ;;
+      btrfs)          btrfs filesystem resize max / || true ;;
+      *)              log "unhandled fstype '$FSTYPE'; filesystem not grown" ;;
+    esac
+
+    log "result: $(df -h / | awk 'NR==2{print $2" total / "$4" free"}')"
+  args:
+    executable: /bin/bash
+  register: grow_disk_result
+  changed_when: "'CHANGED' in (grow_disk_result.stdout | default(''))"
+  failed_when: false
+
+- name: Report disk grow result
+  debug:
+    var: grow_disk_result.stdout_lines

@@ -1,0 +1,28 @@
+---
+# Extend the C: partition to fill the resized virtual disk.
+#
+# Proxmox grows the *virtual* disk to the ordered size at clone time
+# (see VmProvisioningService#create_vm), but Windows keeps the template's
+# partition size until it is extended here. Idempotent — a no-op once the
+# partition already fills the disk.
+- name: "Grow C: partition to fill the provisioned disk"
+  win_shell: |
+    $ErrorActionPreference = 'Stop'
+    $letter = 'C'
+    $disk = (Get-Partition -DriveLetter $letter).DiskNumber
+    Update-Disk -Number $disk
+    $max = (Get-PartitionSupportedSize -DriveLetter $letter).SizeMax
+    $cur = (Get-Partition -DriveLetter $letter).Size
+    if ($cur -lt ($max - 1MB)) {
+      Resize-Partition -DriveLetter $letter -Size $max
+      Write-Output "CHANGED: extended ${letter}: from $cur to $max bytes"
+    } else {
+      Write-Output "NOCHANGE: ${letter}: already fills the disk"
+    }
+  register: win_grow_disk_result
+  changed_when: "'CHANGED' in win_grow_disk_result.stdout"
+  failed_when: false
+
+- name: Report Windows disk grow result
+  debug:
+    var: win_grow_disk_result.stdout_lines
