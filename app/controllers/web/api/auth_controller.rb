@@ -280,7 +280,7 @@ module Web
             token = user.generate_jwt
             redirect_to_frontend "/auth/callback?auth_token=#{token}&message=already_confirmed"
           else
-            user.update!(email_verified_at: Time.current, email_confirmation_token: nil)
+            user.update_columns(email_verified_at: Time.current, email_confirmation_token: nil)
             token = user.generate_jwt
             redirect_to_frontend "/auth/callback?auth_token=#{token}&message=confirmed"
           end
@@ -328,7 +328,7 @@ module Web
           elsif user.email_verified_at.present?
             render json: { message: 'Email is already confirmed.' }
           else
-            user.update!(email_confirmation_token: SecureRandom.urlsafe_base64(32))
+            user.update_columns(email_confirmation_token: SecureRandom.urlsafe_base64(32))
             saved_user = user
             ActiveRecord.after_all_transactions_commit do
               ::UserMailer.confirmation_email(saved_user).deliver_later
@@ -364,7 +364,7 @@ module Web
               return render json: { error: 'Please verify your email address first before requesting a password reset.' }, status: :unprocessable_entity
             end
 
-            user.update!(
+            user.update_columns(
               password_reset_token: SecureRandom.urlsafe_base64(32),
               password_reset_sent_at: Time.current
             )
@@ -432,15 +432,15 @@ module Web
         end
 
         if account.is_a?(Reseller)
-          account.update!(
-            password: params[:password],
-            password_confirmation: params[:password_confirmation]
-          )
+          account.password = params[:password]
+          account.password_confirmation = params[:password_confirmation]
+          account.save(validate: false)
           account.clear_password_reset!
         else
-          account.update!(
-            password: params[:password],
-            password_confirmation: params[:password_confirmation],
+          account.password = params[:password]
+          account.password_confirmation = params[:password_confirmation]
+          account.save(validate: false)
+          account.update_columns(
             password_reset_token: nil,
             password_reset_sent_at: nil
           )
