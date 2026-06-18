@@ -3,6 +3,11 @@
 class Reseller < ApplicationRecord
   has_secure_password
 
+  # Override has_secure_password's dynamic token generation
+  def password_reset_token
+    read_attribute(:password_reset_token)
+  end
+
   # Reseller table has no metadata column, but some controllers reference it
   def metadata
     {}
