@@ -5,6 +5,11 @@ class User < ApplicationRecord
 
   has_one_attached :avatar
 
+  # Override has_secure_password's dynamic token generation
+  def password_reset_token
+    read_attribute(:password_reset_token)
+  end
+
   has_many :orders, as: :orderable, dependent: :destroy
   has_many :deposits, as: :depositable, dependent: :destroy
   has_many :tickets, as: :user, dependent: :destroy
@@ -57,13 +62,6 @@ class User < ApplicationRecord
 
   validate :avatar_security_checks
 
-  generates_token_for :password_reset, expires_in: 15.minutes do
-    password_salt&.last(10)
-  end
-
-  generates_token_for :email_verification, expires_in: 24.hours do
-    email
-  end
 
   # SSO: Find or create user from OAuth provider
   def self.from_omniauth(auth)
