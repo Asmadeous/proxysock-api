@@ -34,7 +34,10 @@ class Order < ApplicationRecord
   has_one :vm_order, dependent: :destroy
   has_one :vm, through: :vm_order
   has_one :mobile_proxy_order, dependent: :destroy
-  has_one :mobile_proxy, through: :mobile_proxy_order
+  # MobileProxyOrder has_many :mobile_proxies, so this is a collection (an order can
+  # provision several mobile proxies). The old `has_one :mobile_proxy` pointed at a
+  # non-existent source and raised whenever accessed.
+  has_many :mobile_proxies, through: :mobile_proxy_order
   has_one :static_datacenter_proxy_order, dependent: :destroy
   has_one :static_isp_proxy_order, dependent: :destroy
   has_one :static_residential_proxy_order, dependent: :destroy

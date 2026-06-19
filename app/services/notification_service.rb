@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
 class NotificationService
+  STAFF_ROLES = %w[admin support].freeze
+
+  # Single recipient.
+  #
+  # Relies on Notification#after_create_commit, which fires after the OUTERMOST
+  # transaction commits — so this is safe even when called from inside another
+  # model's transaction (e.g. an after_create callback on a chat message).
   def self.notify(recipient:, title:, message:, category: 'info', metadata: {})
-    # Create the notification record
     Notification.create!(
       recipient: recipient,
       category: category,
@@ -11,39 +17,54 @@ class NotificationService
       metadata: metadata
     )
   rescue StandardError => e
-    Rails.logger.error("[NotificationService] Failed to notify: #{e.message}")
+    Rails.logger.error("[NotificationService] notify failed: #{e.message}")
     nil
   end
 
+  # Fan-out to all active staff.
+  #
+  # One bulk INSERT (no N+1), and the websocket fan-out is deferred until the
+  # surrounding transaction commits so clients never append data that could
+  # still be rolled back. Emits inline `notification_created` payloads (same as
+  # the single path) rather than a `notifications_refresh` signal, so N staff
+  # clients append locally instead of each hitting the API to refetch.
   def self.notify_staff(title:, message:, category: 'info', metadata: {})
-    staff_ids = Employee.where(active: true, role: %w[admin support]).pluck(:id)
-    return if staff_ids.empty?
+    recipient_ids = Employee.where(active: true, role: STAFF_ROLES).pluck(:id)
+    return if recipient_ids.empty?
 
-    time = Time.current
-    payloads = staff_ids.map do |id|
+    now = Time.current
+    rows = recipient_ids.map do |recipient_id|
       {
         recipient_type: 'Employee',
-        recipient_id: id,
+        recipient_id: recipient_id,
         category: category,
         title: title,
         message: message,
-        metadata: metadata.to_json,
-        created_at: time,
-        updated_at: time
+        metadata: metadata,
+        created_at: now,
+        updated_at: now
       }
     end
 
-    # Bulk insert avoids N+1 queries and time complexity issues
-    Notification.insert_all(payloads)
+    inserted = Notification.insert_all(rows, returning: %w[id recipient_id created_at])
 
-    # Broadcast to websocket channels efficiently
-    staff_ids.each do |id|
-      NotificationChannel.broadcast_to(
-        GlobalID::Locator.locate("gid://proxysock/Employee/#{id}"),
-        action: 'notifications_refresh'
-      )
+    AfterCommit.run do
+      inserted.rows.each do |id, recipient_id, created_at|
+        Notification.broadcast_created_to(
+          Employee.new(id: recipient_id),
+          {
+            id: id,
+            title: title,
+            message: message,
+            category: category,
+            metadata: metadata,
+            created_at: created_at,
+            read_at: nil
+          }
+        )
+      end
     end
   rescue StandardError => e
-    Rails.logger.error("[NotificationService] Failed to notify staff: #{e.message}")
+    Rails.logger.error("[NotificationService] notify_staff failed: #{e.message}")
   end
 end

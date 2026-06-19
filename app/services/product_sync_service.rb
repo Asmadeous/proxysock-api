@@ -95,13 +95,19 @@ class ProductSyncService
     return unless category
 
     begin
-      # V1 API has no geographic endpoints (countries/states/cities/isps).
-      # Commented out until V2 is available.
-      # countries = fetch_residential_rotating_countries
+      # Geographic data (countries/states/cities/isps) comes from MyProxyApi's
+      # read-only get-* endpoints (no balance cost). Preserve any existing data if
+      # the fetch fails or returns empty so we never wipe a good config.
+      existing_countries = category.metadata&.dig('residential_rotating_config', 'countries') || []
+      countries = begin
+        fetch_residential_rotating_countries.presence || existing_countries
+      rescue StandardError => e
+        @logger.error("[ProductSyncService] RR countries fetch failed, keeping existing: #{e.message}")
+        existing_countries
+      end
 
-      # Build complete config with hardcoded options only (V1)
       config = {
-        countries: [],
+        countries: countries,
         rotation_options: ROTATION_OPTIONS,
         hostname_options: HOSTNAME_OPTIONS,
         synced_at: Time.current.iso8601

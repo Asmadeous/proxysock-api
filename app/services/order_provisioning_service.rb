@@ -219,6 +219,93 @@ class OrderProvisioningService
     }.compact
   end
 
+  # Checks if the API response contains valid, usable credentials.
+  def credentials_present?(response)
+    return false if response.blank?
+
+    # Direct fields (static proxy format)
+    if response['username'].present? && response['username'] != 'undefined' &&
+       response['password'].present? && response['password'] != 'undefined'
+      return true
+    end
+
+    # IPs array format (ip:port:user:pass strings)
+    ips = if response['ips'].is_a?(Hash)
+            response.dig('ips', 'http') || response.dig('ips', 'socks5')
+          else
+            response['ips']
+          end
+
+    if ips.is_a?(Array) && ips.first.is_a?(String)
+      parts = ips.first.split(':', -1)
+      if parts.length >= 4
+        return parts[2].present? && parts[2] != 'undefined' &&
+               parts[3].present? && parts[3] != 'undefined'
+      end
+    end
+
+    # VPN config auth format
+    if response.dig('config', 'auth_credentials', 'username').present?
+      return true
+    end
+
+    false
+  end
+
+  # Detects the API bug where credentials come back as empty strings ("").
+  # This is a transient issue that should be retried.
+  def credentials_empty_strings?(response)
+    return false if response.blank?
+
+    # Direct fields — key exists but value is ""
+    if response.key?('username') && response['username'] == ''
+      return true
+    end
+
+    # IPs array format — ip:port:: (trailing empty parts)
+    ips = if response['ips'].is_a?(Hash)
+            response.dig('ips', 'http') || response.dig('ips', 'socks5')
+          else
+            response['ips']
+          end
+
+    if ips.is_a?(Array) && ips.first.is_a?(String)
+      parts = ips.first.split(':', -1)
+      if parts.length >= 4 && (parts[2] == '' || parts[3] == '')
+        return true
+      end
+    end
+
+    false
+  end
+
+  # Detects IP-whitelisted proxies where credentials are literally "undefined".
+  # These are valid — the proxy works via IP whitelisting, no user/pass needed.
+  def credentials_undefined?(response)
+    return false if response.blank?
+
+    # Direct fields
+    if response['username'] == 'undefined' || response['password'] == 'undefined'
+      return true
+    end
+
+    # IPs array format
+    ips = if response['ips'].is_a?(Hash)
+            response.dig('ips', 'http') || response.dig('ips', 'socks5')
+          else
+            response['ips']
+          end
+
+    if ips.is_a?(Array) && ips.first.is_a?(String)
+      parts = ips.first.split(':', -1)
+      if parts.length >= 4 && (parts[2] == 'undefined' || parts[3] == 'undefined')
+        return true
+      end
+    end
+
+    false
+  end
+
   # ========== VM Provisioning ==========
   def provision_vm!
     # Extract explicit user country selection or fallback to product default
@@ -374,7 +461,9 @@ class OrderProvisioningService
           proxy_pr.metadata['isp'].each do |isp|
             next unless isp['locations'] && isp['locations'][country]
 
-            city = isp['locations'][country]['cities']&.first
+            available_cities = isp['locations'][country]['cities']&.select { |c| c['ips_available'].to_i.positive? }
+            city = available_cities&.sample
+            
             if city
               location_id = city['id'].to_s
               break
@@ -409,8 +498,20 @@ class OrderProvisioningService
                   "MyProxyApi did not return an order_id. #{order_response.inspect}"
           end
 
-          full_details = client.view_order(provider_order_id)
-          response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+          # Retry up to 3 times at 30s intervals if credentials come back empty
+          response = nil
+          3.times do |attempt|
+            full_details = client.view_order(provider_order_id)
+            response = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
+
+            if response.present? && credentials_present?(response)
+              Rails.logger.info("VM proxy credentials received for order #{provider_order_id} on attempt #{attempt + 1}")
+              break
+            else
+              Rails.logger.warn("Empty VM proxy credentials for order #{provider_order_id} (attempt #{attempt + 1}/3), retrying in 30s...")
+              sleep(30) if attempt < 2
+            end
+          end
           raise ProvisioningError, 'MyProxyApi view_order returned no proxy data' if response.blank?
 
           # Store the API response metadata securely for recordkeeping
@@ -549,9 +650,10 @@ class OrderProvisioningService
                       end
                     end
                     loc_id
+                  elsif category_slug == 'residential-rotating'
+                    '1'
                   else
-                    loc = @order.metadata['locationId'] || @order.metadata['locationsString']
-                    loc.to_s.match?(/\A\d+\z/) || category_slug != 'residential-rotating' ? loc : nil
+                    @order.metadata['locationId'] || @order.metadata['locationsString']
                   end
 
       # Determine debug label from payment method used
@@ -636,9 +738,9 @@ class OrderProvisioningService
       end
 
       # Handle Residential Rotating V2 (resi: 1)
-      # if category_slug == 'residential-rotating'
-      #   provisioning_params[:resi] = 1 # Force V2 API strictly
-      # end
+      if category_slug == 'residential-rotating'
+        provisioning_params[:resi] = 1 # Force V2 API strictly
+      end
 
       response = client.place_order(**provisioning_params)
 
@@ -649,23 +751,50 @@ class OrderProvisioningService
         # Sleep for 3 minutes to allow the provider to assign an IP/credentials
         sleep(180)
 
-        begin
-          # Re-fetch full details (IPs, credentials) from the provider
-          full_details = if category_slug == 'mobile'
-                           client.view_mobile_order(provider_order_id)
-                         elsif category_slug == 'residential-rotating'
-                           client.fetch_v2_residential_rotating_order(provider_order_id)
-                         elsif category_slug == 'global-isp'
-                           client.view_global_isp_order(provider_order_id)
-                         elsif category_slug == 'residential-vpn' || @product.product_type == 'vpn'
-                           client.view_vpn_order(provider_order_id)
-                         else
-                           client.view_order(provider_order_id)
-                         end
-          # Support both Array and Hash formats returned by the API
-          response = full_details['data'].is_a?(Array) ? full_details['data'].first : (full_details['data'] || full_details)
-        rescue StandardError => e
-          Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id}: #{e.message}")
+        max_retries = 3
+        retry_interval = 30 # seconds
+        skip_credentials_email = false
+
+        max_retries.times do |attempt|
+          begin
+            # Re-fetch full details (IPs, credentials) from the provider
+            full_details = if category_slug == 'mobile'
+                             client.view_mobile_order(provider_order_id)
+                           elsif category_slug == 'residential-rotating'
+                             client.fetch_v2_residential_rotating_order(provider_order_id)
+                           elsif category_slug == 'global-isp'
+                             client.view_global_isp_order(provider_order_id)
+                           elsif category_slug == 'residential-vpn' || @product.product_type == 'vpn'
+                             client.view_vpn_order(provider_order_id)
+                           else
+                             client.view_order(provider_order_id)
+                           end
+            # Support both Array and Hash formats returned by the API
+            response = full_details['data'].is_a?(Array) ? full_details['data'].first : (full_details['data'] || full_details)
+
+            # If credentials are valid or "undefined" (IP whitelisted), stop retrying
+            if credentials_present?(response) || credentials_undefined?(response)
+              Rails.logger.info("Credentials received for MyProxy order #{provider_order_id} on attempt #{attempt + 1}")
+              break
+            end
+
+            # If credentials are empty strings (""), retry
+            if credentials_empty_strings?(response)
+              Rails.logger.warn("Empty string credentials for MyProxy order #{provider_order_id} (attempt #{attempt + 1}/#{max_retries}), retrying in #{retry_interval}s...")
+              sleep(retry_interval) if attempt < max_retries - 1
+            end
+          rescue StandardError => e
+            Rails.logger.warn("Failed to fetch full order details for MyProxy order #{provider_order_id} (attempt #{attempt + 1}): #{e.message}")
+            sleep(retry_interval) if attempt < max_retries - 1
+          end
+        end
+
+        # After all retries: if credentials are STILL empty strings, notify admin and skip email
+        if credentials_empty_strings?(response)
+          Rails.logger.error("Credentials still empty after #{max_retries} retries for MyProxy order #{provider_order_id} — notifying admin")
+          skip_credentials_email = true
+          SlackNotifyJob.perform_later('provisioning_failed', @order.id,
+            error: "Credentials returned as empty strings after #{max_retries} retries (order: #{provider_order_id})")
         end
       end
 
@@ -785,16 +914,31 @@ class OrderProvisioningService
 
       # Send credentials email using the API response data — deferred to
       # after the implicit transaction commits.
-      target_email = @order.metadata&.dig('credentials_email').presence
-      owner = @actor || @order.orderable
-      saved_order = @order
-      ActiveRecord.after_all_transactions_commit do
-        InvoiceMailer.with(
-          order: saved_order,
-          owner: owner,
-          api_response: response,
-          target_email: target_email
-        ).api_proxy_credentials_email.deliver_later
+      # Skip email entirely if credentials were empty strings (API bug) after retries.
+      unless skip_credentials_email
+        target_email = @order.metadata&.dig('credentials_email').presence
+        owner = @actor || @order.orderable
+        saved_order = @order
+
+        # Residential rotating delivers the usable proxy via the generate-proxy step,
+        # not the place-order response. The credentials email template reads top-level
+        # ip/port/username/password, so hand it the first generated proxy instead of
+        # the place-order response (which would render a blank credentials block).
+        email_api_response = if category_slug == 'residential-rotating'
+                               first = (@order.metadata['proxy_credentials'] || []).flat_map { |c| normalize_rr_creds(c) }.first || {}
+                               { 'ip' => first['hostname'], 'port' => first['port'], 'username' => first['username'], 'password' => first['password'] }
+                             else
+                               response
+                             end
+
+        ActiveRecord.after_all_transactions_commit do
+          InvoiceMailer.with(
+            order: saved_order,
+            owner: owner,
+            api_response: email_api_response,
+            target_email: target_email
+          ).api_proxy_credentials_email.deliver_later
+        end
       end
 
     else
@@ -819,8 +963,20 @@ class OrderProvisioningService
     # 2. Determine protocol, duration, and bandwidth
     # LocalToNet V2 ProtocolTypes: 6 = HTTP, 7 = SOCKS5
     protocol = @order.metadata&.dig('protocol') == 'socks5' ? 7 : 6
-    duration_days = @order.product_pricing&.duration_value || @order.metadata&.dig('duration_days')&.to_i || 30
-    expiry = Time.current + duration_days.days
+    
+    pricing = @order.product_pricing
+    billing_type = @product.metadata&.dig('billing_type')
+    # Number of billing units the customer purchased (days/weeks/months).
+    # For usage-based (per-GB) plans the period represents GB, NOT time, so it
+    # must not extend the validity window.
+    selected_period = [@order.metadata&.dig('period').to_i, 1].max
+    expiry = if billing_type == 'usage_gb'
+               pricing&.duration_type.present? ? Time.current + pricing.duration_value.to_i.send(pricing.duration_type) : Time.current + 30.days
+             elsif pricing && pricing.duration_type.present?
+               Time.current + (selected_period * pricing.duration_value.to_i).send(pricing.duration_type)
+             else
+               Time.current + (@order.metadata&.dig('duration_days')&.to_i || 30).days
+             end
 
     bandwidth_gb = @order.metadata&.dig('bandwidth_gb')&.to_f ||
                    @product.metadata&.dig('bandwidth_gb')&.to_f ||
@@ -1417,7 +1573,9 @@ class OrderProvisioningService
 
       # Use credentials generated by generate_v2_res_rot_proxy (v2 flow),
       # falling back to a single placeholder record for v1 orders.
-      creds_array = @order.metadata&.dig('proxy_credentials') || []
+      # generate-proxy returns raw responses ({ 'data' => ['host:port:user:pass'] });
+      # normalize them into {hostname,port,username,password} (also accepts pre-parsed).
+      creds_array = (@order.metadata&.dig('proxy_credentials') || []).flat_map { |c| normalize_rr_creds(c) }
 
       if creds_array.any?
         creds_array.each_with_index do |creds, idx|
@@ -1457,6 +1615,21 @@ class OrderProvisioningService
         end
         ResidentialRotatingProxy.create!(params)
       end
+    end
+  end
+
+  # Normalizes a residential-rotating credential entry into
+  # {hostname, port, username, password}. Accepts either an already-parsed hash
+  # or the raw generate-proxy response shape { 'data' => ['host:port:user:pass', ...] }.
+  def normalize_rr_creds(creds)
+    return [] if creds.blank?
+    return [creds] if creds['username'].present? || creds[:username].present?
+
+    Array(creds['data'] || creds[:data]).filter_map do |line|
+      parts = line.to_s.split(':')
+      next if parts.size < 4
+
+      { 'hostname' => parts[0], 'port' => parts[1], 'username' => parts[2], 'password' => parts[3..].join(':') }
     end
   end
 end

@@ -144,6 +144,20 @@ export const createAdminOrder = (data: {
     quantity?: number;
     metadata?: Record<string, unknown>;
 }) => adminApi.post("/orders", data);
+export const updateAdminOrder = (
+    id: string | number,
+    data: {
+        status?: string;
+        quantity?: number;
+        expires_at?: string | null;
+        total_amount?: number | string;
+        currency?: string;
+        provider_order_id?: string;
+        metadata?: Record<string, unknown>;
+    },
+) => adminApi.patch(`/orders/${id}`, data);
+export const deleteAdminOrder = (id: string | number, params?: { deprovision?: boolean }) =>
+    adminApi.delete(`/orders/${id}`, { params });
 export const updateProxyCredentials = (id: number, data: { username?: string; password?: string }) =>
     adminApi.post(`/orders/${id}/update_credentials`, data);
 export const rotateProxyIp = (id: number) =>

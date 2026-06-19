@@ -83,7 +83,7 @@ const PeriodSelector = ({
   <Card>
     <CardHeader>
       <CardTitle className="text-sm flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-primary" />
+        <Sparkles className="w-4 h-4 text-muted-foreground" />
         {label}
       </CardTitle>
     </CardHeader>
@@ -135,7 +135,7 @@ const ProtocolSelector = ({ selected, onChange }: { selected: "http" | "socks5",
   <Card>
     <CardHeader>
       <CardTitle className="text-sm flex items-center gap-2">
-        <Cpu className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <Cpu className="w-4 h-4 text-muted-foreground" />
         Protocol
       </CardTitle>
     </CardHeader>
@@ -146,8 +146,8 @@ const ProtocolSelector = ({ selected, onChange }: { selected: "http" | "socks5",
             key={proto}
             onClick={() => onChange(proto)}
             className={`py-3 px-4 rounded-lg border-2 font-medium transition-all ${selected === proto
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border hover:border-primary/50 hover:bg-muted/50"
+              ? "border-foreground bg-foreground text-background"
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
               }`}
           >
             {proto.toUpperCase()}
@@ -185,9 +185,9 @@ const CountryLocationCard = ({
       />
       <span className="font-medium text-sm">{location.name}</span>
     </div>
-    {location.cities && location.cities.length > 0 ? (
+    {location.cities && location.cities.some((c: any) => Number(c.ips_available) > 0) ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {location.cities.map((city: any) => (
+        {location.cities.filter((c: any) => Number(c.ips_available) > 0).map((city: any) => (
           <button
             key={city.id}
             onClick={() => {
@@ -195,8 +195,8 @@ const CountryLocationCard = ({
               onCitySelect(city.id);
             }}
             className={`py-2 px-3 rounded-md text-sm font-medium transition-all border text-left ${selectedCity === city.id
-              ? "border-primary bg-primary text-primary-foreground shadow-sm"
-              : "border-border hover:border-primary/50 hover:bg-muted/50"
+              ? "border-foreground bg-foreground text-background shadow-sm"
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
               }`}
           >
             {selectedCity === city.id && <Check className="w-3 h-3 mb-1" />}
@@ -209,8 +209,8 @@ const CountryLocationCard = ({
       <button
         onClick={() => onISPSelect(isp.id)}
         className={`w-full py-2 px-3 rounded-md font-medium transition-all border ${selectedISP === isp.id
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border hover:border-primary/50 hover:bg-muted/50"
+          ? "border-foreground bg-foreground text-background"
+          : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
           }`}
       >
         Select {isp.name}
@@ -334,12 +334,13 @@ export const renderISPOptionsWithCountries = ({
 
       <ProtocolSelector selected={protocol} onChange={setProtocol} />
 
-      {/* ===== Residential Rotating V2 Config ===== */}
-      {isResiV2 && (
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
+      {/* ===== Residential Rotating Config (shown for ALL residential-rotating;
+             the backend provisions every RR order via the V2 generate-proxy flow) ===== */}
+      {isResidentialRotating && (
+        <Card className="border-border bg-muted/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <Globe className="w-4 h-4 text-muted-foreground" />
               Residential Rotating Config
             </CardTitle>
           </CardHeader>
@@ -355,7 +356,7 @@ export const renderISPOptionsWithCountries = ({
                   setRrCity('');
                   setRrISP('');
                 }}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
               >
                 <option value="">Any country</option>
                 {rrCountries.map(c => (
@@ -375,7 +376,7 @@ export const renderISPOptionsWithCountries = ({
                     setRrCity('');
                     setRrISP('');
                   }}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
                 >
                   <option value="">Any state</option>
                   {selectedRrCountryObj.states.map(s => (
@@ -395,7 +396,7 @@ export const renderISPOptionsWithCountries = ({
                     setRrCity(e.target.value);
                     setRrISP('');
                   }}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
                 >
                   <option value="">Any city</option>
                   {selectedRrStateObj.cities.map(city => (
@@ -412,7 +413,7 @@ export const renderISPOptionsWithCountries = ({
                 <select
                   value={rrISP}
                   onChange={e => setRrISP(e.target.value)}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
                 >
                   <option value="">Any ISP</option>
                   {selectedRrCountryObj.isps.map(isp => (
@@ -433,8 +434,8 @@ export const renderISPOptionsWithCountries = ({
                     onClick={() => setRrRotation(opt.value)}
                     className={`py-2 px-3 rounded-lg border-2 text-xs font-medium text-left transition-all ${
                       rrRotation === opt.value
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        ? 'border-foreground bg-foreground text-background'
+                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
                     }`}
                   >
                     {opt.label}
@@ -454,8 +455,8 @@ export const renderISPOptionsWithCountries = ({
                     onClick={() => setRrRegion(opt.value)}
                     className={`py-2 px-3 rounded-lg border-2 text-[10px] font-semibold transition-all text-center leading-tight ${
                       rrRegion === opt.value
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        ? 'border-foreground bg-foreground text-background'
+                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
                     }`}
                   >
                     {opt.label}
@@ -493,10 +494,10 @@ export const renderISPOptionsWithCountries = ({
       )}
 
       {selectedCategory === "global-isp" && (
-        <Card className="border-orange-500/20 bg-orange-500/5">
+        <Card className="border-border bg-muted/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Package className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              <Package className="w-4 h-4 text-muted-foreground" />
               Number of Proxies
             </CardTitle>
           </CardHeader>
@@ -573,10 +574,10 @@ export const renderISPOptionsWithCountries = ({
         <div className="space-y-4 pt-2">
           {/* Global Duration / Periods */}
           {(plan.global_isp_config.periods || []).length > 0 && (
-            <Card className="border-blue-500/20 bg-blue-500/5">
+            <Card className="border-border bg-muted/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <Sparkles className="w-4 h-4 text-muted-foreground" />
                   Select Duration
                 </CardTitle>
               </CardHeader>
@@ -587,8 +588,8 @@ export const renderISPOptionsWithCountries = ({
                       key={p.id}
                       onClick={() => handleGlobalPeriodSelection(p.id)}
                       className={`py-3 px-4 rounded-lg border-2 font-semibold transition-all ${selectedGlobalPeriod === p.id
-                        ? "border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]"
-                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                        ? "border-foreground bg-foreground text-background shadow-md scale-[1.02]"
+                        : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
                         }`}
                     >
                       {p.name}
@@ -600,10 +601,10 @@ export const renderISPOptionsWithCountries = ({
           )}
 
           {/* Targets Section */}
-          <Card className="border-primary/20 bg-primary/5">
+          <Card className="border-border bg-muted/30">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
+                <Sparkles className="w-4 h-4 text-muted-foreground" />
                 Select Usage Target
               </CardTitle>
             </CardHeader>
@@ -617,8 +618,8 @@ export const renderISPOptionsWithCountries = ({
                         key={target.id}
                         onClick={() => handleGlobalTargetSelection(target.id, section.sectionId)}
                         className={`py-2 px-3 rounded-md text-[11px] font-semibold transition-all border text-center ${selectedGlobalTarget === target.id
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                          ? "border-foreground bg-foreground text-background shadow-sm"
+                          : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
                           }`}
                       >
                         {target.name}
@@ -631,10 +632,10 @@ export const renderISPOptionsWithCountries = ({
           </Card>
 
           {/* Global Locations */}
-          <Card className="border-emerald-500/20 bg-emerald-500/5">
+          <Card className="border-border bg-muted/30">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <Globe className="w-4 h-4 text-muted-foreground" />
                 Select Location / Country
               </CardTitle>
             </CardHeader>
@@ -647,8 +648,8 @@ export const renderISPOptionsWithCountries = ({
                       key={country.id}
                       onClick={() => handleGlobalCountrySelection(country.id)}
                       className={`flex items-center gap-2 py-2 px-3 rounded-md text-[11px] font-semibold transition-all border ${selectedGlobalCountry === country.id
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
+                        ? "border-foreground bg-foreground text-background shadow-sm"
+                        : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
                         }`}
                     >
                       <img
@@ -671,7 +672,7 @@ export const renderISPOptionsWithCountries = ({
         <Card>
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
-              <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <Globe className="w-4 h-4 text-muted-foreground" />
               Available Locations
             </CardTitle>
           </CardHeader>
@@ -679,12 +680,14 @@ export const renderISPOptionsWithCountries = ({
             {availableISPs.map((isp) => (
               <div key={isp.id} className="border rounded-lg p-3">
                 <div className="font-medium text-sm mb-3 flex items-center">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2"></div>
+                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mr-2"></div>
                   <span className="truncate">{isp.name}</span>
                 </div>
                 {isp.locations && Object.keys(isp.locations).length > 0 ? (
                   <div className="space-y-3">
-                    {Object.entries(isp.locations).map(([countryCode, location]) => (
+                    {Object.entries(isp.locations)
+                      .filter(([_, location]: [string, any]) => !location.cities || location.cities.some((c: any) => Number(c.ips_available) > 0))
+                      .map(([countryCode, location]) => (
                       <CountryLocationCard
                         key={countryCode}
                         countryCode={countryCode}
@@ -701,8 +704,8 @@ export const renderISPOptionsWithCountries = ({
                   <button
                     onClick={() => handleISPSelection(isp.id)}
                     className={`w-full py-3 px-4 rounded-lg font-medium transition-all border-2 ${selectedISP === isp.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border hover:border-primary/50 hover:bg-muted/50"
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
                       }`}
                   >
                     Select {isp.name}

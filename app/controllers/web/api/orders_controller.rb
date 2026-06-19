@@ -165,6 +165,7 @@ module Web
         meta[:target_section_id] = params[:target_section_id] if params[:target_section_id].present?
         meta[:target_id] = params[:target_id] if params[:target_id].present?
         meta[:resi] = params[:resi] if params[:resi].present?
+        meta[:residentalRotatingConfig] = params[:residentalRotatingConfig] if params[:residentalRotatingConfig].present?
         meta[:locationId] = params[:locationId] if params[:locationId].present?
         meta[:selected_country_id] = params[:selected_country_id] if params[:selected_country_id].present?
 
@@ -327,6 +328,7 @@ module Web
               'globalCountry' => item[:globalCountry] || item['globalCountry'],
               'globalTarget' => item[:globalTarget] || item['globalTarget'],
               'globalTargetSectionId' => item[:globalTargetSectionId] || item['globalTargetSectionId'],
+              'residentalRotatingConfig' => item[:residentalRotatingConfig] || item['residentalRotatingConfig'],
               'auto_renew' => item[:metadata]&.[](:auto_renew) || item['metadata']&.[]('auto_renew')
             ).compact,
             status: 'pending'

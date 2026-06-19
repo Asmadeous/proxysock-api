@@ -3,7 +3,7 @@
 module Admin
   module Api
     class OrdersController < Admin::Api::BaseController
-      before_action :set_order, only: %i[show refund rescue_order credentials update_credentials change_protocol rotate_ip whitelist_add whitelist_delete renew reorder]
+      before_action :set_order, only: %i[show update destroy refund rescue_order credentials update_credentials change_protocol rotate_ip whitelist_add whitelist_delete renew reorder]
 
       # POST /admin/api/orders
       # Admin-initiated purchase: finds user by email, creates order, provisions without payment.
@@ -110,6 +110,69 @@ module Admin
       # GET /admin/api/orders/:id
       def show
         render json: order_json(@order, full: true)
+      end
+
+      # PATCH/PUT /admin/api/orders/:id
+      # Admin free-edit. Applied via update_columns so it bypasses AASM guards AND
+      # the before_save :calculate_total_amount callback — the admin's status and
+      # total_amount stick verbatim. NOTE: a free status change here intentionally
+      # does NOT trigger provisioning/refund/deprovision side effects.
+      VALID_STATUSES = %w[pending awaiting_payment processing active expired cancelled failed refunded].freeze
+
+      def update
+        require_admin!
+
+        permitted = params.permit(
+          :status, :quantity, :expires_at, :total_amount, :currency, :provider_order_id
+        ).to_h.symbolize_keys
+
+        # metadata is free-form jsonb — allow full replacement of the blob
+        if params[:metadata].present?
+          permitted[:metadata] = params[:metadata].respond_to?(:to_unsafe_h) ? params[:metadata].to_unsafe_h : params[:metadata]
+        end
+
+        return render json: { error: 'No editable fields provided' }, status: :unprocessable_entity if permitted.blank?
+
+        if permitted[:status].present? && VALID_STATUSES.exclude?(permitted[:status])
+          return render json: { error: "Invalid status. Allowed: #{VALID_STATUSES.join(', ')}" }, status: :unprocessable_entity
+        end
+
+        @order.update_columns(permitted.merge(updated_at: Time.current))
+        record_audit_log('order.updated', @order, { changed: permitted.keys })
+
+        render json: order_json(@order.reload, full: true)
+      rescue ActiveRecord::StatementInvalid, ArgumentError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # DELETE /admin/api/orders/:id
+      # Soft-cancel: keep the order + financial/audit record, just mark it cancelled.
+      # Pass deprovision=true to also tear down provisioned provider resources.
+      def destroy
+        require_admin!
+
+        if @order.may_cancel?
+          @order.cancel!
+        else
+          # Terminal states (expired/failed/refunded) don't allow the AASM cancel event.
+          @order.update_columns(status: 'cancelled', updated_at: Time.current)
+        end
+
+        # No unified cross-provider teardown exists yet; record the intent so the
+        # existing per-resource cleanup jobs / an operator can act on it. The
+        # cancelled status already excludes the order from active provisioning.
+        deprovision = ActiveRecord::Type::Boolean.new.cast(params[:deprovision])
+        if deprovision
+          @order.update_columns(
+            metadata: (@order.metadata || {}).merge('deprovision_requested_at' => Time.current.iso8601),
+            updated_at: Time.current
+          )
+        end
+
+        record_audit_log('order.cancelled', @order, { deprovision: !!deprovision })
+        render json: { message: "Order ##{@order.order_number} cancelled.", order: order_json(@order) }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       # POST /admin/api/orders/:id/refund
@@ -300,15 +363,44 @@ module Admin
           updated_at: o.updated_at
         }
         if full
+          data[:order_number]     = o.order_number
+          data[:currency]         = o.currency
+          data[:expires_at]       = o.expires_at
+          data[:provider_order_id] = o.provider_order_id
+          data[:metadata]         = o.metadata
+          data[:credentials]      = o.credentials
+
           data[:product] = {
             id: o.product&.id,
             name: o.product&.name,
-            type: o.product&.product_type
+            type: o.product&.product_type,
+            provider_type: o.product&.provider_type,
+            slug: o.product&.slug
           }
-          data[:provisioned] = case o.product&.product_type
-                               when 'esim' then o.esim_order&.as_json(only: %i[id esim_provider esim_type status])
-                               when 'vps' then o.vm_order&.as_json(only: %i[id status])
-                               end
+
+          if (pr = o.product_pricing)
+            data[:pricing] = {
+              duration_type: pr.duration_type,
+              duration_value: pr.duration_value,
+              selling_price: pr.selling_price,
+              user_selling_price: pr.try(:user_selling_price),
+              cost_price: pr.try(:cost_price),
+              currency: pr.currency
+            }
+          end
+
+          data[:customer] = {
+            id: entity&.id,
+            type: o.orderable_type,
+            email: entity&.email,
+            name: data[:entity_name]
+          }
+
+          data[:provisioned] = provisioned_details(o)
+
+          data[:timeline] = AuditLog.where(auditable: o).order(created_at: :desc).limit(20).map do |log|
+            { action: log.action, user_type: log.user_type, user_id: log.user_id, changes: log.object_changes, created_at: log.created_at }
+          end
         end
 
         # Payment method info
@@ -321,6 +413,36 @@ module Admin
         end
 
         data
+      end
+
+      # Serializes whichever provisioned resource(s) exist for this order so the
+      # admin detail modal can show IPs / credentials / status across every product
+      # type, not just esim/vps. has_one associations return nil when absent.
+      def provisioned_details(o)
+        out = {}
+        # Per-association rescue: a broken/legacy association reflection on one
+        # product type must never blow up the whole detail view.
+        add = lambda do |key, &blk|
+          val = begin
+            blk.call
+          rescue StandardError
+            nil
+          end
+          out[key] = val.as_json if val.present?
+        end
+
+        add.call(:mobile_proxies)      { o.mobile_proxies.to_a.presence || o.mobile_proxy_order }
+        add.call(:static_datacenter)   { o.static_datacenter_proxy_order }
+        add.call(:static_isp)          { o.static_isp_proxy_order }
+        add.call(:static_residential)  { o.static_residential_proxy_order }
+        add.call(:residential_rotating){ o.residential_rotating_proxy_order }
+        add.call(:premium_isp)         { o.premium_isp_proxy_order }
+        add.call(:vpn)                 { o.vpn_order }
+        add.call(:global_isp)          { o.global_isp_proxies.to_a.presence }
+        add.call(:esim)                { o.esim_order }
+        add.call(:usa_esim)            { o.usa_esim_order }
+        add.call(:vm)                  { o.vm_order }
+        out.presence
       end
     end
 

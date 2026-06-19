@@ -22,14 +22,14 @@ plans = [
     duration_type: 'days',
     duration_value: 1,
     user_price: 15.00,  # $15 user selling price
-    metadata: { 'billing_type' => 'monthly', 'country_code' => 'US' }
+    metadata: { 'billing_type' => 'daily', 'country_code' => 'US' }
   },
   {
     name: 'USA Mobile Proxy - Weekly',
     duration_type: 'days',
     duration_value: 7,
     user_price: 70.00,  # $70 user selling price
-    metadata: { 'billing_type' => 'monthly', 'country_code' => 'US' }
+    metadata: { 'billing_type' => 'weekly', 'country_code' => 'US' }
   },
   {
     name: 'USA Mobile Proxy - Monthly',
