@@ -21,15 +21,12 @@ class SupportChat < ApplicationRecord
   private
 
   def notify_staff
-    Employee.where(role: %w[admin support]).each do |employee|
-      NotificationService.notify(
-        recipient: employee,
-        category: 'info',
-        title: 'New Support Chat Inquiry',
-        message: "A #{chatable_type} has started a new support chat.",
-        metadata: { support_chat_id: id, session_token: session_token }
-      )
-    end
+    NotificationService.notify_staff(
+      category: 'info',
+      title: 'New Support Chat Inquiry',
+      message: "A #{chatable_type} has started a new support chat.",
+      metadata: { support_chat_id: id, session_token: session_token }
+    )
   end
 
   def generate_session_token

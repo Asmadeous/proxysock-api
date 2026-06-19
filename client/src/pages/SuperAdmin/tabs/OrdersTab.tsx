@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,7 +15,10 @@ import {
     TrashIcon,
     MagnifyingGlassIcon,
     ArrowsUpDownIcon,
-    ShieldCheckIcon
+    ShieldCheckIcon,
+    EyeIcon,
+    PlusIcon,
+    PencilSquareIcon
 } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +30,11 @@ import ManagementFilters from "../components/ManagementFilters";
 import { getApiError } from "../utils/errors";
 import {
     fetchAdminOrders,
+    fetchAdminOrder,
+    updateAdminOrder,
+    deleteAdminOrder,
+    createAdminOrder,
+    fetchAdminProducts,
     refundOrder,
     rescueOrder,
     renewOrder,
@@ -85,6 +93,25 @@ export default function OrdersTab() {
     const [modalSubTab, setModalSubTab] = useState<'creds' | 'whitelist' | 'protocol'>('creds');
     const [refundMethod, setRefundMethod] = useState<"wallet" | "original">("wallet");
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Detail / edit
+    const [detailId, setDetailId] = useState<string | number | null>(null);
+    const [detail, setDetail] = useState<any | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [editForm, setEditForm] = useState<{ status: string; quantity: string; total_amount: string; currency: string; expires_at: string; metadata: string }>({
+        status: "", quantity: "", total_amount: "", currency: "", expires_at: "", metadata: "{}"
+    });
+
+    // Create
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm, setCreateForm] = useState({ product_id: "", customer_email: "", quantity: "1", metadata: "{}" });
+    const [products, setProducts] = useState<{ id: string | number; name: string }[]>([]);
+
+    // Cancel (soft-delete)
+    const [cancelTarget, setCancelTarget] = useState<OrderRow | null>(null);
+    const [cancelDeprovision, setCancelDeprovision] = useState(false);
+
     const PER = 25;
 
     const load = useCallback(async () => {
@@ -209,6 +236,120 @@ export default function OrdersTab() {
         setRefundMethod(row.payment_method && row.payment_method !== "balance" ? "original" : "wallet");
     };
 
+    const openDetail = async (row: OrderRow) => {
+        setDetailId(row.id);
+        setDetail(null);
+        setEditMode(false);
+        setDetailLoading(true);
+        try {
+            const res = await fetchAdminOrder(row.id as unknown as number);
+            setDetail(res.data);
+        } catch (err) {
+            toast.error(getApiError(err, "Failed to load order"));
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
+    const startEdit = () => {
+        if (!detail) return;
+        setEditForm({
+            status: detail.status ?? "",
+            quantity: String(detail.quantity ?? ""),
+            total_amount: String(detail.total_amount ?? ""),
+            currency: detail.currency ?? "",
+            expires_at: detail.expires_at ? new Date(detail.expires_at).toISOString().slice(0, 16) : "",
+            metadata: JSON.stringify(detail.metadata ?? {}, null, 2),
+        });
+        setEditMode(true);
+    };
+
+    const handleUpdate = async () => {
+        if (!detailId) return;
+        let metadata: Record<string, unknown> | undefined;
+        if (editForm.metadata.trim()) {
+            try { metadata = JSON.parse(editForm.metadata); }
+            catch { toast.error("Metadata must be valid JSON"); return; }
+        }
+        setActionLoading(true);
+        try {
+            const payload: Record<string, unknown> = {
+                status: editForm.status,
+                quantity: Number(editForm.quantity),
+                total_amount: editForm.total_amount,
+                currency: editForm.currency,
+                expires_at: editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null,
+            };
+            if (metadata) payload.metadata = metadata;
+            const res = await updateAdminOrder(detailId, payload);
+            setDetail(res.data);
+            setEditMode(false);
+            toast.success("Order updated");
+            load();
+        } catch (err) {
+            toast.error(getApiError(err, "Update failed"));
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleCancelOrder = async () => {
+        if (!cancelTarget) return;
+        setActionLoading(true);
+        try {
+            await deleteAdminOrder(cancelTarget.id, { deprovision: cancelDeprovision });
+            toast.success(`Order #${String(cancelTarget.id).slice(0, 8)} cancelled`);
+            setCancelTarget(null);
+            setCancelDeprovision(false);
+            if (detailId === cancelTarget.id) setDetailId(null);
+            load();
+        } catch (err) {
+            toast.error(getApiError(err, "Cancel failed"));
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const openCreate = async () => {
+        setCreateForm({ product_id: "", customer_email: "", quantity: "1", metadata: "{}" });
+        setCreateOpen(true);
+        if (products.length === 0) {
+            try {
+                const res = await fetchAdminProducts();
+                const list = res.data.products || res.data || [];
+                setProducts(list.map((p: any) => ({ id: p.id, name: p.name })));
+            } catch { /* product picker falls back to manual id entry */ }
+        }
+    };
+
+    const handleCreate = async () => {
+        if (!createForm.product_id || !createForm.customer_email.trim()) {
+            toast.error("Product and customer email are required");
+            return;
+        }
+        let metadata: Record<string, unknown> | undefined;
+        if (createForm.metadata.trim()) {
+            try { metadata = JSON.parse(createForm.metadata); }
+            catch { toast.error("Metadata must be valid JSON"); return; }
+        }
+        setActionLoading(true);
+        try {
+            await createAdminOrder({
+                product_id: createForm.product_id as unknown as number,
+                customer_email: createForm.customer_email.trim(),
+                quantity: Number(createForm.quantity) || 1,
+                metadata,
+            });
+            toast.success("Order created — provisioning started");
+            setCreateOpen(false);
+            load();
+        } catch (err) {
+            toast.error(getApiError(err, "Create failed"));
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const paymentLabel = (method?: string) => {
         if (!method || method === " balance") return "Balance";
         return method.charAt(0).toUpperCase() + method.slice(1);
@@ -312,8 +453,15 @@ export default function OrdersTab() {
                 </div>
                 <div className="flex items-center gap-3">
                     <ManagementFilters entityType={entityTypeFilter} onEntityTypeChange={(t) => { setEntityTypeFilter(t); setPage(1); }} />
-                    <button 
-                        onClick={() => load()} 
+                    <button
+                        onClick={openCreate}
+                        className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all shadow-sm font-bold text-sm"
+                    >
+                        <PlusIcon className="w-5 h-5" />
+                        New Order
+                    </button>
+                    <button
+                        onClick={() => load()}
                         disabled={loading}
                         className="p-3 bg-card border border-border rounded-xl hover:bg-muted/50 transition-all shadow-sm"
                     >
@@ -436,6 +584,13 @@ export default function OrdersTab() {
                     emptyMessage="No orders match your current filters."
                     actions={(row: OrderRow) => (
                         <div className="flex items-center gap-1.5">
+                            <button
+                                onClick={() => openDetail(row)}
+                                className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-blue-500/20"
+                                title="View / Edit Order"
+                            >
+                                <EyeIcon className="h-5 w-5" />
+                            </button>
                             {(row.status === "failed" || row.status === "error") && (
                                 <button 
                                     onClick={() => setRescueTarget(row)} 
@@ -455,12 +610,21 @@ export default function OrdersTab() {
                                 </button>
                             )}
                             {row.product_type === 'proxy' && row.status === 'active' && (
-                                <button 
-                                    onClick={() => handleProxyModalOpen(row)} 
+                                <button
+                                    onClick={() => handleProxyModalOpen(row)}
                                     className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-primary/20"
                                     title="Proxy Config"
                                 >
                                     <CogIcon className="h-5 w-5" />
+                                </button>
+                            )}
+                            {row.status !== "cancelled" && row.status !== "refunded" && (
+                                <button
+                                    onClick={() => { setCancelTarget(row); setCancelDeprovision(false); }}
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-red-500/20"
+                                    title="Cancel Order"
+                                >
+                                    <TrashIcon className="h-5 w-5" />
                                 </button>
                             )}
                         </div>
@@ -813,6 +977,241 @@ export default function OrdersTab() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Order Detail / Edit Modal */}
+            <AnimatePresence>
+                {detailId && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-md"
+                            onClick={() => { setDetailId(null); setEditMode(false); }}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 20 }}
+                            className="relative bg-card border border-border rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500"><DocumentDuplicateIcon className="w-6 h-6" /></div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-foreground tracking-tight">
+                                            Order #{detail?.order_number || (detailId ? String(detailId).slice(0, 8) : "")}
+                                        </h3>
+                                        {detail && <StatusBadge status={detail.status} />}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {detail && !editMode && (
+                                        <button onClick={startEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-all">
+                                            <PencilSquareIcon className="w-4 h-4" /> Edit
+                                        </button>
+                                    )}
+                                    <button onClick={() => { setDetailId(null); setEditMode(false); }} className="p-2 text-muted-foreground hover:bg-muted rounded-xl transition-all">
+                                        <XCircleIcon className="w-6 h-6" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                                {detailLoading || !detail ? (
+                                    <div className="flex items-center justify-center h-40 text-muted-foreground">Loading…</div>
+                                ) : editMode ? (
+                                    <div className="space-y-4">
+                                        <p className="text-[11px] text-yellow-500 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 font-medium">
+                                            ⚠ Free edit: status &amp; amount are written directly and will NOT trigger provisioning, refund or deprovision side-effects.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <label className="space-y-1">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Status</span>
+                                                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm">
+                                                    {["pending", "awaiting_payment", "processing", "active", "expired", "cancelled", "failed", "refunded"].map((s) => <option key={s} value={s}>{s}</option>)}
+                                                </select>
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Quantity</span>
+                                                <input type="number" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Total Amount</span>
+                                                <input type="number" step="0.01" value={editForm.total_amount} onChange={(e) => setEditForm({ ...editForm, total_amount: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Currency</span>
+                                                <input value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                                            </label>
+                                            <label className="space-y-1 col-span-2">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Expires At</span>
+                                                <input type="datetime-local" value={editForm.expires_at} onChange={(e) => setEditForm({ ...editForm, expires_at: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                                            </label>
+                                            <label className="space-y-1 col-span-2">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase">Metadata (JSON)</span>
+                                                <textarea value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} rows={8} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-mono" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <DetailGrid items={[
+                                            ["Product", `${detail.product?.name} (${detail.product?.type})`],
+                                            ["Total", `$${Number(detail.total_amount).toFixed(2)} ${detail.currency || ""}`],
+                                            ["Quantity", detail.quantity],
+                                            ["Payment", paymentLabel(detail.payment_method)],
+                                            ["Provider Order ID", detail.provider_order_id || "—"],
+                                            ["Created", new Date(detail.created_at).toLocaleString()],
+                                            ["Expires", detail.expires_at ? new Date(detail.expires_at).toLocaleString() : "—"],
+                                        ]} />
+                                        <Section title="Customer">
+                                            <DetailGrid items={[
+                                                ["Name", detail.customer?.name],
+                                                ["Email", detail.customer?.email],
+                                                ["Type", detail.customer?.type],
+                                            ]} />
+                                        </Section>
+                                        {detail.pricing && (
+                                            <Section title="Pricing">
+                                                <DetailGrid items={[
+                                                    ["Duration", `${detail.pricing.duration_value} ${detail.pricing.duration_type}`],
+                                                    ["Selling", detail.pricing.user_selling_price ?? detail.pricing.selling_price],
+                                                    ["Cost", detail.pricing.cost_price ?? "—"],
+                                                ]} />
+                                            </Section>
+                                        )}
+                                        {detail.provisioned && <Section title="Provisioned"><JsonBlock value={detail.provisioned} /></Section>}
+                                        {Array.isArray(detail.credentials) ? (detail.credentials.length > 0 && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>) : (detail.credentials && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>)}
+                                        <Section title="Metadata"><JsonBlock value={detail.metadata ?? {}} /></Section>
+                                        {detail.timeline?.length > 0 && (
+                                            <Section title="Timeline">
+                                                <div className="space-y-2">
+                                                    {detail.timeline.map((t: any, i: number) => (
+                                                        <div key={i} className="flex items-center justify-between text-xs bg-muted/30 rounded-lg px-3 py-2">
+                                                            <span className="font-mono text-foreground">{t.action}</span>
+                                                            <span className="text-muted-foreground">{new Date(t.created_at).toLocaleString()}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </Section>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {editMode && (
+                                <div className="p-6 bg-muted/20 border-t border-border flex justify-end gap-3">
+                                    <button onClick={() => setEditMode(false)} className="px-6 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
+                                    <button onClick={handleUpdate} disabled={actionLoading} className="px-6 py-3 rounded-2xl text-sm font-black bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all shadow-lg">
+                                        {actionLoading ? "Saving…" : "Save Changes"}
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Create Order Modal */}
+            <AnimatePresence>
+                {createOpen && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={() => setCreateOpen(false)} />
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-5">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-primary/10 rounded-2xl text-primary"><PlusIcon className="w-7 h-7" /></div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-foreground">New Order</h3>
+                                    <p className="text-xs text-muted-foreground">Provisions immediately and emails credentials to the customer.</p>
+                                </div>
+                            </div>
+                            <label className="space-y-1 block">
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Product</span>
+                                {products.length > 0 ? (
+                                    <select value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm">
+                                        <option value="">Select a product…</option>
+                                        {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                ) : (
+                                    <input value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })} placeholder="Product ID" className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                                )}
+                            </label>
+                            <label className="space-y-1 block">
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Customer Email</span>
+                                <input type="email" value={createForm.customer_email} onChange={(e) => setCreateForm({ ...createForm, customer_email: e.target.value })} placeholder="customer@example.com" className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                            </label>
+                            <label className="space-y-1 block">
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Quantity</span>
+                                <input type="number" min={1} value={createForm.quantity} onChange={(e) => setCreateForm({ ...createForm, quantity: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
+                            </label>
+                            <label className="space-y-1 block">
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Metadata (JSON, optional)</span>
+                                <textarea value={createForm.metadata} onChange={(e) => setCreateForm({ ...createForm, metadata: e.target.value })} rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-mono" />
+                            </label>
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setCreateOpen(false)} className="flex-1 px-6 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
+                                <button onClick={handleCreate} disabled={actionLoading} className="flex-1 px-6 py-3 rounded-2xl text-sm font-black bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all shadow-lg">
+                                    {actionLoading ? "Creating…" : "Create & Provision"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Cancel (soft-delete) Modal */}
+            <AnimatePresence>
+                {cancelTarget && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={() => setCancelTarget(null)} />
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
+                            <div className="p-4 bg-red-500/10 rounded-3xl w-fit"><TrashIcon className="w-10 h-10 text-red-500" /></div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black text-foreground">Cancel Order?</h3>
+                                <p className="text-muted-foreground">Order <span className="font-mono text-foreground font-bold">#{String(cancelTarget.id).slice(0, 8)}</span> will be marked <span className="font-bold">cancelled</span>. The record is kept for history/financials.</p>
+                            </div>
+                            <label className="flex items-center gap-3 bg-muted/30 rounded-2xl p-4 cursor-pointer">
+                                <input type="checkbox" checked={cancelDeprovision} onChange={(e) => setCancelDeprovision(e.target.checked)} className="w-4 h-4" />
+                                <span className="text-sm text-foreground">Also flag provisioned resources for teardown</span>
+                            </label>
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setCancelTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Keep Order</button>
+                                <button onClick={handleCancelOrder} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-red-500 text-white hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-red-500/20">
+                                    {actionLoading ? "Cancelling…" : "Cancel Order"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
+    );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{title}</h4>
+            {children}
+        </div>
+    );
+}
+
+function DetailGrid({ items }: { items: [string, ReactNode][] }) {
+    return (
+        <div className="grid grid-cols-2 gap-3">
+            {items.map(([label, value], i) => (
+                <div key={i} className="bg-muted/30 rounded-xl px-3 py-2">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
+                    <p className="text-sm font-medium text-foreground break-words">{value ?? "—"}</p>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function JsonBlock({ value }: { value: unknown }) {
+    return (
+        <pre className="bg-muted/40 border border-border rounded-xl p-3 text-[11px] font-mono text-foreground overflow-x-auto max-h-64 overflow-y-auto">
+            {JSON.stringify(value, null, 2)}
+        </pre>
     );
 }

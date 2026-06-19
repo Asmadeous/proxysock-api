@@ -50,6 +50,7 @@ export interface ProxyPlan {
   gb_max?: number; // Maximum GB for the plan
   ips_included?: number; // Number of IPs included
   isp?: ISP[]; // Optional ISP details (from prior context)
+  country_code?: string; // ISO country code from metadata (e.g. "US", "CA") - source of truth for mobile location
   location_filter?: string; // Location filter for the plan
   global_isp_config?: GlobalISPConfig;
   qty_min?: number; // Minimum proxy quantity for Global ISP range tiers

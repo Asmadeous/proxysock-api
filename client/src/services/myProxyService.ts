@@ -268,6 +268,7 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
         gb_max: gbMax,
         is_owned: p.is_owned || p.provider_type === 'xproxy' || p.provider_type === 'inhouse',
         source_table: 'proxy_plans' as const,
+        country_code: p.country_code,
         billing_type: p.billing_type,
         duration_days: p.duration_days,
         isp: planISPs,
@@ -346,14 +347,30 @@ export const fetchResidentialRotatingCountries = async (): Promise<
   }
 };
 
+// Maps the UI location category to the ISO country code stored in product metadata.
+const COUNTRY_CODE_BY_LOCATION: Record<'usa' | 'premium', string> = {
+  usa: 'US',
+  premium: 'CA',
+};
+
 export const fetchMobileProxiesByLocation = async (locationType: 'usa' | 'premium'): Promise<ProxyPlan[]> => {
   try {
     const categoryData = await fetchProxiesByCategorySlug('mobile');
     if (!categoryData || !categoryData.proxy_plans) return [];
 
+    const targetCountry = COUNTRY_CODE_BY_LOCATION[locationType];
+
     return categoryData.proxy_plans.filter((plan: ProxyPlan) => {
-      if (!plan.isp || plan.isp.length === 0) return false;
-      return plan.isp.some(isp => isISPValidForLocationType(isp, locationType));
+      // Source of truth: the country_code stored in product metadata.
+      if (plan.country_code) {
+        return plan.country_code.toUpperCase() === targetCountry;
+      }
+      // Fallback for legacy plans that carry carrier ISP slugs instead of a country_code.
+      if (plan.isp && plan.isp.length > 0) {
+        return plan.isp.some(isp => isISPValidForLocationType(isp, locationType));
+      }
+      // No country_code and no ISP: treat USA as the default region so plans aren't silently dropped.
+      return locationType === 'usa';
     });
   } catch (error) {
     console.error(`Error fetching mobile plans for ${locationType}:`, error);

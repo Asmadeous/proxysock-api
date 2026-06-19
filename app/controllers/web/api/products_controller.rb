@@ -8,10 +8,9 @@ module Web
 
       # GET /web/api/products
       def index
-        stats = Product.unscoped.select('COUNT(*) as count, MAX(updated_at) as last_updated').take
-        cache_version = "#{stats.count}-#{stats.last_updated.to_i}"
+        cache_version = Product.catalog_cache_version
 
-        cache_key = "products/web/index_v6/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
+        cache_key = "products/web/index_v7/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           scope = Product.where(active: true).includes(:product_pricings, :product_category)
@@ -56,7 +55,7 @@ module Web
       # GET /web/api/products/:id
       def show
         product = Product.where(active: true).find(params[:id])
-        cache_key = "products/web/show/#{product.id}/#{product.updated_at.to_i}"
+        cache_key = "products/web/show_v2/#{product.id}/#{product.cache_version}"
 
         product_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           { product: serialize_product(product) }.to_json

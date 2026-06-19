@@ -7,7 +7,7 @@ module Api
 
       # GET /api/v1/products
       def index
-        cache_key = "products/reseller/index/#{current_reseller.reseller_type}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
+        cache_key = "products/reseller/index/#{Product.catalog_cache_version}/#{current_reseller.reseller_type}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = if current_reseller.infrastructure?
@@ -50,7 +50,7 @@ module Api
 
       # GET /api/v1/products/:id
       def show
-        cache_key = "products/reseller/show/#{current_reseller.reseller_type}/#{params[:id]}"
+        cache_key = "products/reseller/show/#{current_reseller.reseller_type}/#{params[:id]}/#{Product.catalog_cache_version}"
 
         product_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = if current_reseller.single_product?

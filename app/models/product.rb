@@ -43,4 +43,30 @@ class Product < ApplicationRecord
   has_many :product_pricings, dependent: :destroy
   accepts_nested_attributes_for :product_pricings, allow_destroy: true
   has_many :orders, dependent: :destroy
+
+  # Cache version for catalog LIST endpoints. Derived from data so it
+  # self-invalidates on any catalog write — including price-only edits
+  # (ProductPricing) and category/metadata edits or re-slugging (ProductCategory),
+  # neither of which a plain `products.updated_at` would catch.
+  #
+  # NOTE: update_columns / update_all bypass timestamps, so use update/save for
+  # product, pricing and category edits (or bust this version explicitly).
+  def self.catalog_cache_version
+    [
+      unscoped.maximum(:updated_at).to_i,
+      unscoped.count,
+      ProductPricing.unscoped.maximum(:updated_at).to_i,
+      ProductCategory.unscoped.maximum(:updated_at).to_i
+    ].join('-')
+  end
+
+  # Cache version for a single product's SHOW endpoint. Scoped to this product
+  # so one product's edit doesn't flush every other product's cache.
+  def cache_version
+    [
+      updated_at.to_i,
+      product_pricings.maximum(:updated_at).to_i,
+      product_category&.updated_at.to_i
+    ].join('-')
+  end
 end

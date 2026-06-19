@@ -273,24 +273,39 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
       }
     } else {
       if (selectedCategory === "mobile") {
-        const planName = String(plan.name);
-        if (
-          planName.toLowerCase().includes("daily") ||
-          planName.toLowerCase().includes("per day")
+        // Billing-type-driven pricing (preferred). Falls back to legacy
+        // name-based handling for plans that don't carry a billing_type.
+        if (plan.billing_type === "usage_gb") {
+          // period = GB amount selected
+          const pricePerGb = Number((plan as any).price_per_gb) || basePrice || 1;
+          setTotalPrice(period * pricePerGb);
+        } else if (
+          plan.billing_type === "daily" ||
+          plan.billing_type === "weekly" ||
+          plan.billing_type === "monthly"
         ) {
-          const finalPrice = period * basePrice; // Removed USA markup
-          setTotalPrice(finalPrice);
+          // period = number of days/weeks/months purchased
+          setTotalPrice(period * basePrice);
         } else {
-          const match = planName.match(/(\d+)\s*Days?/i);
-          const fixedDuration =
-            plan.duration_days || (match ? Number.parseInt(match[1]) : null);
-          if (fixedDuration) {
-            if (period !== fixedDuration) {
-              setPeriod(fixedDuration);
+          const planName = String(plan.name);
+          if (
+            planName.toLowerCase().includes("daily") ||
+            planName.toLowerCase().includes("per day")
+          ) {
+            const finalPrice = period * basePrice; // Removed USA markup
+            setTotalPrice(finalPrice);
+          } else {
+            const match = planName.match(/(\d+)\s*Days?/i);
+            const fixedDuration =
+              plan.duration_days || (match ? Number.parseInt(match[1]) : null);
+            if (fixedDuration) {
+              if (period !== fixedDuration) {
+                setPeriod(fixedDuration);
+              }
             }
+            const finalPrice = basePrice; // Removed USA markup
+            setTotalPrice(finalPrice);
           }
-          const finalPrice = basePrice; // Removed USA markup
-          setTotalPrice(finalPrice);
         }
       } else if (selectedCategory === "global-isp") {
         const unitPrice = basePrice;
@@ -488,7 +503,10 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
     let cityDetails: City | null = null;
     if (isStaticIP || isMobileIP) {
       ispDetails = plan.isp?.find((isp) => isp.id === selectedISP) || null;
-      if (!ispDetails && (isStaticIP || isMobileIP)) {
+      // Mobile plans may have no ISP carriers (e.g. LocalToNet USA mobile); only
+      // require an ISP selection when the plan actually exposes carriers.
+      const mobileRequiresISP = isMobileIP && (plan.isp?.length ?? 0) > 0;
+      if (!ispDetails && (isStaticIP || mobileRequiresISP)) {
         setError(
           `Please select an ISP for ${isStaticIP ? "Static" : "Mobile"} IPs`,
         );
@@ -508,7 +526,14 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         }
         locationsString = `${cityDetails.name}, ${cityDetails.state}`;
       } else if (isMobileIP) {
-        locationsString = ispDetails?.name || "";
+        const countryLabel =
+          plan.country_code === "US"
+            ? "USA"
+            : plan.country_code === "CA"
+              ? "Canada"
+              : plan.country_code;
+        locationsString =
+          ispDetails?.name || countryLabel || selectedLocationCategory || "Mobile";
       }
     } else if (isResidentialRotating) {
       locationsString = "Global Residential Pool";
@@ -566,7 +591,7 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
       globalTargetSectionId: selectedCategory === "global-isp" ? selectedGlobalTargetSection || undefined : undefined,
       period: (selectedCategory === "global-isp" && selectedGlobalPeriod) ? (selectedGlobalPeriod as any) : (period as any),
       quantity: selectedCategory === "global-isp" ? quantity : 1,
-      ...(selectedCategory === 'residential-rotating' && (selectedCategoryData?.proxy_plans?.find(p => String(p.id) === String(selectedPlan))?.resi === 1) && {
+      ...(selectedCategory === 'residential-rotating' && {
         residentalRotatingConfig: {
           country:           rrCountry   || undefined,
           state:             rrState     || undefined,
@@ -802,7 +827,13 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
                         ? `${period} GB`
                         : selectedCategory === "global-isp"
                           ? `${quantity} x Global ISP · ${selectedCategoryData?.proxy_plans?.find(p => String(p.id) === String(selectedPlan))?.global_isp_config?.periods?.find(p => String(p.id) === String(selectedGlobalPeriod))?.name || selectedGlobalPeriod || "Select Duration"}`
-                          : `${period} ${selectedCategory === "mobile" ? "days" : "months"}`}{" "}
+                          : `${period} ${selectedCategory === "mobile"
+                            ? (mobileProxyPlans.find((p) => String(p.id) === String(selectedPlan))?.billing_type === "weekly"
+                              ? "weeks"
+                              : mobileProxyPlans.find((p) => String(p.id) === String(selectedPlan))?.billing_type === "monthly"
+                                ? "months"
+                                : "days")
+                            : "months"}`}{" "}
                     • {protocol.toUpperCase()}
                   </div>
                   {!isEnterpriseReseller && (
