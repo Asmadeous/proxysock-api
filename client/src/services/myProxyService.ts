@@ -335,9 +335,9 @@ export const fetchProxiesByCategorySlug = async (categorySlug: string): Promise<
   }
 };
 
-export const fetchResidentialRotatingCountries = async (): Promise<
-  { id: string; name: string; isps?: { id: string; name: string }[] }[]
-> => {
+export interface RrGeoOption { id: string; name: string; asn?: string }
+
+export const fetchResidentialRotatingCountries = async (): Promise<RrGeoOption[]> => {
   try {
     const { data } = await api.get('/web/api/residential-rotating/countries');
     return data.countries || data || [];
@@ -345,6 +345,30 @@ export const fetchResidentialRotatingCountries = async (): Promise<
     console.error('Error fetching residential rotating countries:', err);
     return [];
   }
+};
+
+export const fetchResidentialRotatingStates = async (country: string): Promise<RrGeoOption[]> => {
+  if (!country) return [];
+  try {
+    const { data } = await api.get('/web/api/residential-rotating/states', { params: { country } });
+    return data.states || [];
+  } catch { return []; }
+};
+
+export const fetchResidentialRotatingCities = async (country: string, state: string): Promise<RrGeoOption[]> => {
+  if (!country || !state) return [];
+  try {
+    const { data } = await api.get('/web/api/residential-rotating/cities', { params: { country, state } });
+    return data.cities || [];
+  } catch { return []; }
+};
+
+export const fetchResidentialRotatingIsps = async (country: string, q = ''): Promise<RrGeoOption[]> => {
+  if (!country) return [];
+  try {
+    const { data } = await api.get('/web/api/residential-rotating/isps', { params: { country, q, per: 50 } });
+    return data.isps || [];
+  } catch { return []; }
 };
 
 // Maps the UI location category to the ISO country code stored in product metadata.

@@ -30,7 +30,7 @@ class RdpConfigService
       disable themes:i:0
       disable cursor setting:i:0
       bitmapcachepersistenable:i:1
-      full address:s:#{@vm.dns_name || @vm.ip_address}:#{@vm.rdp_port || 3389}
+      full address:s:#{@vm.connection_host}:#{@vm.rdp_port || 3389}
       audiomode:i:0
       redirectprinters:i:1
       redirectcomports:i:0
@@ -53,7 +53,7 @@ class RdpConfigService
       use redirection server name:i:0
       rdgiskdcproxy:i:0
       kdcproxyname:s:
-      username:s:#{@vm.rdp_username || @vm.username || 'Administrator'}
+      username:s:#{@vm.rdp_username || @vm.ssh_username || 'Administrator'}
     RDP
   end
 

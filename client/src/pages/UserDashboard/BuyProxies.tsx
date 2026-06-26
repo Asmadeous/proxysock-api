@@ -4,6 +4,10 @@ import {
   fetchProxiesByCategorySlug,
   fetchMobileProxiesByLocation,
   fetchResidentialRotatingCountries,
+  fetchResidentialRotatingStates,
+  fetchResidentialRotatingCities,
+  fetchResidentialRotatingIsps,
+  type RrGeoOption,
 } from "../../services/myProxyService";
 import {
   CartItem,
@@ -56,10 +60,15 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   const [rrState, setRrState]         = useState<string>('');
   const [rrCity, setRrCity]           = useState<string>('');
   const [rrISP, setRrISP]             = useState<string>('');
-  const [rrRotation, setRrRotation]   = useState<string>('0');
-  const [rrRegion, setRrRegion]       = useState<string>('ip-na.myproxyapi.com');
+  const [rrRotation, setRrRotation]   = useState<string>('');
+  const [rrRegion, setRrRegion]       = useState<string>('');
   const [rrQuantity, setRrQuantity]   = useState<number>(1);
-  const [rrCountries, setRrCountries] = useState<{ id: string; name: string; isps?: { id: string; name: string }[]; states?: any[] }[]>([]);
+  const [rrCountries, setRrCountries] = useState<RrGeoOption[]>([]);
+  // On-demand geo lists (read from DB endpoints) — states/cities by selection, ISPs searchable.
+  const [rrStates, setRrStates] = useState<RrGeoOption[]>([]);
+  const [rrCities, setRrCities] = useState<RrGeoOption[]>([]);
+  const [rrIsps, setRrIsps] = useState<RrGeoOption[]>([]);
+  const [rrIspQuery, setRrIspQuery] = useState<string>('');
   
   const isEnterpriseReseller = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type === "infrastructure";
 
@@ -112,10 +121,16 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         setQuantity(1);
         // Reset rr config when category changes
         setRrCountry('');
+        setRrState('');
+        setRrCity('');
         setRrISP('');
-        setRrRotation('0');
-        setRrRegion('ip-na.myproxyapi.com');
+        setRrRotation('');
+        setRrRegion('');
         setRrQuantity(1);
+        setRrStates([]);
+        setRrCities([]);
+        setRrIsps([]);
+        setRrIspQuery('');
         // Load countries for residential-rotating
         if (selectedCategory === 'residential-rotating') {
           fetchResidentialRotatingCountries().then(setRrCountries).catch(() => setRrCountries([]));
@@ -134,6 +149,30 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
     };
     loadCategoryData();
   }, [selectedCategory]);
+
+  // RR geo: states load when a country is picked (and reset downstream selections).
+  useEffect(() => {
+    if (selectedCategory !== 'residential-rotating' || !rrCountry) {
+      setRrStates([]); setRrCities([]); setRrIsps([]);
+      return;
+    }
+    fetchResidentialRotatingStates(rrCountry).then(setRrStates).catch(() => setRrStates([]));
+  }, [rrCountry, selectedCategory]);
+
+  // RR geo: cities load when a state is picked.
+  useEffect(() => {
+    if (!rrCountry || !rrState) { setRrCities([]); return; }
+    fetchResidentialRotatingCities(rrCountry, rrState).then(setRrCities).catch(() => setRrCities([]));
+  }, [rrCountry, rrState]);
+
+  // RR geo: ISPs are searchable (debounced); first page loads when a country is picked.
+  useEffect(() => {
+    if (selectedCategory !== 'residential-rotating' || !rrCountry) { setRrIsps([]); return; }
+    const t = setTimeout(() => {
+      fetchResidentialRotatingIsps(rrCountry, rrIspQuery).then(setRrIsps).catch(() => setRrIsps([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [rrCountry, rrIspQuery, selectedCategory]);
 
   useEffect(() => {
     const loadMobileProxyPlans = async () => {
@@ -484,6 +523,18 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
       }
     }
 
+    // Residential-rotating must be configured before it can be added to the cart.
+    if (selectedCategory === "residential-rotating") {
+      if (!rrRotation) {
+        setError("Please choose a Rotation Strategy for your residential rotating proxy.");
+        return;
+      }
+      if (!rrRegion) {
+        setError("Please choose a Proxy Region for your residential rotating proxy.");
+        return;
+      }
+    }
+
     if (selectedCategory === "global-isp") {
       const qtyMin = Number(plan.qty_min) || 1;
       const qtyMax = Number(plan.qty_max) || 999999;
@@ -804,6 +855,11 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
                 rrQuantity,
                 setRrQuantity,
                 rrCountries,
+                rrStates,
+                rrCities,
+                rrIsps,
+                rrIspQuery,
+                setRrIspQuery,
               })}
 
               {/* Add to Cart Card */}
@@ -840,13 +896,19 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
                     <button
                       onClick={handleAddToCart}
                       disabled={
-                        !selectedPlan || totalPrice === null || error !== null || isProvisioning
+                        !selectedPlan || totalPrice === null || error !== null || isProvisioning ||
+                        (selectedCategory === "residential-rotating" && (!rrRotation || !rrRegion))
                       }
                       className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
                     >
                       {isProvisioning ? <Loader2 className="w-5 h-5 animate-spin" /> : isDirectBuy ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
                       {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                     </button>
+                  )}
+                  {selectedCategory === "residential-rotating" && (!rrRotation || !rrRegion) && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Choose a {(!rrRotation && !rrRegion) ? "Rotation Strategy and Proxy Region" : !rrRotation ? "Rotation Strategy" : "Proxy Region"} to continue.
+                    </p>
                   )}
                   {error && (
                     <Card className="border-l-4 border-l-destructive bg-destructive/5">

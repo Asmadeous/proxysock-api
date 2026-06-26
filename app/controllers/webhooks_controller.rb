@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'digest'
+require 'base64'
+
 class WebhooksController < ApplicationController
   def paystack
     payload = request.body.read
@@ -47,33 +50,50 @@ class WebhooksController < ApplicationController
   end
 
   def heleket
-    payload = request.body.read
-    signature = request.headers['x-heleket-signature'] || request.headers['HTTP_X_HELEKET_SIGNATURE']
+    # Heleket (a Cryptomus rebrand) POSTs the payment update as a JSON body that
+    # carries a `sign` field = md5(base64(json_without_sign) + PAYMENT_API_KEY).
+    # It does NOT send a signature header. Work from the raw body so values and
+    # key ordering are preserved (Rails params stringify/re-order).
+    data =
+      begin
+        JSON.parse(request.raw_post)
+      rescue StandardError
+        {}
+      end
 
-    # If Heleket requires signature verification
-    if ENV['HELEKET_WEBHOOK_SECRET'].present? && signature.present?
-      expected = OpenSSL::HMAC.hexdigest('SHA256', ENV['HELEKET_WEBHOOK_SECRET'], payload)
-      unless Rack::Utils.secure_compare(expected, signature.to_s)
-        Rails.logger.warn('[Webhook] Heleket signature mismatch — rejecting')
+    api_key = ENV['HELEKET_PAYMENT_API_KEY'] || ENV['HELEKET_API_KEY']
+    received_sign = data['sign']
+
+    if api_key.present? && received_sign.present?
+      body_for_sign = data.except('sign')
+      # Cryptomus signs PHP's json_encode output, which escapes forward slashes
+      # (`/` -> `\/`); Ruby's JSON leaves them unescaped. Accept either variant —
+      # both require knowledge of the secret API key, so neither is forgeable.
+      candidates = [
+        JSON.generate(body_for_sign),
+        JSON.generate(body_for_sign).gsub('/') { '\\/' }
+      ].map { |json| Digest::MD5.hexdigest(Base64.strict_encode64(json) + api_key) }
+
+      unless candidates.any? { |c| Rack::Utils.secure_compare(c, received_sign.to_s) }
+        Rails.logger.warn("[Webhook] Heleket sign mismatch — rejecting. Expected one of: #{candidates}, Got: #{received_sign}")
         return head :bad_request
       end
     end
 
-    data = begin
-      JSON.parse(payload)
-    rescue StandardError
-      {}
-    end
-
-    # Heleket typically sends status PAID or COMPLETED
-    if %w[PAID COMPLETED].include?(data['status'].to_s.upcase)
-      webhook_params = ActionController::Parameters.new(data).permit(
-        :status, :id, :amount, :currency, :orderId
+    # Heleket success statuses: `paid` (exact) and `paid_over` (overpaid).
+    if %w[paid paid_over completed].include?(data['status'].to_s.downcase)
+      # Cryptomus echoes our reference back as `order_id`; `uuid` is its own id.
+      reference = data['order_id'] || data['uuid']
+      handle_payment(
+        {
+          'reference' => reference,
+          'order_number' => reference,
+          'status' => data['status'],
+          'amount' => data['amount'],
+          'currency' => data['currency']
+        },
+        'heleket'
       )
-
-      webhook_params[:order_number] = data['orderId'] || data['id']
-      webhook_params[:reference] = data['orderId'] || data['id']
-      handle_payment(webhook_params, 'heleket')
     end
 
     head :ok

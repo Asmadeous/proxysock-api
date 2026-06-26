@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_11_090254) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
   enable_extension "pgcrypto"
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -950,6 +951,50 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_090254) do
     t.index ["resource_type", "resource_id", "metric", "status"], name: "idx_resource_alerts_unique_firing", where: "((status)::text = 'firing'::text)"
     t.index ["resource_type"], name: "index_resource_alerts_on_resource_type"
     t.index ["status"], name: "index_resource_alerts_on_status"
+  end
+
+  create_table "rr_cities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "country_code", null: false
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.string "slug", null: false
+    t.string "state_slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["country_code", "state_slug", "slug"], name: "index_rr_cities_on_country_code_and_state_slug_and_slug", unique: true
+    t.index ["country_code", "state_slug"], name: "index_rr_cities_on_country_code_and_state_slug"
+  end
+
+  create_table "rr_countries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.boolean "is_main", default: false, null: false
+    t.string "name"
+    t.datetime "synced_at"
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_rr_countries_on_code", unique: true
+    t.index ["is_main"], name: "index_rr_countries_on_is_main"
+  end
+
+  create_table "rr_isps", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "asn"
+    t.string "country_code", null: false
+    t.datetime "created_at", null: false
+    t.string "external_id"
+    t.string "name"
+    t.datetime "updated_at", null: false
+    t.index ["country_code", "external_id"], name: "index_rr_isps_on_country_code_and_external_id", unique: true
+    t.index ["country_code"], name: "index_rr_isps_on_country_code"
+    t.index ["name"], name: "index_rr_isps_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
+  end
+
+  create_table "rr_states", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "country_code", null: false
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["country_code", "slug"], name: "index_rr_states_on_country_code_and_slug", unique: true
+    t.index ["country_code"], name: "index_rr_states_on_country_code"
   end
 
   create_table "static_datacenter_proxies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

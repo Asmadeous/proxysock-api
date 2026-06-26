@@ -67,13 +67,37 @@ module Web
       end
 
       # GET /web/api/residential-rotating/countries
-      def residential_rotating_countries
-        # Use our rich, synced data from the database instead of raw provider API calls.
-        # This ensures the frontend receives the correct 'id' and 'name' mapping and nested data.
-        category = ProductCategory.find_by(slug: 'residential-rotating')
-        countries = category&.metadata&.dig('residential_rotating_config', 'countries') || []
+      # All four endpoints read from the rr_* DB tables (populated by
+      # ResidentialRotatingGeoSync) — never the provider on a user request.
 
+      def residential_rotating_countries
+        countries = RrCountry.main.alphabetical.map { |c| { id: c.code, name: c.name } }
         render json: { countries: countries }
+      end
+
+      def residential_rotating_states
+        states = RrState.for_country(params[:country]).alphabetical.map { |s| { id: s.slug, name: s.name.to_s.titleize } }
+        render json: { states: states }
+      end
+
+      # Cities are lazy-cached: the service fetches+stores them on first access,
+      # then serves from the DB.
+      def residential_rotating_cities
+        cities = ResidentialRotatingGeoSync.new.cities_for(params[:country], params[:state])
+        render json: { cities: cities.alphabetical.map { |c| { id: c.slug, name: c.name.to_s.titleize } } }
+      rescue StandardError => e
+        Rails.logger.error("[residential_rotating_cities] #{e.message}")
+        render json: { cities: [] }
+      end
+
+      # ~5k ISPs/country — searchable + paginated (trigram-indexed ILIKE).
+      def residential_rotating_isps
+        scope = RrIsp.for_country(params[:country]).search(params[:q]).alphabetical
+        page = scope.page(params[:page] || 1).per([(params[:per] || 50).to_i, 100].min)
+        render json: {
+          isps: page.map { |i| { id: i.external_id, name: i.name, asn: i.asn } },
+          meta: { current_page: page.current_page, total_pages: page.total_pages, total_count: page.total_count }
+        }
       end
 
       private
