@@ -141,6 +141,9 @@ Rails.application.routes.draw do
       post 'billing/verify_and_sync', to: 'billing#verify_and_sync'
 
       get 'residential-rotating/countries', to: 'products#residential_rotating_countries'
+      get 'residential-rotating/states', to: 'products#residential_rotating_states'
+      get 'residential-rotating/cities', to: 'products#residential_rotating_cities'
+      get 'residential-rotating/isps', to: 'products#residential_rotating_isps'
       resources :products, only: %i[index show]
       resource :cart, only: [:show] do
         post :add_item

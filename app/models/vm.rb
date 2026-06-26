@@ -41,6 +41,18 @@ class Vm < ApplicationRecord
     end
   end
 
+  # The address customers connect to. Always the assigned Cloudflare URL
+  # (hostname.<base_domain>), never the raw IP. We prefer the stored dns_name,
+  # and reconstruct the Cloudflare FQDN from the hostname if it wasn't persisted.
+  # Only falls back to the IP when there is no hostname at all.
+  def connection_host
+    return dns_name if dns_name.present?
+
+    base = ENV['CLOUDFLARE_BASE_DOMAIN'].to_s.strip.delete("\"'")
+    base = 'proxysock.com' if base.blank?
+    hostname.present? ? "#{hostname}.#{base}" : ip_address
+  end
+
   def can_renew?
     # Only active VMs can be renewed
     active?

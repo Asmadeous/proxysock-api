@@ -99,8 +99,15 @@ class ProductSyncService
       # read-only get-* endpoints (no balance cost). Preserve any existing data if
       # the fetch fails or returns empty so we never wipe a good config.
       existing_countries = category.metadata&.dig('residential_rotating_config', 'countries') || []
+      # Flat country list only (one read call). The nested states/cities/isps per
+      # country would be thousands of calls and hit the rate limit, so those are
+      # left for lazy on-demand loading. country_code is the alpha2 the
+      # generate-proxy `country` param expects (e.g. "br").
       countries = begin
-        fetch_residential_rotating_countries.presence || existing_countries
+        (@client.fetch_residential_rotating_countries || []).map do |c|
+          code = (c['country_code'] || c['code']).to_s
+          { 'id' => code, 'name' => c['country_name'] || c['name'], 'code' => code, 'alpha2' => code }
+        end.presence || existing_countries
       rescue StandardError => e
         @logger.error("[ProductSyncService] RR countries fetch failed, keeping existing: #{e.message}")
         existing_countries

@@ -51,17 +51,16 @@ interface RenderISPOptionsProps {
   setRrRegion: (v: string) => void;
   rrQuantity: number;
   setRrQuantity: (v: number) => void;
-  rrCountries: {
-    id: string;
-    name: string;
-    isps?: { id: string; name: string }[];
-    states?: {
-      id: string;
-      name: string;
-      cities: { id: string; name: string }[];
-    }[];
-  }[];
+  // Geo lists are fetched on demand from DB-backed endpoints.
+  rrCountries: RrGeoOption[];
+  rrStates: RrGeoOption[];
+  rrCities: RrGeoOption[];
+  rrIsps: RrGeoOption[];
+  rrIspQuery: string;
+  setRrIspQuery: (v: string) => void;
 }
+
+type RrGeoOption = { id: string; name: string; asn?: string };
 
 const PeriodSelector = ({
   label,
@@ -146,8 +145,8 @@ const ProtocolSelector = ({ selected, onChange }: { selected: "http" | "socks5",
             key={proto}
             onClick={() => onChange(proto)}
             className={`py-3 px-4 rounded-lg border-2 font-medium transition-all ${selected === proto
-              ? "border-foreground bg-foreground text-background"
-              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border hover:border-primary/50 hover:bg-muted/50"
               }`}
           >
             {proto.toUpperCase()}
@@ -195,8 +194,8 @@ const CountryLocationCard = ({
               onCitySelect(city.id);
             }}
             className={`py-2 px-3 rounded-md text-sm font-medium transition-all border text-left ${selectedCity === city.id
-              ? "border-foreground bg-foreground text-background shadow-sm"
-              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+              : "border-border hover:border-primary/50 hover:bg-muted/50"
               }`}
           >
             {selectedCity === city.id && <Check className="w-3 h-3 mb-1" />}
@@ -209,8 +208,8 @@ const CountryLocationCard = ({
       <button
         onClick={() => onISPSelect(isp.id)}
         className={`w-full py-2 px-3 rounded-md font-medium transition-all border ${selectedISP === isp.id
-          ? "border-foreground bg-foreground text-background"
-          : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border hover:border-primary/50 hover:bg-muted/50"
           }`}
       >
         Select {isp.name}
@@ -256,6 +255,11 @@ export const renderISPOptionsWithCountries = ({
   setRrState,
   rrCity,
   setRrCity,
+  rrStates,
+  rrCities,
+  rrIsps,
+  rrIspQuery,
+  setRrIspQuery,
 }: RenderISPOptionsProps) => {
   const plan = (selectedCategory === "mobile" && showMobilePlans)
     ? mobileProxyPlans.find((p) => String(p.id) === String(selectedPlan))
@@ -311,9 +315,6 @@ export const renderISPOptionsWithCountries = ({
     { value: 'ip-asia.myproxyapi.com', label: 'Asia' },
   ];
 
-  const selectedRrCountryObj = rrCountries.find(c => c.id === rrCountry);
-  const selectedRrStateObj   = selectedRrCountryObj?.states?.find(s => s.id === rrState);
-
   return (
     <div className="space-y-4">
       {showPeriodOverride && (
@@ -356,7 +357,7 @@ export const renderISPOptionsWithCountries = ({
                   setRrCity('');
                   setRrISP('');
                 }}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="">Any country</option>
                 {rrCountries.map(c => (
@@ -365,61 +366,79 @@ export const renderISPOptionsWithCountries = ({
               </select>
             </div>
 
-            {/* State — only when country selected and states exist */}
-            {selectedRrCountryObj?.states && selectedRrCountryObj.states.length > 0 && (
+            {/* State — loaded from the DB when a country is picked */}
+            {rrStates.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">State (Optional)</label>
                 <select
                   value={rrState}
-                  onChange={e => {
-                    setRrState(e.target.value);
-                    setRrCity('');
-                    setRrISP('');
-                  }}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
+                  onChange={e => { setRrState(e.target.value); setRrCity(''); }}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
                   <option value="">Any state</option>
-                  {selectedRrCountryObj.states.map(s => (
+                  {rrStates.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* City — only when state selected and cities exist */}
-            {selectedRrStateObj?.cities && selectedRrStateObj.cities.length > 0 && (
+            {/* City — loaded from the DB when a state is picked */}
+            {rrCities.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">City (Optional)</label>
                 <select
                   value={rrCity}
-                  onChange={e => {
-                    setRrCity(e.target.value);
-                    setRrISP('');
-                  }}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
+                  onChange={e => setRrCity(e.target.value)}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
                   <option value="">Any city</option>
-                  {selectedRrStateObj.cities.map(city => (
+                  {rrCities.map(city => (
                     <option key={city.id} value={city.id}>{city.name}</option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* ISP — only when country selected and ISPs exist */}
-            {selectedRrCountryObj?.isps && selectedRrCountryObj.isps.length > 0 && (
+            {/* ISP — searchable (~5k per country); loaded when a country is picked */}
+            {rrCountry && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">ISP (Optional)</label>
-                <select
-                  value={rrISP}
-                  onChange={e => setRrISP(e.target.value)}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-muted-foreground/40"
-                >
-                  <option value="">Any ISP</option>
-                  {selectedRrCountryObj.isps.map(isp => (
-                    <option key={isp.id} value={isp.id}>{isp.name}</option>
+                <input
+                  type="text"
+                  value={rrIspQuery}
+                  onChange={e => setRrIspQuery(e.target.value)}
+                  placeholder="Search ISP by name…"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                {/* Custom list (not a native <select>) so the selected row uses the
+                    app's red accent instead of the browser's blue highlight. */}
+                <div className="mt-1 max-h-48 overflow-y-auto rounded-lg border bg-background divide-y divide-border">
+                  <button
+                    type="button"
+                    onClick={() => setRrISP('')}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      rrISP === '' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    Any ISP
+                  </button>
+                  {rrIsps.map(isp => (
+                    <button
+                      key={isp.id}
+                      type="button"
+                      onClick={() => setRrISP(isp.id)}
+                      className={`w-full text-left px-3 py-2 text-sm transition-colors truncate ${
+                        rrISP === isp.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/50'
+                      }`}
+                    >
+                      {isp.name}
+                    </button>
                   ))}
-                </select>
+                </div>
+                {rrIspQuery && rrIsps.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">No ISPs match “{rrIspQuery}”.</p>
+                )}
               </div>
             )}
 
@@ -434,8 +453,8 @@ export const renderISPOptionsWithCountries = ({
                     onClick={() => setRrRotation(opt.value)}
                     className={`py-2 px-3 rounded-lg border-2 text-xs font-medium text-left transition-all ${
                       rrRotation === opt.value
-                        ? 'border-foreground bg-foreground text-background'
-                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
                     }`}
                   >
                     {opt.label}
@@ -455,8 +474,8 @@ export const renderISPOptionsWithCountries = ({
                     onClick={() => setRrRegion(opt.value)}
                     className={`py-2 px-3 rounded-lg border-2 text-[10px] font-semibold transition-all text-center leading-tight ${
                       rrRegion === opt.value
-                        ? 'border-foreground bg-foreground text-background'
-                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
                     }`}
                   >
                     {opt.label}
@@ -588,8 +607,8 @@ export const renderISPOptionsWithCountries = ({
                       key={p.id}
                       onClick={() => handleGlobalPeriodSelection(p.id)}
                       className={`py-3 px-4 rounded-lg border-2 font-semibold transition-all ${selectedGlobalPeriod === p.id
-                        ? "border-foreground bg-foreground text-background shadow-md scale-[1.02]"
-                        : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
+                        ? "border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]"
+                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
                         }`}
                     >
                       {p.name}
@@ -618,8 +637,8 @@ export const renderISPOptionsWithCountries = ({
                         key={target.id}
                         onClick={() => handleGlobalTargetSelection(target.id, section.sectionId)}
                         className={`py-2 px-3 rounded-md text-[11px] font-semibold transition-all border text-center ${selectedGlobalTarget === target.id
-                          ? "border-foreground bg-foreground text-background shadow-sm"
-                          : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
                           }`}
                       >
                         {target.name}
@@ -648,8 +667,8 @@ export const renderISPOptionsWithCountries = ({
                       key={country.id}
                       onClick={() => handleGlobalCountrySelection(country.id)}
                       className={`flex items-center gap-2 py-2 px-3 rounded-md text-[11px] font-semibold transition-all border ${selectedGlobalCountry === country.id
-                        ? "border-foreground bg-foreground text-background shadow-sm"
-                        : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted/50"
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
                         }`}
                     >
                       <img
@@ -704,8 +723,8 @@ export const renderISPOptionsWithCountries = ({
                   <button
                     onClick={() => handleISPSelection(isp.id)}
                     className={`w-full py-3 px-4 rounded-lg font-medium transition-all border-2 ${selectedISP === isp.id
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-primary/50 hover:bg-muted/50"
                       }`}
                   >
                     Select {isp.name}
