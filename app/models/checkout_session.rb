@@ -112,12 +112,11 @@ class CheckoutSession < ApplicationRecord
     # Provision OUTSIDE the transaction so all Order records are committed
     # and visible to Sidekiq before any background jobs are enqueued.
     orders.reload.where(status: %w[pending awaiting_payment]).find_each do |order|
-      actor = if is_reseller
-                orderable
-              else
-                order.orderable
-              end
-      OrderProvisioningService.new(order, actor).process_without_deduction!
+      actor = is_reseller ? orderable : order.orderable
+      # Provision in the background — provider IP assignment can take minutes and
+      # would otherwise block the gateway webhook. Already paid via gateway, so
+      # skip_payment: true (no wallet debit).
+      OrderProvisioningJob.perform_later(order.id, actor.id, actor.class.name, skip_payment: true)
     end
 
     complete!

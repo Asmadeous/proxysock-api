@@ -276,10 +276,12 @@ class WebhooksController < ApplicationController
     order = Order.find_by(id: order_id)
     return unless order && (order.pending? || order.awaiting_payment?)
 
-    ActiveRecord::Base.transaction do
-      actor = order.user || order.reseller
-      OrderProvisioningService.new(order, actor).process!
-    end
+    # Provision in the background — provider IP assignment can take minutes and
+    # would otherwise block the gateway webhook past its timeout (causing retries).
+    actor = order.user || order.reseller
+    return unless actor
+
+    OrderProvisioningJob.perform_later(order.id, actor.id, actor.class.name)
   rescue StandardError => e
     Rails.logger.error("Order payment processing failed: #{e.message}")
     order&.update(status: 'failed')

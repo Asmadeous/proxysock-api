@@ -29,7 +29,9 @@ module Api
 
         if order.save
           begin
-            OrderProvisioningService.new(order, @current_reseller).process!
+            # Provision in the background — VM + proxy provisioning can take minutes
+            # (provider IP assignment), so it must not block this API request.
+            OrderProvisioningJob.perform_later(order.id, @current_reseller.id, @current_reseller.class.name)
 
             render json: {
               message: 'VM order created and provisioning started',
