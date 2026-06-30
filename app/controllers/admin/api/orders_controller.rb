@@ -327,9 +327,10 @@ module Admin
 
         if new_order.save
           begin
-            # Admins can process immediately regardless of balance if they want,
-            # but here we follow the standard logic:
-            OrderProvisioningService.new(new_order, @order.orderable).process!
+            # Provision in the background — provider IP assignment can take minutes
+            # and would block this admin request past the proxy timeout. The job's
+            # process! handles debit + provisioning.
+            OrderProvisioningJob.perform_later(new_order.id, @order.orderable.id, @order.orderable.class.name)
             record_audit_log('order.reordered', @order, { new_order_id: new_order.id })
             render json: order_json(new_order.reload), status: :created
           rescue StandardError => e

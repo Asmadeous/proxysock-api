@@ -74,7 +74,7 @@ module Admin
 
       def sync_proxies
         ProductSyncService.new.sync_all_products
-        render json: { message: 'Proxies synced successfully' }
+        render json: { message: 'Proxies synced successfully. Residential-rotating geo data refresh queued in the background.' }
       rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end

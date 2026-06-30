@@ -76,9 +76,9 @@ module Admin
           return render json: { error: 'No order linked to this ticket' }, status: :unprocessable_entity
         end
 
-        # Trigger re-provisioning logic
-        # For simplicity, we restart the provisioning service
-        OrderProvisioningService.new(ticket.order, current_employee).process!
+        # Trigger re-provisioning in the background — provisioning can take minutes
+        # via the provider, so it must not block this request.
+        OrderProvisioningJob.perform_later(ticket.order.id, current_employee.id, current_employee.class.name)
 
         ticket.ticket_messages.create!(
           sender: current_employee,

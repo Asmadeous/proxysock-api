@@ -5,6 +5,8 @@ require 'test_helper'
 module Web
   module Api
     class OrdersControllerTest < ActionDispatch::IntegrationTest
+      include ActiveJob::TestHelper
+
       setup do
         @user = users(:one)
         wallet = @user.wallets.find_by(wallet_type: 'main') || Wallet.create!(owner: @user, wallet_type: 'main')
@@ -21,16 +23,22 @@ module Web
 
       test 'should create order with wallet payment' do
         assert_difference 'Order.count', 1 do
-          post '/web/api/orders',
-               params: {
-                 product_id: @proxy_product.id,
-                 payment_method: 'wallet'
-               },
-               headers: auth_header(@user)
+          assert_enqueued_with(job: OrderProvisioningJob) do
+            post '/web/api/orders',
+                 params: {
+                   product_id: @proxy_product.id,
+                   payment_method: 'wallet'
+                 },
+                 headers: auth_header(@user)
+          end
         end
 
         assert_response :created
-        assert_equal 'completed', json_response['status'] # Proxies provision immediately if available (status is mapped for UI)
+        # Provisioning now runs in a background job (OrderProvisioningJob) rather
+        # than inline — inline provisioning could block on the provider's
+        # IP-assignment sleep and time out the request — so the order is returned
+        # `pending` and provisioned asynchronously.
+        assert_equal 'pending', json_response['status']
       end
 
       test 'should fail if wallet balance insufficient' do

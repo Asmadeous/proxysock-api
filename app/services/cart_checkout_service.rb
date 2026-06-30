@@ -84,9 +84,14 @@ class CartCheckoutService
       @cart.cart_items.destroy_all
     end
 
-    # Provision outside the transaction to avoid race conditions
+    # Provision in the background. Provisioning can take minutes — the provider
+    # needs time to assign IPs (OrderProvisioningService sleeps while polling) —
+    # so it must NOT run inline in the request, or the web/proxy timeout kills it
+    # mid-provision and strands the order in `processing` (charged, no proxy).
+    # Enqueued after the transaction commits so the orders are visible to the
+    # worker; skip_payment: true because the balance was already debited above.
     created_orders.each do |order|
-      OrderProvisioningService.new(order, @actor).process_without_deduction!
+      OrderProvisioningJob.perform_later(order.id, @actor.id, @actor.class.name, skip_payment: true)
     end
 
     { success: true, orders: created_orders, payment_method: 'wallet' }

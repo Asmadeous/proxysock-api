@@ -255,8 +255,12 @@ module Web
               promo_code_record&.record_use! if promo_discount.positive?
             end
 
-            # Service handles debit and provisioning (uses order.total_amount which now reflects discount)
-            OrderProvisioningService.new(order, current_actor).process!
+            # Provision in the background. Provisioning can take minutes — the
+            # provider needs time to assign IPs (OrderProvisioningService sleeps
+            # while polling) — so it must NOT run inline, or the web/proxy timeout
+            # kills it mid-provision and strands the order in `processing`. The
+            # job's process! performs the wallet debit + provisioning.
+            OrderProvisioningJob.perform_later(order.id, current_actor.id, current_actor.class.name)
             render json: serialize_order(order.reload).merge(
               available_balance: current_actor.wallet&.balance.to_f,
               promo_discount: promo_discount.positive? ? promo_discount : nil
@@ -460,9 +464,14 @@ module Web
             end
           end
 
-          # Provision each outside the transaction to avoid race conditions with jobs
+          # Provision in the background. Provisioning can take minutes — the
+          # provider needs time to assign IPs (OrderProvisioningService sleeps
+          # while polling) — so it must NOT run inline in the request, or the
+          # web/proxy timeout kills it mid-provision and strands the order in
+          # `processing` (charged, no proxy). Balance was already debited above,
+          # hence skip_payment: true.
           orders_to_create.each do |order|
-            OrderProvisioningService.new(order, current_actor).process_without_deduction!
+            OrderProvisioningJob.perform_later(order.id, current_actor.id, current_actor.class.name, skip_payment: true)
             created_orders << order
           end
 
@@ -629,9 +638,12 @@ module Web
 
         if new_order.save
           begin
-            # If they have balance, process immediately (similar to create)
+            # If they have balance, provision in the background (provider IP
+            # assignment makes provisioning take minutes — running it inline lets
+            # the web/proxy timeout strand the order in `processing`). The job's
+            # process! performs the wallet debit + provisioning.
             if current_actor.wallet&.balance.to_f >= new_order.total_amount
-              OrderProvisioningService.new(new_order, current_actor).process!
+              OrderProvisioningJob.perform_later(new_order.id, current_actor.id, current_actor.class.name)
               render json: serialize_order(new_order.reload), status: :created
             else
               render json: {

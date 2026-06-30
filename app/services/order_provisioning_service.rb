@@ -3,6 +3,10 @@
 class OrderProvisioningService
   class ProvisioningError < StandardError; end
 
+  # Common country aliases -> the ISO-3166 alpha-2 keys MyProxyApi uses for its
+  # proxy locations (e.g. a VM tagged "UK" maps to the "GB" location set).
+  COUNTRY_ALIASES = { 'UK' => 'GB', 'USA' => 'US', 'UAE' => 'AE' }.freeze
+
   def initialize(order, user_or_reseller)
     @order = order
     @order.metadata ||= {}
@@ -456,24 +460,15 @@ class OrderProvisioningService
           raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
         end
 
-        location_id = nil
-        if proxy_pr.metadata['isp'].is_a?(Array)
-          proxy_pr.metadata['isp'].each do |isp|
-            next unless isp['locations'] && isp['locations'][country]
+        # Resolve the MyProxyApi location id from the VM's country. The VM country
+        # list is derived from the proxy catalogue, so a match is expected — pick
+        # the FIRST city with available IPs (country matched case-insensitively,
+        # with common aliases, e.g. UK -> GB).
+        location_id = first_available_proxy_location_id(proxy_pr, country)
 
-            available_cities = isp['locations'][country]['cities']&.select { |c| c['ips_available'].to_i.positive? }
-            city = available_cities&.sample
-            
-            if city
-              location_id = city['id'].to_s
-              break
-            end
-          end
-        end
-
-        if proxy_pr.nil?
-          Rails.logger.error("Provisioning failure: No 1x #{proxy_slug} mapping available to satisfy VM proxy rule for country #{country}")
-          raise ProvisioningError, "No localized proxy mapping available for country #{vm_order.country_code}"
+        if location_id.blank?
+          Rails.logger.error("Provisioning failure: no available #{proxy_slug} proxy location for VM country #{country}")
+          raise ProvisioningError, "No available #{proxy_slug} proxy location for country #{vm_order.country_code}"
         end
 
         # Execute MyProxyApi Purchase
@@ -544,6 +539,34 @@ class OrderProvisioningService
     end
 
     # Order stays in processing until job completes
+  end
+
+  # First city id with available IPs for `country` across the proxy product's
+  # ISP location sets. Country is matched case-insensitively, with common aliases
+  # mapped to the ISO-3166 alpha-2 keys MyProxyApi uses (e.g. UK -> GB). Returns
+  # nil only when no location/stock exists (the VM country list is derived from
+  # these same proxies, so that should not happen in practice).
+  def first_available_proxy_location_id(proxy_pr, country)
+    isps = proxy_pr.metadata&.dig('isp')
+    return nil unless isps.is_a?(Array)
+
+    cc = country.to_s.upcase
+    keys = [cc, COUNTRY_ALIASES[cc]].compact.uniq
+
+    isps.each do |isp|
+      locs = isp['locations']
+      next unless locs.is_a?(Hash)
+
+      key = keys.find { |k| locs.key?(k) }
+      next unless key
+
+      cities = locs[key]['cities']
+      next unless cities.is_a?(Array)
+
+      city = cities.find { |c| c['ips_available'].to_i.positive? }
+      return city['id'].to_s if city && city['id'].present?
+    end
+    nil
   end
 
   # ========== Proxy Provisioning ==========

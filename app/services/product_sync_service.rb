@@ -91,6 +91,14 @@ class ProductSyncService
   def sync_residential_rotating_config
     @logger.info('[ProductSyncService] Syncing Residential Rotating configuration...')
 
+    # Populate the rr_* geo tables (countries/states/isps) that the storefront
+    # country/state/ISP dropdowns actually read from. This is the source of truth
+    # for those dropdowns — the category metadata below is only legacy payload.
+    # Heavy + provider-rate-limited, and this method also runs in a synchronous
+    # admin request, so it runs in a background job rather than inline.
+    ResidentialRotatingGeoSyncJob.perform_later
+    @logger.info('[ProductSyncService] Enqueued ResidentialRotatingGeoSyncJob (rr_* geo tables)')
+
     category = ProductCategory.find_by(slug: 'residential-rotating')
     return unless category
 
