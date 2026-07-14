@@ -173,12 +173,11 @@ class CartCheckoutService
 
     case @payment_method
     when 'rexpay'
-      exchange_rate = FixerService.get_rate('USD', 'NGN')
-      amount_ngn = (amount * exchange_rate).round(2)
+      # RexPay charges in USD directly (no FX conversion).
       RexpayService.new.create_payment(
         email: @actor.email,
-        amount: amount_ngn, # NGN, major units
-        currency: 'NGN',
+        amount: amount,
+        currency: 'USD',
         reference: reference,
         callback_url: RexpayService.webhook_callback_url(reference, callback_url)
       )[:payment_url]

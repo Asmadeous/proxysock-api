@@ -295,7 +295,7 @@ export default function Checkout() {
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">RexPay (Card)</div>
-                                            <div className="text-sm text-muted-foreground">Pay with NGN</div>
+                                            <div className="text-sm text-muted-foreground">Pay with card in USD</div>
                                         </div>
                                     </Label>
                                 </div>
@@ -399,13 +399,6 @@ export default function Checkout() {
                                             <Tag className="w-3 h-3" /> Promo ({promoApplied?.code})
                                         </span>
                                         <span>-${promoDiscount.toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {/* Show NGN estimate if RexPay selected */}
-                                {selectedPaymentMethod === "rexpay" && exchangeRate && (
-                                    <div className="flex justify-between text-cyan-600 dark:text-cyan-400 font-medium">
-                                        <span>Est. NGN Total</span>
-                                        <span>₦{(finalTotal * exchangeRate).toLocaleString()}</span>
                                     </div>
                                 )}
                             </div>

@@ -376,7 +376,7 @@ export default function ResWallet() {
                                             </div>
                                             <div>
                                                 <p className="font-black text-sm uppercase tracking-tight">RexPay Checkout</p>
-                                                <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (NGN)</p>
+                                                <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (USD)</p>
                                             </div>
                                         </div>
                                         <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "rexpay" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />

@@ -74,18 +74,16 @@ module Web
 
         case gateway
         when 'rexpay'
-          # Use FixerService to fetch current NGN/USD rate — RexPay charges NGN (major units)
-          exchange_rate = FixerService.get_rate('USD', 'NGN')
-          amount_ngn = (amount * exchange_rate).round(2)
+          # RexPay charges in USD directly (no FX conversion).
           success_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=deposit&amount=#{deposit.amount}"
           result = RexpayService.new.create_payment(
             email: current_actor.email,
-            amount: amount_ngn,
-            currency: 'NGN',
+            amount: amount,
+            currency: 'USD',
             reference: deposit.metadata['transaction_ref'],
             callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], success_url)
           )
-          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
+          { url: result[:payment_url], amount: amount, currency: 'USD' }
 
         when 'plisio'
           service = PlisioService.new

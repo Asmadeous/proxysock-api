@@ -32,10 +32,15 @@ class RexpayService
     # read back (the webhook reconciles on `reference`).
     user_id = params[:email].to_s.gsub(/[^a-zA-Z0-9]/, '').presence || "cust#{SecureRandom.hex(4)}"
 
+    # Send a clean numeric string like RexPay's docs example ("51"): a whole
+    # amount has no decimal point, matching their expected format.
+    amt = params[:amount].to_f
+    amount_str = (amt % 1).zero? ? amt.to_i.to_s : format('%.2f', amt)
+
     response = request(:post, '/api/pgs/payment/v2/createPayment', {
                          reference: params[:reference],
                          userId: user_id,
-                         amount: format('%.2f', params[:amount].to_f),
+                         amount: amount_str,
                          currency: params[:currency] || 'NGN',
                          callbackUrl: params[:callback_url]
                        })

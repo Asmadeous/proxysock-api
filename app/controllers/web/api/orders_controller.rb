@@ -1157,8 +1157,7 @@ module Web
 
         case gateway
         when 'rexpay'
-          exchange_rate = FixerService.get_rate('USD', 'NGN')
-          amount_ngn = (amount * exchange_rate).round(2)
+          # RexPay charges in USD directly (no FX conversion).
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
           # Alphanumeric — RexPay rejects `_`/`-`. The de-hyphenated UUID is still
           # a valid Postgres uuid on lookup; the webhook recovers it by prefix.
@@ -1166,13 +1165,13 @@ module Web
           {
             url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: amount_ngn, # NGN, major units
-              currency: 'NGN',
+              amount: amount,
+              currency: 'USD',
               reference: reference,
               callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
             )[:payment_url],
-            amount: amount_ngn,
-            currency: 'NGN'
+            amount: amount,
+            currency: 'USD'
           }
         when 'plisio'
           {
@@ -1233,19 +1232,18 @@ module Web
 
         case gateway
         when 'rexpay'
-          exchange_rate = FixerService.get_rate('USD', 'NGN')
-          amount_ngn = (amount * exchange_rate).round(2)
+          # RexPay charges in USD directly (no FX conversion).
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
           {
             url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: amount_ngn, # NGN, major units
-              currency: 'NGN',
+              amount: amount,
+              currency: 'USD',
               reference: reference,
               callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
             )[:payment_url],
-            amount: amount_ngn,
-            currency: 'NGN'
+            amount: amount,
+            currency: 'USD'
           }
         when 'plisio'
           {

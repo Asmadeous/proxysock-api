@@ -105,17 +105,15 @@ module Api
 
         case gateway
         when 'rexpay'
-          exchange_rate = deposit.metadata['exchange_rate'].to_f
-          exchange_rate = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
-          amount_ngn = (amount * exchange_rate).round(2)
+          # RexPay charges in USD directly (no FX conversion).
           result = RexpayService.new.create_payment(
             email: current_reseller.email,
-            amount: amount_ngn,
-            currency: 'NGN',
+            amount: amount,
+            currency: 'USD',
             reference: deposit.metadata['transaction_ref'],
             callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], frontend_callback_url)
           )
-          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
+          { url: result[:payment_url], amount: amount, currency: 'USD' }
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(

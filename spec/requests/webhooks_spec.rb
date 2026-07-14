@@ -6,14 +6,14 @@ RSpec.describe 'Webhooks', type: :request do
   describe 'POST /webhooks/rexpay' do
     let(:user) { User.create!(username: 'webhook_user', email: 'webhook@test.com', first_name: 'W', last_name: 'H', password: 'password123', country_code: 'US', city: 'New York') }
     let(:wallet) { user.wallet }
-    let(:transaction_ref) { 'DEP_mock_123' }
+    let(:transaction_ref) { 'DEPmock123' }
     let!(:deposit) do
       Deposit.create!(
         depositable: user,
         amount: 50.0, # $50 USD
         gateway: 'rexpay',
         status: 'pending',
-        metadata: { transaction_ref: transaction_ref, exchange_rate: 1400.0 }
+        metadata: { transaction_ref: transaction_ref }
       )
     end
 
@@ -28,7 +28,7 @@ RSpec.describe 'Webhooks', type: :request do
       # RexPay callbacks are unsigned, so the controller must confirm the
       # charge via getTransactionStatus before crediting anything.
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 70_000.0, currency: 'NGN' })
+                                                            .and_return({ status: 'success', amount: 50.0, currency: 'USD' })
 
       post '/webhooks/rexpay', params: payload, headers: { 'Content-Type' => 'application/json' }
 
@@ -65,9 +65,9 @@ RSpec.describe 'Webhooks', type: :request do
     end
 
     it 'rejects underpaid amount (±1% tolerance)' do
-      # User paid 60,000 NGN instead of 70,000
+      # User paid $40 instead of $50
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 60_000.0, currency: 'NGN' })
+                                                            .and_return({ status: 'success', amount: 40.0, currency: 'USD' })
 
       post '/webhooks/rexpay', params: payload, headers: { 'Content-Type' => 'application/json' }
 

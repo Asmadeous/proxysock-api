@@ -254,15 +254,11 @@ class WebhooksController < ApplicationController
     return unless deposit && deposit.status == 'pending'
 
     # Normalise the paid amount to USD.
-    # RexPay charges in NGN (major units). We stored deposit.amount in USD,
-    # so we must convert: NGN → USD.
     paid_amount_usd =
       case gateway
       when 'rexpay'
-        paid_ngn       = data['amount'].to_f
-        exchange_rate  = deposit.metadata['exchange_rate'].to_f
-        exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
-        paid_ngn / exchange_rate # NGN → USD
+        # RexPay charges in USD directly — no conversion.
+        data['amount'].to_f
       when 'plisio'
         # Plisio: 'source_amount' is the fiat amount (USD)
         data['source_amount'].to_f
