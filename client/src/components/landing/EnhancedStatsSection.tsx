@@ -40,7 +40,7 @@ export const EnhancedStatsSection = () => {
               at Global Scale
             </h2>
             <div className="inline-block bg-primary text-primary-foreground px-4 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-lg font-manrope-semibold">
-              Optimized Canada Network
+              Optimized Canadian Network
             </div>
           </div>
 

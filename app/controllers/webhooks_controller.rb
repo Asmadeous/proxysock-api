@@ -209,12 +209,23 @@ class WebhooksController < ApplicationController
   # success page; server-to-server POSTs get a plain status. Only same-origin
   # frontend URLs are honoured to avoid an open redirect.
   def rexpay_respond(status)
-    return head(status) unless request.get?
+    return head(status) unless request.get? || request.head?
 
     target = params[:redirect_to].to_s
     frontend = ENV['FRONTEND_URL'].to_s
-    target = frontend if frontend.blank? || !target.start_with?(frontend)
-    redirect_to(target.presence || '/', allow_other_host: true)
+
+    if frontend.present? && target.start_with?(frontend)
+      remainder = target[frontend.length..]
+      safe_target = if remainder.blank? || remainder.start_with?('/')
+                      "#{frontend}#{remainder}"
+                    else
+                      frontend
+                    end
+    else
+      safe_target = frontend.presence || '/'
+    end
+
+    redirect_to(safe_target, allow_other_host: true)
   end
 
   def handle_payment(data, gateway)
