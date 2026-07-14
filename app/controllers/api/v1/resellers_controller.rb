@@ -77,7 +77,7 @@ module Api
         # Create Pending Deposit
         # Store the exchange rate at creation time so the webhook handler can
         # use the same rate for verification (prevents FX drift).
-        transaction_ref = "DEP_#{SecureRandom.hex(8)}"
+        transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
         deposit = Deposit.create!(
           depositable: current_reseller,
           amount: amount,

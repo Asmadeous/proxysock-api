@@ -45,7 +45,7 @@ module Web
         # Store the exchange rate at deposit creation time so the webhook
         # handler can use the same rate for verification (prevents FX drift).
         exchange_rate = FixerService.get_rate('USD', 'NGN')
-        transaction_ref = "DEP_#{SecureRandom.hex(8)}"
+        transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
         deposit = Deposit.create!(
           depositable: current_actor,
           amount: amount,

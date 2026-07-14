@@ -1160,7 +1160,9 @@ module Web
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
-          reference = "ORD_#{order.id}_#{SecureRandom.hex(4)}"
+          # Alphanumeric — RexPay rejects `_`/`-`. The de-hyphenated UUID is still
+          # a valid Postgres uuid on lookup; the webhook recovers it by prefix.
+          reference = "ORD#{order.id.delete('-')}#{SecureRandom.hex(4)}"
           {
             url: RexpayService.new.create_payment(
               email: current_actor.email,

@@ -47,9 +47,11 @@ class CheckoutSession < ApplicationRecord
     end
   end
 
-  # Generate a unique reference for payment gateways
+  # Generate a unique reference for payment gateways.
+  # Alphanumeric only — some gateways (RexPay) reject `_`/`-` in references.
+  # It is looked up by gateway_reference, so the id need not be embedded.
   def generate_reference!
-    ref = "CHECKOUT_#{id}_#{SecureRandom.hex(4).upcase}"
+    ref = "CHECKOUT#{SecureRandom.hex(6).upcase}"
     update!(gateway_reference: ref)
     ref
   end

@@ -234,11 +234,15 @@ class WebhooksController < ApplicationController
 
     metadata = data['metadata'] || data[:metadata] || {}
 
-    if reference.to_s.start_with?('CHECKOUT_')
+    # Prefixes are matched without a trailing `_` so both the current
+    # alphanumeric references (CHECKOUT…/DEP…/ORD…, required by RexPay) and the
+    # legacy underscore form (CHECKOUT_…/DEP_…/ORD_…, still emitted to the crypto
+    # gateways) route correctly.
+    if reference.to_s.start_with?('CHECKOUT')
       handle_checkout_session(reference, data, gateway, metadata)
-    elsif reference.to_s.start_with?('DEP_')
+    elsif reference.to_s.start_with?('DEP')
       handle_deposit(reference, data, gateway)
-    elsif reference.to_s.start_with?('ORD_') || metadata['type'] == 'order'
+    elsif reference.to_s.start_with?('ORD') || metadata['type'] == 'order'
       handle_order_payment(reference, data, gateway, metadata)
     else
       handle_deposit(reference, data, gateway)
@@ -317,7 +321,12 @@ class WebhooksController < ApplicationController
   end
 
   def handle_order_payment(reference, _data, _gateway, metadata)
-    order_id = metadata['order_id'] || reference.split('_')[1]
+    # Recover the order id from the reference. Prefer explicit metadata, then the
+    # legacy `ORD_<uuid>_<rand>` form, then the alphanumeric `ORD<uuid32><rand>`
+    # form (32 hex digits — a valid Postgres uuid even without hyphens).
+    order_id = metadata['order_id']
+    order_id ||= reference.to_s.split('_')[1] if reference.to_s.include?('_')
+    order_id ||= reference.to_s[/\AORD([0-9a-fA-F]{32})/, 1]
     order = Order.find_by(id: order_id)
     return unless order && (order.pending? || order.awaiting_payment?)
 

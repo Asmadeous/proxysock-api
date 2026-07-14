@@ -27,9 +27,14 @@ class RexpayService
 
   # Creates a hosted payment and returns the checkout redirect URL.
   def create_payment(params)
+    # RexPay validates userId as an alphanumeric-only "Customer Reference", so
+    # strip the email's `@`/`.`; it is for RexPay's records only and is never
+    # read back (the webhook reconciles on `reference`).
+    user_id = params[:email].to_s.gsub(/[^a-zA-Z0-9]/, '').presence || "cust#{SecureRandom.hex(4)}"
+
     response = request(:post, '/api/pgs/payment/v2/createPayment', {
                          reference: params[:reference],
-                         userId: params[:email],
+                         userId: user_id,
                          amount: format('%.2f', params[:amount].to_f),
                          currency: params[:currency] || 'NGN',
                          callbackUrl: params[:callback_url]
