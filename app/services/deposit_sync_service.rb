@@ -27,8 +27,15 @@ class DepositSyncService
   def verify_with_gateway
     case @gateway
     when 'rexpay'
-      # RexPay charges in USD directly — the verified amount is already USD.
-      RexpayService.new.verify_transaction(@deposit.metadata['transaction_ref'])
+      # RexPay charges NGN grossed up for fees; convert back to USD and cap at the
+      # intended deposit so the customer-borne fee isn't credited as balance.
+      result = RexpayService.new.verify_transaction(@deposit.metadata['transaction_ref'])
+      if result[:status] == 'success'
+        rate = @deposit.metadata['exchange_rate'].to_f
+        rate = FixerService.get_rate('USD', 'NGN') if rate.zero?
+        result[:amount] = [(result[:amount].to_f / rate), @deposit.amount].min
+      end
+      result
     when 'plisio'
       PlisioService.new.verify_transaction(@deposit.metadata['transaction_ref'])
     when 'heleket'

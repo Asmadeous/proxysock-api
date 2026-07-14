@@ -41,17 +41,17 @@ module Web
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket].include?(gateway)
 
-        # Create pending deposit
-        # Store the exchange rate at deposit creation time so the webhook
-        # handler can use the same rate for verification (prevents FX drift).
-        exchange_rate = FixerService.get_rate('USD', 'NGN')
+        # Create pending deposit. Only RexPay charges in NGN, so only it needs the
+        # exchange rate stored (captured now so the webhook uses the same rate).
         transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
+        metadata = { transaction_ref: transaction_ref }
+        metadata[:exchange_rate] = FixerService.get_rate('USD', 'NGN') if gateway == 'rexpay'
         deposit = Deposit.create!(
           depositable: current_actor,
           amount: amount,
           gateway: gateway,
           status: 'pending',
-          metadata: { transaction_ref: transaction_ref, exchange_rate: exchange_rate }
+          metadata: metadata
         )
 
         # Generate payment link based on gateway
@@ -74,16 +74,17 @@ module Web
 
         case gateway
         when 'rexpay'
-          # RexPay charges in USD directly (no FX conversion).
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
           success_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=deposit&amount=#{deposit.amount}"
           result = RexpayService.new.create_payment(
             email: current_actor.email,
-            amount: amount,
-            currency: 'USD',
+            amount: amount_ngn,
+            currency: 'NGN',
             reference: deposit.metadata['transaction_ref'],
             callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], success_url)
           )
-          { url: result[:payment_url], amount: amount, currency: 'USD' }
+          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
 
         when 'plisio'
           service = PlisioService.new

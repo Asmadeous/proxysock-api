@@ -8,9 +8,7 @@ RSpec.describe FixerService do
 
   before do
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:[]).with('FIXER_API_KEY').and_return(api_key)
-    allow(ENV).to receive(:fetch).with('NGN_USD_RATE', '1500').and_return(1500.0)
     Rails.cache.clear
   end
 
@@ -45,13 +43,16 @@ RSpec.describe FixerService do
     end
 
     context 'when API fails' do
-      before do
+      it 'raises RateUnavailableError instead of using a fallback rate' do
         expect(Net::HTTP).to receive(:get).and_return({ 'success' => false }.to_json)
+        expect { FixerService.get_rate('USD', 'NGN') }.to raise_error(FixerService::RateUnavailableError)
       end
+    end
 
-      it 'falls back to the environment variable rate' do
-        allow(ENV).to receive(:fetch).with('NGN_USD_RATE', '1500').and_return('1550')
-        expect(FixerService.get_rate('USD', 'NGN')).to eq(1550.0)
+    context 'when the API key is missing' do
+      it 'raises RateUnavailableError' do
+        allow(ENV).to receive(:[]).with('FIXER_API_KEY').and_return(nil)
+        expect { FixerService.get_rate('USD', 'NGN') }.to raise_error(FixerService::RateUnavailableError)
       end
     end
   end

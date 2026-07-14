@@ -1157,7 +1157,8 @@ module Web
 
         case gateway
         when 'rexpay'
-          # RexPay charges in USD directly (no FX conversion).
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
           # Alphanumeric — RexPay rejects `_`/`-`. The de-hyphenated UUID is still
           # a valid Postgres uuid on lookup; the webhook recovers it by prefix.
@@ -1165,13 +1166,13 @@ module Web
           {
             url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: amount,
-              currency: 'USD',
+              amount: amount_ngn,
+              currency: 'NGN',
               reference: reference,
               callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
             )[:payment_url],
-            amount: amount,
-            currency: 'USD'
+            amount: amount_ngn,
+            currency: 'NGN'
           }
         when 'plisio'
           {
@@ -1232,18 +1233,19 @@ module Web
 
         case gateway
         when 'rexpay'
-          # RexPay charges in USD directly (no FX conversion).
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
           {
             url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: amount,
-              currency: 'USD',
+              amount: amount_ngn,
+              currency: 'NGN',
               reference: reference,
               callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
             )[:payment_url],
-            amount: amount,
-            currency: 'USD'
+            amount: amount_ngn,
+            currency: 'NGN'
           }
         when 'plisio'
           {

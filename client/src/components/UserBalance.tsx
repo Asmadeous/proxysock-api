@@ -235,7 +235,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                   <p>Current balance: {balance !== null ? formatBalance(balance) : 'Loading...'}</p>
                   {paymentMethod === 'rexpay' && (
                     <p className="mt-1 text-warning">
-                      Note: You'll be charged in USD via RexPay
+                      Note: Charged in NGN via RexPay (card processing fee included)
                     </p>
                   )}
                 </div>

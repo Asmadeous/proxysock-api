@@ -11,9 +11,24 @@ class RexpayService
 
   SUCCESS_CODE = '00'
 
+  # RexPay's processing fee. Domestic Nigerian accounts charge in NGN, and we
+  # gross the fee onto the amount so the customer pays it (not our settlement).
+  # Tune to the account's actual rate via env.
+  FEE_PERCENT = ENV.fetch('REXPAY_FEE_PERCENT', '1.5').to_f
+  FEE_CAP_NGN = ENV.fetch('REXPAY_FEE_CAP_NGN', '0').to_f # 0 = uncapped
+
   def initialize
     @username = ENV['REXPAY_USERNAME']
     @secret_key = ENV['REXPAY_SECRET_KEY']
+  end
+
+  # Convert a USD amount to the NGN amount to charge, with the processing fee
+  # added on top so it is borne by the customer.
+  def self.ngn_charge_amount(usd_amount)
+    base_ngn = usd_amount.to_f * FixerService.get_rate('USD', 'NGN')
+    fee = base_ngn * FEE_PERCENT / 100.0
+    fee = FEE_CAP_NGN if FEE_CAP_NGN.positive? && fee > FEE_CAP_NGN
+    (base_ngn + fee).ceil
   end
 
   # Builds the callbackUrl passed to createPayment. RexPay redirects the payer

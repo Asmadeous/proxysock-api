@@ -74,16 +74,17 @@ module Api
         return render json: { error: "Minimum deposit is $#{min}" }, status: :bad_request if amount < min
         return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket].include?(gateway)
 
-        # Create Pending Deposit
-        # Store the exchange rate at creation time so the webhook handler can
-        # use the same rate for verification (prevents FX drift).
+        # Create Pending Deposit. Only RexPay charges in NGN, so only it needs the
+        # exchange rate stored (captured now so the webhook uses the same rate).
         transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
+        metadata = { transaction_ref: transaction_ref }
+        metadata[:exchange_rate] = FixerService.get_rate('USD', 'NGN') if gateway == 'rexpay'
         deposit = Deposit.create!(
           depositable: current_reseller,
           amount: amount,
           gateway: gateway,
           status: 'pending',
-          metadata: { transaction_ref: transaction_ref, exchange_rate: FixerService.get_rate('USD', 'NGN') }
+          metadata: metadata
         )
 
         payment_data = generate_payment_link(gateway, deposit, amount, currency)
@@ -105,15 +106,16 @@ module Api
 
         case gateway
         when 'rexpay'
-          # RexPay charges in USD directly (no FX conversion).
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
           result = RexpayService.new.create_payment(
             email: current_reseller.email,
-            amount: amount,
-            currency: 'USD',
+            amount: amount_ngn,
+            currency: 'NGN',
             reference: deposit.metadata['transaction_ref'],
             callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], frontend_callback_url)
           )
-          { url: result[:payment_url], amount: amount, currency: 'USD' }
+          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(

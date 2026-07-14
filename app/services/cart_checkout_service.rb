@@ -173,11 +173,11 @@ class CartCheckoutService
 
     case @payment_method
     when 'rexpay'
-      # RexPay charges in USD directly (no FX conversion).
+      # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
       RexpayService.new.create_payment(
         email: @actor.email,
-        amount: amount,
-        currency: 'USD',
+        amount: RexpayService.ngn_charge_amount(amount),
+        currency: 'NGN',
         reference: reference,
         callback_url: RexpayService.webhook_callback_url(reference, callback_url)
       )[:payment_url]

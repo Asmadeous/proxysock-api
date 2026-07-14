@@ -10,10 +10,10 @@ RSpec.describe 'Webhooks', type: :request do
     let!(:deposit) do
       Deposit.create!(
         depositable: user,
-        amount: 50.0, # $50 USD
+        amount: 50.0, # $50 USD intended deposit
         gateway: 'rexpay',
         status: 'pending',
-        metadata: { transaction_ref: transaction_ref }
+        metadata: { transaction_ref: transaction_ref, exchange_rate: 1400.0 }
       )
     end
 
@@ -24,11 +24,12 @@ RSpec.describe 'Webhooks', type: :request do
       allow(RexpayService).to receive(:new).and_return(rexpay_service)
     end
 
-    it 'verifies the charge server-side and credits the wallet' do
-      # RexPay callbacks are unsigned, so the controller must confirm the
-      # charge via getTransactionStatus before crediting anything.
+    it 'verifies the charge server-side and credits the intended USD (not the fee)' do
+      # RexPay callbacks are unsigned, so the controller must confirm the charge
+      # via getTransactionStatus. It reports the grossed-up NGN paid
+      # (50 USD * 1400 + 1.5% fee = 71,050); the wallet is credited the $50 only.
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 50.0, currency: 'USD' })
+                                                            .and_return({ status: 'success', amount: 71_050.0, currency: 'NGN' })
 
       post '/webhooks/rexpay', params: payload, headers: { 'Content-Type' => 'application/json' }
 
@@ -65,9 +66,9 @@ RSpec.describe 'Webhooks', type: :request do
     end
 
     it 'rejects underpaid amount (±1% tolerance)' do
-      # User paid $40 instead of $50
+      # Paid 56,000 NGN => $40 at rate 1400, well under the $50 intended
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 40.0, currency: 'USD' })
+                                                            .and_return({ status: 'success', amount: 56_000.0, currency: 'NGN' })
 
       post '/webhooks/rexpay', params: payload, headers: { 'Content-Type' => 'application/json' }
 

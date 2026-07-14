@@ -295,7 +295,7 @@ export default function Checkout() {
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold">RexPay (Card)</div>
-                                            <div className="text-sm text-muted-foreground">Pay with card in USD</div>
+                                            <div className="text-sm text-muted-foreground">Pay with card (NGN, fees included)</div>
                                         </div>
                                     </Label>
                                 </div>

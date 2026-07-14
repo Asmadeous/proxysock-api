@@ -257,8 +257,12 @@ class WebhooksController < ApplicationController
     paid_amount_usd =
       case gateway
       when 'rexpay'
-        # RexPay charges in USD directly — no conversion.
-        data['amount'].to_f
+        # RexPay charges NGN grossed up for fees. Convert the paid NGN back to USD
+        # but never credit more than the intended deposit — the fee is the
+        # customer's cost, not wallet balance.
+        rate = deposit.metadata['exchange_rate'].to_f
+        rate = FixerService.get_rate('USD', 'NGN') if rate.zero?
+        [(data['amount'].to_f / rate), deposit.amount].min
       when 'plisio'
         # Plisio: 'source_amount' is the fiat amount (USD)
         data['source_amount'].to_f

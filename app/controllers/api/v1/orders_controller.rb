@@ -719,18 +719,19 @@ module Api
 
         case gateway
         when 'rexpay'
-          # RexPay charges in USD directly (no FX conversion).
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
           frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
           {
             url: RexpayService.new.create_payment(
               email: email,
-              amount: amount,
-              currency: 'USD',
+              amount: amount_ngn,
+              currency: 'NGN',
               reference: reference,
               callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
             )[:payment_url],
-            amount: amount,
-            currency: 'USD'
+            amount: amount_ngn,
+            currency: 'NGN'
           }
         when 'plisio'
           {

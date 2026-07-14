@@ -25,6 +25,10 @@ module ActiveSupport
       RexpayService.any_instance.stubs(:create_payment).returns({ payment_url: 'http://mock-rexpay.com' })
       RexpayService.any_instance.stubs(:generate_payment_link).returns('http://mock-rexpay.com')
       RexpayService.any_instance.stubs(:verify_transaction).returns({ status: 'success', amount: 0.0, currency: 'NGN' })
+      RexpayService.stubs(:ngn_charge_amount).returns(150_000)
+
+      # Stub the FX lookup so tests never hit the network (fixed test rate, not a production value)
+      FixerService.stubs(:get_rate).returns(1500.0)
 
       # Global stub for MyProxyApiClient to prevent network calls and test failures
       MyProxyApiClient.any_instance.stubs(:place_order).returns({ 'data' => { 'order_id' => 'mock_123' },
