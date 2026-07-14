@@ -162,7 +162,7 @@ module Api
         end
 
         items = params[:items] || []
-        gateway = params[:gateway] || 'paystack'
+        gateway = params[:gateway] || 'rexpay'
         customer_email = params[:customer_email]
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
@@ -604,7 +604,7 @@ module Api
       # ── infrastructure: Gateway-based order ──
       # Creates a CheckoutSession, returns payment link. Customer email receives credentials after payment.
       def create_infrastructure_order(product, pricing, custom_metadata = nil)
-        gateway = params[:gateway] || 'paystack'
+        gateway = params[:gateway] || 'rexpay'
         customer_email = params[:customer_email] || (custom_metadata ? custom_metadata['customer_email'] : nil)
 
         return render json: { error: 'customer_email is required for infrastructure orders' }, status: :bad_request if customer_email.blank?
@@ -718,18 +718,18 @@ module Api
         frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{gateway}&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
 
         case gateway
-        when 'paystack'
+        when 'rexpay'
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
           {
-            url: PaystackService.new.initialize_transaction(
+            url: RexpayService.new.create_payment(
               email: email,
-              amount: (amount_ngn * 100).to_i,
+              amount: amount_ngn, # NGN, major units
+              currency: 'NGN',
               reference: reference,
-              callback_url: frontend_callback_url,
-              metadata: { checkout_session_id: session.id, reseller_id: current_reseller.id, type: 'reseller_checkout' }
-            )[:authorization_url],
+              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
+            )[:payment_url],
             amount: amount_ngn,
             currency: 'NGN'
           }

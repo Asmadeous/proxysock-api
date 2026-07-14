@@ -5,8 +5,7 @@ import {
     ArrowPathIcon, 
     CheckCircleIcon, 
     ExclamationTriangleIcon,
-    WalletIcon,
-    CreditCardIcon
+    WalletIcon
 } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 
@@ -103,7 +102,6 @@ export default function ManageSubscriptionModal({
                             <div className="grid grid-cols-1 gap-2">
                                 {[
                                     { id: 'wallet', name: 'Wallet Balance', icon: WalletIcon },
-                                    { id: 'paystack', name: 'Saved Card (Paystack)', icon: CreditCardIcon },
                                     // { id: 'fastspring', name: 'FastSpring Checkout', icon: TicketIcon }
                                 ].map((method) => (
                                     <button

@@ -14,7 +14,7 @@ class FixerService
     return cached_rate if cached_rate.present?
 
     api_key = ENV['FIXER_API_KEY']
-    return ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f if api_key.blank?
+    return ENV.fetch('NGN_USD_RATE', '1500').to_f if api_key.blank?
 
     begin
       # Fixer.io free plan only supports EUR as base.
@@ -34,11 +34,11 @@ class FixerService
         rate
       else
         Rails.logger.error("[FixerService] API Error: #{data['error']['info']}")
-        ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
+        ENV.fetch('NGN_USD_RATE', '1500').to_f
       end
     rescue StandardError => e
       Rails.logger.error("[FixerService] Unified Error: #{e.message}")
-      ENV.fetch('PAYSTACK_NGN_USD_RATE', '1500').to_f
+      ENV.fetch('NGN_USD_RATE', '1500').to_f
     end
   end
 end

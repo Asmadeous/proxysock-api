@@ -97,7 +97,7 @@ export default function ResApiDocs() {
         },
         {
             id: "order-cart", category: "orders", method: "POST", path: "/api/v1/orders/checkout_cart",
-            name: "Checkout Cart (Infrastructure)", description: "Generates a payment gateway link for batch orders on behalf of a managed user. Supported 'gateway' values: 'paystack' (Fiat/Cards), 'plisio' (Crypto), 'payvra' (Crypto), 'hundredpay' (Crypto/Local). The 'customer_email' MUST match a provisioned Sub-User.",
+            name: "Checkout Cart (Infrastructure)", description: "Generates a payment gateway link for batch orders on behalf of a managed user. Supported 'gateway' values: 'rexpay' (Fiat/Cards), 'plisio' (Crypto), 'payvra' (Crypto), 'hundredpay' (Crypto/Local). The 'customer_email' MUST match a provisioned Sub-User.",
             visible: isEnterprise,
             body: { gateway: "plisio", customer_email: "client@ex.com", items: [{ product_id: 15, quantity: 1, metadata: { period: "1", protocol: "http" } }] },
             response: { payment_url: "https://plisio.net/checkout/...", reference: "ref_123" }
@@ -224,7 +224,7 @@ export default function ResApiDocs() {
             id: "billing-deposit", category: "billing", method: "POST", path: "/api/v1/resellers/:id/deposit",
             name: "Initiate Deposit", description: "Top up your API wallet balance. Only available for API-Only and Single-Product partners.",
             visible: !isEnterprise,
-            body: { amount: 50.00, gateway: "paystack", currency: "USD" },
+            body: { amount: 50.00, gateway: "rexpay", currency: "USD" },
             response: { authorization_url: "https://checkout..." }
         },
         {

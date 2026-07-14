@@ -21,7 +21,7 @@ interface UsePaymentCheckoutHandlersProps {
   setUserBalance: React.Dispatch<React.SetStateAction<number>>;
   setIsLoadingPlisio: React.Dispatch<React.SetStateAction<boolean>>;
 
-  setIsLoadingPaystack: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingRexpay: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingFastspring: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHeleket?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -43,7 +43,7 @@ export const usePaymentCheckoutHandlers = ({
   setUserBalance,
   setIsLoadingPlisio,
 
-  setIsLoadingPaystack,
+  setIsLoadingRexpay,
   setIsLoadingHundredpay,
   setIsLoadingFastspring,
   setIsLoadingHeleket,
@@ -240,7 +240,7 @@ export const usePaymentCheckoutHandlers = ({
 
   const handlePlisioCheckout = () => handleDepositGateway('plisio', setIsLoadingPlisio);
 
-  const handlePaystackCheckout = () => handleDepositGateway('paystack', setIsLoadingPaystack);
+  const handleRexpayCheckout = () => handleDepositGateway('rexpay', setIsLoadingRexpay);
   const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
   const handleFastSpringCheckout = () => handleDepositGateway('fastspring', setIsLoadingFastspring);
   const handleHeleketCheckout = () => setIsLoadingHeleket && handleDepositGateway('heleket', setIsLoadingHeleket);
@@ -249,7 +249,7 @@ export const usePaymentCheckoutHandlers = ({
     handleBalancePayment,
     handlePlisioCheckout,
 
-    handlePaystackCheckout,
+    handleRexpayCheckout,
     handleHundredpayCheckout,
     handleFastSpringCheckout,
     handleHeleketCheckout,

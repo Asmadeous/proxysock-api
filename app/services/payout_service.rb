@@ -5,7 +5,7 @@
 #
 # Payout routing:
 #   - crypto (plisio): Automatically dispatched to the gateway
-#   - non-crypto (paystack/hundredpay/manual): Creates a pending payout and
+#   - non-crypto (rexpay/hundredpay/manual): Creates a pending payout and
 #     notifies admin for manual processing with account details
 class PayoutService
   class InsufficientBalanceError < StandardError; end
@@ -18,7 +18,7 @@ class PayoutService
   CRYPTO_GATEWAYS = %w[plisio heleket].freeze
 
   # Gateways that require manual admin processing
-  MANUAL_GATEWAYS = %w[paystack hundredpay manual].freeze
+  MANUAL_GATEWAYS = %w[rexpay hundredpay manual].freeze
 
   def initialize(reseller)
     @reseller = reseller

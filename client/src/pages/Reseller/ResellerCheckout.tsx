@@ -39,7 +39,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
 
-    const [isLoadingPaystack, setIsLoadingPaystack] = useState(false);
+    const [isLoadingRexpay, setIsLoadingRexpay] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
 
@@ -125,7 +125,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
 
     const {
         handleBalancePayment,
-        handlePaystackCheckout,
+        handleRexpayCheckout,
         handleHundredpayCheckout,
 
         handlePlisioCheckout,
@@ -142,7 +142,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         setUserBalance,
         setIsLoadingPlisio,
 
-        setIsLoadingPaystack,
+        setIsLoadingRexpay,
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
 
@@ -159,7 +159,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
 
     const handleCheckout = () => {
         if (selectedPaymentMethod === "balance") handleBalancePayment();
-        else if (selectedPaymentMethod === "paystack") handlePaystackCheckout();
+        else if (selectedPaymentMethod === "rexpay") handleRexpayCheckout();
         else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
@@ -210,7 +210,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     };
 
     const isProcessing =
-        isLoadingBalance || isLoadingPaystack || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isAnyPaymentProcessing;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -263,15 +263,15 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                     </Label>
                                 </div>
 
-                                {/* Paystack Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "paystack" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="paystack" id="paystack" className="sr-only" />
-                                    <Label htmlFor="paystack" className="flex items-center gap-4 w-full cursor-pointer">
+                                {/* RexPay Option */}
+                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "rexpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
+                                    <RadioGroupItem value="rexpay" id="rexpay" className="sr-only" />
+                                    <Label htmlFor="rexpay" className="flex items-center gap-4 w-full cursor-pointer">
                                         <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
-                                            <img src="/paystack.png" alt="Paystack" className="w-full h-full object-contain" />
+                                            <img src="/rexpay.svg" alt="RexPay" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-semibold">Paystack (Card)</div>
+                                            <div className="font-semibold">RexPay (Card)</div>
                                             <div className="text-sm text-muted-foreground">Pay with NGN</div>
                                         </div>
                                     </Label>
@@ -405,8 +405,8 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
                                         <span>-${promoDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
-                                {/* Show NGN estimate if Paystack selected */}
-                                {selectedPaymentMethod === "paystack" && exchangeRate && (
+                                {/* Show NGN estimate if RexPay selected */}
+                                {selectedPaymentMethod === "rexpay" && exchangeRate && (
                                     <div className="flex justify-between text-cyan-600 dark:text-cyan-400 font-medium">
                                         <span>Est. NGN Total</span>
                                         <span>₦{(finalTotal * exchangeRate).toLocaleString()}</span>

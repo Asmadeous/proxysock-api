@@ -35,11 +35,11 @@ module Web
       # POST /web/api/wallet/deposit
       def deposit
         amount = params[:amount].to_f
-        gateway = params[:gateway] # 'paystack', 'plisio', 'hundredpay', 'fastspring', 'heleket'
+        gateway = params[:gateway] # 'rexpay', 'plisio', 'hundredpay', 'fastspring', 'heleket'
         currency = params[:currency] || 'USD'
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[paystack plisio hundredpay fastspring heleket].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket].include?(gateway)
 
         # Create pending deposit
         # Store the exchange rate at deposit creation time so the webhook
@@ -73,21 +73,19 @@ module Web
         callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
 
         case gateway
-        when 'paystack'
-          # Use FixerService to fetch current NGN/USD rate
+        when 'rexpay'
+          # Use FixerService to fetch current NGN/USD rate — RexPay charges NGN (major units)
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          service = PaystackService.new
-          result = service.initialize_transaction(
+          success_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=deposit&amount=#{deposit.amount}"
+          result = RexpayService.new.create_payment(
             email: current_actor.email,
-            phone: current_actor.try(:phone),
-            country: current_actor.try(:country),
-            amount: (amount_ngn * 100).to_i, # Paystack uses kobo
+            amount: amount_ngn,
+            currency: 'NGN',
             reference: deposit.metadata['transaction_ref'],
-            callback_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=deposit&amount=#{deposit.amount}",
-            metadata: { deposit_id: deposit.id, user_id: current_actor.id }
+            callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], success_url)
           )
-          { url: result[:authorization_url], amount: amount_ngn, currency: 'NGN' }
+          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
 
         when 'plisio'
           service = PlisioService.new

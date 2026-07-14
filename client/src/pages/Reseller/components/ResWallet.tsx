@@ -29,7 +29,7 @@ export default function ResWallet() {
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
     const [withdrawDetails, setWithdrawDetails] = useState<Record<string, string>>({});
-    const [paymentGateway, setPaymentGateway] = useState("paystack");
+    const [paymentGateway, setPaymentGateway] = useState("rexpay");
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
@@ -365,21 +365,21 @@ export default function ResWallet() {
                             <div className="space-y-3">
                                 <Label className="text-sm font-bold ml-1">Secure Gateway</Label>
                                 <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {/* Paystack Option */}
+                                    {/* RexPay Option */}
                                     <div 
-                                        onClick={() => setPaymentGateway("paystack")}
-                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "paystack" ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
+                                        onClick={() => setPaymentGateway("rexpay")}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between group cursor-pointer ${paymentGateway === "rexpay" ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 shrink-0 bg-white rounded-xl p-1 border shadow-sm flex items-center justify-center">
-                                                <img src="/paystack.png" alt="Paystack" className="w-full h-full object-contain" />
+                                                <img src="/rexpay.svg" alt="RexPay" className="w-full h-full object-contain" />
                                             </div>
                                             <div>
-                                                <p className="font-black text-sm uppercase tracking-tight">Paystack Checkout</p>
+                                                <p className="font-black text-sm uppercase tracking-tight">RexPay Checkout</p>
                                                 <p className="text-[10px] font-medium text-muted-foreground">Instant Credit Activation (NGN)</p>
                                             </div>
                                         </div>
-                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "paystack" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />
+                                        <div className={`h-5 w-5 rounded-full border-4 transition-all ${paymentGateway === "rexpay" ? "border-primary bg-white shadow-inner" : "border-muted-foreground/30"}`} />
                                     </div>
 
                                     {/* FastSpring Option */}

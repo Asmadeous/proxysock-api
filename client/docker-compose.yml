@@ -6,7 +6,6 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_STRIPE_PUBLIC_KEY=${VITE_STRIPE_PUBLIC_KEY}
-        - VITE_PAYSTACK_PUBLIC_KEY=${VITE_PAYSTACK_PUBLIC_KEY}
         - VITE_REDDIT_PIXEL_ID=${VITE_REDDIT_PIXEL_ID}
         - VITE_HUNDREDPAY_PUBLIC_KEY=${VITE_HUNDREDPAY_PUBLIC_KEY}
     ports:
@@ -30,7 +29,6 @@ services:
       - "3000:3000"
     environment:
       - VITE_STRIPE_PUBLIC_KEY=${VITE_STRIPE_PUBLIC_KEY}
-      - VITE_PAYSTACK_PUBLIC_KEY=${VITE_PAYSTACK_PUBLIC_KEY}
       - VITE_REDDIT_PIXEL_ID=${VITE_REDDIT_PIXEL_ID}
       - VITE_HUNDREDPAY_PUBLIC_KEY=${VITE_HUNDREDPAY_PUBLIC_KEY}
     command: sh -c "npm install && npm run dev"

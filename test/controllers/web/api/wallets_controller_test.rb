@@ -29,7 +29,7 @@ module Web
 
       test 'should initiate deposit' do
         post '/web/api/wallet/deposit',
-             params: { amount: 100.0, gateway: 'paystack' },
+             params: { amount: 100.0, gateway: 'rexpay' },
              headers: auth_header(@user)
 
         assert_response :success

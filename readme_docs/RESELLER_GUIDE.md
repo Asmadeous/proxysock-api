@@ -88,4 +88,4 @@ Resellers should configure a `webhook_url` in their dashboard to receive real-ti
 ## 💰 Financial Hub
 - **Immutable Ledger**: Every credit and debit is a permanent record. Balance is dynamically calculated from the transaction sum.
 - **Minimum Deposit**: Configurable in the admin settings.
-- **Supported Deposit Methods**: 100Pay (Cards/Crypto), Paystack, Plisio.
+- **Supported Deposit Methods**: 100Pay (Cards/Crypto), RexPay (Cards), Plisio.

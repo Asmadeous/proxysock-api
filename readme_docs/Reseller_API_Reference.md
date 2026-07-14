@@ -209,7 +209,7 @@ Allows batch ordering of multiple items and returns a payment link.
 **Request Body:**
 ```json
 {
-  "gateway": "paystack",
+  "gateway": "rexpay",
   "customer_email": "client@example.com",
   "items": [
     {
@@ -283,11 +283,11 @@ Toggle auto-renewal for a service.
 ```json
 {
   "amount": 50.00,
-  "gateway": "paystack", 
+  "gateway": "rexpay", 
   "currency": "USD"
 }
 ```
-*Supported Gateways: `paystack`, `plisio`, `payvra`, `hundredpay`, `fastspring`.*
+*Supported Gateways: `rexpay`, `plisio`, `payvra`, `hundredpay`, `fastspring`.*
 
 ---
 

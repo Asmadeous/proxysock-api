@@ -75,7 +75,7 @@ RSpec.describe 'api/v1/resellers', type: :request do
         type: :object,
         properties: {
           amount: { type: :number, example: 1500.0 },
-          gateway: { type: :string, example: 'paystack' },
+          gateway: { type: :string, example: 'rexpay' },
           currency: { type: :string, example: 'USD' }
         },
         required: %w[amount gateway]
@@ -86,7 +86,15 @@ RSpec.describe 'api/v1/resellers', type: :request do
         let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
         let(:Authorization) { "Bearer #{token}" }
         let(:id) { reseller.id }
-        let(:deposit_data) { { amount: 1500.0, gateway: 'paystack' } }
+        let(:deposit_data) { { amount: 1500.0, gateway: 'rexpay' } }
+
+        before do
+          allow(FixerService).to receive(:get_rate).and_return(1500.0)
+          rexpay = instance_double(RexpayService)
+          allow(RexpayService).to receive(:new).and_return(rexpay)
+          allow(rexpay).to receive(:create_payment).and_return({ payment_url: 'https://rexpay.example/pay/abc' })
+        end
+
         run_test!
       end
     end

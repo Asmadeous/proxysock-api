@@ -23,7 +23,7 @@ The backend follows a standard Rails structure with several domain-specific addi
   - `api/v1/`: Reseller-facing API endpoints (Orders, VMs, Webhooks, Billing).
   - `web/api/`: Frontend-facing API endpoints for the E-commerce app (Cart, Auth, Affiliate).
   - `admin/api/`: SuperAdmin/Employee internal endpoints (System Monitoring, Audit Logs, CMS).
-  - `webhooks/`: Gateway-specific handlers (Paystack, Plisio, eSIM Access).
+  - `webhooks/`: Gateway-specific handlers (RexPay, Plisio, eSIM Access).
   - `vm_callbacks/`: Handles status updates from Ansible provisioning playbooks.
 - **`services/`**: The Core Logic.
   - `OrderProvisioningService.rb`: Orchestrates activation across all product types.

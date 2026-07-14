@@ -4,20 +4,42 @@ require 'digest'
 require 'base64'
 
 class WebhooksController < ApplicationController
-  def paystack
-    payload = request.body.read
-    signature = request.headers['x-paystack-signature']
+  def rexpay
+    # RexPay hits the callbackUrl (user redirect and/or server notification)
+    # without a documented signature, so the payload is never trusted — the
+    # charge is confirmed server-side via getTransactionStatus before crediting.
+    data =
+      begin
+        JSON.parse(request.raw_post)
+      rescue StandardError
+        {}
+      end
+    data = params.to_unsafe_h.except('controller', 'action', 'format').merge(data)
 
-    # Verify HMAC-SHA512 signature (Paystack docs)
-    expected = OpenSSL::HMAC.hexdigest('SHA512', ENV['PAYSTACK_SECRET_KEY'], payload)
-    return head :bad_request unless Rack::Utils.secure_compare(expected, signature.to_s)
+    reference = data['reference'] || data['paymentReference'] || data['transactionReference']
 
-    event = JSON.parse(payload)
-    if event['event'] == 'charge.success'
-      # Pass full data to handle_payment to allow token extraction
-      handle_payment(event['data'], 'paystack')
+    if reference.blank?
+      Rails.logger.warn('[Webhook] RexPay: missing transaction reference in payload')
+      return rexpay_respond(:bad_request)
     end
-    head :ok
+
+    verification = RexpayService.new.verify_transaction(reference)
+
+    if verification[:status] == 'success'
+      handle_payment(
+        {
+          'reference' => reference,
+          'amount' => verification[:amount],
+          'currency' => verification[:currency],
+          'metadata' => data['metadata'] || {}
+        },
+        'rexpay'
+      )
+    else
+      Rails.logger.info("[Webhook] RexPay: payment #{reference} not successful yet (#{verification[:error]})")
+    end
+
+    rexpay_respond(:ok)
   end
 
   def plisio
@@ -183,6 +205,18 @@ class WebhooksController < ApplicationController
 
   private
 
+  # Browser GETs (the payer returning from RexPay) are forwarded to the frontend
+  # success page; server-to-server POSTs get a plain status. Only same-origin
+  # frontend URLs are honoured to avoid an open redirect.
+  def rexpay_respond(status)
+    return head(status) unless request.get?
+
+    target = params[:redirect_to].to_s
+    frontend = ENV['FRONTEND_URL'].to_s
+    target = frontend if frontend.blank? || !target.start_with?(frontend)
+    redirect_to(target.presence || '/', allow_other_host: true)
+  end
+
   def handle_payment(data, gateway)
     reference = data['reference'] || data[:reference] || data['order_number'] || data[:order_number]
     return unless reference
@@ -205,12 +239,12 @@ class WebhooksController < ApplicationController
     return unless deposit && deposit.status == 'pending'
 
     # Normalise the paid amount to USD.
-    # Paystack amounts are in kobo (NGN × 100).  We stored deposit.amount in USD,
-    # so we must convert: kobo → NGN → USD.
+    # RexPay charges in NGN (major units). We stored deposit.amount in USD,
+    # so we must convert: NGN → USD.
     paid_amount_usd =
       case gateway
-      when 'paystack'
-        paid_ngn       = data['amount'].to_f / 100.0 # kobo → NGN
+      when 'rexpay'
+        paid_ngn       = data['amount'].to_f
         exchange_rate  = deposit.metadata['exchange_rate'].to_f
         exchange_rate  = FixerService.get_rate('USD', 'NGN') if exchange_rate.zero?
         paid_ngn / exchange_rate # NGN → USD
@@ -295,10 +329,8 @@ class WebhooksController < ApplicationController
 
     ActiveRecord::Base.transaction do
       # Capture gateway tokens for recurring billing
-      if gateway == 'paystack'
-        auth_code = data.dig('authorization', 'authorization_code')
-        session.metadata['paystack_auth_code'] = auth_code if auth_code
-      elsif gateway == 'fastspring'
+      # (RexPay has no token-recharge API, so nothing to capture for it.)
+      if gateway == 'fastspring'
         # Extract subscription ID from the first item if available
         # Webhook 'order.completed' data structure: data -> items -> [ { subscription: "..." }, ... ]
         raw_fs = data['raw_data'] || data

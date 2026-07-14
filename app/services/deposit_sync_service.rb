@@ -26,8 +26,15 @@ class DepositSyncService
 
   def verify_with_gateway
     case @gateway
-    when 'paystack'
-      PaystackService.new.verify_transaction(@deposit.metadata['transaction_ref'])
+    when 'rexpay'
+      result = RexpayService.new.verify_transaction(@deposit.metadata['transaction_ref'])
+      if result[:status] == 'success'
+        # RexPay charges NGN (major units); the wallet is credited in USD
+        rate = @deposit.metadata['exchange_rate'].to_f
+        rate = FixerService.get_rate('USD', 'NGN') if rate.zero?
+        result[:amount] = (result[:amount].to_f / rate).round(2)
+      end
+      result
     when 'plisio'
       PlisioService.new.verify_transaction(@deposit.metadata['transaction_ref'])
     when 'heleket'

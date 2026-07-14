@@ -3,6 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe 'Web::Api::Orders', type: :request do
+  include ActiveJob::TestHelper
+
   let(:user) { User.create!(username: 'order_user', email: 'order@test.com', first_name: 'O', last_name: 'U', password: 'password123', country_code: 'US', city: 'New York') }
   let(:wallet) { user.wallet }
   let(:token) { user.generate_jwt }
@@ -30,6 +32,8 @@ RSpec.describe 'Web::Api::Orders', type: :request do
         allow_any_instance_of(OrderProvisioningService).to receive(:provision_product!).and_return(true)
         # Mocking invoices to avoid background job/mailer noise
         allow_any_instance_of(InvoicePdfService).to receive(:generate_and_attach!).and_return(true)
+        # Mocking Jellyfin account creation to avoid shelling out to curl
+        allow_any_instance_of(JellyfinService).to receive(:create_user).and_return(true)
       end
 
       it 'creates an order and deducts balance' do
@@ -37,8 +41,12 @@ RSpec.describe 'Web::Api::Orders', type: :request do
           post '/web/api/orders', params: params, headers: headers
         end.to change(Order, :count).by(1)
 
-        puts response.body
         expect(response).to have_http_status(:created)
+
+        # The wallet debit happens inside OrderProvisioningJob (provisioning
+        # runs in the background) — execute it to observe the deduction.
+        perform_enqueued_jobs(only: OrderProvisioningJob)
+
         expect(wallet.reload.balance.to_f).to eq(90.0) # 100 - 10
       end
     end
@@ -53,20 +61,20 @@ RSpec.describe 'Web::Api::Orders', type: :request do
       end
     end
 
-    context 'with Paystack gateway' do
+    context 'with RexPay gateway' do
       before do
         allow(FixerService).to receive(:get_rate).and_return(1400.0)
-        mock_gateway = double('PaystackService')
-        allow(PaystackService).to receive(:new).and_return(mock_gateway)
-        allow(mock_gateway).to receive(:initialize_transaction).and_return({ authorization_url: 'http://pay.stack' })
+        mock_gateway = double('RexpayService')
+        allow(RexpayService).to receive(:new).and_return(mock_gateway)
+        allow(mock_gateway).to receive(:create_payment).and_return({ payment_url: 'http://rex.pay' })
       end
 
       it 'returns a payment URL and NGN amount' do
-        post '/web/api/orders', params: params.merge(payment_method: 'gateway', gateway: 'paystack'), headers: headers
+        post '/web/api/orders', params: params.merge(payment_method: 'gateway', gateway: 'rexpay'), headers: headers
 
         expect(response).to have_http_status(:accepted)
         json = JSON.parse(response.body)
-        expect(json['payment_url']).to eq('http://pay.stack')
+        expect(json['payment_url']).to eq('http://rex.pay')
         expect(json['payment_amount'].to_f).to eq(14_000.0) # 10 USD * 1400 NGN/USD
         expect(json['payment_currency']).to eq('NGN')
       end
@@ -78,11 +86,11 @@ RSpec.describe 'Web::Api::Orders', type: :request do
 
     it 'creates a checkout session for gateway payment' do
       allow(FixerService).to receive(:get_rate).and_return(1400.0)
-      mock_gateway = double('PaystackService')
-      allow(PaystackService).to receive(:new).and_return(mock_gateway)
-      allow(mock_gateway).to receive(:initialize_transaction).and_return({ authorization_url: 'http://pay.stack/cart' })
+      mock_gateway = double('RexpayService')
+      allow(RexpayService).to receive(:new).and_return(mock_gateway)
+      allow(mock_gateway).to receive(:create_payment).and_return({ payment_url: 'http://rex.pay/cart' })
 
-      post '/web/api/orders/checkout_cart', params: { items: items, payment_method: 'gateway', gateway: 'paystack' }, headers: headers
+      post '/web/api/orders/checkout_cart', params: { items: items, payment_method: 'gateway', gateway: 'rexpay' }, headers: headers
 
       expect(response).to have_http_status(:accepted)
       json = JSON.parse(response.body)

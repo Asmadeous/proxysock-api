@@ -451,8 +451,9 @@ module Admin
 
     def gateway_refund!(checkout, order)
       case checkout.payment_method
-      when 'paystack'
-        PaystackService.new.refund(checkout.gateway_reference, order.total_amount)
+      when 'rexpay'
+        # RexPay exposes no refund API — reverse the charge from the RexPay dashboard
+        raise 'RexPay refunds must be processed manually from the RexPay dashboard'
       when 'plisio'
         # Plisio does not support refunds via API — manual process
         raise 'Plisio refunds must be processed manually'

@@ -181,8 +181,8 @@ paths:
       description: Initiates a withdrawal request for earned commissions.
       parameters: []
       responses:
-        '200':
-          description: successful
+        '201':
+          description: created
       requestBody:
         content:
           application/json:
@@ -270,8 +270,6 @@ paths:
         Checkout session is created.'
       parameters: []
       responses:
-        '201':
-          description: api only order created
         '202':
           description: enterprise order initiated
       requestBody:
@@ -300,25 +298,6 @@ paths:
               required:
               - product_id
               - quantity
-  "/api/v1/orders/{id}/reorder":
-    parameters:
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: string
-    post:
-      summary: Reorder previous service
-      tags:
-      - Orders
-      security:
-      - Bearer: []
-      description: Re-purchases a previous order with identical metadata.
-      responses:
-        '200':
-          description: successful
-        '201':
-          description: created
   "/api/v1/orders/{id}/credentials":
     parameters:
     - name: id
@@ -335,8 +314,8 @@ paths:
       description: Returns technical credentials (IP, Port, Username, Password, ICCID,
         etc.) for the provisioned resource.
       responses:
-        '200':
-          description: successful
+        '202':
+          description: resource not yet provisioned
   "/api/v1/orders/stats":
     get:
       summary: Get Order Statistics
@@ -358,8 +337,8 @@ paths:
         Generates a payment gateway session.
       parameters: []
       responses:
-        '200':
-          description: successful
+        '202':
+          description: accepted
       requestBody:
         content:
           application/json:
@@ -368,7 +347,7 @@ paths:
               properties:
                 gateway:
                   type: string
-                  example: paystack
+                  example: rexpay
                 currency:
                   type: string
                   example: USD
@@ -456,42 +435,15 @@ paths:
           description: successful
         '404':
           description: not found
-  "/api/v1/product_categories":
+  "/api/v1/resellers/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
     get:
-      summary: List Product Categories
-      tags:
-      - Products
-      security:
-      - Bearer: []
-      responses:
-        '200':
-          description: successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  categories:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        name:
-                          type: string
-                        slug:
-                          type: string
-                        description:
-                          type: string
-                      example:
-                        id: 1
-                        name: Residential Proxies
-                        slug: residential-proxies
-                        description: Premium rotating residential IPs
-  "/api/v1/resellers/me":
-    get:
-      summary: Get My Profile
+      summary: Get Reseller Profile
       tags:
       - Reseller Profile
       security:
@@ -500,7 +452,7 @@ paths:
         '200':
           description: successful
     patch:
-      summary: Update My Profile
+      summary: Update Reseller Profile
       tags:
       - Reseller Profile
       security:
@@ -518,9 +470,9 @@ paths:
                 company_name:
                   type: string
                   example: Updated Partner Corp
-                phone_number:
+                email:
                   type: string
-                  example: "+15550123"
+                  example: new@example.com
   "/api/v1/resellers":
     get:
       summary: List Resellers
@@ -558,10 +510,10 @@ paths:
               properties:
                 amount:
                   type: number
-                  example: 500.0
+                  example: 1500.0
                 gateway:
                   type: string
-                  example: paystack
+                  example: rexpay
                 currency:
                   type: string
                   example: USD
@@ -693,6 +645,13 @@ paths:
       responses:
         '200':
           description: successful
+  "/api/v1/tickets/{id}/reply":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
     post:
       summary: Reply to Ticket
       tags:
@@ -732,8 +691,8 @@ paths:
       - Bearer: []
       parameters: []
       responses:
-        '201':
-          description: created
+        '202':
+          description: accepted
       requestBody:
         content:
           application/json:

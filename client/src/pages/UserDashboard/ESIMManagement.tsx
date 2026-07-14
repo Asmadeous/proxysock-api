@@ -656,7 +656,6 @@ const ESIMManagement = () => {
                     <div className="grid grid-cols-1 gap-2">
                       {[
                         { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
-                        { id: 'paystack', name: 'Saved Card (Paystack)', icon: DevicePhoneMobileIcon },
                         // { id: 'fastspring', name: 'FastSpring Subscription', icon: GlobeAltIcon }
                       ].map((method) => (
                         <button

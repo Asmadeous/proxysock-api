@@ -14,10 +14,16 @@ ProxySock supports multiple payment gateways to handle global transactions for b
   - `HUNDREDPAY_SECRET_KEY`: Secret API Key for verification.
   - `HUNDREDPAY_USER_ID`: Required for internal tracking.
 
-### 2. **Paystack**
-- **Features**: Primary gateway for African markets (Nigeria, Ghana, etc.). Supports Cards, Bank Transfer, and QR.
-- **Webhook**: `/webhooks/paystack`
-- **Logic**: Automatically converts USD amounts to NGN using real-time rates from `FixerService`.
+### 2. **RexPay**
+- **Features**: Primary card gateway (Global Accelerex). Supports Cards, Bank Transfer, and USSD via a hosted redirect checkout.
+- **Docs**: [https://rexpay-docs.globalaccelerex.com/docs](https://rexpay-docs.globalaccelerex.com/docs)
+- **Webhook / Callback**: `/webhooks/rexpay` (unsigned — the handler verifies every charge server-side via `getTransactionStatus` before crediting).
+- **Logic**: Automatically converts USD amounts to NGN (major units, not kobo) using real-time rates from `FixerService`.
+- **Environment Variables**:
+  - `REXPAY_USERNAME`: Account email (Basic Auth username).
+  - `REXPAY_SECRET_KEY`: Secret key (Basic Auth password).
+  - `REXPAY_BASE_URL`: API host — defaults to the sandbox (`https://pgs-sandbox.globalaccelerex.com`).
+- **Limitations**: No refund, transfer, or saved-card recharge API — refunds and payouts are processed manually from the RexPay dashboard.
 
 ### 3. **Plisio**
 - **Features**: Dedicated Cryptocurrency payment processor.
@@ -54,7 +60,7 @@ ProxySock supports multiple payment gateways to handle global transactions for b
 ---
 
 ## 🛠️ Security & Verfication
-Every webhook handler implements **HMAC Signature Verification** to prevent spoofing. Never disable signature checks in production.
-- **Paystack**: Verifies using `X-Paystack-Signature`.
+Every webhook handler verifies authenticity before crediting. Never disable these checks in production.
+- **RexPay**: Callbacks carry no signature; the handler confirms every charge server-side via `getTransactionStatus`.
 - **100Pay**: Verifies using `x-100pay-signature`.
 - **Plisio/Payvra**: Uses IP whitelisting and secret key matching.

@@ -10,7 +10,7 @@ RSpec.describe FixerService do
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:[]).with('FIXER_API_KEY').and_return(api_key)
-    allow(ENV).to receive(:fetch).with('PAYSTACK_NGN_USD_RATE', '1500').and_return(1500.0)
+    allow(ENV).to receive(:fetch).with('NGN_USD_RATE', '1500').and_return(1500.0)
     Rails.cache.clear
   end
 
@@ -50,7 +50,7 @@ RSpec.describe FixerService do
       end
 
       it 'falls back to the environment variable rate' do
-        allow(ENV).to receive(:fetch).with('PAYSTACK_NGN_USD_RATE', '1500').and_return('1550')
+        allow(ENV).to receive(:fetch).with('NGN_USD_RATE', '1500').and_return('1550')
         expect(FixerService.get_rate('USD', 'NGN')).to eq(1550.0)
       end
     end

@@ -21,9 +21,10 @@ module ActiveSupport
     fixtures :all
 
     setup do
-      # Global stub for PaystackService to prevent network calls
-      PaystackService.any_instance.stubs(:initialize_transaction).returns({ authorization_url: 'http://mock-paystack.com' })
-      PaystackService.any_instance.stubs(:generate_payment_link).returns('http://mock-paystack.com')
+      # Global stub for RexpayService to prevent network calls
+      RexpayService.any_instance.stubs(:create_payment).returns({ payment_url: 'http://mock-rexpay.com' })
+      RexpayService.any_instance.stubs(:generate_payment_link).returns('http://mock-rexpay.com')
+      RexpayService.any_instance.stubs(:verify_transaction).returns({ status: 'success', amount: 0.0, currency: 'NGN' })
 
       # Global stub for MyProxyApiClient to prevent network calls and test failures
       MyProxyApiClient.any_instance.stubs(:place_order).returns({ 'data' => { 'order_id' => 'mock_123' },

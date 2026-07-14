@@ -12,7 +12,6 @@ import {
   DocumentDuplicateIcon,
   PlusIcon,
   UserIcon,
-  KeyIcon,
   ServerIcon,
   DevicePhoneMobileIcon,
   WifiIcon,
@@ -625,7 +624,6 @@ export default function ProxyManagement() {
                     <div className="grid grid-cols-1 gap-3">
                       {[
                         { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
-                        { id: 'paystack', name: 'Saved Card (Paystack)', icon: KeyIcon },
                         // { id: 'fastspring', name: 'FastSpring Subscription', icon: ShoppingCartIcon }
                       ].map((method) => (
                         <button

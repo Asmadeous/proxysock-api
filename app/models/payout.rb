@@ -3,7 +3,7 @@
 class Payout < ApplicationRecord
   belongs_to :reseller
 
-  GATEWAYS = %w[paystack plisio hundredpay manual heleket].freeze
+  GATEWAYS = %w[rexpay plisio hundredpay manual heleket].freeze
   STATUSES = %w[pending processing completed failed].freeze
 
   # Crypto gateways are auto-dispatched; others are manually processed by admin
@@ -13,7 +13,9 @@ class Payout < ApplicationRecord
   CRYPTO_CURRENCIES = %w[BTC USDC ETH USDT].freeze
 
   validates :amount, numericality: { greater_than: 0 }
-  validates :gateway, inclusion: { in: GATEWAYS }
+  # on: :create so historical payouts on retired gateways (e.g. paystack) can
+  # still be marked completed/failed
+  validates :gateway, inclusion: { in: GATEWAYS }, on: :create
   validates :status, inclusion: { in: STATUSES }
 
   before_create :generate_reference

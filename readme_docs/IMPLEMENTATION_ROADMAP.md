@@ -19,7 +19,7 @@
   - [x] **eSIMs**: eSIM Access API integration, QR code generation.
   - [x] **Proxies**: XProxy, MyProxyApi, and Internal Inventory mapping.
   - [x] **VPNs**: WireGuard/OpenVPN config generation and downloads.
-- [x] **Payments**: Hundredpay, Paystack, Plisio, Payvra (Cards & Crypto).
+- [x] **Payments**: Hundredpay, RexPay, Plisio, Payvra (Cards & Crypto).
 - [x] **Financials**: Immutable ledger, Wallet system, Affiliate earnings.
 - [x] **Analytics**: Reddit CAPI, Pixel tracking, Daily metric aggregation.
 - [x] **Deployment**: Kamal (Docker), Zero-downtime, Sidekiq-cron scheduling.
@@ -496,7 +496,7 @@
 - [ ] Orders::ActivateService
 
 **Payment Services**
-- [ ] Payments::PaystackService (API integration)
+- [ ] Payments::RexpayService (API integration)
 - [ ] Payments::PlisioService (crypto)
 - [ ] Payments::PayvraService
 - [ ] Payments::RefundService
@@ -517,7 +517,7 @@
 - [ ] ProxmoxClient
 - [ ] XProxyClient
 - [ ] EsimClient
-- [ ] PaymentGatewayClients (Paystack, Plisio, Payvra)
+- [ ] PaymentGatewayClients (RexPay, Plisio, Payvra)
 
 **Utility Services**
 - [ ] Inventory::AllocationService
@@ -767,8 +767,8 @@
 
 ### Integrate Payment Gateways
 
-**Paystack Integration**
-- [ ] Set up Paystack API keys
+**RexPay Integration**
+- [ ] Set up RexPay API keys
 - [ ] Implement payment initiation
 - [ ] Handle payment callbacks
 - [ ] Implement refund processing

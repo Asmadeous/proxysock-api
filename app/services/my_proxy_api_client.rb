@@ -146,7 +146,7 @@ class MyProxyApiClient
   # @param target_section_id [Integer] Global ISP targetSectionId
   # @param target_id         [Integer] Global ISP targetId
   # @param resi              [Integer] Set to 1 for Residential Rotating V2
-  # @param debug             [String]  Payment method indicator (e.g. 'balance', 'paystack', 'reseller_balance')
+  # @param debug             [String]  Payment method indicator (e.g. 'balance', 'rexpay', 'reseller_balance')
   # @return [Hash] API response
   def place_order(user_id:, product_api_id:, period:, protocol: nil, locations: nil,
                   whitelist_ip: nil, type: nil, target_section_id: nil, target_id: nil, resi: nil, debug: nil, qty: nil)

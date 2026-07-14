@@ -6,13 +6,16 @@ class CheckoutSession < ApplicationRecord
 
   include AASM
 
-  PAYMENT_METHODS = %w[wallet paystack plisio hundredpay fastspring heleket].freeze
+  PAYMENT_METHODS = %w[wallet rexpay plisio hundredpay fastspring heleket].freeze
 
   # Alias for controllers that reference the gateway by this name
   alias_attribute :gateway, :payment_method
 
   validates :total_amount, presence: true, numericality: { greater_than: 0 }
-  validates :payment_method, presence: true, inclusion: { in: PAYMENT_METHODS }
+  # Inclusion checked on: :create so historical sessions on retired gateways
+  # (e.g. paystack) can still transition state
+  validates :payment_method, presence: true
+  validates :payment_method, inclusion: { in: PAYMENT_METHODS }, on: :create
   validates :gateway_reference, uniqueness: true, allow_nil: true
 
   aasm column: :status do
@@ -83,7 +86,7 @@ class CheckoutSession < ApplicationRecord
           end
 
           # Propagate gateway tokens for recurring billing
-          %w[paystack_auth_code fastspring_sub_id].each do |key|
+          %w[fastspring_sub_id].each do |key|
             order_metadata[key] = metadata[key] if metadata[key].present?
           end
 

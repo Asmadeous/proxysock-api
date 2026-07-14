@@ -21,7 +21,7 @@ interface BalanceProps {
   variant?: "default" | "sidebar";
 }
 
-type PaymentMethodType = 'paystack' | 'crypto_plisio' | 'crypto_hundredpay' | 'fastspring' | 'crypto_heleket';
+type PaymentMethodType = 'rexpay' | 'crypto_plisio' | 'crypto_hundredpay' | 'fastspring' | 'crypto_heleket';
 
 const PaymentMethodCard = ({
   title,
@@ -79,7 +79,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
   const [balance, setBalance] = useState<number | null>(null);
   const [currency, setCurrency] = useState<string>('USD');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('rexpay');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -233,9 +233,9 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                 />
                 <div className="text-sm text-muted-foreground mt-2">
                   <p>Current balance: {balance !== null ? formatBalance(balance) : 'Loading...'}</p>
-                  {paymentMethod === 'paystack' && (
+                  {paymentMethod === 'rexpay' && (
                     <p className="mt-1 text-warning">
-                      Note: Amount will be converted to NGN for Paystack payment
+                      Note: Amount will be converted to NGN for RexPay payment
                     </p>
                   )}
                 </div>
@@ -246,12 +246,12 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
                 </Label>
                 <div className="space-y-3">
                   <PaymentMethodCard
-                    id="paystack"
-                    title="Pay with Card (Paystack)"
+                    id="rexpay"
+                    title="Pay with Card (RexPay)"
                     description="Credit/Debit Cards, Mobile Money"
-                    imageUrl="/paystack.png"
-                    isSelected={paymentMethod === 'paystack'}
-                    onClick={() => setPaymentMethod('paystack')}
+                    imageUrl="/rexpay.svg"
+                    isSelected={paymentMethod === 'rexpay'}
+                    onClick={() => setPaymentMethod('rexpay')}
                     colorClass="cyan"
                     loading={loading}
                   />

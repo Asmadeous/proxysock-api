@@ -218,7 +218,6 @@ class OrderProvisioningService
     {
       'auto_renew' => @order.metadata['auto_renew'],
       'renewal_method' => @order.metadata['payment_debug'],
-      'paystack_auth_code' => @order.metadata['paystack_auth_code'],
       'fastspring_sub_id' => @order.metadata['fastspring_sub_id']
     }.compact
   end
@@ -372,7 +371,7 @@ class OrderProvisioningService
               tunnel_data = ltn_client.create_proxy_tunnel(
                 auth_token: active_token['token'],
                 protocol_type: 6, # HTTP
-                server_code: 'us10',
+                server_code: ltn_client.us_server_code,
                 ip_restrictions: ['0.0.0.0/0']
               )
               new_tunnel_id = tunnel_data['id'] || tunnel_data['tunnelId']
@@ -1017,7 +1016,7 @@ class OrderProvisioningService
       tunnel_data = ltn_client.create_proxy_tunnel(
         auth_token: active_token['token'],
         protocol_type: protocol,
-        server_code: 'us10', # Default to US-Chicago for USA Mobile orders
+        server_code: ltn_client.us_server_code, # USA Mobile orders need a US exit
         ip_restrictions: ['0.0.0.0/0']
       )
       new_tunnel_id = tunnel_data['id'] || tunnel_data['tunnelId']

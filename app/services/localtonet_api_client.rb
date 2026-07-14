@@ -27,7 +27,7 @@ class LocaltonetApiClient
 
   # POST /api/v2/tunnels/proxy — create a standard proxy tunnel (HTTP or SOCKS5)
   # protocol_type: 6 = HTTP, 7 = SOCKS5
-  def create_proxy_tunnel(auth_token:, protocol_type: 6, server_code: 'us10', local_server_ip: nil, ip_restrictions: [])
+  def create_proxy_tunnel(auth_token:, protocol_type: 6, server_code: nil, local_server_ip: nil, ip_restrictions: [])
     body = { authToken: auth_token, protocolType: protocol_type }
     body[:serverCode] = server_code if server_code
     body[:localServerIp] = local_server_ip if local_server_ip
@@ -194,6 +194,15 @@ class LocaltonetApiClient
 
   def list_servers
     get('/servers')
+  end
+
+  # LocalToNet reshuffles its server fleet over time (us10 no longer exists),
+  # so resolve a live US server code from /servers instead of hardcoding one.
+  def us_server_code
+    server = list_servers.find { |s| s['serverCode'].to_s.start_with?('us') }
+    raise ApiError, 'LocalToNet has no US server available' if server.nil?
+
+    server['serverCode']
   end
 
   private

@@ -19,7 +19,7 @@ Documentation is organized into modular guides within the `readme_docs/` directo
 - 📜 **[MyProxyApi Specification](readme_docs/MYPROXYAPI_SPEC.md)** - Detailed provider API documentation.
 
 ### 🛠️ Core Features & Integrations
-- 💳 **[Payment Gateways Guide](readme_docs/PAYMENT_GATEWAYS.md)** - 100Pay (Cards/Crypto), Paystack, Plisio, and Payvra.
+- 💳 **[Payment Gateways Guide](readme_docs/PAYMENT_GATEWAYS.md)** - 100Pay (Cards/Crypto), RexPay (Cards), Plisio, and Payvra.
 - 📦 **[Product Provisioning Engine](readme_docs/PRODUCT_PROVISIONING.md)** - Activation lifecycle for VMs (Proxmox), Proxies, VPNs, and eSIMs.
 - 📈 **[Analytics & SEO Strategy](readme_docs/ANALYTICS_SEO.md)** - Reddit CAPI, Pixel, and dynamic SEO components.
 - 💳 **[100Pay Integration Spec](readme_docs/100PAY_INTEGRATION_SPEC.md)** - Technical details for Hundredpay gateway.

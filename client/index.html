@@ -23,8 +23,6 @@
   <link rel="dns-prefetch" href="//googleads.g.doubleclick.net" />
   <link rel="dns-prefetch" href="//stats.g.doubleclick.net" />
   <link rel="dns-prefetch" href="//js.stripe.com" />
-  <link rel="dns-prefetch" href="//paystack.com" />
-  <link rel="dns-prefetch" href="//checkout.paystack.com" />
   <link rel="dns-prefetch" href="//v6.exchangerate-api.com" />
   <link rel="dns-prefetch" href="//*.datadoghq.com" />
   <link rel="dns-prefetch" href="//www.redditstatic.com" />
@@ -50,12 +48,9 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <!-- Updated CSP (ONLY CHANGE: style-src Paystack domains added) -->
   <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' http://localhost:* ws://localhost:* https://*.trycloudflare.com wss://*.trycloudflare.com;
       script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*
-        https://js.paystack.co
-        https://checkout.paystack.com
         https://www.googletagmanager.com
         https://www.google-analytics.com
         https://googleads.g.doubleclick.net
@@ -76,10 +71,6 @@
       style-src 'self' 'unsafe-inline'
         https://fonts.googleapis.com
         https://cdn.jsdelivr.net
-
-        https://checkout.paystack.com
-        https://paystack.com
-        https://js.paystack.co
         https://*.tawk.to;
 
       font-src 'self'
@@ -107,7 +98,6 @@
         https://meta-q.cdn.bubble.io
         https://payvra.com
         https://img.freepik.com
-        https://*.paystack.co
         https://api.dicebear.com
         https://apitest.proxysock.net
         https://*.tawk.to;
@@ -117,13 +107,10 @@
         https://googleads.g.doubleclick.net
         https://stats.g.doubleclick.net
         https://v6.exchangerate-api.com
-        https://api.paystack.co
         https://pixel-config.reddit.com
         https://conversions-config.reddit.com
         https://alb.reddit.com
         https://*.reddit.com
-        https://api.paystack.co
-        https://*.paystack.co
         https://newsdata.io
         https://static.cloudflareinsights.com
         https://*.cloudflareinsights.com
@@ -133,13 +120,12 @@
         https://*.tawk.to wss://*.tawk.to;
 
       frame-src 'self'
-        https://checkout.paystack.com
         https://challenges.cloudflare.com
         https://*.tawk.to;
 
       object-src 'none';
       base-uri 'self';
-      form-action 'self' https://*.paystack.co;
+      form-action 'self';
       upgrade-insecure-requests;
     " />
 
@@ -260,7 +246,6 @@
 
     // Global service availability tracker
     globalThis.serviceStatus = {
-      paystack: false,
       reddit: false,
       datadog: false,
     };
@@ -293,7 +278,6 @@
         "redditstatic",
         "reddit",
         "datadog",
-        "paystack",
         "cloudflareinsights",
       ];
       const filename = e.filename || "";
@@ -324,7 +308,6 @@
           "reddit",
           "pixel",
           "datadog",
-          "paystack",
           "cloudflare",
         ];
 
@@ -383,20 +366,9 @@
     }
 
     // Initialize services
+    // (Card payments run through RexPay's hosted redirect checkout — no
+    // client-side payment script to load.)
     function initializeServices() {
-
-      // Paystack
-      loadScriptSafely(
-        "https://js.paystack.co/v1/inline.js",
-        "Paystack",
-        (loaded) => {
-          globalThis.serviceStatus.paystack = loaded;
-          if (loaded) {
-            log.info("Paystack ready");
-          }
-        },
-      );
-
 
       // Datadog RUM
       loadScriptSafely(
@@ -445,10 +417,7 @@
           const adBlocked = testAd.offsetHeight === 0;
           document.body.removeChild(testAd);
 
-          const servicesBlocked =
-            !globalThis.serviceStatus.paystack;
-
-          if (adBlocked || servicesBlocked) {
+          if (adBlocked) {
             const notice = document.createElement("div");
             notice.className = "adblocker-notice";
             notice.innerHTML = `
@@ -538,18 +507,6 @@
           setTimeout(callback, delay);
         }
       };
-
-      // Critical: Payment scripts load after 3 seconds
-      scheduleWhenIdle(() => {
-        // Paystack
-        loadScriptSafely(
-          "https://js.paystack.co/v1/inline.js",
-          "Paystack",
-          (loaded) => {
-            globalThis.serviceStatus.paystack = loaded;
-          },
-        );
-      }, 3000);
 
       // Non-critical: Chat and analytics load after 5 seconds
       scheduleWhenIdle(() => {

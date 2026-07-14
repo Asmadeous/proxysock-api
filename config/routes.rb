@@ -443,15 +443,17 @@ Rails.application.routes.draw do
 
   # Webhooks
   scope :webhooks do
-    post 'paystack', to: 'webhooks#paystack'
+    post 'rexpay', to: 'webhooks#rexpay'
     post 'plisio', to: 'webhooks#plisio'
     post 'payvra', to: 'webhooks#payvra'
     post 'heleket', to: 'webhooks#heleket'
     post 'hundredpay', to: 'webhooks#hundredpay'
     post 'fastspring', to: 'webhooks#fastspring'
 
+    # RexPay redirects the payer to the callbackUrl via GET — verify then forward to frontend
+    get 'rexpay', to: 'webhooks#rexpay'
+
     # Handle accidental browser GET redirects from payment gateways by sending them to frontend
-    get 'paystack', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'plisio', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'payvra', to: redirect { ENV['FRONTEND_URL'] || '/' }
     get 'heleket', to: redirect { ENV['FRONTEND_URL'] || '/' }

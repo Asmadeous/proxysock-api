@@ -108,8 +108,10 @@ class BillingRenewalWorker < ApplicationJob
     renewal_amount = pricing.selling_price
     renewal_method = resource.metadata&.dig('renewal_method') || 'wallet'
 
-    # 1. Fallback to Gateway if balance is low and valid renewal method is set
-    if owner.wallet.balance < renewal_amount && %w[paystack fastspring].include?(renewal_method)
+    # 1. Fallback to Gateway if balance is low and valid renewal method is set.
+    # Only FastSpring supports off-session charging — RexPay has no
+    # token-recharge API, so card renewals must be funded via the wallet.
+    if owner.wallet.balance < renewal_amount && renewal_method == 'fastspring'
       attempt_gateway_charge(owner, resource, renewal_amount, renewal_method)
     end
 
@@ -183,20 +185,6 @@ class BillingRenewalWorker < ApplicationJob
 
     begin
       case method
-      when 'paystack'
-        auth_code = resource.metadata&.dig('paystack_auth_code')
-        if auth_code.present?
-          # Convert USD to NGN for Paystack charge
-          rate = FixerService.get_rate('USD', 'NGN') || 1500.0 # Fallback safety
-          amount_ngn = (amount * rate).round(2)
-          amount_kobo = (amount_ngn * 100).to_i
-
-          resp = PaystackService.new.charge_authorization(owner.email, amount_kobo, auth_code, reference)
-          if resp['status'] && resp.dig('data', 'status') == 'success'
-            success = true
-            gateway_ref = resp.dig('data', 'reference')
-          end
-        end
       when 'fastspring'
         sub_id = resource.metadata&.dig('fastspring_sub_id')
         if sub_id.present?

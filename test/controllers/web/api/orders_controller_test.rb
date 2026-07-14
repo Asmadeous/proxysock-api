@@ -67,7 +67,7 @@ module Web
         post '/web/api/orders',
              params: {
                product_id: @proxy_product.id,
-               payment_method: 'paystack' # or gateway
+               payment_method: 'rexpay' # or gateway
              },
              headers: auth_header(@user)
 

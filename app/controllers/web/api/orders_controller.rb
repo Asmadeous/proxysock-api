@@ -175,7 +175,7 @@ module Web
         meta[:globalTargetSectionId] = params[:globalTargetSectionId] if params[:globalTargetSectionId].present?
 
         meta[:client_ip] = request.remote_ip # Capture client IP for MyProxyAPI whitelist_ip requirement
-        meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'paystack')
+        meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'rexpay')
 
         # Create order
         order = Order.new(
@@ -272,7 +272,7 @@ module Web
 
         else
           # Redirect to payment gateway
-          gateway = params[:gateway] || 'paystack'
+          gateway = params[:gateway] || 'rexpay'
 
           # Record promo code usage for gateway payments
           promo_code_record&.record_use! if promo_discount.positive?
@@ -294,7 +294,7 @@ module Web
       def checkout_cart
         items = params[:items] || []
         payment_method = params[:payment_method] || 'wallet'
-        gateway = params[:gateway] || 'paystack'
+        gateway = params[:gateway] || 'rexpay'
         promo_code_input = params[:promo_code]&.strip&.upcase
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
@@ -1156,18 +1156,19 @@ module Web
         callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
 
         case gateway
-        when 'paystack'
+        when 'rexpay'
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
+          reference = "ORD_#{order.id}_#{SecureRandom.hex(4)}"
           {
-            url: PaystackService.new.initialize_transaction(
+            url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: (amount_ngn * 100).to_i, # in kobo
-              reference: "ORD_#{order.id}_#{SecureRandom.hex(4)}",
-              callback_url: frontend_callback_url,
-              metadata: { order_id: order.id, user_id: current_actor.id, type: 'order' }
-            )[:authorization_url],
+              amount: amount_ngn, # NGN, major units
+              currency: 'NGN',
+              reference: reference,
+              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
+            )[:payment_url],
             amount: amount_ngn,
             currency: 'NGN'
           }
@@ -1229,18 +1230,18 @@ module Web
         reference = session.gateway_reference
 
         case gateway
-        when 'paystack'
+        when 'rexpay'
           exchange_rate = FixerService.get_rate('USD', 'NGN')
           amount_ngn = (amount * exchange_rate).round(2)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=paystack&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
           {
-            url: PaystackService.new.initialize_transaction(
+            url: RexpayService.new.create_payment(
               email: current_actor.email,
-              amount: (amount_ngn * 100).to_i, # in kobo
+              amount: amount_ngn, # NGN, major units
+              currency: 'NGN',
               reference: reference,
-              callback_url: frontend_callback_url,
-              metadata: { checkout_session_id: session.id, user_id: current_actor.id, type: 'cart_checkout' }
-            )[:authorization_url],
+              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
+            )[:payment_url],
             amount: amount_ngn,
             currency: 'NGN'
           }
