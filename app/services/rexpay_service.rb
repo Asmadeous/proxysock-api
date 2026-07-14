@@ -57,7 +57,8 @@ class RexpayService
                          userId: user_id,
                          amount: amount_str,
                          currency: params[:currency] || 'NGN',
-                         callbackUrl: params[:callback_url]
+                         callbackUrl: params[:callback_url],
+                         isV2: true # align the flag with the /v2/ endpoint so the v2 checkout accepts the txn
                        })
 
     if response['paymentUrl'].blank?
