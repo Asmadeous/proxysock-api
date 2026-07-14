@@ -77,30 +77,31 @@ RSpec.describe 'Webhooks', type: :request do
       expect(wallet.reload.balance).to eq(0.0)
     end
 
-    it 'redirects the payer to the frontend success page on GET callbacks' do
+    it 'redirects the payer to a frontend success page rebuilt from the record' do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with('FRONTEND_URL').and_return('https://app.example.com')
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 70_000.0, currency: 'NGN' })
+                                                            .and_return({ status: 'success', amount: 71_050.0, currency: 'NGN' })
 
-      get '/webhooks/rexpay', params: {
-        reference: transaction_ref,
-        redirect_to: 'https://app.example.com/payments/success?payment=rexpay&type=deposit'
-      }
+      get '/webhooks/rexpay', params: { reference: transaction_ref }
 
-      expect(response).to redirect_to('https://app.example.com/payments/success?payment=rexpay&type=deposit')
+      expect(response).to have_http_status(:redirect)
+      expect(response.location).to start_with('https://app.example.com/payments/success?payment=rexpay')
+      expect(response.location).to include('type=deposit')
       expect(deposit.reload.status).to eq('completed')
     end
 
-    it 'ignores redirect_to outside the frontend origin (open redirect guard)' do
+    it 'never honours an attacker-supplied redirect_to param (no open redirect)' do
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with('FRONTEND_URL').and_return('https://app.example.com')
       expect(rexpay_service).to receive(:verify_transaction).with(transaction_ref)
-                                                            .and_return({ status: 'success', amount: 70_000.0, currency: 'NGN' })
+                                                            .and_return({ status: 'success', amount: 71_050.0, currency: 'NGN' })
 
       get '/webhooks/rexpay', params: { reference: transaction_ref, redirect_to: 'https://evil.example.com/phish' }
 
-      expect(response).to redirect_to('https://app.example.com')
+      expect(response).to have_http_status(:redirect)
+      expect(response.location).to start_with('https://app.example.com')
+      expect(response.location).not_to include('evil.example.com')
     end
   end
 end

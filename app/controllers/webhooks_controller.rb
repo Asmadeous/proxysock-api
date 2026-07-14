@@ -20,7 +20,7 @@ class WebhooksController < ApplicationController
 
     if reference.blank?
       Rails.logger.warn('[Webhook] RexPay: missing transaction reference in payload')
-      return rexpay_respond(:bad_request)
+      return rexpay_respond(:bad_request, reference)
     end
 
     verification = RexpayService.new.verify_transaction(reference)
@@ -39,7 +39,7 @@ class WebhooksController < ApplicationController
       Rails.logger.info("[Webhook] RexPay: payment #{reference} not successful yet (#{verification[:error]})")
     end
 
-    rexpay_respond(:ok)
+    rexpay_respond(:ok, reference)
   end
 
   def plisio
@@ -206,26 +206,34 @@ class WebhooksController < ApplicationController
   private
 
   # Browser GETs (the payer returning from RexPay) are forwarded to the frontend
-  # success page; server-to-server POSTs get a plain status. Only same-origin
-  # frontend URLs are honoured to avoid an open redirect.
-  def rexpay_respond(status)
+  # success page; server-to-server POSTs get a plain status.
+  def rexpay_respond(status, reference = nil)
     return head(status) unless request.get? || request.head?
 
-    target = params[:redirect_to].to_s
-    frontend = ENV['FRONTEND_URL'].to_s
+    redirect_to(rexpay_success_url(reference), allow_other_host: true)
+  end
 
-    if frontend.present? && target.start_with?(frontend)
-      remainder = target[frontend.length..]
-      safe_target = if remainder.blank? || remainder.start_with?('/')
-                      "#{frontend}#{remainder}"
-                    else
-                      frontend
-                    end
+  # Rebuild the frontend success URL from the paid record, so the callbackUrl we
+  # send to RexPay can stay clean (no nested query string). Only ever redirects
+  # to our own FRONTEND_URL, so there is no open-redirect surface.
+  def rexpay_success_url(reference)
+    frontend = ENV['FRONTEND_URL'].to_s.presence || '/'
+    return frontend if reference.blank?
+
+    base = "#{frontend}/payments/success?payment=rexpay"
+    case reference.to_s
+    when /\ACHECKOUT/
+      session = CheckoutSession.find_by(gateway_reference: reference)
+      session ? "#{base}&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{session.total_amount}" : frontend
+    when /\ADEP/
+      deposit = Deposit.where("metadata->>'transaction_ref' = ?", reference).first
+      deposit ? "#{base}&type=deposit&amount=#{deposit.amount}" : frontend
+    when /\AORD/
+      order = Order.find_by(id: reference.to_s[/\AORD([0-9a-fA-F]{32})/, 1])
+      order ? "#{base}&type=order&order_id=#{order.id}&amount=#{order.total_amount}" : frontend
     else
-      safe_target = frontend.presence || '/'
+      frontend
     end
-
-    redirect_to(safe_target, allow_other_host: true)
   end
 
   def handle_payment(data, gateway)

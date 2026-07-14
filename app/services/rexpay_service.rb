@@ -31,13 +31,13 @@ class RexpayService
     (base_ngn + fee).ceil
   end
 
-  # Builds the callbackUrl passed to createPayment. RexPay redirects the payer
-  # here on completion; we carry our own reference and the frontend success page
-  # in the query string so the webhook can verify then bounce the user onward.
-  def self.webhook_callback_url(reference, redirect_to = nil)
-    url = "#{ENV['APP_URL']}/webhooks/rexpay?reference=#{CGI.escape(reference.to_s)}"
-    url += "&redirect_to=#{CGI.escape(redirect_to)}" if redirect_to.present?
-    url
+  # Builds the callbackUrl passed to createPayment. Kept deliberately clean —
+  # only our reference, no nested/URL-encoded query values, which RexPay rejects
+  # as "inconsistent data". RexPay echoes the reference back and the webhook
+  # rebuilds the frontend success page from the looked-up record. The second arg
+  # is accepted for caller compatibility but intentionally ignored.
+  def self.webhook_callback_url(reference, _redirect_to = nil)
+    "#{ENV['APP_URL']}/webhooks/rexpay?reference=#{CGI.escape(reference.to_s)}"
   end
 
   # Creates a hosted payment and returns the checkout redirect URL.
