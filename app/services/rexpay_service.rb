@@ -7,7 +7,12 @@
 # Amounts are in MAJOR units (naira, not kobo).
 # RexPay exposes no refund, transfer or token-recharge API; those flows are manual.
 class RexpayService
+  # createPayment lives on the PGS service...
   BASE_URL = ENV.fetch('REXPAY_BASE_URL', 'https://pgs-sandbox.globalaccelerex.com')
+  # ...but getTransactionStatus lives on the separate CPS service, on a different
+  # host in production (pgs.globalaccelerex.com vs cps.globalaccelerex.com).
+  # Default by swapping the `pgs` host prefix for `cps`; override with env if needed.
+  CPS_BASE_URL = ENV.fetch('REXPAY_CPS_BASE_URL', BASE_URL.sub('//pgs', '//cps'))
 
   SUCCESS_CODE = '00'
 
@@ -80,9 +85,10 @@ class RexpayService
   # Server-side confirmation of a charge. RexPay callbacks carry no signature,
   # so this is the source of truth before crediting anything.
   def verify_transaction(reference)
+    # getTransactionStatus is on the CPS service (different host from createPayment).
     response = request(:post, '/api/cps/v1/getTransactionStatus', {
                          transactionReference: reference
-                       })
+                       }, base_url: CPS_BASE_URL)
 
     if response['responseCode'].to_s == SUCCESS_CODE
       {
@@ -93,14 +99,14 @@ class RexpayService
         channel: response['channel']
       }
     else
-      { status: 'failed', error: response['responseDescription'] || response['message'] }
+      { status: 'failed', error: response['responseDescription'] || response['responseMessage'] || response['message'] }
     end
   end
 
   private
 
-  def request(method, endpoint, body = nil)
-    uri = URI("#{BASE_URL}#{endpoint}")
+  def request(method, endpoint, body = nil, base_url: BASE_URL)
+    uri = URI("#{base_url}#{endpoint}")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == 'https'
 

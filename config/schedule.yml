@@ -37,3 +37,7 @@ localtonet_bandwidth_sync:
 resource_alert_check:
   cron: "*/5 * * * *"   # Every 5 minutes
   class: "ResourceAlertCheckJob"
+
+rexpay_reconciliation:
+  cron: "*/5 * * * *"   # Every 5 minutes — fallback poller for RexPay (no webhook)
+  class: "RexpayReconciliationJob"
