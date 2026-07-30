@@ -170,6 +170,8 @@ class MyProxyApiClient
 
   # Get price for a potential order.
   # Endpoint: POST /products/get-price
+  # NOTE: for Global ISP, `product` is the NUMBER OF PROXIES (the count) — the
+  # provider derives the volume tier/price from it — not a catalog id.
   def get_price(user_id:, product_api_id:, period:, type: nil, qty: nil)
     payload = {
       user_id: user_id.to_i,

@@ -107,42 +107,17 @@ class ResourceAlertCheckJob < ApplicationJob
       recipient_id: recipient_data[:id],
       notified_at: Time.current
     )
-
-    # Send Email
-    return unless alert.recipient_email.present?
-
-    alert_hash = {
-      resource_type: resource_type,
-      resource_name: resource_name,
-      resource_id: resource_id,
-      metric: metric,
-      value: value,
-      threshold: threshold,
-      owner_name: recipient_data[:name]
-    }
-    AlertMailer.resource_alert(alert.recipient_email, alert_hash).deliver_later
+    # Email notification for resource spikes removed — the alert is still tracked
+    # (firing state + cooldown), we just no longer send an email.
   end
 
-  def handle_resolved_threshold(resource_type, resource_id, metric, value, threshold, resource_name, recipient_data)
-    # Find active firing alert
+  def handle_resolved_threshold(resource_type, resource_id, metric, _value, _threshold, _resource_name, _recipient_data)
+    # Find the active firing alert and resolve it. Email notification for resources
+    # falling back under threshold removed — no email is sent.
     alert = ResourceAlert.firing.find_by(resource_type: resource_type, resource_id: resource_id, metric: metric)
     return unless alert
 
     alert.resolve!
-
-    # Send resolution email if we previously sent an alert email
-    return unless alert.recipient_email.present?
-
-    alert_hash = {
-      resource_type: resource_type,
-      resource_name: resource_name,
-      resource_id: resource_id,
-      metric: metric,
-      value: value,
-      threshold: threshold,
-      owner_name: recipient_data&.dig(:name)
-    }
-    AlertMailer.resource_resolved(alert.recipient_email, alert_hash).deliver_later
   end
 
   def resolve_ownership(vm)

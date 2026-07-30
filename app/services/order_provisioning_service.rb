@@ -618,7 +618,12 @@ class OrderProvisioningService
 
       client_ip = @order.metadata['client_ip']
       protocol  = @order.metadata['protocol'] || 'http'
-      api_id    = @product.provider_product_id
+      # For Global ISP, MyProxyApi's `product` param is the NUMBER OF PROXIES to
+      # order (the count); the provider derives the volume tier/price from it.
+      # Sending the tier's catalog id (e.g. 14) makes the provider deliver that
+      # many proxies — a "1 x" order became "14 x Static ISP" at $79. So for
+      # Global ISP send the ordered quantity, not the catalog provider id.
+      api_id = category_slug == 'global-isp' ? @order.quantity.to_i : @product.provider_product_id
 
       client = MyProxyApiClient.new
       user_id = client.reseller_user_id
@@ -701,7 +706,8 @@ class OrderProvisioningService
       unless is_vpn
         provisioning_params[:protocol]     = protocol
         provisioning_params[:whitelist_ip] = sanitized_client_ip
-        provisioning_params[:qty]          = @order.quantity
+        # Global ISP encodes the count in `product` (see above) and has no qty param.
+        provisioning_params[:qty]          = @order.quantity unless category_slug == 'global-isp'
       end
 
       # Handle Global ISP specific parameters
@@ -736,26 +742,35 @@ class OrderProvisioningService
         provisioning_params[:target_section_id] = ts_id
         provisioning_params[:target_id] = t_id
 
-        # PRICE GUARD: Verify provider price before placing the order to avoid overcharging
+        # PRICE GUARD: Verify the provider price for the EXACT order (product + target)
+        # before placing it. For Global ISP the target is an ISP block with a fixed
+        # IP count/price, so the target must be included — pricing the bare product
+        # here is what previously let a "1 x $9.79" order place a 14 x $79.24 order.
         begin
+          # `api_id` here is the proxy COUNT (see above), so this prices the exact
+          # order that will be placed.
           price_quote = client.get_price(
             user_id: user_id,
             product_api_id: api_id,
             period: period,
-            type: 'global-isp',
-            qty: @order.quantity
+            type: 'global-isp'
           )
 
           provider_cost = (price_quote.dig('data', 'price') || price_quote['price']).to_f
-          expected_cost = @order.product_pricing.cost_price.to_f * @order.quantity
+          expected_cost = @order.product_pricing.cost_price.to_f * @order.quantity.to_i
 
-          # Allow a small 5% margin for currency fluctuations if any, but block huge jumps (like x14)
+          # A non-positive quote means we couldn't determine the real price — do not
+          # place a blind order against the reseller deposit.
+          raise "Provider returned no usable price (#{price_quote.inspect})" unless provider_cost.positive?
+
+          # Allow a small 5% margin for FX/rounding, but block any real jump (like x14).
           if provider_cost > (expected_cost * 1.05)
-            raise "PRICE GUARD TRIGGERED: Provider attempted to charge $#{provider_cost} for an order expected to cost $#{expected_cost}. Aborting to prevent overcharge."
+            raise "PRICE GUARD TRIGGERED: provider price $#{provider_cost} exceeds expected $#{expected_cost} " \
+                  "(count #{api_id}). Aborting to prevent overcharge."
           end
         rescue StandardError => e
-          # If we can't verify the price, it's safer to fail than to proceed blindly
-          raise "Provisioning Aborted: Price verification failed. #{e.message}"
+          # If we can't verify the price, it's safer to fail than to spend the deposit blindly.
+          raise ProvisioningError, "Provisioning Aborted: Price verification failed. #{e.message}"
         end
       end
 
