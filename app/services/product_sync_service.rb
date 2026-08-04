@@ -52,8 +52,8 @@ class ProductSyncService
     cleanup_previous_plans
 
     # 2. Sync ONLY Proxy categories
-    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp global-isp]
-    # NOTE: 'mobile' removed — USA mobile proxies are now self-hosted via LocalToNet
+    # 'mobile' = MyProxyApi USA mobile proxies (provisioned via MyProxyApi, not LocalToNet).
+    categories = %w[datacenter isp static-residential residential-vpn residential-rotating premium-isp global-isp mobile]
 
     categories.each do |cat_slug|
       sync_category(cat_slug)

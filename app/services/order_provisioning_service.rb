@@ -575,18 +575,15 @@ class OrderProvisioningService
       XProxyService.new.provision(@order)
       @order.activate!
 
-    when 'localtonet'
-      # USA Mobile Proxies — provisioned via LocalToNet shared proxy client API
-      provision_usa_mobile_via_localtonet!
+    # LocalToNet USA mobile purchase flow disabled — mobile now provisions via MyProxyApi.
+    # when 'localtonet'
+    #   # USA Mobile Proxies — provisioned via LocalToNet shared proxy client API
+    #   provision_usa_mobile_via_localtonet!
 
     when 'myproxyapi'
       category_slug = @product.product_category&.slug
-
-      # Intercept USA mobile orders to use LocalToNet instead of MyProxyApi
-      if category_slug == 'mobile'
-        provision_usa_mobile_via_localtonet!
-        return
-      end
+      # Mobile (USA) proxies now provision through MyProxyApi like the other
+      # proxy categories — the LocalToNet interception has been removed.
 
       # NOTE: residential rotating and global-isp are different in a way.
       # Global ISP targets specific ISP/City IDs for a fixed duration (7d/30d),
@@ -612,6 +609,11 @@ class OrderProvisioningService
                  else
                    "#{raw_period.to_i * 30}d" # e.g. 1 => '30d', 2 => '60d'
                  end
+               elsif category_slug == 'mobile'
+                 # Mobile: MyProxyApi's `period` is the NUMBER OF IPs to order — the
+                 # duration is encoded in the plan/product id ("... - 30 Days"), so
+                 # send the ordered IP quantity, not a duration.
+                 @order.quantity.to_i
                else
                  raw_period
                end
@@ -706,8 +708,9 @@ class OrderProvisioningService
       unless is_vpn
         provisioning_params[:protocol]     = protocol
         provisioning_params[:whitelist_ip] = sanitized_client_ip
-        # Global ISP encodes the count in `product` (see above) and has no qty param.
-        provisioning_params[:qty]          = @order.quantity unless category_slug == 'global-isp'
+        # Global ISP encodes the count in `product`, Mobile encodes it in `period`;
+        # neither takes a separate qty param.
+        provisioning_params[:qty]          = @order.quantity unless %w[global-isp mobile].include?(category_slug)
       end
 
       # Handle Global ISP specific parameters
@@ -983,7 +986,9 @@ class OrderProvisioningService
     end
   end
 
-  # ========== USA Mobile Proxy via LocalToNet (Method 2: Dedicated Tunnels) ==========
+  # ========== USA Mobile Proxy via LocalToNet — DISABLED (mobile now via MyProxyApi) ==========
+  # Entire purchase flow commented out for now; kept for reference.
+=begin
   def provision_usa_mobile_via_localtonet!
     ltn_client = LocaltonetApiClient.new
 
@@ -1137,6 +1142,7 @@ class OrderProvisioningService
 
     Rails.logger.info("Provisioned USA mobile proxy via LocalToNet for order #{@order.order_number} (tunnel: #{new_tunnel_id})")
   end
+=end
 
   def send_proxy_credentials(proxy)
     target_email = @order.metadata&.dig('credentials_email').presence
