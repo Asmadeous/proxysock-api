@@ -1,3 +1,4 @@
+import type { DeviceDetails } from "@/utils/esim/deviceDetails";
 export interface User {
   id: string;
   username?: string;
@@ -162,6 +163,8 @@ export interface CartItem {
   vpsPlan?: any;
   rdpPlan?: any;
   usaEsimPlan?: any;
+  // Phone the US line is activated on (MeiSIM US prepaid lines only).
+  deviceDetails?: DeviceDetails;
   vpnPlan?: any;
   osTemplate?: string;
   hostname?: string;

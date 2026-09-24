@@ -156,7 +156,8 @@ class CartCheckoutService
       checkout_session: checkout_session,
       quantity: 1,
       status: 'pending',
-      total_amount: item.unit_price
+      total_amount: item.unit_price,
+      metadata: (item.metadata || {}).slice('imei', 'eid', 'address')
     )
   end
 

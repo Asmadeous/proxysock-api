@@ -139,7 +139,7 @@ export const reorderOrder = (id: number) =>
 export const fetchOrderCredentials = (id: number) =>
     adminApi.get(`/orders/${id}/credentials`);
 export const createAdminOrder = (data: {
-    product_id: number;
+    product_id: string;
     customer_email: string;
     quantity?: number;
     metadata?: Record<string, unknown>;
@@ -180,16 +180,6 @@ export const rebootAdminVm = (id: number | string) =>
     adminApi.post(`/vms/${id}/reboot`);
 export const deleteAdminVm = (id: number | string) =>
     adminApi.delete(`/vms/${id}`);
-
-// ── USA eSIM Credentials ─────────────────────────
-export const fetchAdminUsaCredentials = () =>
-    adminApi.get("/usa_esim_credentials");
-export const deleteAdminUsaCredential = (id: string | number) =>
-    adminApi.delete(`/usa_esim_credentials/${id}`);
-export const importUsaCredentials = (formData: FormData) =>
-    adminApi.post("/usa_esim_credentials/import", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-    });
 
 export const changeProxyProtocol = (id: number, protocol: string) =>
     adminApi.post(`/orders/${id}/change_protocol`, { protocol });

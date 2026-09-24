@@ -13,10 +13,8 @@ class EsimOrder < ApplicationRecord
   ESIM_TYPES = %w[data_only voice_data_sms].freeze
 
   # Renewal is only supported for API-based data-only eSIMs (esim_access).
-  # Inventory-based eSIMs (lyca, colt, any voice_data_sms plan) are fixed-term.
   def can_renew?
     return false if voice_data_sms?
-    return false if %w[lyca colt].include?(esim_provider)
 
     esim_provider == 'esim_access'
   end

@@ -80,16 +80,20 @@ class OrderProvisioningService
     # 8. Record fund splits for Heleket capital payout
     FundSplitterService.process_order!(@order)
 
-    # Notify Admins and Support on success ONLY (as per requirements)
+    # Notify Admins and Support on success ONLY (as per requirements).
+    # A MeiSIM order with an unknown outcome is not a success: staff must check it.
+    actor_label = @actor.try(:email) || @actor.try(:username)
+    notice = if @order.metadata&.dig('meisim_review_required')
+               { category: 'system_alert', title: 'Order Needs Review',
+                 message: "Order ##{@order.order_number} for #{actor_label} was sent to MeiSIM but the outcome is " \
+                          'unknown. Check the MeiSIM dealer portal before refunding or re-provisioning.' }
+             else
+               { category: 'success', title: 'Order Completed',
+                 message: "Order ##{@order.order_number} for #{actor_label} has been successfully provisioned." }
+             end
     [Employee.admins, Employee.support_agents].each do |scope|
       scope.find_each do |employee|
-        NotificationService.notify(
-          recipient: employee,
-          category: 'success',
-          title: 'Order Completed',
-          message: "Order ##{@order.order_number} for #{@actor.try(:email) || @actor.try(:username)} has been successfully provisioned.",
-          metadata: { order_id: @order.id }
-        )
+        NotificationService.notify(recipient: employee, metadata: { order_id: @order.id }, **notice)
       end
     end
 
@@ -205,8 +209,6 @@ class OrderProvisioningService
       provision_proxy!
     when 'esim'
       provision_esim!
-    when 'usa_esim'
-      provision_usa_esim!
     when 'vpn'
       provision_vpn!
     else
@@ -1162,93 +1164,6 @@ class OrderProvisioningService
   def provision_esim!
     EsimProvisioningService.new(@order).provision!
     # eSIM service handles order status and mailer internally
-  end
-
-  # ========== USA eSIM Provisioning ==========
-  def provision_usa_esim!
-    provider = @product.provider
-    quantity = @order.quantity.to_i <= 0 ? 1 : @order.quantity
-    moq = @product.metadata&.dig('moq').to_i
-    moq = 1 if moq <= 0
-
-    if quantity < moq
-      raise ProvisioningError,
-            "Minimum order quantity for USA eSIM #{provider} is #{moq} line(s). Requested: #{quantity}."
-    end
-
-    if provider == 'colt'
-      # Colt requires manual fulfillment
-      UsaEsimOrder.transaction do
-        UsaEsimOrder.create!(
-          order: @order,
-          status: 'pending',
-          provider: provider,
-          quantity: quantity,
-          total_amount: @order.total_amount || 0.0
-        )
-      end
-
-      @order.update!(status: 'processing')
-
-      # Notify user and admin AFTER the transaction commits
-      saved_order = @order
-      saved_actor = @actor
-      ActiveRecord.after_all_transactions_commit do
-        UsaEsimMailer.with(
-          owner: saved_actor,
-          order: saved_order
-        ).manual_order_notification.deliver_later
-
-        UsaEsimMailer.with(
-          order: saved_order
-        ).admin_manual_order_alert.deliver_later
-      end
-      return
-    end
-
-    UsaEsimCredential.transaction do
-      creds = UsaEsimCredential.lock('FOR UPDATE SKIP LOCKED').where(provider: provider,
-                                                                     status: 'available').limit(quantity).to_a
-
-      if creds.size < quantity
-        raise ProvisioningError,
-              "Insufficient stock for USA eSIM #{provider}. Requested: #{quantity}, Available: #{creds.size}."
-      end
-
-      usa_esim_order = UsaEsimOrder.create!(
-        order: @order,
-        status: 'active',
-        provider: provider,
-        quantity: quantity,
-        total_amount: @order.total_amount || 0.0
-      )
-
-      # Claim credentials
-      creds.each do |cred|
-        cred.update!(
-          status: 'assigned',
-          order_id: usa_esim_order.id,
-          user_id: @actor.is_a?(User) ? @actor.id : nil,
-          assigned_at: Time.current
-        )
-      end
-
-      @order.update!(status: 'active')
-
-      # Send credentials email AFTER transaction commits
-      target_email = @order.metadata&.dig('credentials_email').presence
-      saved_order = @order
-      saved_actor = @actor
-      saved_creds = creds.dup
-      ActiveRecord.after_all_transactions_commit do
-        UsaEsimMailer.with(
-          owner: saved_actor,
-          credentials: saved_creds,
-          order: saved_order,
-          target_email: target_email
-        ).credentials_email.deliver_later
-      end
-    end
   end
 
   # ========== VPN Provisioning ==========

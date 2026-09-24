@@ -74,6 +74,24 @@ module Web
         assert_response :accepted # or success depending on implementation
         assert json_response.key?('payment_url')
       end
+
+      test 'order JSON hides internal MeiSIM keys and exposes review_pending' do
+        product = Product.create!(name: 'JP 1GB', product_type: 'esim', provider: 'meisim', provider_product_id: 'jp-1',
+                                  available_to: 'both', product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'travel', 'retail_price' => 2.0 })
+        pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 2, active: true)
+        order = Order.create!(orderable: @user, product: product, product_pricing: pricing, status: 'processing',
+                              metadata: { 'meisim_review_required' => true, 'meisim_error' => 'Net::ReadTimeout' })
+
+        get "/web/api/orders/#{order.id}", headers: auth_header(@user)
+
+        assert_response :success
+        assert json_response['review_pending']
+        assert_not json_response['metadata'].key?('meisim_error')
+        assert_not json_response['metadata'].key?('meisim_review_required')
+        assert_not json_response['metadata'].key?('retail_price')
+        assert_equal 'travel', json_response['metadata']['meisim_line']
+      end
     end
   end
 end

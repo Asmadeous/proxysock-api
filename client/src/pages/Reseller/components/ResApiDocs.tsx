@@ -155,9 +155,11 @@ export default function ResApiDocs() {
         },
         {
             id: "prov-usa-esim", category: "provisioning", method: "POST", path: isEnterprise ? "/api/v1/orders/checkout_cart" : "/api/v1/orders",
-            name: "USA eSIM Network", description: "Payload required to provision a USA-specific eSIM (e.g. Colt, Lyca, Lebara). The `product_id` inherently defines the package, so `metadata` remains empty.",
+            name: "USA Phone-Number eSIM", description: "Payload required to provision a US prepaid line (products with `requires_imei: true`). Each line is activated on one phone, so `quantity` must be 1. `metadata.imei` (15 digits) is required, `metadata.eid` (32 digits) is required when the product has `requires_eid: true`, and `metadata.address` (E911) is optional. Invalid details are rejected with 422 before any payment.",
             visible: true,
-            body: isEnterprise ? { items: [{ product_id: 56, quantity: 1, metadata: {} }] } : { product_id: 56, quantity: 1, metadata: {} },
+            body: isEnterprise
+                ? { items: [{ product_id: "0cf1fe4c-c82b-4a15-9de5-62daf21ea00f", quantity: 1, metadata: { imei: "356938035643809", eid: "89049032000001000000000000000001", address: { address_line_1: "120 Main St", city: "Phoenix", state: "AZ", zip_code: "85001" } } }] }
+                : { product_id: "0cf1fe4c-c82b-4a15-9de5-62daf21ea00f", quantity: 1, metadata: { imei: "356938035643809", eid: "89049032000001000000000000000001", address: { address_line_1: "120 Main St", city: "Phoenix", state: "AZ", zip_code: "85001" } } },
             response: { message: "See Orders documentation for response structure" }
         },
         {

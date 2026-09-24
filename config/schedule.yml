@@ -6,10 +6,6 @@ billing_renewal:
   cron: "0 0 * * *"   # Every day at midnight
   class: "BillingRenewalWorker"
 
-inventory_restock:
-  cron: "0 6 * * *"   # Every day at 6 AM
-  class: "InventoryRestockWorker"
-
 product_sync:
   cron: "0 */6 * * *" # Every 6 hours
   class: "ProductSyncJob"
@@ -41,3 +37,15 @@ resource_alert_check:
 rexpay_reconciliation:
   cron: "*/5 * * * *"   # Every 5 minutes — fallback poller for RexPay (no webhook)
   class: "RexpayReconciliationJob"
+
+meisim_catalog_sync:
+  cron: "30 4 * * *"   # Every day at 4:30 AM
+  class: "MeisimCatalogSyncJob"
+
+meisim_order_poll:
+  cron: "*/5 * * * *"   # Every 5 minutes — MeiSIM has no webhooks
+  class: "MeisimOrderPollJob"
+
+meisim_usage_sync:
+  cron: "*/30 * * * *"  # Every 30 minutes
+  class: "MeisimUsageSyncJob"

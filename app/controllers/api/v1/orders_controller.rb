@@ -75,7 +75,7 @@ module Api
         type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
 
         type_stats = {}
-        %w[proxy vpn vps esim rdp usa_esim].each do |type|
+        %w[proxy vpn vps esim rdp].each do |type|
           type_stats[type] = {
             total: 0,
             active: 0,
@@ -194,6 +194,10 @@ module Api
             ),
             status: 'pending'
           )
+
+          unless order.valid?
+            return render json: { errors: order.errors, product_id: product.id }, status: :unprocessable_entity
+          end
 
           order.calculate_total_amount
           total_amount += order.total_amount.to_f
@@ -332,6 +336,7 @@ module Api
                 iccid: e.iccid,
                 activation_code: e.activation_code,
                 qr_code_url: e.qr_code_data,
+                phone_number: e.msisdn,
                 status: e.esim_status,
                 expires_at: e.expires_at
               }
@@ -624,6 +629,8 @@ module Api
           ),
           status: 'pending'
         )
+
+        return render json: { errors: order.errors }, status: :unprocessable_entity unless order.valid?
 
         order.calculate_total_amount
         total = order.total_amount.to_f

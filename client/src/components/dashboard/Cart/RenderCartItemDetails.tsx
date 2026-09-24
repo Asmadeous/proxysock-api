@@ -601,10 +601,10 @@ const UsaEsimItemDetails = ({
   removeItem,
   calculateItemTotalSync,
   exchangeRate,
-  updateESIMQuantity,
   updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.usaEsimPlan) return null;
+  const device = item.deviceDetails;
   return (
     <Card className="border-t-4 border-t-emerald-500 hover:border-emerald-500/50 hover:shadow-lg transition-all">
       <CardContent className="p-5">
@@ -612,13 +612,14 @@ const UsaEsimItemDetails = ({
           <div className="flex-1 min-w-0">
             <Badge className="mb-2 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/30">
               <Smartphone className="w-3 h-3 mr-1" />
-              USA eSIM · {item.usaEsimPlan.provider.toUpperCase()}
+              USA line · {item.usaEsimPlan.provider}
             </Badge>
             <h3 className="text-lg font-bold truncate">
               {item.usaEsimPlan.name}
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.usaEsimPlan.name} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -629,16 +630,6 @@ const UsaEsimItemDetails = ({
         </div>
         <div className="space-y-2.5 text-sm">
           <div className="flex justify-between gap-4 items-center min-w-0">
-            <span className="text-muted-foreground shrink-0">Voice</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.voice_minutes}</span>
-          </div>
-          <div className="flex justify-between gap-4 items-center min-w-0">
-            <span className="text-muted-foreground shrink-0">SMS/MMS</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">
-              {item.usaEsimPlan.sms_included ? "Unlimited" : "Not Included"}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Data</span>
             <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.data_amount}</span>
           </div>
@@ -648,33 +639,23 @@ const UsaEsimItemDetails = ({
               {item.usaEsimPlan.duration} {item.usaEsimPlan.duration_unit}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Quantity</span>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() =>
-                  updateESIMQuantity?.(index, (item.quantity || 1) - 1)
-                }
-                variant="outline"
-                size="icon"
-                className="w-8 h-8"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center font-medium">
-                {item.quantity || 1}
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Phone IMEI</span>
+            <span className="font-medium truncate text-right flex-1 min-w-0">
+              {device?.imei ? `ending ${device.imei.slice(-4)}` : "Missing"}
+            </span>
+          </div>
+          {device?.address && (
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">911 address</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">
+                {device.address.city}, {device.address.state}
               </span>
-              <Button
-                onClick={() =>
-                  updateESIMQuantity?.(index, (item.quantity || 1) + 1)
-                }
-                variant="outline"
-                size="icon"
-                className="w-8 h-8"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
             </div>
+          )}
+          <div className="flex justify-between gap-4 items-center min-w-0">
+            <span className="text-muted-foreground shrink-0">Quantity</span>
+            <span className="font-medium">1 line</span>
           </div>
         </div>
         <div className="mt-4 pt-4 border-t">

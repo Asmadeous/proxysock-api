@@ -335,10 +335,6 @@ Rails.application.routes.draw do
         post :onboard,     on: :member
         post :revoke_tokens, on: :member
       end
-      resources :usa_esim_credentials, only: %i[index destroy] do
-        post :import, on: :collection
-      end
-
       resources :orders, only: %i[index show create update destroy] do
         post :refund,   on: :member
         post :rescue,   on: :member

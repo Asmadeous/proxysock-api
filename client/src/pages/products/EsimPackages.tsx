@@ -1,18 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
-  Wifi,
-  Clock,
-  Smartphone,
-  ShoppingCart,
-  Filter,
   X,
   ChevronLeft,
   ChevronRight,
-  Package,
   ArrowLeft,
   Loader2,
-  Zap,
 } from "lucide-react";
 import {
   useESIMPackages,
@@ -59,7 +52,7 @@ const FallbackComponent = ({ error }: { error: unknown }) => (
 );
 
 const ESIMCardSkeleton = () => (
-  <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/50">
+  <Card className="flex h-full flex-col rounded-xl border-border shadow-none">
     <CardHeader className="border-b">
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -351,6 +344,8 @@ function ESIMPackagesPageContent({
         <Button
           key={i}
           onClick={() => goToPage(i)}
+          aria-label={`Page ${i}`}
+          aria-current={i === currentPage ? "page" : undefined}
           variant={i === currentPage ? "default" : "outline"}
           size="sm"
         >
@@ -376,186 +371,6 @@ function ESIMPackagesPageContent({
     return buttons;
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        {/* Page Header - Static */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-            onClick={() => onBack ? onBack() : globalThis.history.back()}
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-
-            <h1 className="text-3xl font-semibold text-foreground">
-              Buy eSIM Plans
-            </h1>
-          </div>
-          <p className="text-muted-foreground">
-            Premium global eSIM data connectivity with instant activation
-            worldwide
-          </p>
-        </div>
-
-        {/* Filters Section - Static */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-primary" />
-              Search & Filter
-            </CardTitle>
-            <CardDescription>
-              Find the perfect eSIM plan for your needs
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="lg:col-span-2">
-                <Label htmlFor="search">Search Plans</Label>
-                <div className="relative mt-1.5">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="search"
-                    type="text"
-                    placeholder="Search by country, plan name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              {/* Location */}
-              <div>
-                <Label htmlFor="location">Location</Label>
-                <Select
-                  value={selectedLocation}
-                  onValueChange={setSelectedLocation}
-                >
-                  <SelectTrigger id="location" className="mt-1.5">
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    <SelectItem value="!GL">Global</SelectItem>
-                    <SelectItem value="!RG">Regional</SelectItem>
-                    {countryList.map((country) => (
-                      <SelectItem
-                        key={country.location_code}
-                        value={country.location_code}
-                      >
-                        {country.display_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Coverage Type */}
-              <div>
-                <Label htmlFor="coverage">Coverage Type</Label>
-                <Select
-                  value={packageScope}
-                  onValueChange={(value) =>
-                    setPackageScope(value as "" | PackageScope)
-                  }
-                >
-                  <SelectTrigger id="coverage" className="mt-1.5">
-                    <SelectValue placeholder="All Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="global">Global Coverage</SelectItem>
-                    <SelectItem value="regional">Multi-Country</SelectItem>
-                    <SelectItem value="country">🇺🇳 Single Country</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Min Price */}
-              <div>
-                <Label htmlFor="min-price">Min Price (USD)</Label>
-                <Input
-                  id="min-price"
-                  type="number"
-                  placeholder="Min"
-                  value={priceRange.min}
-                  onChange={(e) =>
-                    setPriceRange((prev) => ({ ...prev, min: e.target.value }))
-                  }
-                  className="mt-1.5"
-                />
-              </div>
-
-              {/* Max Price */}
-              <div>
-                <Label htmlFor="max-price">Max Price (USD)</Label>
-                <Input
-                  id="max-price"
-                  type="number"
-                  placeholder="Max"
-                  value={priceRange.max}
-                  onChange={(e) =>
-                    setPriceRange((prev) => ({ ...prev, max: e.target.value }))
-                  }
-                  className="mt-1.5"
-                />
-              </div>
-
-              {/* Data Type */}
-              <div>
-                <Label htmlFor="data-type">Data Type</Label>
-                <Select
-                  value={dataType?.toString() || ""}
-                  onValueChange={(value) =>
-                    setDataType(value ? Number.parseInt(value) : undefined)
-                  }
-                >
-                  <SelectTrigger id="data-type" className="mt-1.5">
-                    <SelectValue placeholder="All Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">All Types</SelectItem>
-                    <SelectItem value="1">Fixed Amount</SelectItem>
-                    <SelectItem value="2">Daily Reset</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* SMS Support */}
-              <div className="flex items-end pb-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="sms-support"
-                    checked={smsSupport}
-                    onCheckedChange={(checked) =>
-                      setSmsSupport(checked as boolean)
-                    }
-                  />
-                  <Label htmlFor="sms-support" className="cursor-pointer">
-                    SMS Support
-                  </Label>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Skeleton Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 9 }).map((_, index) => (
-            <ESIMCardSkeleton key={index} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <Card className="border-l-4 border-l-destructive bg-destructive/5">
@@ -570,12 +385,13 @@ function ESIMPackagesPageContent({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-7">
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-3 mb-2">
           <Button
-            variant="default"
+            aria-label="Back to eSIM services"
+            variant="ghost"
             size="sm"
             onClick={() => onBack ? onBack() : globalThis.history.back()}
             className="p-2"
@@ -584,12 +400,11 @@ function ESIMPackagesPageContent({
           </Button>
 
           <h1 className="text-3xl font-semibold text-foreground">
-            Buy eSIM Plans
+            Data Only eSIM
           </h1>
         </div>
         <p className="text-muted-foreground">
-          Premium global eSIM data connectivity with instant activation
-          worldwide
+          Find mobile data for your destination. Compare allowances, validity, and price.
         </p>
       </div>
 
@@ -598,7 +413,7 @@ function ESIMPackagesPageContent({
         <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
           <CardContent className="flex items-center gap-3 py-4">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <ShoppingCart className="w-5 h-5 text-emerald-600" />
+              <span className="text-sm font-medium">Added</span>
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-emerald-600">Added to Cart!</h3>
@@ -609,6 +424,7 @@ function ESIMPackagesPageContent({
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Dismiss cart notification"
               onClick={() => setShowSuccessAlert(false)}
               className="h-8 w-8 p-0"
             >
@@ -622,11 +438,10 @@ function ESIMPackagesPageContent({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-primary" />
-            Search & Filter
+            Find a data plan
           </CardTitle>
           <CardDescription>
-            Find the perfect eSIM plan for your needs
+            Search a country or plan, then narrow your results.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -689,11 +504,14 @@ function ESIMPackagesPageContent({
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="global">Global Coverage</SelectItem>
                   <SelectItem value="regional">Multi-Country</SelectItem>
-                  <SelectItem value="country">🇺🇳 Single Country</SelectItem>
+                  <SelectItem value="country">Single Country</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            <details className="col-span-full border-t border-border pt-4">
+              <summary className="w-fit cursor-pointer rounded py-2 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">More filters</summary>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Min Price */}
             <div>
               <Label htmlFor="min-price">Min Price (USD)</Label>
@@ -759,17 +577,20 @@ function ESIMPackagesPageContent({
                 </Label>
               </div>
             </div>
+              </div>
+            </details>
           </div>
         </CardContent>
       </Card>
 
       {/* Main Content */}
-      {packages.length === 0 ? (
+      {loading ? (
+        <div role="status" aria-label="Loading data plans" className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {[0, 1, 2, 3].map((index) => <ESIMCardSkeleton key={index} />)}
+        </div>
+      ) : packages.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="p-4 bg-muted rounded-full mb-4">
-              <Package className="w-8 h-8 text-muted-foreground" />
-            </div>
             <h3 className="font-semibold mb-2">No eSIM plans available</h3>
             <p className="text-sm text-muted-foreground">
               Adjust your filters to find available plans
@@ -778,7 +599,7 @@ function ESIMPackagesPageContent({
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {currentPackages.map((pkg) => {
               const cartItem = getCartItemForPackage(pkg);
               const inCart = !!cartItem;
@@ -786,7 +607,7 @@ function ESIMPackagesPageContent({
               return (
                 <Card
                   key={pkg.id}
-                  className="hover:shadow-lg transition-all duration-200 hover:border-primary/50"
+                  className="flex h-full min-w-0 flex-col rounded-xl border-border shadow-none"
                 >
                   <CardHeader className="border-b">
                     <div className="flex items-start justify-between">
@@ -794,7 +615,7 @@ function ESIMPackagesPageContent({
                         {pkg.packageType === "topup" && (
                           <Badge
                             variant="destructive"
-                            className="bg-red-600 hover:bg-red-700 mb-2 animate-pulse"
+                            className="mb-2"
                           >
                             TOP-UP PLAN
                           </Badge>
@@ -802,62 +623,39 @@ function ESIMPackagesPageContent({
                         <CardTitle className="text-xl mb-2">
                           {getLocationDisplayName(pkg.location_code, pkg.location_name)}
                         </CardTitle>
-                        <Badge variant="default" className="gap-1">
-                          <Smartphone className="h-3 w-3" />
-                          Data Plan
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">Data only</p>
                       </div>
                     </div>
                     <div className="mt-4">
-                      <span className="text-3xl font-bold text-primary">
+                      <span className="text-2xl font-semibold tracking-tight text-foreground">
                         {formatPrice(pkg.price, pkg.currency_code)}
                       </span>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-6 space-y-6">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-muted/50 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Wifi className="h-4 w-4 text-primary" />
-                          <span className="text-xs text-muted-foreground uppercase font-medium">
-                            Data
-                          </span>
+                  <CardContent className="flex flex-1 flex-col gap-6 pt-6">
+                    <dl className="divide-y divide-border border-y border-border">
+                      {[
+                        ["Data", formatDataVolume(pkg.volume)],
+                        ["Validity", formatDuration(pkg.duration, pkg.duration_unit)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex justify-between gap-4 py-3 text-sm">
+                          <dt className="text-muted-foreground">{label}</dt>
+                          <dd className="text-right font-medium">{value}</dd>
                         </div>
-                        <span className="font-bold">
-                          {formatDataVolume(pkg.volume)}
-                        </span>
-                      </div>
-                      <div className="p-3 bg-muted/50 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-xs text-muted-foreground uppercase font-medium">
-                            Valid
-                          </span>
-                        </div>
-                        <span className="font-bold">
-                          {formatDuration(pkg.duration, pkg.duration_unit)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <Card className="bg-primary/5 border-primary/20">
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex items-start gap-2">
-                          <Smartphone className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Global eSIM data connectivity with instant
-                            activation in 170+ countries
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      ))}
+                    </dl>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Coverage: {getLocationDisplayName(pkg.location_code, pkg.location_name)}.
+                      Check your device supports eSIM before purchasing.
+                    </p>
 
                     {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
                         inCart ? (
                             <div className="space-y-3">
                               <div className="flex items-center justify-center gap-3 p-3 bg-muted/50 rounded-lg border border-primary/30">
                                 <Button
+                                  aria-label="Decrease eSIM quantity"
                                   onClick={() =>
                                     updateQuantity(
                                       pkg.id,
@@ -879,6 +677,7 @@ function ESIMPackagesPageContent({
                                   </div>
                                 </div>
                                 <Button
+                                  aria-label="Increase eSIM quantity"
                                   onClick={() =>
                                     updateQuantity(
                                       pkg.id,
@@ -904,9 +703,9 @@ function ESIMPackagesPageContent({
                             <Button
                               onClick={() => addToCart(pkg)}
                               disabled={provisioningPkgId === pkg.id}
-                              className="w-full gap-2"
+                              className="mt-auto min-h-12 w-full gap-2"
                             >
-                              {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+                              {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                               {provisioningPkgId === pkg.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                             </Button>
                           )
@@ -918,7 +717,7 @@ function ESIMPackagesPageContent({
           </div>
 
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-8">
+            <div className="flex flex-wrap justify-center gap-2 mt-8">
               {renderPaginationButtons()}
             </div>
           )}

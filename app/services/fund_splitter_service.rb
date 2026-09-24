@@ -27,9 +27,6 @@ class FundSplitterService
     when 'vps', 'rdp', 'cloud_vps'
       # Virtual Machines (VPS / RDP): Capital is 15% of total purchase price
       (order.product_pricing.selling_price * quantity * 0.15).round(2)
-    when 'usa_esim'
-      # USA eSIMs (Lyca): Capital is Fixed $13.00 per item
-      (13.00 * quantity).to_d
     else
       # Proxies, VPNs, Global eSIMs (API-Centered): Capital is the base API price
       ((order.product_pricing.api_price || 0) * quantity).to_d

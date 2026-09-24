@@ -1,5 +1,6 @@
 
 import { useCalculateOrderItems } from "./useCalculateOrderTotalSync";
+import { deviceDetailsMetadata } from "@/utils/esim/deviceDetails";
 import { CartItem } from "@/types";
 import React from "react";
 import api from "@/services/api";
@@ -123,10 +124,13 @@ export const usePaymentCheckoutHandlers = ({
         }
         break;
       case "esim":
+        meta.country_code = "global";
+        meta.package_code = item.esimPackage?.id;
+        meta.data_gb = item.esimPackage?.volume || 0;
+        break;
       case "usa-esim":
-        meta.country_code = item.productType === "usa-esim" ? "US" : "global";
-        meta.package_code = item.productType === "usa-esim" ? item.usaEsimPlan?.id : item.esimPackage?.id;
-        meta.data_gb = item.productType === "usa-esim" ? parseInt((item.usaEsimPlan?.data_amount || "0").replace(/\D/g, '')) : (item.esimPackage?.volume || 0);
+        // MeiSIM needs the phone's IMEI/EID (and optional 911 address) for US lines.
+        Object.assign(meta, deviceDetailsMetadata(item.deviceDetails));
         break;
       case "vpn":
         meta.country_code = (item.locations?.isp as any)?.country_code || (item.locations?.city as any)?.country_id || "US";

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { Helmet } from "react-helmet-async";
 
+import { isFixedQuantity, isOrderableCartItem, normalizeEsimQuantity } from "@/utils/cart/esimQuantity";
 import { getEffectiveBasePrice } from "@/utils/cart/getEffectiveBasePrice";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 
@@ -48,7 +49,7 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
       ...item,
       productType,
       protocol: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.protocol || "http" : undefined,
-      quantity: (productType === "esim" || productType === "usa-esim") ? item.quantity || 1 : (productType === "proxy" || productType === "global-isp") ? item.quantity || 1 : undefined,
+      quantity: (productType === "esim" || productType === "usa-esim") ? normalizeEsimQuantity(item) : (productType === "proxy" || productType === "global-isp") ? item.quantity || 1 : undefined,
       plan: (productType === "proxy" || productType === "residential" || productType === "global-isp") ? (item.plan ?? null) : null,
       esimPackage: productType === "esim" ? (item.esimPackage ?? null) : null,
       vpsPlan: productType === "vps" ? (item.vpsPlan ?? null) : null,
@@ -102,12 +103,13 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
                 (item.productType === "esim" && item.esimPackage) ||
                 (item.productType === "vps" && item.vpsPlan) ||
                 (item.productType === "rdp" && item.rdpPlan) ||
-                (item.productType === "usa-esim" && item.usaEsimPlan) ||
+                (item.productType === "usa-esim" && item.usaEsimPlan && isOrderableCartItem(item)) ||
                 (item.productType === "vpn" && item.vpnPlan)
               );
             })
             .map(normalizeCartItem)
           : [];
+        localStorage.setItem("cartItems", JSON.stringify(cartWithDefaults));
         setCartItems(cartWithDefaults);
         globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: cartWithDefaults.length } }));
       } catch (e) {
@@ -132,12 +134,14 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
   };
 
   const updateESIMQuantity = (index: number, quantity: number) => {
+    const item = cartItems[index];
+    if (!item || !Number.isInteger(quantity) || isFixedQuantity(item)) return;
     if (quantity <= 0) {
       removeItem(index);
       return;
     }
     const updatedCart = cartItems.map((item, i) =>
-      i === index ? { ...item, quantity, totalPrice: calculateItemTotalSync({ ...item, quantity }) } : item
+      i === index ? { ...item, quantity, totalPrice: calculateItemTotalSync({ ...item, quantity, totalPrice: undefined }) } : item
     );
     setCartItems(updatedCart);
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));

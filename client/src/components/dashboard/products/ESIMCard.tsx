@@ -137,7 +137,7 @@ const ESIMCard = ({ profile, onShowQR, onShowDetails, onShowSubscription, onReor
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${profile.product_type === 'usa_esim' ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-            {profile.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
+            {profile.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM'}
           </div>
           <div className={`flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(displayStatus, profile.is_expired)}`}>
             <StatusIcon className="h-3 w-3 mr-1" />

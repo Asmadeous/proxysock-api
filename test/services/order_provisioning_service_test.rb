@@ -100,4 +100,24 @@ class OrderProvisioningServiceTest < ActiveSupport::TestCase
     order.reload
     assert order.active? # Proxies activate immediately
   end
+
+  test 'MeiSIM order with unknown outcome tells staff to review instead of reporting success' do
+    product = Product.create!(name: 'France 2 GB', product_type: 'esim', provider: 'meisim', provider_type: 'meisim',
+                              provider_product_id: 'fr-2gb', available_to: 'both',
+                              product_category: product_categories(:three), metadata: { 'meisim_line' => 'travel' })
+    pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 3.99,
+                                     reseller_selling_price: 3.99, user_selling_price: 4.79, active: true)
+    order = Order.create!(orderable: @user, product: product, product_pricing: pricing, status: 'pending')
+    MeisimService.any_instance.stubs(:create_order).raises(MeisimService::Error.new('Net::ReadTimeout'))
+    SlackNotifierService.stubs(:notify)
+    Employee.where(id: employees(:one).id).update_all(role: 'admin', active: true)
+    titles = []
+    NotificationService.stubs(:notify).with { |args| titles << args[:title] }
+
+    assert OrderProvisioningService.new(order, @user).process!
+
+    assert order.reload.processing?
+    assert_includes titles, 'Order Needs Review'
+    assert_not_includes titles, 'Order Completed'
+  end
 end

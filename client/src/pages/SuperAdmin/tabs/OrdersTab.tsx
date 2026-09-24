@@ -335,7 +335,7 @@ export default function OrdersTab() {
         setActionLoading(true);
         try {
             await createAdminOrder({
-                product_id: createForm.product_id as unknown as number,
+                product_id: String(createForm.product_id),
                 customer_email: createForm.customer_email.trim(),
                 quantity: Number(createForm.quantity) || 1,
                 metadata,
