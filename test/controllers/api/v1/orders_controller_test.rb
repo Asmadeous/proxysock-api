@@ -83,6 +83,47 @@ module Api
         assert_equal 'vm', json_response['type']
         assert_equal '192.168.1.100', json_response['ip_address']
       end
+
+      def meisim_us_line
+        product = Product.create!(name: 'AT&T $35', product_type: 'esim', provider: 'meisim', provider_product_id: 'p3:2:629',
+                                  available_to: 'both', product_category: product_categories(:three),
+                                  metadata: { 'network' => 'AT&T Prepaid' })
+        ProductPricing.create!(product: product, currency: 'USD', selling_price: 44.2, reseller_selling_price: 44.2,
+                               active: true)
+        product
+      end
+
+      test 'balance reseller: US MeiSIM line without device details is rejected' do
+        post '/api/v1/orders', params: { product_id: meisim_us_line.id }, headers: auth_header(@reseller)
+
+        assert_response :unprocessable_entity
+        assert_includes json_response.dig('errors', 'metadata'), 'imei must be exactly 15 digits'
+      end
+
+      test 'infrastructure reseller: US MeiSIM line is rejected before a payment link is made' do
+        @reseller.update_columns(reseller_type: 'infrastructure')
+        product = meisim_us_line
+        CheckoutSession.expects(:create!).never
+
+        post '/api/v1/orders', params: { product_id: product.id, customer_email: 'end@example.com' },
+                               headers: auth_header(@reseller)
+
+        assert_response :unprocessable_entity
+        assert_includes json_response.dig('errors', 'metadata'), 'eid must be exactly 32 digits'
+      end
+
+      test 'infrastructure cart: US MeiSIM line is rejected before a payment link is made' do
+        @reseller.update_columns(reseller_type: 'infrastructure')
+        product = meisim_us_line
+        CheckoutSession.expects(:create!).never
+
+        post '/api/v1/orders/checkout_cart',
+             params: { customer_email: 'end@example.com', items: [{ product_id: product.id }] },
+             headers: auth_header(@reseller)
+
+        assert_response :unprocessable_entity
+        assert_equal product.id, json_response['product_id']
+      end
     end
   end
 end

@@ -1231,18 +1231,6 @@ This document outlines every single endpoint exposed in the ProxySock applicatio
 - **Controller**: `admin/api/transactions`
 - **Action**: `show`
 
-### GET `/admin/api/usa_esim_credentials`
-- **Controller**: `admin/api/usa_esim_credentials`
-- **Action**: `index`
-
-### DELETE `/admin/api/usa_esim_credentials/:id`
-- **Controller**: `admin/api/usa_esim_credentials`
-- **Action**: `destroy`
-
-### POST `/admin/api/usa_esim_credentials/import`
-- **Controller**: `admin/api/usa_esim_credentials`
-- **Action**: `import`
-
 ### GET `/admin/api/users`
 - **Controller**: `admin/api/users`
 - **Action**: `index`

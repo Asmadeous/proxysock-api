@@ -5,6 +5,9 @@ module Web
     class OrdersController < BaseController
       include JwtAuthenticated
 
+      # Set by provisioning for staff; never shown to customers.
+      INTERNAL_ORDER_METADATA_KEYS = %w[meisim_error meisim_review_required].freeze
+
       # GET /web/api/orders
       def index
         scope = current_actor.orders.includes(:product, :product_pricing)
@@ -14,9 +17,6 @@ module Web
           if types.include?('proxy')
             proxy_types = %w[proxy datacenter isp static_residential residential_rotating premium_isp mobile global_isp]
             types = (types - ['proxy'] + proxy_types).uniq
-          end
-          if types.include?('esim')
-            types = (types + ['usa_esim']).uniq
           end
           scope = scope.joins(:product).where(products: { product_type: types })
         end
@@ -77,7 +77,7 @@ module Web
         type_revenues = orders.joins(:product).group('products.product_type').sum(:total_amount)
 
         type_stats = {}
-        %w[proxy vpn vps esim rdp usa_esim].each do |type|
+        %w[proxy vpn vps esim rdp].each do |type|
           type_stats[type] = {
             total: 0,
             active: 0,
@@ -93,8 +93,6 @@ module Web
           category = case type
                      when 'datacenter', 'isp', 'static_residential', 'residential_rotating', 'premium_isp', 'mobile', 'global_isp'
                        'proxy'
-                     when 'usa_esim'
-                       'esim'
                      else
                        type
                      end
@@ -566,13 +564,14 @@ module Web
               protocol: proxy&.protocol
             }
           end
-        when 'esim', 'usa_esim'
+        when 'esim'
           esim = order.esim_order&.esim
           render json: {
             type: 'esim',
             iccid: esim&.iccid,
             qr_code: esim&.qr_code_data,
             activation_code: esim&.activation_code,
+            phone_number: esim&.msisdn,
             pin1: esim&.pin1,
             puk1: esim&.puk1
           }
@@ -1000,7 +999,8 @@ module Web
           payment_method: order.checkout_session&.gateway || 'wallet',
           auto_renew: resource.try(:metadata)&.dig('auto_renew') || order.metadata['auto_renew'],
           renewal_method: resource.try(:metadata)&.dig('renewal_method') || order.metadata['payment_debug'] || order.metadata['renewal_method'] || 'wallet',
-          metadata: order.metadata.merge(order.product.metadata || {}),
+          metadata: order.metadata.except(*INTERNAL_ORDER_METADATA_KEYS).merge(order.product.public_metadata),
+          review_pending: order.metadata['meisim_review_required'] == true,
           duration: order.product_pricing&.duration_value ? (order.product_pricing.duration_value / 30.0).ceil : 1,
           transaction_id: order.metadata&.dig('transaction_id') || order.id
         }
@@ -1101,6 +1101,7 @@ module Web
               qr_code_data: esim.qr_code_data,
               qr_code_url: esim.qr_code_data,
               activation_code: esim.activation_code,
+              phone_number: esim.msisdn,
               pin1: esim.pin1,
               puk1: esim.puk1,
               total_volume: (esim.data_total_bytes.to_i / (1024 * 1024)).to_i, # MB
@@ -1108,28 +1109,6 @@ module Web
               location_name: resource.country_code || 'Global',
               expired_time: esim.expires_at,
               status: esim.status
-            }
-          end
-          base[:credentials_list] = base[:profiles]
-        when 'usa_esim'
-          base[:package_name] = order.product.name
-          base[:quantity] = 1
-          base[:profiles] = resource&.usa_esim_credentials&.map do |credential|
-            {
-              id: credential.id,
-              iccid: credential.iccid,
-              qr_code: credential.qr_code,
-              qr_code_data: credential.qr_code,
-              activation_code: credential.qr_activation_code,
-              pin1: credential.send('PIN1'),
-              pin2: credential.send('PIN2'),
-              puk1: credential.send('PUK1'),
-              puk2: credential.send('PUK2'),
-              zip_code: credential.zip_code,
-              status: credential.status,
-              total_volume: 0, # Unlimited or not tracked per-cred
-              location_name: 'USA',
-              expired_time: order.expires_at
             }
           end
           base[:credentials_list] = base[:profiles]

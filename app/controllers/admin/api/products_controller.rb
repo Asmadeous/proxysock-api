@@ -13,8 +13,6 @@ module Admin
           products = case params[:product_type]
                      when 'proxy'
                        products.where(product_type: Product::PROXY_TYPES)
-                     when 'esim'
-                       products.where(product_type: %w[esim usa_esim])
                      else
                        products.where(product_type: params[:product_type])
                      end

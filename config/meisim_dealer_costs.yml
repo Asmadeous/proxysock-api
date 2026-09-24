@@ -1,0 +1,41 @@
+# MeiSIM dealer cost (USD) per catalog productId, copied from the dealer portal
+# price list on 2026-09-23. The catalog API only exposes retail prices.
+# Used for cost_price (margin reporting) only; selling prices come from retail.
+'ly:1012': 8.80 # Lycamobile · $15 international Plan
+'ly:1019': 9.77 # Lycamobile · $19 Unlimited International Plan
+'ly:1023': 12.65 # Lycamobile · $23 Unlimited International Plan
+'ly:1029': 14.37 # Lycamobile · $29 Unlimited International Plan
+'ly:1035': 17.25 # Lycamobile · $33 High Data Plan
+'ly:1039': 14.37 # Lycamobile · $39 Unlimited International Plan
+'ly:1049': 17.94 # Lycamobile · $49 High Data Plan
+'ly:1059': 21.56 # Lycamobile · $59 Unlimited International Plan
+'ly:1111': 12.00 # Lycamobile · $10-300 MB + 3000 mins&sms-national
+'p3:2:629': 34.00 # AT&T Prepaid · $35 Unlimited Saver
+'p3:2:630': 32.00 # AT&T Prepaid · $45 Unlimited Enhanced Select
+'p3:2:631': 35.00 # AT&T Prepaid · $60 Unlimited Ultra Select
+'p3:2:844': 21.79 # AT&T Prepaid · $20 5GB
+'p3:2:845': 40.19 # AT&T Prepaid · $75 Unlimited Premier Select
+'p3:8:48': 32.20 # T-Mobile Prepaid · $45.00 Starter 15GB
+'p3:8:50': 34.50 # T-Mobile Prepaid · $50.00 Unlimited
+'p3:8:348': 23.57 # T-Mobile Prepaid · $35 Connect by TMO UNL Talk&Text w/ 12 GB Data-1 Month (capped)
+'p3:8:490': 40.25 # T-Mobile Prepaid · $65 Unlimited Plus*
+'p3:8:796': 23.00 # T-Mobile Prepaid · 5GB eSIM
+'p3:8:797': 34.50 # T-Mobile Prepaid · 10GB eSIM
+'p3:8:798': 46.00 # T-Mobile Prepaid · 15GB eSIM
+'p3:197:392': 27.60 # MobileX Prepaid · Mobile X Unlimited 20
+'p3:197:393': 50.02 # MobileX Prepaid · Mobile X Unlimited 30
+'p3:197:394': 66.13 # MobileX Prepaid · Mobile X Unlimited 50
+'p3:197:508': 205.00 # MobileX Prepaid · $50 6-month Promo
+'p3:197:691': 26.45 # MobileX Prepaid · $15 MobileX Talk and Text International
+'p3:318:698': 12.00 # LinkUp Mobile Prepaid · 1GB
+'p3:318:699': 14.00 # LinkUp Mobile Prepaid · 5GB
+'p3:318:700': 16.00 # LinkUp Mobile Prepaid · 12GB
+'p3:318:701': 20.00 # LinkUp Mobile Prepaid · 30GB
+'p3:318:702': 25.00 # LinkUp Mobile Prepaid · 50GB
+'p3:445:746': 5.00 # Moxee 2 Prepaid · SMS Verification - Incoming SMS Only
+'p3:445:747': 11.00 # Moxee 2 Prepaid · Talk & Text With 500 MBs
+'p3:445:749': 12.00 # Moxee · Unlimited Talk & Text Only with wifi calling
+'p3:445:750': 9.00 # Moxee 2 Prepaid · 100 Minutes & 100 SMS
+'p3:445:771': 12.00 # Moxee 2 Prepaid · Talk, Text & 1GB
+'p3:445:772': 15.00 # Moxee 2 Prepaid · Talk, text & 2GB
+'p3:445:799': 5.95 # Moxee 2 Prepaid · 100 SMS Only

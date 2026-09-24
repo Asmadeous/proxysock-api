@@ -5,6 +5,9 @@ module Api
     class ProductsController < BaseController
       include JwtAuthenticated
 
+      ESIM_DETAIL_KEYS = %w[esim_type meisim_line countries regions network data_limit data_unit validity_days
+                            usage_tracking location_name location_code data_gb duration duration_unit].freeze
+
       # GET /api/v1/products
       def index
         cache_key = "products/reseller/index/#{Product.catalog_cache_version}/#{current_reseller.reseller_type}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
@@ -72,15 +75,19 @@ module Api
         pricing = product.product_pricings.find(&:active)
         base_price = (pricing&.reseller_selling_price || pricing&.selling_price).to_f
 
-        {
+        data = {
           id: product.id,
           name: product.name,
           category: product.product_category&.name,
           base_price: (base_price * current_reseller.price_multiplier).to_f,
           currency: pricing&.currency || 'USD',
           provider_type: product.provider,
-          product_type: product.product_type
+          product_type: product.product_type,
+          requires_imei: product.metadata&.dig('requires_imei') || false,
+          requires_eid: product.metadata&.dig('requires_eid') || false
         }
+        data[:esim] = product.public_metadata.slice(*ESIM_DETAIL_KEYS) if product.product_type == 'esim'
+        data
       end
     end
   end
