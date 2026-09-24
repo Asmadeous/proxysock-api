@@ -1,14 +1,7 @@
-import { useState, useEffect } from "react";
-import api from '../../../services/api';
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Phone,
-  MessageSquare,
-  Wifi,
-  Globe,
-  Check,
-} from "lucide-react";
+import { Search } from "lucide-react";
+import api from "../../../services/api";
 
 interface ESIMPlansSectionProps {
   trackConversion?: (
@@ -18,359 +11,522 @@ interface ESIMPlansSectionProps {
   ) => void;
 }
 
-// Arrays removed. Will be fetched from API.
+type ServiceType = "voice" | "data";
+type VoiceCountry = "US" | "GB";
 
-const getCarrierLogo = (provider: string) => {
-  if (provider.toLowerCase() === "lyca") return "/at&t.png";
-  if (provider.toLowerCase() === "colt") return "/t-mobile.png";
-  return "";
+interface VoicePlan {
+  id: string;
+  country: VoiceCountry;
+  provider: string;
+  name: string;
+  price: number;
+  currencyCode: string;
+  voice: string;
+  sms: string;
+  data: string;
+  duration: number;
+  durationUnit: string;
+  description: string;
+  features: string[];
+}
+
+interface DataPlan {
+  id: string;
+  name: string;
+  price: number;
+  currencyCode: string;
+  data: string;
+  duration: number;
+  durationUnit: string;
+  coverage: string;
+}
+
+const countryContent: Record<
+  VoiceCountry,
+  {
+    shortLabel: string;
+    title: string;
+    description: string;
+    notice: string;
+  }
+> = {
+  US: {
+    shortLabel: "USA",
+    title: "USA phone-number eSIMs",
+    description:
+      "Get a real US number with calling, texting, and mobile data on supported US networks.",
+    notice:
+      "Some US carriers require your device IMEI or EID during checkout. Have your device details ready before purchasing.",
+  },
+  GB: {
+    shortLabel: "UK",
+    title: "UK phone-number eSIMs",
+    description:
+      "Get a real UK number with calls, texts, and data. Roaming allowances vary by plan and network.",
+    notice:
+      "UK plans may need to be activated in the UK before first use. Review each plan's activation and roaming terms before purchasing.",
+  },
 };
 
+const normalizeProvider = (product: any) => {
+  const value =
+    product.network_operator ||
+    product.plan_network ||
+    product.provider_name ||
+    product.providerName ||
+    product.provider ||
+    "Mobile network";
+
+  return String(value)
+    .split(/[\s_-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const getPlanCountry = (product: any): VoiceCountry => {
+  const values = [
+    product.country_code,
+    product.country,
+    product.region,
+    product.location_code,
+    product.location_name,
+    ...(Array.isArray(product.countries) ? product.countries : []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return /(^|\s)(gb|uk)(\s|$)|united kingdom|great britain/.test(values)
+    ? "GB"
+    : "US";
+};
+
+const includesFeature = (features: string[], pattern: RegExp) =>
+  features.find((feature) => pattern.test(feature));
+
+const formatVoicePlans = (products: any[]): VoicePlan[] =>
+  products.map((product) => {
+    const features = Array.isArray(product.features)
+      ? product.features.map(String)
+      : [];
+    const voiceValue =
+      product.voice ?? product.voice_minutes ?? product.calling_minutes;
+    const smsValue = product.sms ?? product.sms_quota;
+    const unlimitedVoice = includesFeature(features, /unlimited.*(voice|call)/i);
+    const unlimitedSms = includesFeature(features, /unlimited.*(sms|text)/i);
+
+    return {
+      id: String(product.id ?? product.product_id ?? product.productId),
+      country: getPlanCountry(product),
+      provider: normalizeProvider(product),
+      name: product.plan_title || product.name || "Phone-number eSIM",
+      price: Number(product.price || product.retail_price || 0) * 100,
+      currencyCode: product.currency || product.currency_code || "USD",
+      voice:
+        voiceValue === null || unlimitedVoice
+          ? "Unlimited"
+          : voiceValue
+            ? `${voiceValue}${typeof voiceValue === "number" ? " min" : ""}`
+            : "Included",
+      sms:
+        smsValue === null || unlimitedSms
+          ? "Unlimited"
+          : smsValue
+            ? String(smsValue)
+            : "Included",
+      data: product.data_gb
+        ? `${Number(product.data_gb)} GB`
+        : product.data_amount || product.plan_data_limit || "Plan allowance",
+      duration: Number(product.duration_days || product.duration || 30),
+      durationUnit: product.duration_unit || "days",
+      description:
+        product.plan_description ||
+        product.description ||
+        "A phone-number eSIM with voice, text, and mobile data.",
+      features,
+    };
+  });
+
+const formatDataPlans = (products: any[]): DataPlan[] => {
+  const groups: Record<string, DataPlan> = {};
+
+  products.forEach((product) => {
+    const locationName =
+      product.location_name ||
+      product.metadata?.location_name ||
+      product.country_name ||
+      "Global";
+    const price = Number(product.price || product.retail_price || 0) * 100;
+    const plan: DataPlan = {
+      id: String(product.id ?? product.product_id ?? product.productId),
+      name: locationName,
+      price,
+      currencyCode: product.currency || product.currency_code || "USD",
+      data: product.data_gb
+        ? `${Number(product.data_gb)} GB`
+        : product.data_amount || "High-speed data",
+      duration: Number(product.duration_days || product.duration || 7),
+      durationUnit: product.duration_unit || "days",
+      coverage: product.location_name || "Regional coverage",
+    };
+
+    if (!groups[locationName] || price < groups[locationName].price) {
+      groups[locationName] = plan;
+    }
+  });
+
+  return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const PlanSkeleton = () => (
+  <div className="rounded-xl border border-border bg-card p-5" aria-hidden="true">
+    <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-5 w-full max-w-44 animate-pulse rounded bg-muted" />
+      </div>
+      <div className="h-7 w-20 animate-pulse rounded bg-muted" />
+    </div>
+    <div className="mb-6 grid grid-cols-3 gap-2">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="h-16 animate-pulse rounded-lg bg-muted" />
+      ))}
+    </div>
+    <div className="h-10 animate-pulse rounded-lg bg-muted" />
+  </div>
+);
+
 export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => {
-  const [activeTab, setActiveTab] = useState("usa");
-  const [usaPlans, setUsaPlans] = useState<any[]>([]);
-  const [globalPlans, setGlobalPlans] = useState<any[]>([]);
+  const [serviceType, setServiceType] = useState<ServiceType>("voice");
+  const [voiceCountry, setVoiceCountry] = useState<VoiceCountry>("US");
+  const [voicePlans, setVoicePlans] = useState<VoicePlan[]>([]);
+  const [dataPlans, setDataPlans] = useState<DataPlan[]>([]);
+  const [dataSearch, setDataSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const [usaRes, globalRes] = await Promise.all([
-          api.get('/web/api/products?product_type=usa_esim'),
-          api.get('/web/api/products?product_type=esim')
+        setHasError(false);
+        const [voiceResponse, dataResponse] = await Promise.all([
+          api.get("/web/api/products?product_type=usa_esim"),
+          api.get("/web/api/products?product_type=esim"),
         ]);
 
-        const formatPlans = (products: any[], isGlobal: boolean) => {
-          if (!isGlobal) {
-            return products.map((p: any) => ({
-              id: p.id.toString(),
-              provider: p.provider_type === 'colt' ? 'colt' : 'lyca',
-              name: p.name,
-              price: (p.price || 0) * 100, // Frontend expects cents
-              currency_code: p.currency || 'USD',
-              voice_minutes: p.calling_minutes === null ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
-              sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
-              data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
-              duration: p.duration_days || 30,
-              duration_unit: "days",
-              features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-              phone_number_included: p.esim_type === 'voice_data_sms',
-              region: 'USA',
-              coverage: 'Nationwide US Coverage',
-              icon: Globe,
-              color: 'primary'
-            }));
-          }
-
-          // Group Global Plans by Location
-          const groups: Record<string, any> = {};
-          products.forEach((p: any) => {
-            const locName = p.metadata?.location_name || 'Global';
-            const price = (p.price || 0) * 100;
-
-            if (!groups[locName] || price < groups[locName].price) {
-              groups[locName] = {
-                id: p.id.toString(),
-                name: locName,
-                price: price,
-                currency_code: p.currency || 'USD',
-                data_amount: p.data_gb ? `${p.data_gb} GB` : "High-speed Data",
-                duration: p.duration_days || 7,
-                duration_unit: "days",
-                coverage: p.metadata?.location_name || 'Global coverage',
-                region: 'Global',
-                icon: Globe,
-                startsFrom: true
-              };
-            }
-          });
-
-          return Object.values(groups);
-        };
-
-        setUsaPlans(formatPlans(usaRes.data.products || [], false));
-        setGlobalPlans(formatPlans(globalRes.data.products || [], true));
-      } catch (err) {
-        console.error("Failed to load eSIM plans:", err);
+        setVoicePlans(formatVoicePlans(voiceResponse.data.products || []));
+        setDataPlans(formatDataPlans(dataResponse.data.products || []));
+      } catch (error) {
+        console.error("Failed to load eSIM plans:", error);
+        setHasError(true);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchPlans();
   }, []);
 
-  const formatPrice = (priceInCents: number) => {
-    return `$${(priceInCents / 100).toFixed(2)}`;
-  };
+  const selectedVoicePlans = useMemo(
+    () => voicePlans.filter((plan) => plan.country === voiceCountry),
+    [voiceCountry, voicePlans]
+  );
+
+  const filteredDataPlans = useMemo(() => {
+    const query = dataSearch.trim().toLowerCase();
+    const matches = query
+      ? dataPlans.filter((plan) =>
+          `${plan.name} ${plan.coverage}`.toLowerCase().includes(query)
+        )
+      : dataPlans;
+
+    return matches.slice(0, query ? 24 : 12);
+  }, [dataPlans, dataSearch]);
+
+  const formatPrice = (priceInCents: number, currencyCode = "USD") =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+    }).format(priceInCents / 100);
+
+  const trackPurchase = () =>
+    trackConversion?.(
+      "esim_plan_purchase",
+      "conversion",
+      "/dashboard/esim"
+    );
+
+  const activeCountry = countryContent[voiceCountry];
 
   return (
-    <div className="relative bg-background py-16">
-      <div className="absolute inset-0 z-0 opacity-20"></div>
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Tabs */}
-        <div className="flex justify-center gap-4 mb-12">
-          <button
-            onClick={() => setActiveTab("usa")}
-            className={`px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center gap-3 ${activeTab === "usa"
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-              : "bg-card text-muted-foreground hover:bg-card/80 border border-border"
-              }`}
-          >
-            <Phone className="h-5 w-5" />
-            USA eSIM
-            <span className="text-xs bg-primary-foreground/20 px-2 py-1 rounded-full">
-              Voice + Data
-            </span>
-          </button>
+    <section className="relative bg-background py-16 sm:py-20" aria-labelledby="esim-plans-title">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <header className="mb-8">
+          <h2 id="esim-plans-title" className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Find your eSIM plan
+          </h2>
+          <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
+            A local phone number or data for your next trip. Choose the service you need.
+          </p>
+        </header>
 
-          <button
-            onClick={() => setActiveTab("global")}
-            className={`px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center gap-3 ${activeTab === "global"
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-              : "bg-card text-muted-foreground hover:bg-card/80 border border-border"
-              }`}
-          >
-            <Globe className="h-5 w-5" />
-            Global eSIM
-            <span className="text-xs bg-primary-foreground/20 px-2 py-1 rounded-full">
-              Data Only
-            </span>
-          </button>
+        <div className="mb-8 grid w-full gap-1 rounded-lg border border-border bg-muted/40 p-1 sm:inline-grid sm:w-auto sm:grid-cols-2"
+          role="group" aria-label="eSIM service type">
+          {([
+            ["voice", "Voice, Data + Text eSIM"],
+            ["data", "Data Only eSIM"],
+          ] as const).map(([value, label]) => (
+            <button key={value} id={value + "-esim-tab"} type="button"
+              aria-pressed={serviceType === value}
+              onClick={() => setServiceType(value)}
+              className={`min-h-12 rounded-md px-5 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                serviceType === value
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* USA eSIM Plans */}
-        {
-          activeTab === "usa" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-8"
-            >
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-manrope-bold font-bold text-foreground mb-3">
-                  USA eSIM with Phone Number
-                </h2>
-                <p className="text-base font-inter-regular text-muted-foreground max-w-2xl mx-auto">
-                  Complete mobile service with voice calling, unlimited texting,
-                  and high-speed data
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-                {isLoading ? (
-                  <div className="col-span-full py-12 flex justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  </div>
-                ) : usaPlans.map((plan) => {
-                  const carrierLogo = getCarrierLogo(plan.provider);
+        {serviceType === "voice" && (
+          <div
+            id="voice-esim-panel"
+            role="region"
+            aria-labelledby="voice-esim-tab"
+          >
+            <div className="mb-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-5">
+              <span className="text-sm font-semibold text-foreground">Choose your number’s country</span>
+              <div
+                className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:min-w-80"
+                role="group"
+                aria-label="Phone-number eSIM country"
+              >
+                {(Object.keys(countryContent) as VoiceCountry[]).map((country) => {
+                  const content = countryContent[country];
+                  const count = voicePlans.filter(
+                    (plan) => plan.country === country
+                  ).length;
+                  const isActive = voiceCountry === country;
 
                   return (
-                    <motion.div
-                      key={plan.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5 }}
-                      className="bg-card/80 backdrop-blur-xl rounded-lg p-6 border border-primary/20 hover:border-primary/50 transition-all duration-300"
+                    <button
+                      key={country}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() => setVoiceCountry(country)}
+                      className={`relative flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border px-6 py-3 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background ${
+                        isActive
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-foreground/30 bg-card text-foreground hover:border-primary hover:bg-primary/10"
+                      }`}
                     >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-8 w-8 text-primary" />
-                          <h3 className="text-xl font-manrope-bold font-bold text-foreground">
-                            {plan.name}
-                          </h3>
-                        </div>
-                        {carrierLogo && (
-                          <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
-                            <span className="text-xs text-muted-foreground font-semibold uppercase">
-                              Sponsored by
-                            </span>
-                            <img
-                              src={carrierLogo}
-                              alt="Carrier"
-                              className="h-5 w-auto"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mb-2">
-                        <span className="bg-primary/20 text-primary text-xs px-2 py-1 rounded uppercase font-manrope-semibold">
-                          {plan.provider}
+                      {content.shortLabel}
+                      {!isLoading && count > 0 && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {count}
                         </span>
-                      </div>
-
-                      <p className="text-muted-foreground text-sm mb-4">
-                        Real US phone number with voice, text, and data
-                      </p>
-
-                      <div className="space-y-2 mb-4">
-                        <div className="bg-muted/50 p-2 rounded">
-                          <p className="text-sm text-foreground">
-                            <span className="text-primary font-manrope-bold">
-                              {formatPrice(plan.price)}
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Valid for {plan.duration} {plan.duration_unit}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <div className="bg-muted/50 p-3 rounded text-center">
-                          <Phone className="h-5 w-5 text-primary mx-auto mb-1" />
-                          <span className="text-foreground font-manrope-bold text-xs block">
-                            {plan.voice_minutes}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Voice</span>
-                        </div>
-                        <div className="bg-muted/50 p-3 rounded text-center">
-                          <MessageSquare className="h-5 w-5 text-primary mx-auto mb-1" />
-                          <span className="text-foreground font-manrope-bold text-xs block">
-                            Unlimited
-                          </span>
-                          <span className="text-xs text-muted-foreground">SMS</span>
-                        </div>
-                        <div className="bg-muted/50 p-3 rounded text-center">
-                          <Wifi className="h-5 w-5 text-primary mx-auto mb-1" />
-                          <span className="text-foreground font-manrope-bold text-xs block">
-                            {plan.data_amount}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Data</span>
-                        </div>
-                      </div>
-
-                      <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                        {plan.features.map((feature: string, idx: number) => (
-                          <li key={idx}>✓ {feature}</li>
-                        ))}
-                      </ul>
-
-                      <Link
-                        to="/dashboard/esim"
-                        onClick={() =>
-                          trackConversion?.(
-                            "esim_plan_purchase",
-                            "conversion",
-                            "/dashboard/esim"
-                          )
-                        }
-                        className="w-full block text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-manrope-semibold"
-                      >
-                        Buy Now
-                      </Link>
-                    </motion.div>
+                      )}
+                    </button>
                   );
                 })}
               </div>
-            </motion.div>
-          )
-        }
+            </div>
 
-        {/* Global eSIM Plans */}
-        {
-          activeTab === "global" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-8"
-            >
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-manrope-bold font-bold text-foreground mb-3">
-                  Global & Regional eSIM Plans
-                </h2>
-                <p className="text-base font-inter-regular text-muted-foreground max-w-2xl mx-auto">
-                  Choose from our flexible data plans for travelers and digital
-                  nomads
+            <div className="mb-7 grid gap-4">
+              <div className="max-w-2xl">
+                <h3 className="text-2xl font-bold text-foreground">
+                  {activeCountry.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {activeCountry.description}
+                </p>
+              </div>
+              <div className="max-w-3xl border-l-2 border-border pl-4 text-sm leading-6 text-muted-foreground">
+                <p>{activeCountry.notice}</p>
+              </div>
+            </div>
+
+            {hasError ? (
+              <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
+                <h4 className="font-semibold text-foreground">
+                  We couldn&apos;t load the plans
+                </h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Refresh the page or try again in a moment.
+                </p>
+              </div>
+            ) : isLoading ? (
+              <div className="grid gap-5 md:grid-cols-2" aria-label="Loading plans">
+                {[0, 1, 2].map((item) => (
+                  <PlanSkeleton key={item} />
+                ))}
+              </div>
+            ) : selectedVoicePlans.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+                <h4 className="font-semibold text-foreground">
+                  {activeCountry.shortLabel} plans are currently unavailable
+                </h4>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  Please check back for available plans, or explore the other service options.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2">
+                {selectedVoicePlans.map((plan) => (
+                  <article
+                    key={plan.id}
+                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7"
+                  >
+                    <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1 basis-40">
+                        <p className="mb-1 text-sm font-medium text-muted-foreground">
+                          {plan.provider}
+                        </p>
+                        <h4 className="text-lg font-semibold leading-7 text-foreground">
+                          {plan.name}
+                        </h4>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-2xl font-semibold tracking-tight text-foreground">
+                          {formatPrice(plan.price, plan.currencyCode)}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {plan.duration} {plan.durationUnit}
+                        </p>
+                      </div>
+                    </div>
+
+                    <dl className="mb-5 divide-y divide-border border-y border-border">
+                      {[["Data", plan.data], ["Calls", plan.voice], ["Texts", plan.sms]].map(([label, value]) => (
+                        <div key={label} className="flex items-baseline justify-between gap-5 py-3 text-sm">
+                          <dt className="text-muted-foreground">{label}</dt>
+                          <dd className="text-right font-medium text-foreground">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    <details className="mb-6 text-sm">
+                      <summary className="w-fit cursor-pointer rounded py-2 font-medium text-foreground underline decoration-border underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        Plan details
+                      </summary>
+                      <p className="mt-2 leading-6 text-muted-foreground">{plan.description}</p>
+                      {plan.features.length > 0 && (
+                        <ul className="mt-3 list-disc space-y-2 pl-5 leading-6 text-muted-foreground">
+                          {plan.features.map((feature, index) => <li key={index}>{feature}</li>)}
+                        </ul>
+                      )}
+                    </details>
+
+                    <Link
+                      to="/dashboard/esim"
+                      onClick={trackPurchase}
+                      className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      View available plans
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {serviceType === "data" && (
+          <div
+            id="data-esim-panel"
+            role="region"
+            aria-labelledby="data-esim-tab"
+          >
+            <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <h3 className="text-2xl font-bold text-foreground">
+                  Data-only eSIMs by destination
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Mobile internet without a phone number, regular calls, or SMS.
+                  Apps such as WhatsApp and FaceTime work over your data connection.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {isLoading ? (
-                  <div className="col-span-full py-12 flex justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  </div>
-                ) : globalPlans.map((plan) => {
-                  const IconComponent = plan.icon;
+              <label className="relative block w-full lg:w-80">
+                <span className="sr-only">Search destinations</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={dataSearch}
+                  onChange={(event) => setDataSearch(event.target.value)}
+                  placeholder="Search a destination"
+                  className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </div>
 
-                  return (
-                    <motion.div
-                      key={plan.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5 }}
-                      className="bg-card/80 backdrop-blur-xl rounded-lg p-6 border border-border hover:border-primary/50 transition-all duration-300"
-                    >
-                      <div className="flex items-center mb-4">
-                        <IconComponent className="h-8 w-8 text-primary mr-3" />
-                        <h3 className="text-xl font-manrope-bold font-bold text-foreground">
-                          {plan.name}
-                        </h3>
-                      </div>
-
-                      <p className="text-muted-foreground text-sm mb-4">
-                        {plan.coverage}
-                      </p>
-                      <div className="space-y-2 mb-4">
-                        <div className="bg-muted/50 p-3 rounded-xl border border-border/50">
-                          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">
-                            Pricing
-                          </p>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xs text-muted-foreground font-medium">Starts from</span>
-                            <span className="text-2xl font-black text-primary">
-                              {formatPrice(plan.price)}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Valid for {plan.duration} {plan.duration_unit}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 mb-6">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Check className="w-4 h-4 text-primary" />
-                          <span>Unlimited Incoming SMS</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Check className="w-4 h-4 text-primary" />
-                          <span>4G/5G High-speed Data</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Check className="w-4 h-4 text-primary" />
-                          <span>Instant QR Delivery</span>
-                        </div>
-                      </div>
-
-                      <Link
-                        to="/dashboard/esim"
-                        onClick={() =>
-                          trackConversion?.(
-                            "esim_plan_purchase",
-                            "conversion",
-                            "/dashboard/esim"
-                          )
-                        }
-                        className="w-full block text-center px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 text-sm font-black uppercase tracking-widest"
-                      >
-                        Explore Plans
-                      </Link>
-                    </motion.div>
-                  );
-                })}
+            {hasError ? (
+              <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
+                <h4 className="font-semibold text-foreground">
+                  We couldn&apos;t load the plans
+                </h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Refresh the page or try again in a moment.
+                </p>
               </div>
-            </motion.div>
-          )
-        }
+            ) : isLoading ? (
+              <div className="grid gap-5 md:grid-cols-2" aria-label="Loading plans">
+                {[0, 1, 2].map((item) => (
+                  <PlanSkeleton key={item} />
+                ))}
+              </div>
+            ) : filteredDataPlans.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+                <h4 className="font-semibold text-foreground">No destinations found</h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Try another country or region.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {filteredDataPlans.map((plan) => (
+                    <article
+                      key={plan.id}
+                      className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate text-sm font-semibold text-foreground">
+                          {plan.name}
+                        </h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {plan.data} · {plan.duration} {plan.durationUnit}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs text-muted-foreground">
+                          From
+                        </p>
+                        <p className="text-sm font-bold text-foreground">
+                          {formatPrice(plan.price, plan.currencyCode)}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mt-8 flex justify-center">
+                  <Link
+                    to="/dashboard/esim"
+                    onClick={trackPurchase}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Explore all data plans
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </section>
   );
 };

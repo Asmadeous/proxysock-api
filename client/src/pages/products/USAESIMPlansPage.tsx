@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowLeft, X, Loader2, Zap } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { conversionTracker } from '@/utils/redditPixel';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -11,7 +11,9 @@ import api from '../../services/api';
 
 interface USAESIMPlan {
   id: string;
-  provider: 'colt' | 'lyca';
+  provider: string;
+  country: 'US' | 'GB';
+  sms_label: string;
   name: string;
   price: number;
   currency_code: string;
@@ -31,88 +33,13 @@ interface CartItem {
   productType: 'usa-esim';
 }
 
-// Helper function to get carrier logo
-const getCarrierLogo = (provider: string): string => {
-  if (provider.toLowerCase() === 'lyca') {
-    return '/at&t.png'; // AT&T logo
-  }
-  if (provider.toLowerCase() === 'colt') {
-    return '/t-mobile.png'; // T-Mobile logo
-  }
-  return '';
-};
-
 const USAESIMCardSkeleton = () => (
-  <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/50">
-    <CardHeader className="border-b">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-4">
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-xl" />
-          </div>
-
-          <Skeleton className="h-8 w-3/4 mb-3" />
-          <div className="flex items-baseline gap-2">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-        </div>
-      </div>
-    </CardHeader>
-
-    <CardContent className="pt-6 space-y-6">
-      {/* Key Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-12 mx-auto mb-1" />
-          <Skeleton className="h-3 w-8 mx-auto" />
-        </div>
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-16 mx-auto mb-1" />
-          <Skeleton className="h-3 w-6 mx-auto" />
-        </div>
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-10 mx-auto mb-1" />
-          <Skeleton className="h-3 w-6 mx-auto" />
-        </div>
-      </div>
-
-      {/* Features List */}
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 flex-1" />
-        </div>
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 flex-1" />
-        </div>
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <Card className="bg-primary/5 border-primary/20">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-start gap-2">
-            <Skeleton className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1 flex-1">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Skeleton className="h-10 w-full" />
-    </CardContent>
-  </Card>
+  <div className="space-y-5 rounded-xl border border-border p-6" aria-hidden="true">
+    <Skeleton className="h-5 w-24" />
+    <Skeleton className="h-7 w-3/4" />
+    <Skeleton className="h-32 w-full" />
+    <Skeleton className="h-12 w-full" />
+  </div>
 );
 
 interface USAESIMPlansPageProps {
@@ -122,6 +49,7 @@ interface USAESIMPlansPageProps {
 }
 
 export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
+  const [country, setCountry] = useState<'US' | 'GB'>('US');
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
@@ -137,11 +65,13 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
         const products = data.products || [];
         const mappedPlans: USAESIMPlan[] = products.map((p: any) => ({
           id: p.id.toString(),
-          provider: p.provider === 'colt' ? 'colt' : 'lyca',
+          provider: p.provider || 'Mobile network',
+          country: ['GB', 'UK'].includes(String(p.country_code || p.metadata?.country_code || 'US').toUpperCase()) ? 'GB' : 'US',
+          sms_label: p.sms_quota === null || p.features?.some((feature: string) => /unlimited.*(sms|text)/i.test(feature)) ? 'Unlimited' : p.sms_quota != null ? String(p.sms_quota) : 'Not specified',
           name: p.name,
           price: p.price || 0,
           currency_code: p.currency || 'USD',
-          voice_minutes: (p.calling_minutes == null) ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
+          voice_minutes: p.calling_minutes === null || p.features?.some((feature: string) => /unlimited.*(voice|call)/i.test(feature)) ? "Unlimited" : p.calling_minutes != null ? `${p.calling_minutes} min` : "Not specified",
           sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
           data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
           duration: p.duration_days || 30,
@@ -302,303 +232,118 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     }).format(price);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Page Header - Static */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onBack ? onBack() : globalThis.history.back()}
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+  const visiblePlans = plans.filter((plan) => plan.country === country);
+  const countryLabel = country === 'US' ? 'USA' : 'UK';
 
-            <h1 className="text-3xl font-semibold text-foreground">
-              USA eSIM Plans
-            </h1>
-          </div>
-          <p className="text-muted-foreground">
-            Complete mobile service with voice calling, unlimited texting, and high-speed data
-          </p>
-        </div>
+  return (
+    <div className="w-full space-y-7">
+      <header>
+        {onBack ? (
+          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</button>
+        ) : (
+          <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
+        )}
+        <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">Choose your number’s country, then compare the available plans.</p>
+      </header>
 
-        {/* Skeleton Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <USAESIMCardSkeleton key={index} />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-5">
+        <span className="text-sm font-semibold">Choose your number’s country</span>
+        <div role="group" aria-label="Phone number country" className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:min-w-80">
+          {(['US', 'GB'] as const).map((value) => (
+            <button key={value} type="button" aria-pressed={country === value} onClick={() => setCountry(value)}
+              className={`min-h-12 rounded-lg border px-6 py-3 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background ${country === value ? 'border-primary bg-primary text-primary-foreground' : 'border-foreground/30 bg-card hover:border-primary hover:bg-primary/10'}`}>
+              {value === 'US' ? 'USA' : 'UK'}
+            </button>
           ))}
         </div>
       </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <Card className="border-l-4 border-l-destructive bg-destructive/5">
-        <CardContent className="py-8 text-center">
-          <p className="text-destructive font-semibold mb-2">
-            Error loading USA eSIM plans
-          </p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onBack ? onBack() : globalThis.history.back()}
-            className="p-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-
-          <h1 className="text-3xl font-semibold text-foreground">
-            USA eSIM Plans
-          </h1>
-        </div>
-        <p className="text-muted-foreground">
-          Complete mobile service with voice calling, unlimited texting, and high-speed data
-        </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold">{countryLabel} phone-number plans</h2>
+        {!isLoading && !error && <p role="status" className="text-sm text-muted-foreground">{visiblePlans.length} {visiblePlans.length === 1 ? 'plan' : 'plans'} available</p>}
       </div>
 
-      {/* Success Alert */}
       {showSuccessAlert && (
-        <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Check className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-emerald-600">Added to Cart!</h3>
-              <p className="text-sm text-muted-foreground">
-                Your USA eSIM plan has been added to cart.
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSuccessAlert(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        <div role="status" className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/40 px-4 py-3">
+          <p className="text-sm font-medium">Your eSIM plan has been added to the cart.</p>
+          <Button variant="ghost" size="sm" onClick={() => setShowSuccessAlert(false)}>Dismiss</Button>
+        </div>
       )}
 
-      {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {plans.map((plan) => {
-          const cartItem = getCartItemForPlan(plan);
-          const inCart = !!cartItem;
-          const carrierLogo = getCarrierLogo(plan.provider);
-
-          return (
-            <Card key={plan.id} className="hover:shadow-lg transition-all duration-200 hover:border-primary/50">
-              <CardHeader className="border-b">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-bold">
-                        <Phone className="h-4 w-4" />
-                        {plan.provider.toUpperCase()}
-                      </div>
-
-                      {plan.moq > 1 && (
-                        <div className="inline-flex items-center bg-amber-500/10 text-amber-600 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold">
-                          Min. {plan.moq} units
-                        </div>
-                      )}
-
-                      {/* Carrier Logo - Sponsored by */}
-                      {carrierLogo && (
-                        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border">
-                          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Sponsored by</span>
-                          <img
-                            src={carrierLogo}
-                            alt="Carrier Logo"
-                            className="h-6 w-auto object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <CardTitle className="text-2xl mb-3">{plan.name}</CardTitle>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-4xl font-black text-primary">
-                        {formatPrice(plan.price, plan.currency_code)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        /{plan.duration} {plan.duration_unit}
-                      </span>
-                    </div>
+      {isLoading ? (
+        <div aria-busy="true" aria-label="Loading phone-number plans" className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => <USAESIMCardSkeleton key={item} />)}
+        </div>
+      ) : error ? (
+        <div role="alert" className="rounded-xl border border-border bg-card p-8">
+          <h3 className="font-semibold">We couldn’t load the plans</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        </div>
+      ) : visiblePlans.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
+          <h3 className="font-semibold">{countryLabel} plans are currently unavailable</h3>
+          <p className="mt-2 text-sm text-muted-foreground">Please check back or choose another country to view available plans.</p>
+          {country === 'GB' && <Button variant="outline" className="mt-5" onClick={() => setCountry('US')}>View USA plans</Button>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {visiblePlans.map((plan) => {
+            const cartItem = getCartItemForPlan(plan);
+            const inCart = !!cartItem;
+            return (
+              <article key={plan.id} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1 basis-40">
+                    <p className="mb-1 text-sm capitalize text-muted-foreground">{plan.provider}</p>
+                    <h3 className="text-lg font-semibold leading-7">{plan.name}</h3>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
                   </div>
                 </div>
-              </CardHeader>
-
-              <CardContent className="pt-6 space-y-6">
-                {/* Key Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <Phone className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">{plan.voice_minutes}</span>
-                    <span className="text-xs text-muted-foreground">Voice</span>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <MessageSquare className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">Unlimited</span>
-                    <span className="text-xs text-muted-foreground">SMS</span>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <Wifi className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">{plan.data_amount}</span>
-                    <span className="text-xs text-muted-foreground">Data</span>
-                  </div>
-                </div>
-
-                {/* Features List */}
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        <Check className="h-5 w-5 text-primary" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{feature}</span>
+                <dl className="mb-5 divide-y divide-border border-y border-border">
+                  {[['Data', plan.data_amount], ['Calls', plan.voice_minutes], ['Texts', plan.sms_label]].map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-5 py-3 text-sm">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="text-right font-medium">{value}</dd>
                     </div>
                   ))}
-                </div>
-
-                {/* Info Box */}
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-start gap-2">
-                      <Phone className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Includes a real US phone number for voice calls and text messaging. Perfect for staying connected in the United States.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Add to Cart Section */}
-                {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
-                    inCart ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-center gap-3 bg-muted/50 rounded-lg p-3 border border-primary/30">
-                            <Button
-                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)}
-                              variant="default"
-                              size="sm"
-                              className="h-9 w-9 p-0"
-                            >
-                              −
-                            </Button>
-                            <div className="flex-1 text-center">
-                              <span className="text-lg font-bold">{cartItem?.quantity || 0}</span>
-                              <div className="text-primary text-xs font-medium">in cart</div>
-                            </div>
-                            <Button
-                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)}
-                              variant="default"
-                              size="sm"
-                              className="h-9 w-9 p-0"
-                            >
-                              +
-                            </Button>
-                          </div>
-                          <Button
-                            onClick={() => removeFromCart(plan.id)}
-                            variant="destructive"
-                            className="w-full"
-                          >
-                            Remove from Cart
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => addToCart(plan)}
-                          disabled={provisioningPkgId === plan.id}
-                          className="w-full gap-2"
-                        >
-                          {provisioningPkgId === plan.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-                          {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                        </Button>
-                      )
+                </dl>
+                {plan.features.length > 0 && (
+                  <details className="mb-5 text-sm">
+                    <summary className="w-fit cursor-pointer rounded py-2 font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Plan details</summary>
+                    <ul className="mt-2 list-disc space-y-2 pl-5 leading-6 text-muted-foreground">
+                      {plan.features.map((feature, index) => <li key={index}>{feature}</li>)}
+                    </ul>
+                  </details>
                 )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Info Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Why Choose USA eSIM?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Phone className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Real US Phone Number</h4>
-                <p className="text-sm text-muted-foreground">
-                  Get a genuine US phone number for making and receiving calls just like a local resident.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <MessageSquare className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Unlimited Messaging</h4>
-                <p className="text-sm text-muted-foreground">
-                  Send and receive unlimited SMS and MMS messages to any US number without restrictions.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Wifi className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">High-Speed Data</h4>
-                <p className="text-sm text-muted-foreground">
-                  Enjoy fast 4G/5G data connectivity for browsing, streaming, and staying connected on the go.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Check className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Instant Activation</h4>
-                <p className="text-sm text-muted-foreground">
-                  Activate your eSIM instantly after purchase. No waiting for physical SIM cards to arrive.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                {plan.moq > 1 && <p className="mb-5 text-sm text-muted-foreground">Minimum order: {plan.moq} eSIMs. Price shown is per eSIM.</p>}
+                <div className="mt-auto">
+                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
+                    inCart ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                          <Button aria-label={`Decrease quantity for ${plan.name}`} onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)} variant="outline" className="h-11 w-11 p-0">−</Button>
+                          <span className="text-sm font-medium">{cartItem?.quantity || 0} in cart</span>
+                          <Button aria-label={`Increase quantity for ${plan.name}`} onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)} variant="outline" className="h-11 w-11 p-0">+</Button>
+                        </div>
+                        <Button onClick={() => removeFromCart(plan.id)} variant="outline" className="w-full">Remove from cart</Button>
+                      </div>
+                    ) : (
+                      <Button onClick={() => addToCart(plan)} disabled={provisioningPkgId === plan.id} className="min-h-12 w-full gap-2">
+                        {provisioningPkgId === plan.id && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+                        {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                      </Button>
+                    )
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

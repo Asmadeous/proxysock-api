@@ -1,3 +1,4 @@
+import { getMinimumQuantity } from "@/utils/cart/esimQuantity";
 import { CartItem } from "@/types/index";
 import { useCalculateOrderItems } from "./hook/useCalculateOrderTotalSync";
 import { formatDataVolume, formatDuration } from "@/utils/cart/formatData";
@@ -605,6 +606,7 @@ const UsaEsimItemDetails = ({
   updateItemAutoRenew,
 }: ItemDetailsProps) => {
   if (!item.usaEsimPlan) return null;
+  const minimumQuantity = getMinimumQuantity(item);
   return (
     <Card className="border-t-4 border-t-emerald-500 hover:border-emerald-500/50 hover:shadow-lg transition-all">
       <CardContent className="p-5">
@@ -619,6 +621,7 @@ const UsaEsimItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.usaEsimPlan.name} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -652,6 +655,8 @@ const UsaEsimItemDetails = ({
             <span className="text-muted-foreground">Quantity</span>
             <div className="flex items-center gap-2">
               <Button
+                aria-label={`Decrease quantity for ${item.usaEsimPlan.name}`}
+                disabled={(item.quantity || 1) <= minimumQuantity}
                 onClick={() =>
                   updateESIMQuantity?.(index, (item.quantity || 1) - 1)
                 }
@@ -665,6 +670,7 @@ const UsaEsimItemDetails = ({
                 {item.quantity || 1}
               </span>
               <Button
+                aria-label={`Increase quantity for ${item.usaEsimPlan.name}`}
                 onClick={() =>
                   updateESIMQuantity?.(index, (item.quantity || 1) + 1)
                 }
@@ -677,6 +683,9 @@ const UsaEsimItemDetails = ({
             </div>
           </div>
         </div>
+        {minimumQuantity > 1 && (
+          <p className="mt-3 text-xs text-muted-foreground">Minimum order: {minimumQuantity} eSIMs.</p>
+        )}
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-baseline justify-between">
             <span className="text-muted-foreground text-sm">Total</span>

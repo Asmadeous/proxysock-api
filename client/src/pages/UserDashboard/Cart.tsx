@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { Helmet } from "react-helmet-async";
 
+import { getMinimumQuantity, normalizeEsimQuantity } from "@/utils/cart/esimQuantity";
 import { getEffectiveBasePrice } from "@/utils/cart/getEffectiveBasePrice";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 
@@ -45,7 +46,7 @@ export default function Cart() {
       ...item,
       productType,
       protocol: (productType === "proxy" || productType === "global-isp" || productType === "residential") ? item.protocol || "http" : undefined,
-      quantity: (productType === "esim" || productType === "usa-esim") ? (Number(item.quantity) || 1) : (item.quantity),
+      quantity: (productType === "esim" || productType === "usa-esim") ? normalizeEsimQuantity(item) : (item.quantity),
       plan: (productType === "proxy" || productType === "residential" || productType === "global-isp") ? (item.plan ?? null) : null,
       esimPackage: productType === "esim" ? (item.esimPackage ?? null) : null,
       vpsPlan: productType === "vps" ? (item.vpsPlan ?? null) : null,
@@ -64,9 +65,9 @@ export default function Cart() {
       residentalRotatingConfig: productType === "residential" ? item.residentalRotatingConfig : undefined,
     };
 
-    // ONLY recalculate if totalPrice is missing, NaN, or null
-    if (updatedItem.totalPrice === undefined || updatedItem.totalPrice === null || isNaN(Number(updatedItem.totalPrice))) {
-      updatedItem.totalPrice = calculateItemTotalSync(updatedItem);
+    // Recalculate when quantity changes or the stored total is missing/invalid.
+    if (updatedItem.quantity !== item.quantity || updatedItem.totalPrice === undefined || updatedItem.totalPrice === null || isNaN(Number(updatedItem.totalPrice))) {
+      updatedItem.totalPrice = calculateItemTotalSync({ ...updatedItem, totalPrice: undefined });
     }
 
     return updatedItem;
@@ -108,6 +109,7 @@ export default function Cart() {
             })
             .map(normalizeCartItem)
           : [];
+        localStorage.setItem("cartItems", JSON.stringify(cartWithDefaults));
         setCartItems(cartWithDefaults);
         globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: cartWithDefaults.length } }));
       } catch (e) {
@@ -132,12 +134,16 @@ export default function Cart() {
   };
 
   const updateESIMQuantity = (index: number, quantity: number) => {
+    const item = cartItems[index];
+    if (!item || !Number.isInteger(quantity)) return;
+    const minimum = getMinimumQuantity(item);
+    if (minimum > 1 && quantity < minimum) return;
     if (quantity <= 0) {
       removeItem(index);
       return;
     }
     const updatedCart = cartItems.map((item, i) =>
-      i === index ? { ...item, quantity, totalPrice: calculateItemTotalSync({ ...item, quantity }) } : item
+      i === index ? { ...item, quantity, totalPrice: calculateItemTotalSync({ ...item, quantity, totalPrice: undefined }) } : item
     );
     setCartItems(updatedCart);
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));
