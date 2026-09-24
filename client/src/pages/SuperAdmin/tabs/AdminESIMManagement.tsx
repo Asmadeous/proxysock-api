@@ -111,8 +111,7 @@ export default function AdminESIMManagement() {
                         className="px-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
                     >
                         <option value="all">All Types</option>
-                        <option value="esim">eSIM Access</option>
-                        <option value="usa_esim">USA eSIM</option>
+                        <option value="esim">eSIM (eSIM Access & MeiSIM)</option>
                     </select>
                 </div>
             </div>

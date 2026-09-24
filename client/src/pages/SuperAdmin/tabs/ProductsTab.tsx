@@ -89,10 +89,10 @@ const STORE_CATEGORIES = [
     {
         id: "esim",
         name: "Global eSIM",
-        description: "Travel data plans for 190+ countries",
+        description: "Travel data plans and US phone-number lines",
         icon: DevicePhoneMobileIcon,
         color: "green",
-        types: ["esim", "usa_esim"],
+        types: ["esim"],
         syncType: "esims" as SyncType,
         syncLabel: "Sync eSIMs"
     },

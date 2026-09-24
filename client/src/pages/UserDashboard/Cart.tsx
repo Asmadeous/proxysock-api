@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { Helmet } from "react-helmet-async";
 
-import { getMinimumQuantity, normalizeEsimQuantity } from "@/utils/cart/esimQuantity";
+import { isFixedQuantity, isOrderableCartItem, normalizeEsimQuantity } from "@/utils/cart/esimQuantity";
 import { getEffectiveBasePrice } from "@/utils/cart/getEffectiveBasePrice";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 
@@ -103,7 +103,7 @@ export default function Cart() {
                 (item.productType === "esim" && item.esimPackage) ||
                 (item.productType === "vps" && item.vpsPlan) ||
                 (item.productType === "rdp" && item.rdpPlan) ||
-                (item.productType === "usa-esim" && item.usaEsimPlan) ||
+                (item.productType === "usa-esim" && item.usaEsimPlan && isOrderableCartItem(item)) ||
                 (item.productType === "vpn" && item.vpnPlan)
               );
             })
@@ -135,9 +135,7 @@ export default function Cart() {
 
   const updateESIMQuantity = (index: number, quantity: number) => {
     const item = cartItems[index];
-    if (!item || !Number.isInteger(quantity)) return;
-    const minimum = getMinimumQuantity(item);
-    if (minimum > 1 && quantity < minimum) return;
+    if (!item || !Number.isInteger(quantity) || isFixedQuantity(item)) return;
     if (quantity <= 0) {
       removeItem(index);
       return;

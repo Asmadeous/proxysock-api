@@ -2,36 +2,61 @@ import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { conversionTracker } from '@/utils/redditPixel';
+import {
+  DeviceAddress,
+  DeviceDetails,
+  DeviceDetailsErrors,
+  deviceDetailsMetadata,
+  validateDeviceDetails,
+} from '@/utils/esim/deviceDetails';
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import api from '../../services/api';
 
 
-interface USAESIMPlan {
+// A MeiSIM US prepaid line: a US phone number with talk, text and data.
+export interface USAESIMPlan {
   id: string;
   provider: string;
-  country: 'US' | 'GB';
-  sms_label: string;
   name: string;
   price: number;
   currency_code: string;
-  voice_minutes: string;
-  sms_included: boolean;
   data_amount: string;
   duration: number;
   duration_unit: string;
-  features: string[];
-  phone_number_included: boolean;
-  moq: number;
+  requires_imei: boolean;
+  requires_eid: boolean;
 }
 
 interface CartItem {
   usaEsimPlan?: USAESIMPlan;
+  deviceDetails?: DeviceDetails;
   quantity?: number;
-  productType: 'usa-esim';
+  productType: string;
 }
+
+const EMPTY_ADDRESS: DeviceAddress = { address_line_1: '', city: '', state: '', zip_code: '' };
+
+export const toUsaEsimPlan = (p: any): USAESIMPlan => {
+  const dataLimit = String(p.data_limit ?? '').trim();
+  const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
+  return {
+    id: String(p.id),
+    provider: p.network || 'Mobile network',
+    name: p.name,
+    price: Number(p.price) || 0,
+    currency_code: p.currency || 'USD',
+    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : 'See plan details',
+    duration: Number(p.validity_days) || 30,
+    duration_unit: 'Days',
+    requires_imei: p.requires_imei !== false,
+    requires_eid: p.requires_eid !== false,
+  };
+};
 
 const USAESIMCardSkeleton = () => (
   <div className="space-y-5 rounded-xl border border-border p-6" aria-hidden="true">
@@ -42,6 +67,73 @@ const USAESIMCardSkeleton = () => (
   </div>
 );
 
+interface DeviceDetailsFormProps {
+  plan: USAESIMPlan;
+  submitLabel: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onSubmit: (details: DeviceDetails) => void;
+}
+
+function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit }: DeviceDetailsFormProps) {
+  const [imei, setImei] = useState('');
+  const [eid, setEid] = useState('');
+  const [address, setAddress] = useState<DeviceAddress>(EMPTY_ADDRESS);
+  const [errors, setErrors] = useState<DeviceDetailsErrors>({});
+  const idPrefix = `device-${plan.id}`;
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const result = validateDeviceDetails({ imei, eid, address }, plan.requires_eid);
+    setErrors(result.errors);
+    if (result.details) onSubmit(result.details);
+  };
+
+  const field = (
+    id: string, label: string, value: string, onChange: (value: string) => void,
+    error?: string, props: React.ComponentProps<'input'> = {},
+  ) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={`${idPrefix}-${id}`}>{label}</Label>
+      <Input
+        id={`${idPrefix}-${id}`} value={value} onChange={(e) => onChange(e.target.value)}
+        aria-invalid={!!error} aria-describedby={error ? `${idPrefix}-${id}-error` : undefined} {...props}
+      />
+      {error && <p id={`${idPrefix}-${id}-error`} className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+
+  const setAddressField = (key: keyof DeviceAddress) => (value: string) => setAddress((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <form onSubmit={submit} noValidate aria-label={`Phone details for ${plan.name}`} className="space-y-4 rounded-lg border border-border p-4">
+      <p className="text-sm text-muted-foreground">
+        The carrier activates the line on one phone. Dial <span className="font-medium text-foreground">*#06#</span> on that phone to see its IMEI{plan.requires_eid ? ' and EID' : ''}.
+      </p>
+      {field('imei', 'IMEI', imei, setImei, errors.imei, { inputMode: 'numeric', autoComplete: 'off', placeholder: '15 digits' })}
+      {plan.requires_eid && field('eid', 'EID', eid, setEid, errors.eid, { inputMode: 'numeric', autoComplete: 'off', placeholder: '32 digits' })}
+      <details className="text-sm">
+        <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4">US address for 911 (optional)</summary>
+        <div className="mt-3 space-y-3">
+          {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
+          <div className="grid grid-cols-3 gap-3">
+            {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
+            {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
+            {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
+          </div>
+        </div>
+      </details>
+      <div className="flex gap-3">
+        <Button type="submit" disabled={isSubmitting} className="min-h-11 flex-1 gap-2">
+          {isSubmitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+          {isSubmitting ? 'Provisioning...' : submitLabel}
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} className="min-h-11">Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
 interface USAESIMPlansPageProps {
   onBack?: () => void;
   isDirectBuy?: boolean;
@@ -49,9 +141,9 @@ interface USAESIMPlansPageProps {
 }
 
 export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
-  const [country, setCountry] = useState<'US' | 'GB'>('US');
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [formPlanId, setFormPlanId] = useState<string | null>(null);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,28 +152,9 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const { data } = await api.get('/web/api/products?product_type=usa_esim');
-
-        const products = data.products || [];
-        const mappedPlans: USAESIMPlan[] = products.map((p: any) => ({
-          id: p.id.toString(),
-          provider: p.provider || 'Mobile network',
-          country: ['GB', 'UK'].includes(String(p.country_code || p.metadata?.country_code || 'US').toUpperCase()) ? 'GB' : 'US',
-          sms_label: p.sms_quota === null || p.features?.some((feature: string) => /unlimited.*(sms|text)/i.test(feature)) ? 'Unlimited' : p.sms_quota != null ? String(p.sms_quota) : 'Not specified',
-          name: p.name,
-          price: p.price || 0,
-          currency_code: p.currency || 'USD',
-          voice_minutes: p.calling_minutes === null || p.features?.some((feature: string) => /unlimited.*(voice|call)/i.test(feature)) ? "Unlimited" : p.calling_minutes != null ? `${p.calling_minutes} min` : "Not specified",
-          sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
-          data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
-          duration: p.duration_days || 30,
-          duration_unit: "Days",
-          features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-          phone_number_included: p.esim_type === 'voice_data_sms',
-          moq: p.moq || 1
-        }));
-
-        setPlans(mappedPlans);
+        const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
+        const products = (data.products || []).filter((p: any) => p.meisim_line === 'us_prepaid');
+        setPlans(products.map(toUsaEsimPlan).sort((a: USAESIMPlan, b: USAESIMPlan) => a.price - b.price));
       } catch (err: any) {
         setError(err.message || 'Error loading plans. Please try again.');
         console.error(err);
@@ -98,8 +171,7 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
         if (storedCart) {
           const parsedCart = JSON.parse(storedCart);
           if (Array.isArray(parsedCart)) {
-            const usaEsimItems = parsedCart.filter(item => item.productType === 'usa-esim');
-            setCartItems(usaEsimItems);
+            setCartItems(parsedCart.filter(item => item.productType === 'usa-esim'));
           }
         }
       } catch (e) {
@@ -114,116 +186,48 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     return () => globalThis.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
 
-  const addToCart = async (plan: USAESIMPlan) => {
+  // Each line belongs to one phone, so every add is its own cart item with quantity 1.
+  const addLine = async (plan: USAESIMPlan, details: DeviceDetails) => {
     if (isDirectBuy && onDirectBuy) {
-        setProvisioningPkgId(plan.id);
-        try {
-            await onDirectBuy(plan.id, plan.moq || 1, {});
-        } finally {
-            setProvisioningPkgId(null);
-        }
-        return;
-    }
-
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
+      setProvisioningPkgId(plan.id);
       try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
+        await onDirectBuy(plan.id, 1, deviceDetailsMetadata(details));
+        setFormPlanId(null);
+      } finally {
+        setProvisioningPkgId(null);
       }
+      return;
     }
 
-    const existingItemIndex = currentCart.findIndex(
-      (item: CartItem) => item.productType === 'usa-esim' && item.usaEsimPlan?.id === plan.id
-    );
-
-    if (existingItemIndex >= 0) {
-      currentCart[existingItemIndex].quantity = (currentCart[existingItemIndex].quantity || 0) + 1;
-    } else {
-      currentCart.push({ usaEsimPlan: plan, quantity: plan.moq || 1, productType: 'usa-esim' });
+    let currentCart: CartItem[] = [];
+    try {
+      currentCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    } catch (e) {
+      currentCart = [];
     }
+
+    currentCart.push({ usaEsimPlan: plan, deviceDetails: details, quantity: 1, productType: 'usa-esim' });
 
     localStorage.setItem('cartItems', JSON.stringify(currentCart));
-    setCartItems(currentCart.filter((item: CartItem) => item.productType === 'usa-esim'));
+    setCartItems(currentCart.filter((item) => item.productType === 'usa-esim'));
+    setFormPlanId(null);
     setShowSuccessAlert(true);
     setTimeout(() => setShowSuccessAlert(false), 3000);
 
-    const totalItems = currentCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
+    const totalItems = currentCart.reduce((total, item) => total + (item.quantity || 1), 0);
     globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
 
-    // Track AddToCart
     conversionTracker.trackAddToCart({
       productId: plan.id,
       productName: plan.name,
       category: "usa-esim",
-      value: plan.price / 100,
+      value: plan.price,
       currency: plan.currency_code
     });
   };
 
-  const removeFromCart = (planId: string) => {
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
-      try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
-      }
-    }
-
-    const updatedCart = currentCart.filter(
-      (item: CartItem) => !(item.productType === 'usa-esim' && item.usaEsimPlan?.id === planId)
-    );
-
-    localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-    setCartItems(updatedCart.filter((item: CartItem) => item.productType === 'usa-esim'));
-
-    const totalItems = updatedCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
-    globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
-  };
-
-  const updateQuantity = (planId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(planId);
-      return;
-    }
-
-    // Enforce MOQ
-    const plan = plans.find(p => p.id === planId);
-    if (plan && plan.moq > 1 && quantity < plan.moq) {
-      return;
-    }
-
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
-      try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
-      }
-    }
-
-    const updatedCart = currentCart.map((item: CartItem) =>
-      item.productType === 'usa-esim' && item.usaEsimPlan?.id === planId ? { ...item, quantity } : item
-    );
-
-    localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-    setCartItems(updatedCart.filter((item: CartItem) => item.productType === 'usa-esim'));
-
-    const totalItems = updatedCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
-    globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
-  };
-
-  const getCartItemForPlan = (plan: USAESIMPlan) => {
-    return cartItems.find(item => item.usaEsimPlan?.id === plan.id);
-  };
+  const linesInCart = (plan: USAESIMPlan) =>
+    cartItems.filter((item) => item.usaEsimPlan?.id === plan.id).length;
 
   const formatPrice = (price: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -232,8 +236,7 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     }).format(price);
   };
 
-  const visiblePlans = plans.filter((plan) => plan.country === country);
-  const countryLabel = country === 'US' ? 'USA' : 'UK';
+  const canBuy = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure";
 
   return (
     <div className="w-full space-y-7">
@@ -244,24 +247,12 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
           <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
         )}
         <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
-        <p className="mt-3 text-base leading-7 text-muted-foreground">Choose your number’s country, then compare the available plans.</p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">US phone-number plans with calls, texts and data. Each line is activated on one phone.</p>
       </header>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-5">
-        <span className="text-sm font-semibold">Choose your number’s country</span>
-        <div role="group" aria-label="Phone number country" className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:min-w-80">
-          {(['US', 'GB'] as const).map((value) => (
-            <button key={value} type="button" aria-pressed={country === value} onClick={() => setCountry(value)}
-              className={`min-h-12 rounded-lg border px-6 py-3 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background ${country === value ? 'border-primary bg-primary text-primary-foreground' : 'border-foreground/30 bg-card hover:border-primary hover:bg-primary/10'}`}>
-              {value === 'US' ? 'USA' : 'UK'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-xl font-semibold">{countryLabel} phone-number plans</h2>
-        {!isLoading && !error && <p role="status" className="text-sm text-muted-foreground">{visiblePlans.length} {visiblePlans.length === 1 ? 'plan' : 'plans'} available</p>}
+      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-5">
+        <h2 className="text-xl font-semibold">USA phone-number plans</h2>
+        {!isLoading && !error && <p role="status" className="text-sm text-muted-foreground">{plans.length} {plans.length === 1 ? 'plan' : 'plans'} available</p>}
       </div>
 
       {showSuccessAlert && (
@@ -280,22 +271,21 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
           <h3 className="font-semibold">We couldn’t load the plans</h3>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         </div>
-      ) : visiblePlans.length === 0 ? (
+      ) : plans.length === 0 ? (
         <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
-          <h3 className="font-semibold">{countryLabel} plans are currently unavailable</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Please check back or choose another country to view available plans.</p>
-          {country === 'GB' && <Button variant="outline" className="mt-5" onClick={() => setCountry('US')}>View USA plans</Button>}
+          <h3 className="font-semibold">USA plans are currently unavailable</h3>
+          <p className="mt-2 text-sm text-muted-foreground">Please check back soon.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {visiblePlans.map((plan) => {
-            const cartItem = getCartItemForPlan(plan);
-            const inCart = !!cartItem;
+          {plans.map((plan) => {
+            const inCart = linesInCart(plan);
+            const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
             return (
               <article key={plan.id} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 basis-40">
-                    <p className="mb-1 text-sm capitalize text-muted-foreground">{plan.provider}</p>
+                    <p className="mb-1 text-sm text-muted-foreground">{plan.provider}</p>
                     <h3 className="text-lg font-semibold leading-7">{plan.name}</h3>
                   </div>
                   <div className="text-right">
@@ -304,40 +294,30 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
                   </div>
                 </div>
                 <dl className="mb-5 divide-y divide-border border-y border-border">
-                  {[['Data', plan.data_amount], ['Calls', plan.voice_minutes], ['Texts', plan.sms_label]].map(([label, value]) => (
+                  {[['Phone number', 'US number included'], ['Data', plan.data_amount]].map(([label, value]) => (
                     <div key={label} className="flex justify-between gap-5 py-3 text-sm">
                       <dt className="text-muted-foreground">{label}</dt>
                       <dd className="text-right font-medium">{value}</dd>
                     </div>
                   ))}
                 </dl>
-                {plan.features.length > 0 && (
-                  <details className="mb-5 text-sm">
-                    <summary className="w-fit cursor-pointer rounded py-2 font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Plan details</summary>
-                    <ul className="mt-2 list-disc space-y-2 pl-5 leading-6 text-muted-foreground">
-                      {plan.features.map((feature, index) => <li key={index}>{feature}</li>)}
-                    </ul>
-                  </details>
-                )}
-                {plan.moq > 1 && <p className="mb-5 text-sm text-muted-foreground">Minimum order: {plan.moq} eSIMs. Price shown is per eSIM.</p>}
-                <div className="mt-auto">
-                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
-                    inCart ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-                          <Button aria-label={`Decrease quantity for ${plan.name}`} onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)} variant="outline" className="h-11 w-11 p-0">−</Button>
-                          <span className="text-sm font-medium">{cartItem?.quantity || 0} in cart</span>
-                          <Button aria-label={`Increase quantity for ${plan.name}`} onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)} variant="outline" className="h-11 w-11 p-0">+</Button>
-                        </div>
-                        <Button onClick={() => removeFromCart(plan.id)} variant="outline" className="w-full">Remove from cart</Button>
-                      </div>
-                    ) : (
-                      <Button onClick={() => addToCart(plan)} disabled={provisioningPkgId === plan.id} className="min-h-12 w-full gap-2">
-                        {provisioningPkgId === plan.id && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-                        {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+                <div className="mt-auto space-y-3">
+                  {canBuy && (formPlanId === plan.id ? (
+                    <DeviceDetailsForm
+                      plan={plan}
+                      submitLabel={submitLabel}
+                      isSubmitting={provisioningPkgId === plan.id}
+                      onCancel={() => setFormPlanId(null)}
+                      onSubmit={(details) => addLine(plan, details)}
+                    />
+                  ) : (
+                    <>
+                      {inCart > 0 && <p className="text-sm font-medium">{inCart} {inCart === 1 ? 'line' : 'lines'} in cart</p>}
+                      <Button onClick={() => setFormPlanId(plan.id)} className="min-h-12 w-full">
+                        {inCart > 0 ? 'Add another line' : submitLabel}
                       </Button>
-                    )
-                  )}
+                    </>
+                  ))}
                 </div>
               </article>
             );

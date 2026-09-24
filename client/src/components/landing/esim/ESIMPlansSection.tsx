@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
 import api from "../../../services/api";
+import { mapMeisimPackage } from "@/hooks/useESIMPackages";
 
 interface ESIMPlansSectionProps {
   trackConversion?: (
@@ -56,7 +57,7 @@ const countryContent: Record<
     description:
       "Get a real US number with calling, texting, and mobile data on supported US networks.",
     notice:
-      "Some US carriers require your device IMEI or EID during checkout. Have your device details ready before purchasing.",
+      "Every US line is activated on one phone and needs that phone's IMEI and EID at checkout. Dial *#06# on the phone to see them.",
   },
   GB: {
     shortLabel: "UK",
@@ -70,6 +71,7 @@ const countryContent: Record<
 
 const normalizeProvider = (product: any) => {
   const value =
+    product.network ||
     product.network_operator ||
     product.plan_network ||
     product.provider_name ||
@@ -134,10 +136,10 @@ const formatVoicePlans = (products: any[]): VoicePlan[] =>
           : smsValue
             ? String(smsValue)
             : "Included",
-      data: product.data_gb
+      data: formatMeisimData(product) || (product.data_gb
         ? `${Number(product.data_gb)} GB`
-        : product.data_amount || product.plan_data_limit || "Plan allowance",
-      duration: Number(product.duration_days || product.duration || 30),
+        : product.data_amount || product.plan_data_limit || "Plan allowance"),
+      duration: Number(product.validity_days || product.duration_days || product.duration || 30),
       durationUnit: product.duration_unit || "days",
       description:
         product.plan_description ||
@@ -147,10 +149,45 @@ const formatVoicePlans = (products: any[]): VoicePlan[] =>
     };
   });
 
+// MeiSIM sends data as data_limit + data_unit ("1" + "GB", or "Unlimited").
+const formatMeisimData = (product: any): string | undefined => {
+  const limit = String(product.data_limit ?? "").trim();
+  if (!limit || /see plan/i.test(limit)) return undefined;
+  return /^\d+(\.\d+)?$/.test(limit) ? `${limit} ${product.data_unit || "GB"}` : limit;
+};
+
+const countryName = (code: string) => {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code;
+  } catch {
+    return code;
+  }
+};
+
+const toMeisimDataPlan = (product: any): DataPlan => {
+  const pkg = mapMeisimPackage(product);
+  const name = pkg.scope === "country" ? countryName(pkg.location_name) : pkg.location_name;
+  return {
+    id: pkg.id,
+    name,
+    price: pkg.price * 100,
+    currencyCode: pkg.currency_code,
+    data: formatMeisimData(product) || "High-speed data",
+    duration: pkg.duration,
+    durationUnit: "days",
+    coverage: name,
+  };
+};
+
 const formatDataPlans = (products: any[]): DataPlan[] => {
   const groups: Record<string, DataPlan> = {};
 
   products.forEach((product) => {
+    if (product.provider === "meisim") {
+      const plan = toMeisimDataPlan(product);
+      if (!groups[plan.name] || plan.price < groups[plan.name].price) groups[plan.name] = plan;
+      return;
+    }
     const locationName =
       product.location_name ||
       product.metadata?.location_name ||
@@ -209,13 +246,12 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
     const fetchPlans = async () => {
       try {
         setHasError(false);
-        const [voiceResponse, dataResponse] = await Promise.all([
-          api.get("/web/api/products?product_type=usa_esim"),
-          api.get("/web/api/products?product_type=esim"),
-        ]);
+        const { data } = await api.get("/web/api/products?product_type=esim&per_page=all");
+        const products: any[] = data.products || [];
 
-        setVoicePlans(formatVoicePlans(voiceResponse.data.products || []));
-        setDataPlans(formatDataPlans(dataResponse.data.products || []));
+        // MeiSIM US prepaid lines carry a phone number; everything else is data-only.
+        setVoicePlans(formatVoicePlans(products.filter((p) => p.meisim_line === "us_prepaid")));
+        setDataPlans(formatDataPlans(products.filter((p) => p.meisim_line !== "us_prepaid")));
       } catch (error) {
         console.error("Failed to load eSIM plans:", error);
         setHasError(true);
@@ -258,6 +294,10 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
     );
 
   const activeCountry = countryContent[voiceCountry];
+  // Only offer a country switch when more than one country has plans.
+  const availableCountries = (Object.keys(countryContent) as VoiceCountry[]).filter(
+    (country) => country === "US" || voicePlans.some((plan) => plan.country === country)
+  );
 
   return (
     <section className="relative bg-background py-16 sm:py-20" aria-labelledby="esim-plans-title">
@@ -296,6 +336,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
             role="region"
             aria-labelledby="voice-esim-tab"
           >
+            {availableCountries.length > 1 && (
             <div className="mb-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-5">
               <span className="text-sm font-semibold text-foreground">Choose your number’s country</span>
               <div
@@ -303,7 +344,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                 role="group"
                 aria-label="Phone-number eSIM country"
               >
-                {(Object.keys(countryContent) as VoiceCountry[]).map((country) => {
+                {availableCountries.map((country) => {
                   const content = countryContent[country];
                   const count = voicePlans.filter(
                     (plan) => plan.country === country
@@ -333,6 +374,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                 })}
               </div>
             </div>
+            )}
 
             <div className="mb-7 grid gap-4">
               <div className="max-w-2xl">
@@ -399,7 +441,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                     </div>
 
                     <dl className="mb-5 divide-y divide-border border-y border-border">
-                      {[["Data", plan.data], ["Calls", plan.voice], ["Texts", plan.sms]].map(([label, value]) => (
+                      {[["Phone number", `${countryContent[plan.country].shortLabel} number included`], ["Data", plan.data]].map(([label, value]) => (
                         <div key={label} className="flex items-baseline justify-between gap-5 py-3 text-sm">
                           <dt className="text-muted-foreground">{label}</dt>
                           <dd className="text-right font-medium text-foreground">{value}</dd>

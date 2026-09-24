@@ -19,7 +19,6 @@ import {
   TicketIcon,
   AdjustmentsHorizontalIcon,
   CircleStackIcon,
-  DevicePhoneMobileIcon,
   BellIcon,
   Squares2X2Icon,
   UserCircleIcon,
@@ -51,7 +50,6 @@ const MonitoringTab = lazy(() => import("./tabs/MonitoringTab"));
 const PromoCodesTab = lazy(() => import("./tabs/PromoCodesTab"));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab"));
 const DatabaseTab = lazy(() => import("./tabs/DatabaseTab"));
-const UsaCredentialsTab = lazy(() => import("./tabs/UsaCredentialsTab"));
 const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 
 // Consolidated Management Tab
@@ -99,7 +97,6 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: "monitoring", name: "Monitoring", icon: CpuChipIcon },
       { id: "database", name: "Database", icon: CircleStackIcon },
-      { id: "usa_credentials", name: "USA Credentials", icon: DevicePhoneMobileIcon },
       { id: "logs", name: "System Logs", icon: ServerStackIcon },
       { id: "settings", name: "Settings", icon: AdjustmentsHorizontalIcon },
       { id: "profile", name: "My Profile", icon: UserCircleIcon },
@@ -126,7 +123,6 @@ const TAB_COMPONENTS: Record<string, any> = {
   promo_codes: PromoCodesTab,
   settings: SettingsTab,
   database: DatabaseTab,
-  usa_credentials: UsaCredentialsTab,
   notifications: NotificationsPage,
   logs: SystemLogsTab,
   profile: ProfileTab,

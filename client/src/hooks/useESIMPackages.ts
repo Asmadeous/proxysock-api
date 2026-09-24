@@ -48,6 +48,48 @@ interface CategorizedPackages {
   country: { base: ESIMPackage[]; topup: ESIMPackage[] }
 }
 
+const MEISIM_GLOBAL_MIN_COUNTRIES = 50
+
+const dataUnitBytes: Record<string, number> = { MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 }
+
+// MeiSIM travel plans carry countries / data_limit / validity_days instead of
+// eSIM Access's location_code / volume_bytes / duration.
+export function mapMeisimPackage(p: any): ESIMPackage {
+  const countries: string[] = Array.isArray(p.countries) ? p.countries : []
+  const regions: string[] = Array.isArray(p.regions) ? p.regions : []
+  const scope: PackageScope =
+    countries.length >= MEISIM_GLOBAL_MIN_COUNTRIES ? 'global' : countries.length > 1 ? 'regional' : 'country'
+  const amount = Number.parseFloat(p.data_limit)
+  const unitBytes = dataUnitBytes[String(p.data_unit || 'MB').toUpperCase()] || dataUnitBytes.MB
+  const hasFixedData = Number.isFinite(amount) && amount > 0
+
+  return {
+    id: String(p.id),
+    package_code: p.slug || '',
+    slug: p.slug,
+    name: p.name,
+    price: Number.parseFloat(p.price),
+    currency_code: p.currency || 'USD',
+    volume: hasFixedData ? amount * unitBytes : 0,
+    duration: Number(p.validity_days) || 30,
+    duration_unit: 'days',
+    location_code: countries.join(',') || '!GL',
+    location_name:
+      scope === 'global' ? 'Global' : scope === 'regional' ? regions.join(', ') || `${countries.length} countries` : countries[0] || 'Global',
+    description: p.description || '',
+    data_type: hasFixedData ? 1 : 0,
+    sms_status: 0,
+    speed: p.network || '4G/LTE',
+    network: p.network || 'Multiple Networks',
+    scope,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    packageType: 'base',
+    locationNetworkList: false,
+  }
+}
+
 /**
  * Main Hook
  */
@@ -196,8 +238,13 @@ export function useESIMPackages(filters: PackageFilters = {}) {
   const packages = useMemo(() => {
     if (!allPackagesRaw.length) return [];
 
+    // MeiSIM US phone-number lines are listed on the USA eSIM page, not with data plans.
+    const dataProducts = allPackagesRaw.filter((p: any) => p.meisim_line !== 'us_prepaid');
+
     // Map backend products to ESIMPackage interface
-    let processed: ESIMPackage[] = allPackagesRaw.map((p: any) => {
+    let processed: ESIMPackage[] = dataProducts.map((p: any) => {
+      if (p.provider === 'meisim') return mapMeisimPackage(p);
+
       // Use metadata fields directly from the API
       const locationCode = p.location_code || '!GL';
       const locationName = p.location_name || 'Global';
@@ -256,7 +303,7 @@ export function useESIMPackages(filters: PackageFilters = {}) {
       } else if (filters.locationCode === '!RG') {
         processed = processed.filter(pkg => pkg.scope === 'regional')
       } else {
-        processed = processed.filter(pkg => pkg.location_code === filters.locationCode)
+        processed = processed.filter(pkg => pkg.location_code.split(',').includes(filters.locationCode!))
       }
     }
 
@@ -451,17 +498,22 @@ export function useESIMCountries() {
       const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
       const allFetchedProducts: any[] = data.products || [];
 
-      // Process packages to extract locations
-      const allPackages = allFetchedProducts.map((p: any) => {
-        const locationCode = p.location_code || '!GL';
-        const locationName = p.location_name || 'Global';
-
-        return {
-          location_code: locationCode,
-          location_name: locationName,
-          name: p.name
-        };
-      });
+      // Process packages to extract locations. Each country a MeiSIM travel plan
+      // covers becomes a filter option; US phone-number lines are not data plans.
+      const allPackages = allFetchedProducts
+        .filter((p: any) => p.meisim_line !== 'us_prepaid')
+        .flatMap((p: any) => {
+          if (p.provider === 'meisim') {
+            return (Array.isArray(p.countries) ? p.countries : []).map((code: string) => ({
+              location_code: code, location_name: code, name: code,
+            }));
+          }
+          return [{
+            location_code: p.location_code || '!GL',
+            location_name: p.location_name || 'Global',
+            name: p.name
+          }];
+        });
 
       // Calculate scope for each package and filter to only single countries
       const countryPackages = allPackages.filter((pkg: any) => {

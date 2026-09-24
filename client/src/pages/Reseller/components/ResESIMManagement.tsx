@@ -108,7 +108,7 @@ export default function ResESIMManagement() {
                         className="px-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
                     >
                         <option value="all">All eSIMs</option>
-                        <option value="esim">eSIM Access</option>
+                        <option value="esim">eSIM</option>
                         <option value="usa_esim">USA eSIM</option>
                     </select>
                 </div>
@@ -124,7 +124,7 @@ export default function ResESIMManagement() {
                                     <h3 className="font-bold truncate max-w-[150px]">{p.package_name}</h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${p.product_type === 'usa_esim' ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-                                            {p.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
+                                            {p.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM'}
                                         </div>
                                         <p className="text-xs text-muted-foreground">{p.location_name}</p>
                                     </div>
