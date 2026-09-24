@@ -65,3 +65,9 @@ Thumbs.db
 /monitoring/grafana/data/
 extract_pdf.rb
 /monitoring/prometheus/targets/*.json
+
+# AI Blueprint local workflow files
+.agents/
+.claude/
+blueprint/
+CLAUDE.md
