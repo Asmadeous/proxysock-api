@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { CalendarDays, Globe, MessageSquare, Phone, Signal, Smartphone, type LucideIcon } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
 import { DeviceDetails, deviceDetailsMetadata } from '@/utils/esim/deviceDetails';
 
@@ -33,15 +34,15 @@ interface CartItem {
   productType: string;
 }
 
-// Tinted pills with the theme's text colour, so they read in both light and dark mode
-// (this project themes through CSS variables; Tailwind's dark: variant is not wired up).
-const PILL_STYLES: Record<Pill['kind'], string> = {
-  number: 'bg-sky-500/20 text-foreground',
-  data: 'bg-muted text-foreground',
-  days: 'bg-muted text-foreground',
-  calls: 'bg-emerald-500/20 text-foreground',
-  texts: 'bg-emerald-500/20 text-foreground',
-  intl: 'bg-amber-500/20 text-foreground',
+// Each pill carries an icon in our brand red; text uses the theme colour, so pills read in
+// both light and dark mode (this project themes through CSS variables, not dark: classes).
+const PILL_ICONS: Record<Pill['kind'], LucideIcon> = {
+  number: Smartphone,
+  data: Signal,
+  days: CalendarDays,
+  calls: Phone,
+  texts: MessageSquare,
+  intl: Globe,
 };
 
 const USAESIMCardSkeleton = () => (
@@ -290,9 +291,15 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
                 </div>
                 <h3 className="mt-3 text-[15px] font-bold leading-6">{plan.name}</h3>
                 <ul aria-label="Plan includes" className="mt-3 flex flex-wrap gap-1.5">
-                  {planPills(plan).map((pill, i) => (
-                    <li key={`${pill.label}-${i}`} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${PILL_STYLES[pill.kind]}`}>{pill.label}</li>
-                  ))}
+                  {planPills(plan).map((pill, i) => {
+                    const Icon = PILL_ICONS[pill.kind];
+                    return (
+                      <li key={`${pill.label}-${i}`} className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                        <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        {pill.label}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {plan.description && (
                   <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{plan.description.replace(/\s*\n+\s*/g, ' ')}</p>

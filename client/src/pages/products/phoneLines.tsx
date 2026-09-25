@@ -93,13 +93,13 @@ export type Pill = { kind: 'number' | 'data' | 'days' | 'calls' | 'texts' | 'int
 // MeiSIM's card pills: number, data, days (US only), calls and texts unless 0 — or
 // "Data only" when both are — and international minutes.
 export const planPills = (plan: USAESIMPlan): Pill[] => {
-  const pills: Pill[] = [{ kind: 'number', label: `📱 ${plan.country === 'GB' ? 'UK' : 'US'} Number` }];
-  if (plan.data_amount) pills.push({ kind: 'data', label: `📶 ${plan.data_amount}` });
-  if (plan.country === 'US') pills.push({ kind: 'days', label: `📅 ${plan.duration} days` });
-  if (shown(plan.voice)) pills.push({ kind: 'calls', label: `📞 ${plan.voice}` });
-  if (shown(plan.sms)) pills.push({ kind: 'texts', label: `💬 ${plan.sms}` });
-  if (!shown(plan.voice) && !shown(plan.sms) && plan.data_amount) pills.push({ kind: 'data', label: '📶 Data only' });
-  if (plan.intl_minutes) pills.push({ kind: 'intl', label: `🌍 ${plan.intl_minutes} intl mins` });
+  const pills: Pill[] = [{ kind: 'number', label: `${plan.country === 'GB' ? 'UK' : 'US'} Number` }];
+  if (plan.data_amount) pills.push({ kind: 'data', label: plan.data_amount });
+  if (plan.country === 'US') pills.push({ kind: 'days', label: `${plan.duration} days` });
+  if (shown(plan.voice)) pills.push({ kind: 'calls', label: plan.voice });
+  if (shown(plan.sms)) pills.push({ kind: 'texts', label: plan.sms });
+  if (!shown(plan.voice) && !shown(plan.sms) && plan.data_amount) pills.push({ kind: 'data', label: 'Data only' });
+  if (plan.intl_minutes) pills.push({ kind: 'intl', label: `${plan.intl_minutes} intl mins` });
   return pills;
 };
 

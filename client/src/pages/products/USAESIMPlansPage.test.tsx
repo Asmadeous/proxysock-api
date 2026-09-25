@@ -89,9 +89,9 @@ it("lists only the chosen country's phone-number lines", async () => {
 
 it("shows MeiSIM's card pills: See plan, days, calls and texts", async () => {
   renderPage();
-  expect(await pills(usLine.name)).toEqual(["📱 US Number", "📶 See plan", "📅 30 days", "📞 Unlimited", "💬 Unlimited"]);
-  expect(await pills(tmo5.name)).toEqual(["📱 US Number", "📶 See plan", "📅 30 days", "📶 Data only"]);
-  expect(await pills(lyca15.name)).toEqual(["📱 US Number", "📅 30 days"]);
+  expect(await pills(usLine.name)).toEqual(["US Number", "See plan", "30 days", "Unlimited", "Unlimited"]);
+  expect(await pills(tmo5.name)).toEqual(["US Number", "See plan", "30 days", "Data only"]);
+  expect(await pills(lyca15.name)).toEqual(["US Number", "30 days"]);
   expect((await card(usLine.name)).getByText("USD / mo")).toBeInTheDocument();
   expect((await card(mobileX.name)).getByText("USD for 3 months")).toBeInTheDocument();
   expect((await card(manualAtt.name)).getByText("USD for 6 months")).toBeInTheDocument();
@@ -100,7 +100,7 @@ it("shows MeiSIM's card pills: See plan, days, calls and texts", async () => {
 it("shows UK pills without days and with international minutes", async () => {
   renderPage({ country: "GB" });
   expect(await pills(ukO2.name)).toEqual([
-    "📱 UK Number", "📶 25GB UK · 25GB roaming", "📞 Unlimited UK + 50 international", "💬 Unlimited UK", "🌍 50 intl mins",
+    "UK Number", "25GB UK · 25GB roaming", "Unlimited UK + 50 international", "Unlimited UK", "50 intl mins",
   ]);
   expect(screen.getByRole("link", { name: "Change country" })).toHaveAttribute("href", "/dashboard/phone-esim");
 });
@@ -141,20 +141,20 @@ it("asks only for the IMEI on plans MeiSIM marks as needing no EID", async () =>
   const lyca = await openPlan(user, lyca15.name);
   expect(lyca.getByText("Your IMEI is required. This plan needs no EID.")).toBeInTheDocument();
   expect(lyca.queryByLabelText(/Your device EID/i)).not.toBeInTheDocument();
-  expect(lyca.getByText("📍 Activation address")).toBeInTheDocument();
+  expect(lyca.getByText("Activation address")).toBeInTheDocument();
   await user.click(lyca.getByRole("button", { name: "Cancel" }));
 
   const moxee = await openPlan(user, moxeeSms.name);
   expect(moxee.getByText(/No EID needed for this plan/)).toBeInTheDocument();
   expect(moxee.queryByLabelText(/Your device EID/i)).not.toBeInTheDocument();
-  expect(moxee.queryByText("📍 Activation address")).not.toBeInTheDocument();
+  expect(moxee.queryByText("Activation address")).not.toBeInTheDocument();
 });
 
 it("asks MobileX buyers for the second IMEI and shows the plan's restrictions", async () => {
   const user = userEvent.setup();
   renderPage();
   const dialog = await openPlan(user, mobileX.name);
-  expect(dialog.getByText("⚠️ Restrictions:")).toBeInTheDocument();
+  expect(dialog.getByText("Restrictions:")).toBeInTheDocument();
   expect(dialog.getByText("3-month plan — billed once and valid for 90 days")).toBeInTheDocument();
   expect(dialog.getByLabelText(/IMEI2/)).toBeInTheDocument();
   expect(dialog.queryByText(/No QR code for this plan/)).not.toBeInTheDocument();
@@ -204,7 +204,7 @@ it("shows MeiSIM's plan details in the window", async () => {
   renderPage();
   const dialog = await openPlan(user, manualAtt.name);
   expect(dialog.getByText("30GB per month · 180 days · United States")).toBeInTheDocument();
-  expect(dialog.getByText("📱 US phone number").nextSibling).toHaveTextContent("Yes");
+  expect(dialog.getByText("US phone number").nextSibling).toHaveTextContent("Yes");
   expect(dialog.getByText("Network").nextSibling).toHaveTextContent("AT&T");
   expect(dialog.getByText(/line is tied to that handset/)).toBeInTheDocument();
 });
