@@ -60,8 +60,13 @@ class MeisimDeviceDetails
     raw.slice(*ADDRESS_KEYS).transform_values { |v| v.to_s.strip }.compact_blank
   end
 
+  # The synced plan says whether it needs an EID (MeiSIM's REQUIRES_EID); plans synced
+  # before that was stored fall back to the carrier rule.
   def eid_required?
-    self.class.eid_required?(@product.metadata&.dig('network'))
+    metadata = @product.metadata || {}
+    return metadata['requires_eid'] == true if metadata.key?('requires_eid')
+
+    self.class.eid_required?(metadata['network'])
   end
 
   def address_errors

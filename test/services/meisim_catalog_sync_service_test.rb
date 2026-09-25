@@ -129,6 +129,28 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_nil meisim_product('fr-2gb').metadata['number_country']
   end
 
+  test 'puts the carrier name back when MeiSIM sends a placeholder' do
+    tmo = plan('p3:8:48', retail: 49, title: 'Carrier 8 Prepaid · $45.00 Starter 15GB')
+    tmo5 = plan('p3:8:490', retail: 35, title: 'Carrier 8 Prepaid · Carrier 8 5GB eSIM')
+    tmo['productDetails'] = tmo['productDetails'].map { |d| d['name'] == 'PLAN_NETWORK' ? d.merge('value' => 'Carrier 8') : d }
+    sync([tmo, tmo5])
+
+    assert_equal 'T-Mobile Prepaid · 5GB eSIM', meisim_product('p3:8:490').name
+    product = meisim_product('p3:8:48')
+    assert_equal 'T-Mobile Prepaid · Starter 15GB', product.name
+    assert_equal 'T-Mobile', product.metadata['network']
+  end
+
+  test 'follows MeiSIM when a plan needs no EID' do
+    lyca = with_details(plan('ly:1035', retail: 33, title: 'Lycamobile · $33 High Data Plan'),
+                        'PRODUCT_TYPE' => 'US_NUMBER', 'REQUIRES_IMEI' => 'YES', 'REQUIRES_EID' => 'NO')
+    sync([lyca])
+
+    meta = meisim_product('ly:1035').metadata
+    assert meta['requires_imei']
+    assert_not meta['requires_eid']
+  end
+
   test 'the manual AT&T plan is a US line needing IMEI and EID, at its agreed fixed prices' do
     att = with_details(plan('man:att_30gb_6m', retail: 145, title: 'AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months'),
                        'PRODUCT_TYPE' => 'US_NUMBER', 'FULFILMENT' => 'MANUAL', 'PLAN_NETWORK' => 'AT&T')

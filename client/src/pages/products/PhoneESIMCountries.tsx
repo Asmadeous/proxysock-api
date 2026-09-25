@@ -89,7 +89,7 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
                     <span key={name} title={name} className="inline-flex min-h-8 items-center">
                       {CARRIER_LOGOS[name] ? (
                         <>
-                          <CarrierLogo carrier={name} className="h-9 max-w-28" />
+                          <CarrierLogo carrier={name} className="h-11 w-24" />
                           <span className="sr-only">{name}</span>
                         </>
                       ) : (
@@ -105,10 +105,10 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
                   <span className="text-foreground/80">{kinds.map((kind) => kind.label).join(' · ')}</span>
                 </span>
               )}
-              <span className="mt-3 block space-y-1 text-sm text-foreground/70">
+              <span className="mb-6 mt-3 block space-y-1 text-sm text-foreground/70">
                 {info.facts.map((fact) => <span key={fact} className="block">{fact}</span>)}
               </span>
-              <span className="mt-6 inline-flex min-h-12 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              <span className="mt-auto inline-flex min-h-12 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
                 View {info.name} plans
               </span>
             </>

@@ -60,28 +60,74 @@ const dataFromName = (name: unknown): string => {
   return match ? `${match[1]} ${match[2].toUpperCase()}` : '';
 };
 
+// SMS plans often leave MeiSIM's SMS field empty while the name says it: "100 SMS Only",
+// "Incoming SMS Only".
+const smsFromName = (name: unknown): string => {
+  const text = String(name ?? '');
+  if (/incoming sms only/i.test(text)) return 'Incoming SMS only';
+  const match = text.match(/(\d[\d,]*)\s*SMS/i);
+  return match ? `${match[1]} SMS` : '';
+};
+
 // "Moxee 2 Prepaid · Talk & Text" -> "Talk & Text"; the carrier is already shown above the title.
-const planTitle = (plan: USAESIMPlan) => {
+// Names can carry the viewer's price where MeiSIM's list price was ("$22.50-300 MB"); the
+// card shows the price on its own, so the subtitle drops it.
+export const planTitle = (plan: USAESIMPlan) => {
   const [first, ...rest] = plan.name.split(' · ');
-  return rest.length ? rest.join(' · ') : first;
+  const title = rest.length ? rest.join(' · ') : first;
+  return title.replace(/^\$\d+(?:\.\d+)?\s*-?\s*/, '');
+};
+
+// MeiSIM repeats the same sentences on most plans ("Real US phone number on the AT&T
+// network.", "Calls + texts + data."). The page says these once, so cards keep only the
+// sentences that describe that plan.
+const GENERIC_SENTENCES = [
+  /^real (us|uk) phone number on .+\.?$/i,
+  /^calls \+ texts \+ data\.?$/i,
+  /^activated as (an )?esim on your device\.?$/i,
+  /^we will generate a qr code/i,
+];
+export const planHighlights = (plan: USAESIMPlan): string[] =>
+  plan.description
+    .split('\n')
+    .map((line) => line.split(/(?<=\.)\s+/).filter((sentence) => !GENERIC_SENTENCES.some((re) => re.test(sentence.trim()))).join(' ').trim())
+    .filter(Boolean);
+
+// Activation notes that only repeat the page-level requirements (IMEI, unlocked phone,
+// activate in the UK) are left off the cards.
+const isGenericNote = (note: string) => /device imei|must be activated in the uk|^we will generate a qr code/i.test(note);
+
+// When MeiSIM leaves a field empty, use what the plan still tells us: its description's
+// "Calls + texts + data" means all three are included, and an "Unlimited…" plan name
+// (other than talk-and-text-only plans) means unlimited data.
+// SMS-only and talk-and-text-only plans carry the same generic sentence, so it is ignored for them.
+const includesAll = (p: any) =>
+  /calls \+ texts \+ data/i.test(String(p.description ?? '')) &&
+  !/sms only|sms verification|incoming sms|talk\s*(&|and)\s*text only/i.test(String(p.name ?? ''));
+const unlimitedFromName = (name: unknown) => {
+  const plan = String(name ?? '').split(' · ').slice(1).join(' · ').replace(/^\$\d+(?:\.\d+)?\s*-?\s*/, '');
+  return /^unlimited\b/i.test(plan) && !/talk\s*(&|and)\s*text/i.test(plan) ? 'Unlimited' : '';
 };
 
 export const toUsaEsimPlan = (p: any): USAESIMPlan => {
   const dataLimit = String(p.data_limit ?? '').trim();
   const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
+  const included = includesAll(p) ? 'Included' : '';
   return {
     id: String(p.id),
     provider: p.network || 'Mobile network',
     name: p.name,
     price: Number(p.price) || 0,
     currency_code: p.currency || 'USD',
-    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name),
+    data_amount: hasNumber
+      ? `${dataLimit} ${p.data_unit || 'GB'}`
+      : (dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name) || unlimitedFromName(p.name) || included),
     duration: Number(p.validity_days) || 30,
     duration_unit: 'Days',
     requires_imei: p.requires_imei !== false,
     requires_eid: p.requires_eid !== false,
-    voice: p.voice || '',
-    sms: p.sms || '',
+    voice: p.voice || included,
+    sms: p.sms || smsFromName(p.name) || included,
     coverage: p.coverage || '',
     description: p.description || '',
     activation_note: p.activation_note || '',
@@ -119,18 +165,18 @@ export const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
   'Three UK': { src: '/carriers/three.svg' },
 };
 
-export function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string; className?: string }) {
+// Every logo sits in the same-sized tile so a row of logos lines up, whatever their shape.
+export function CarrierLogo({ carrier, className = 'h-10 w-24' }: { carrier: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   const logo = CARRIER_LOGOS[carrier];
   if (!logo || failed) return null;
   return (
-    <img
-      src={logo.src}
-      alt=""
+    <span
       aria-hidden="true"
-      onError={() => setFailed(true)}
-      className={`${className} w-auto shrink-0 rounded-md object-contain px-1.5 py-1 ${logo.dark ? 'bg-neutral-900' : 'bg-white'}`}
-    />
+      className={`${className} inline-flex shrink-0 items-center justify-center rounded-md border p-1.5 ${logo.dark ? 'border-white/25 bg-neutral-900' : 'border-black/10 bg-white'}`}
+    >
+      <img src={logo.src} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />
+    </span>
   );
 }
 
@@ -429,6 +475,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
         </div>
         <p className="mt-3 text-base leading-7 text-muted-foreground">
           Calls, texts and data on a {COUNTRIES[country].name} number. {COUNTRIES[country].facts.join('. ')}.
+          {country === 'US' ? ' Your phone must be unlocked and compatible with the carrier.' : ' Your phone must be unlocked.'}
         </p>
       </header>
 
@@ -511,52 +558,49 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
           {shownPlans.map((plan) => {
             const inCart = linesInCart(plan);
             const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
+            const highlights = planHighlights(plan);
+            const rows = ([
+              ['Data', plan.data_amount],
+              ['Calls', plan.voice],
+              ['Texts', plan.sms],
+              ['Coverage', plan.coverage],
+            ] as const).filter(([, value]) => value);
             return (
               <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
-                <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 basis-40">
-                    <div className="flex items-center gap-2.5">
-                      <CarrierLogo carrier={carrierOf(plan)} />
-                      <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                {/* Logo and price share the top row; the carrier name gets the full width below,
+                    so a long name never runs into the price in a narrow card. */}
+                <div className="mb-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <CarrierLogo carrier={carrierOf(plan)} className="h-11 w-24" />
+                    <div className="ml-auto shrink-0 text-right">
+                      <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
+                      <p className="mt-1 text-sm text-foreground/75">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
                     </div>
-                    <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
-                    <p className="mt-1 text-sm text-foreground/75">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
-                  </div>
+                  <h3 className="mt-4 text-2xl font-bold leading-8 tracking-tight">{carrierOf(plan)}</h3>
+                  <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
                 </div>
-                <dl className="mb-5 divide-y divide-border border-y border-border">
-                  {([
-                    ['Data', plan.data_amount],
-                    ['Calls', plan.voice],
-                    ['Texts', plan.sms],
-                  ] as const).map(([label, value]) => (
-                    <div key={label} className="flex justify-between gap-5 py-3 text-sm">
-                      <dt className="text-foreground/75">{label}</dt>
-                      <dd className={value ? 'text-right font-semibold' : 'text-right text-foreground/50'}>
-                        {value || <><span aria-hidden="true">—</span><span className="sr-only">Not listed</span></>}
-                      </dd>
-                    </div>
-                  ))}
-                  {plan.coverage && plan.coverage !== 'United States' && (
-                    <div className="flex justify-between gap-5 py-3 text-sm">
-                      <dt className="text-foreground/75">Coverage</dt>
-                      <dd className="text-right font-semibold">{plan.coverage}</dd>
-                    </div>
-                  )}
-                </dl>
+                {rows.length > 0 && (
+                  <dl className="mb-5 divide-y divide-border border-y border-border">
+                    {rows.map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-5 py-3 text-sm">
+                        <dt className="text-foreground/75">{label}</dt>
+                        <dd className="text-right font-semibold">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
                 {plan.manual && (
                   <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">
                     Activated by the carrier within 24 hours, straight onto your phone. No QR code needed.
                   </p>
                 )}
                 {plan.warnings && (
-                  <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{plan.warnings}</p>
+                  <p className="mb-5 rounded-md bg-muted/50 px-3 py-2 text-sm leading-6">{plan.warnings}</p>
                 )}
-                {plan.description && (
+                {highlights.length > 0 && (
                   <ul className="mb-5 space-y-1.5 text-sm leading-6 text-foreground/85">
-                    {plan.description.split('\n').map((line) => line.trim()).filter(Boolean).map((line, i) => (
+                    {highlights.map((line, i) => (
                       <li key={i} className="flex gap-2">
                         <span aria-hidden="true" className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
                         <span>{line}</span>
@@ -564,7 +608,9 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
                     ))}
                   </ul>
                 )}
-                {plan.activation_note && <p className="mb-5 text-sm leading-6 text-foreground/70">{plan.activation_note}</p>}
+                {plan.activation_note && !isGenericNote(plan.activation_note) && (
+                  <p className="mb-5 text-sm leading-6 text-foreground/70">{plan.activation_note}</p>
+                )}
                 <div className="mt-auto space-y-3">
                   {canBuy && (formPlanId === plan.id ? (
                     <DeviceDetailsForm
