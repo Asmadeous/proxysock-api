@@ -14,7 +14,7 @@ class MeisimServiceTest < ActiveSupport::TestCase
   test 'products returns the catalogue and sends the dealer key' do
     HTTParty.expects(:get).with(
       'https://api.meisimusa.com/mm/products',
-      has_entries(headers: has_entry('x-dealer-key', 'msa_test_key'), timeout: 30)
+      has_entries(headers: has_entry('x-dealer-key', 'msa_test_key'), timeout: MeisimService::TIMEOUT)
     ).returns(http_response(200, { 'ok' => true, 'products' => [{ 'productId' => 'ly:1023' }] }))
 
     assert_equal [{ 'productId' => 'ly:1023' }], @service.products

@@ -5,7 +5,7 @@
 # Authentication: the dealer key is sent as the x-dealer-key header.
 class MeisimService
   BASE_URL = 'https://api.meisimusa.com'
-  TIMEOUT = 30
+  TIMEOUT = 120 # seconds; US carrier orders can take well over a minute to answer
 
   class Error < StandardError
     attr_reader :status
