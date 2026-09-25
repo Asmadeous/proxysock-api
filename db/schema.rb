@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -306,26 +306,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
     t.index ["email"], name: "index_employees_on_email"
     t.index ["provider", "uid"], name: "index_employees_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["work_email"], name: "index_employees_on_work_email", unique: true
-  end
-
-  create_table "esim_inventories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "activation_code"
-    t.datetime "created_at", null: false
-    t.string "esim_type", default: "data_only", null: false
-    t.string "iccid", null: false
-    t.integer "moq", default: 1, null: false
-    t.string "pin1"
-    t.string "pin2"
-    t.uuid "product_id"
-    t.string "provider", null: false
-    t.string "puk1"
-    t.string "puk2"
-    t.string "qr_code_url"
-    t.string "status", default: "available"
-    t.datetime "updated_at", null: false
-    t.index ["esim_type"], name: "index_esim_inventories_on_esim_type"
-    t.index ["iccid"], name: "index_esim_inventories_on_iccid", unique: true
-    t.index ["provider", "status"], name: "index_esim_inventories_on_provider_and_status"
   end
 
   create_table "esim_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1161,39 +1141,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "usa_esim_credentials", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.bigint "PIN1", default: 1111, null: false
-    t.bigint "PIN2", default: 2222, null: false
-    t.bigint "PUK1", null: false
-    t.bigint "PUK2", null: false
-    t.timestamptz "assigned_at"
-    t.timestamptz "created_at", default: -> { "now()" }
-    t.text "iccid", null: false
-    t.uuid "order_id"
-    t.text "provider", default: "lyca", null: false
-    t.text "qr_activation_code"
-    t.text "qr_code"
-    t.text "status", default: "available"
-    t.timestamptz "updated_at", default: -> { "now()" }
-    t.uuid "user_id"
-    t.text "zip_code"
-    t.index ["provider"], name: "usa_esim_credentials_provider_idx"
-    t.index ["status"], name: "usa_esim_credentials_status_idx"
-    t.check_constraint "provider = ANY (ARRAY['colt'::text, 'lyca'::text])", name: "usa_esim_credentials_provider_check"
-    t.check_constraint "status = ANY (ARRAY['available'::text, 'assigned'::text])", name: "usa_esim_credentials_status_check"
-    t.unique_constraint ["iccid"], name: "usa_esim_credentials_iccid_key"
-  end
-
-  create_table "usa_esim_orders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.uuid "order_id"
-    t.string "provider"
-    t.integer "quantity"
-    t.string "status"
-    t.decimal "total_amount"
-    t.datetime "updated_at", null: false
-  end
-
   create_table "user_impersonation_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.uuid "employee_id"
@@ -1426,7 +1373,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
   add_foreign_key "ecommerce_orders", "orders"
   add_foreign_key "ecommerce_orders", "users"
   add_foreign_key "employees", "departments"
-  add_foreign_key "esim_inventories", "products"
   add_foreign_key "esim_orders", "orders"
   add_foreign_key "esims", "esim_orders"
   add_foreign_key "guest_chat_messages", "guest_chats"
@@ -1474,9 +1420,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_140000) do
   add_foreign_key "tickets", "deposits"
   add_foreign_key "tickets", "employees", column: "assigned_to_id"
   add_foreign_key "tickets", "orders"
-  add_foreign_key "usa_esim_credentials", "usa_esim_orders", column: "order_id", name: "usa_esim_credentials_order_id_fkey"
-  add_foreign_key "usa_esim_credentials", "users", name: "usa_esim_credentials_user_id_fkey"
-  add_foreign_key "usa_esim_orders", "orders"
   add_foreign_key "user_impersonation_logs", "employees"
   add_foreign_key "user_impersonation_logs", "users"
   add_foreign_key "user_sessions", "users"

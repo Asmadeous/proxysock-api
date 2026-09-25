@@ -3,6 +3,15 @@
 require 'test_helper'
 
 class ProductTest < ActiveSupport::TestCase
+  test 'display_name puts the given price where the MeiSIM list price was' do
+    product = Product.new(name: 'Lycamobile · Unlimited International Plan',
+                          metadata: { 'name_template' => 'Lycamobile · {price} Unlimited International Plan' })
+
+    assert_equal 'Lycamobile · $22.80 Unlimited International Plan', product.display_name(22.8)
+    assert_equal 'Lycamobile · Unlimited International Plan', product.display_name(nil)
+    assert_equal 'VPN', Product.new(name: 'VPN').display_name(5)
+  end
+
   test 'valid product types' do
     product = products(:two)
     assert_equal 'proxy', product.product_type

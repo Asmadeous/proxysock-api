@@ -39,7 +39,7 @@ export default function AdminPurchaseView({ onBack }: AdminPurchaseViewProps) {
         }
 
         await adminPurchase.mutateAsync({
-            product_id: Number(productId),
+            product_id: String(productId), // product IDs are UUIDs
             customer_email: customerEmail,
             quantity: quantity,
             metadata: metadata,

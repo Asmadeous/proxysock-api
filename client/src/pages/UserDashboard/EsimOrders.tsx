@@ -68,11 +68,15 @@ interface ESIMOrder {
   product_name?: string;
   amount?: number;
   credentials_list?: any[];
+  // True while support confirms an order whose provider outcome was unknown.
+  review_pending?: boolean;
+  metadata?: Record<string, any>;
   // Related profile data
   profiles?: {
     iccid: string;
     qr_code_url: string;
     activation_code: string;
+    phone_number?: string | null;
     total_volume: number;
     location_name: string;
     expired_time: string;
@@ -117,7 +121,7 @@ const ESIMOrdersPage = () => {
   const fetchESIMOrders = async () => {
     try {
       setLoading(true);
-      // Fetch both esim and usa_esim product types
+      // esim covers eSIM Access and MeiSIM; usa_esim returns legacy USA eSIM orders.
       const [esimResponse, usaEsimResponse] = await Promise.allSettled([
         api.get('/web/api/orders?product_type=esim&per_page=100'),
         api.get('/web/api/orders?product_type=usa_esim&per_page=100'),
@@ -128,7 +132,9 @@ const ESIMOrdersPage = () => {
       // Add eSIM Access orders
       if (esimResponse.status === 'fulfilled' && esimResponse.value.data?.orders) {
         esimResponse.value.data.orders.forEach((o: any) => {
-          allOrders.push({ ...o, product_type: 'esim' });
+          // MeiSIM US prepaid lines are grouped with the phone-number eSIMs.
+          const isUsLine = o.metadata?.meisim_line === 'us_prepaid';
+          allOrders.push({ ...o, product_type: isUsLine ? 'usa_esim' : 'esim' });
         });
       }
 
@@ -266,7 +272,7 @@ ${order.profiles
           (profile, index) => `
 eSIM Profile ${index + 1}
 ==============
-ICCID: ${profile.iccid}
+ICCID: ${profile.iccid}${profile.phone_number ? `\nPhone number: ${profile.phone_number}` : ""}
 Location: ${profile.location_name}
 Data: ${profile.total_volume} MB
 Activation Code: ${profile.activation_code}
@@ -661,7 +667,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                           {order.status}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
-                          {order.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM Access'}
+                          {order.product_type === 'usa_esim' ? 'USA line' : 'Data eSIM'}
                         </Badge>
                       </div>
                     </div>
@@ -697,6 +703,15 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                         </span>
                         <span className="font-medium">{order.quantity} eSIM(s)</span>
                       </div>
+                      {order.profiles?.[0]?.phone_number && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Phone className="h-4 w-4" />
+                            Phone number
+                          </span>
+                          <span className="font-medium">{order.profiles[0].phone_number}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
@@ -707,6 +722,12 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                         </span>
                       </div>
                     </div>
+
+                    {order.review_pending && (
+                      <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                        We're confirming your eSIM with the carrier. Support will follow up shortly.
+                      </p>
+                    )}
 
                     {/* Price */}
                     <div className="flex items-center justify-between pt-4 border-t">
@@ -719,7 +740,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
-                      {(order.status === "delivered" || order.status === "allocated") && (
+                      {["delivered", "allocated", "completed", "active"].includes(order.status) && (
                         <>
                           <Button
                             variant="outline"
@@ -869,6 +890,12 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                               <span className="text-muted-foreground">ICCID:</span>
                               <p className="font-mono text-xs truncate mt-1">{profile.iccid}</p>
                             </div>
+                            {profile.phone_number && (
+                              <div>
+                                <span className="text-muted-foreground">Phone number:</span>
+                                <p className="mt-1">{profile.phone_number}</p>
+                              </div>
+                            )}
                             <div>
                               <span className="text-muted-foreground">Location:</span>
                               <p className="mt-1">{profile.location_name}</p>

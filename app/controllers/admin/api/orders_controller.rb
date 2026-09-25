@@ -57,7 +57,7 @@ module Admin
                    when 'proxy'
                      orders.joins(:product).where(products: { product_type: Product::PROXY_TYPES })
                    when 'esim'
-                     orders.joins(:product).where(products: { product_type: %w[esim usa_esim] })
+                     orders.joins(:product).where(products: { product_type: 'esim' })
                    else
                      orders.joins(:product).where(products: { product_type: params[:product_type] })
                    end
@@ -77,7 +77,7 @@ module Admin
 
         by_type = {
           'proxy' => raw_stats.slice(*Product::PROXY_TYPES).values.sum,
-          'esim' => raw_stats.slice('esim', 'usa_esim').values.sum,
+          'esim' => raw_stats['esim'] || 0,
           'rdp' => raw_stats['rdp'] || 0,
           'vps' => raw_stats['vps'] || 0,
           'vpn' => raw_stats['vpn'] || 0
@@ -85,7 +85,7 @@ module Admin
 
         revenue_by_type = {
           'proxy' => raw_revenue.slice(*Product::PROXY_TYPES).values.sum,
-          'esim' => raw_revenue.slice('esim', 'usa_esim').values.sum,
+          'esim' => raw_revenue['esim'] || 0,
           'rdp' => raw_revenue['rdp'] || 0,
           'vps' => raw_revenue['vps'] || 0,
           'vpn' => raw_revenue['vpn'] || 0
@@ -441,7 +441,6 @@ module Admin
         add.call(:vpn)                 { o.vpn_order }
         add.call(:global_isp)          { o.global_isp_proxies.to_a.presence }
         add.call(:esim)                { o.esim_order }
-        add.call(:usa_esim)            { o.usa_esim_order }
         add.call(:vm)                  { o.vm_order }
         out.presence
       end

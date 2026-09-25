@@ -1,119 +1,162 @@
 import { useState, useEffect } from 'react';
-import { Phone, MessageSquare, Wifi, ShoppingCart, Check, ArrowLeft, X, Loader2, Zap } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { conversionTracker } from '@/utils/redditPixel';
+import {
+  DeviceAddress,
+  DeviceDetails,
+  DeviceDetailsErrors,
+  deviceDetailsMetadata,
+  validateDeviceDetails,
+} from '@/utils/esim/deviceDetails';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import api from '../../services/api';
 
 
-interface USAESIMPlan {
+// A MeiSIM US prepaid line: a US phone number with talk, text and data.
+export interface USAESIMPlan {
   id: string;
-  provider: 'colt' | 'lyca';
+  provider: string;
   name: string;
   price: number;
   currency_code: string;
-  voice_minutes: string;
-  sms_included: boolean;
   data_amount: string;
   duration: number;
   duration_unit: string;
-  features: string[];
-  phone_number_included: boolean;
-  moq: number;
+  requires_imei: boolean;
+  requires_eid: boolean;
+  voice: string;
+  sms: string;
+  coverage: string;
+  description: string;
+  activation_note: string;
+  warnings: string;
 }
 
 interface CartItem {
   usaEsimPlan?: USAESIMPlan;
+  deviceDetails?: DeviceDetails;
   quantity?: number;
-  productType: 'usa-esim';
+  productType: string;
 }
 
-// Helper function to get carrier logo
-const getCarrierLogo = (provider: string): string => {
-  if (provider.toLowerCase() === 'lyca') {
-    return '/at&t.png'; // AT&T logo
-  }
-  if (provider.toLowerCase() === 'colt') {
-    return '/t-mobile.png'; // T-Mobile logo
-  }
-  return '';
+const EMPTY_ADDRESS: DeviceAddress = { address_line_1: '', city: '', state: '', zip_code: '' };
+
+// MeiSIM sends "See plan" for many US lines; the allowance is then only in the name, e.g. "Prepaid · 1GB".
+const dataFromName = (name: unknown): string => {
+  const match = String(name ?? '').match(/(\d+(?:\.\d+)?)\s*(GB|MB)s?\b/i);
+  return match ? `${match[1]} ${match[2].toUpperCase()}` : '';
+};
+
+// "Moxee 2 Prepaid · Talk & Text" -> "Talk & Text"; the carrier is already shown above the title.
+const planTitle = (plan: USAESIMPlan) => {
+  const [first, ...rest] = plan.name.split(' · ');
+  return rest.length ? rest.join(' · ') : first;
+};
+
+export const toUsaEsimPlan = (p: any): USAESIMPlan => {
+  const dataLimit = String(p.data_limit ?? '').trim();
+  const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
+  return {
+    id: String(p.id),
+    provider: p.network || 'Mobile network',
+    name: p.name,
+    price: Number(p.price) || 0,
+    currency_code: p.currency || 'USD',
+    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name),
+    duration: Number(p.validity_days) || 30,
+    duration_unit: 'Days',
+    requires_imei: p.requires_imei !== false,
+    requires_eid: p.requires_eid !== false,
+    voice: p.voice || '',
+    sms: p.sms || '',
+    coverage: p.coverage || '',
+    description: p.description || '',
+    activation_note: p.activation_note || '',
+    warnings: p.warnings || '',
+  };
 };
 
 const USAESIMCardSkeleton = () => (
-  <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/50">
-    <CardHeader className="border-b">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-4">
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-xl" />
-          </div>
-
-          <Skeleton className="h-8 w-3/4 mb-3" />
-          <div className="flex items-baseline gap-2">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-        </div>
-      </div>
-    </CardHeader>
-
-    <CardContent className="pt-6 space-y-6">
-      {/* Key Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-12 mx-auto mb-1" />
-          <Skeleton className="h-3 w-8 mx-auto" />
-        </div>
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-16 mx-auto mb-1" />
-          <Skeleton className="h-3 w-6 mx-auto" />
-        </div>
-        <div className="p-3 bg-muted/50 rounded-lg border text-center">
-          <Skeleton className="h-5 w-5 mx-auto mb-2" />
-          <Skeleton className="h-4 w-10 mx-auto mb-1" />
-          <Skeleton className="h-3 w-6 mx-auto" />
-        </div>
-      </div>
-
-      {/* Features List */}
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 flex-1" />
-        </div>
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 flex-1" />
-        </div>
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <Card className="bg-primary/5 border-primary/20">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-start gap-2">
-            <Skeleton className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1 flex-1">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Skeleton className="h-10 w-full" />
-    </CardContent>
-  </Card>
+  <div className="space-y-5 rounded-xl border border-border p-6" aria-hidden="true">
+    <Skeleton className="h-5 w-24" />
+    <Skeleton className="h-7 w-3/4" />
+    <Skeleton className="h-32 w-full" />
+    <Skeleton className="h-12 w-full" />
+  </div>
 );
+
+interface DeviceDetailsFormProps {
+  plan: USAESIMPlan;
+  submitLabel: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onSubmit: (details: DeviceDetails) => void;
+}
+
+function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit }: DeviceDetailsFormProps) {
+  const [imei, setImei] = useState('');
+  const [eid, setEid] = useState('');
+  const [address, setAddress] = useState<DeviceAddress>(EMPTY_ADDRESS);
+  const [errors, setErrors] = useState<DeviceDetailsErrors>({});
+  const idPrefix = `device-${plan.id}`;
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const result = validateDeviceDetails({ imei, eid, address }, plan.requires_eid);
+    setErrors(result.errors);
+    if (result.details) onSubmit(result.details);
+  };
+
+  const field = (
+    id: string, label: string, value: string, onChange: (value: string) => void,
+    error?: string, props: React.ComponentProps<'input'> = {},
+  ) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={`${idPrefix}-${id}`}>{label}</Label>
+      <Input
+        id={`${idPrefix}-${id}`} value={value} onChange={(e) => onChange(e.target.value)}
+        aria-invalid={!!error} aria-describedby={error ? `${idPrefix}-${id}-error` : undefined} {...props}
+      />
+      {error && <p id={`${idPrefix}-${id}-error`} className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+
+  const setAddressField = (key: keyof DeviceAddress) => (value: string) => setAddress((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <form onSubmit={submit} noValidate aria-label={`Phone details for ${plan.name}`} className="space-y-4 rounded-lg border border-border p-4">
+      <p className="text-sm text-muted-foreground">
+        The carrier activates the line on one phone. Dial <span className="font-medium text-foreground">*#06#</span> on that phone to see its IMEI{plan.requires_eid ? ' and EID' : ''}.
+      </p>
+      {field('imei', 'IMEI', imei, setImei, errors.imei, { inputMode: 'numeric', autoComplete: 'off', placeholder: '15 digits' })}
+      {plan.requires_eid && field('eid', 'EID', eid, setEid, errors.eid, { inputMode: 'numeric', autoComplete: 'off', placeholder: '32 digits' })}
+      <details className="text-sm">
+        <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4">US address for 911 (optional)</summary>
+        <div className="mt-3 space-y-3">
+          {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
+          <div className="grid grid-cols-3 gap-3">
+            {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
+            {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
+            {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
+          </div>
+        </div>
+      </details>
+      <div className="flex gap-3">
+        <Button type="submit" disabled={isSubmitting} className="min-h-11 flex-1 gap-2">
+          {isSubmitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+          {isSubmitting ? 'Provisioning...' : submitLabel}
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} className="min-h-11">Cancel</Button>
+      </div>
+    </form>
+  );
+}
 
 interface USAESIMPlansPageProps {
   onBack?: () => void;
@@ -124,6 +167,7 @@ interface USAESIMPlansPageProps {
 export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [formPlanId, setFormPlanId] = useState<string | null>(null);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -132,26 +176,9 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const { data } = await api.get('/web/api/products?product_type=usa_esim');
-
-        const products = data.products || [];
-        const mappedPlans: USAESIMPlan[] = products.map((p: any) => ({
-          id: p.id.toString(),
-          provider: p.provider === 'colt' ? 'colt' : 'lyca',
-          name: p.name,
-          price: p.price || 0,
-          currency_code: p.currency || 'USD',
-          voice_minutes: (p.calling_minutes == null) ? "Unlimited" : (p.calling_minutes ? `${p.calling_minutes} Min` : "0 Min"),
-          sms_included: p.sms_quota === null || (p.sms_quota && p.sms_quota > 0),
-          data_amount: p.data_gb ? `${p.data_gb} GB` : "Unlimited Data",
-          duration: p.duration_days || 30,
-          duration_unit: "Days",
-          features: p.features || ['4G/5G Coverage', 'Instant QR Activation'],
-          phone_number_included: p.esim_type === 'voice_data_sms',
-          moq: p.moq || 1
-        }));
-
-        setPlans(mappedPlans);
+        const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
+        const products = (data.products || []).filter((p: any) => p.meisim_line === 'us_prepaid');
+        setPlans(products.map(toUsaEsimPlan).sort((a: USAESIMPlan, b: USAESIMPlan) => a.price - b.price));
       } catch (err: any) {
         setError(err.message || 'Error loading plans. Please try again.');
         console.error(err);
@@ -168,8 +195,7 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
         if (storedCart) {
           const parsedCart = JSON.parse(storedCart);
           if (Array.isArray(parsedCart)) {
-            const usaEsimItems = parsedCart.filter(item => item.productType === 'usa-esim');
-            setCartItems(usaEsimItems);
+            setCartItems(parsedCart.filter(item => item.productType === 'usa-esim'));
           }
         }
       } catch (e) {
@@ -184,116 +210,48 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     return () => globalThis.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
 
-  const addToCart = async (plan: USAESIMPlan) => {
+  // Each line belongs to one phone, so every add is its own cart item with quantity 1.
+  const addLine = async (plan: USAESIMPlan, details: DeviceDetails) => {
     if (isDirectBuy && onDirectBuy) {
-        setProvisioningPkgId(plan.id);
-        try {
-            await onDirectBuy(plan.id, plan.moq || 1, {});
-        } finally {
-            setProvisioningPkgId(null);
-        }
-        return;
-    }
-
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
+      setProvisioningPkgId(plan.id);
       try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
+        await onDirectBuy(plan.id, 1, deviceDetailsMetadata(details));
+        setFormPlanId(null);
+      } finally {
+        setProvisioningPkgId(null);
       }
+      return;
     }
 
-    const existingItemIndex = currentCart.findIndex(
-      (item: CartItem) => item.productType === 'usa-esim' && item.usaEsimPlan?.id === plan.id
-    );
-
-    if (existingItemIndex >= 0) {
-      currentCart[existingItemIndex].quantity = (currentCart[existingItemIndex].quantity || 0) + 1;
-    } else {
-      currentCart.push({ usaEsimPlan: plan, quantity: plan.moq || 1, productType: 'usa-esim' });
+    let currentCart: CartItem[] = [];
+    try {
+      currentCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    } catch (e) {
+      currentCart = [];
     }
+
+    currentCart.push({ usaEsimPlan: plan, deviceDetails: details, quantity: 1, productType: 'usa-esim' });
 
     localStorage.setItem('cartItems', JSON.stringify(currentCart));
-    setCartItems(currentCart.filter((item: CartItem) => item.productType === 'usa-esim'));
+    setCartItems(currentCart.filter((item) => item.productType === 'usa-esim'));
+    setFormPlanId(null);
     setShowSuccessAlert(true);
     setTimeout(() => setShowSuccessAlert(false), 3000);
 
-    const totalItems = currentCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
+    const totalItems = currentCart.reduce((total, item) => total + (item.quantity || 1), 0);
     globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
 
-    // Track AddToCart
     conversionTracker.trackAddToCart({
       productId: plan.id,
       productName: plan.name,
       category: "usa-esim",
-      value: plan.price / 100,
+      value: plan.price,
       currency: plan.currency_code
     });
   };
 
-  const removeFromCart = (planId: string) => {
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
-      try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
-      }
-    }
-
-    const updatedCart = currentCart.filter(
-      (item: CartItem) => !(item.productType === 'usa-esim' && item.usaEsimPlan?.id === planId)
-    );
-
-    localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-    setCartItems(updatedCart.filter((item: CartItem) => item.productType === 'usa-esim'));
-
-    const totalItems = updatedCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
-    globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
-  };
-
-  const updateQuantity = (planId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(planId);
-      return;
-    }
-
-    // Enforce MOQ
-    const plan = plans.find(p => p.id === planId);
-    if (plan && plan.moq > 1 && quantity < plan.moq) {
-      return;
-    }
-
-    const storedCart = localStorage.getItem('cartItems');
-    let currentCart = [];
-
-    if (storedCart) {
-      try {
-        currentCart = JSON.parse(storedCart);
-      } catch (e) {
-        currentCart = [];
-      }
-    }
-
-    const updatedCart = currentCart.map((item: CartItem) =>
-      item.productType === 'usa-esim' && item.usaEsimPlan?.id === planId ? { ...item, quantity } : item
-    );
-
-    localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-    setCartItems(updatedCart.filter((item: CartItem) => item.productType === 'usa-esim'));
-
-    const totalItems = updatedCart.reduce((total: number, item: CartItem) => total + (item.quantity || 1), 0);
-    globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: totalItems } }));
-  };
-
-  const getCartItemForPlan = (plan: USAESIMPlan) => {
-    return cartItems.find(item => item.usaEsimPlan?.id === plan.id);
-  };
+  const linesInCart = (plan: USAESIMPlan) =>
+    cartItems.filter((item) => item.usaEsimPlan?.id === plan.id).length;
 
   const formatPrice = (price: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -302,303 +260,120 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     }).format(price);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Page Header - Static */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onBack ? onBack() : globalThis.history.back()}
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-
-            <h1 className="text-3xl font-semibold text-foreground">
-              USA eSIM Plans
-            </h1>
-          </div>
-          <p className="text-muted-foreground">
-            Complete mobile service with voice calling, unlimited texting, and high-speed data
-          </p>
-        </div>
-
-        {/* Skeleton Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <USAESIMCardSkeleton key={index} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="border-l-4 border-l-destructive bg-destructive/5">
-        <CardContent className="py-8 text-center">
-          <p className="text-destructive font-semibold mb-2">
-            Error loading USA eSIM plans
-          </p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const canBuy = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure";
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onBack ? onBack() : globalThis.history.back()}
-            className="p-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+    <div className="w-full space-y-7">
+      <header>
+        {onBack ? (
+          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</button>
+        ) : (
+          <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
+        )}
+        <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">US phone-number plans with calls, texts and data. Each line is activated on one phone.</p>
+      </header>
 
-          <h1 className="text-3xl font-semibold text-foreground">
-            USA eSIM Plans
-          </h1>
-        </div>
-        <p className="text-muted-foreground">
-          Complete mobile service with voice calling, unlimited texting, and high-speed data
-        </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-5">
+        <h2 className="text-xl font-semibold">USA phone-number plans</h2>
+        {!isLoading && !error && <p role="status" className="text-sm text-muted-foreground">{plans.length} {plans.length === 1 ? 'plan' : 'plans'} available</p>}
       </div>
 
-      {/* Success Alert */}
       {showSuccessAlert && (
-        <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Check className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-emerald-600">Added to Cart!</h3>
-              <p className="text-sm text-muted-foreground">
-                Your USA eSIM plan has been added to cart.
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSuccessAlert(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        <div role="status" className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/40 px-4 py-3">
+          <p className="text-sm font-medium">Your eSIM plan has been added to the cart.</p>
+          <Button variant="ghost" size="sm" onClick={() => setShowSuccessAlert(false)}>Dismiss</Button>
+        </div>
       )}
 
-      {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {plans.map((plan) => {
-          const cartItem = getCartItemForPlan(plan);
-          const inCart = !!cartItem;
-          const carrierLogo = getCarrierLogo(plan.provider);
-
-          return (
-            <Card key={plan.id} className="hover:shadow-lg transition-all duration-200 hover:border-primary/50">
-              <CardHeader className="border-b">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-bold">
-                        <Phone className="h-4 w-4" />
-                        {plan.provider.toUpperCase()}
-                      </div>
-
-                      {plan.moq > 1 && (
-                        <div className="inline-flex items-center bg-amber-500/10 text-amber-600 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold">
-                          Min. {plan.moq} units
-                        </div>
-                      )}
-
-                      {/* Carrier Logo - Sponsored by */}
-                      {carrierLogo && (
-                        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border">
-                          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Sponsored by</span>
-                          <img
-                            src={carrierLogo}
-                            alt="Carrier Logo"
-                            className="h-6 w-auto object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <CardTitle className="text-2xl mb-3">{plan.name}</CardTitle>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-4xl font-black text-primary">
-                        {formatPrice(plan.price, plan.currency_code)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        /{plan.duration} {plan.duration_unit}
-                      </span>
-                    </div>
+      {isLoading ? (
+        <div aria-busy="true" aria-label="Loading phone-number plans" className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => <USAESIMCardSkeleton key={item} />)}
+        </div>
+      ) : error ? (
+        <div role="alert" className="rounded-xl border border-border bg-card p-8">
+          <h3 className="font-semibold">We couldn’t load the plans</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
+          <h3 className="font-semibold">USA plans are currently unavailable</h3>
+          <p className="mt-2 text-sm text-muted-foreground">Please check back soon.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {plans.map((plan) => {
+            const inCart = linesInCart(plan);
+            const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
+            return (
+              <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1 basis-40">
+                    <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
+                    <p className="mt-1 text-sm text-foreground/75">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
                   </div>
                 </div>
-              </CardHeader>
-
-              <CardContent className="pt-6 space-y-6">
-                {/* Key Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <Phone className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">{plan.voice_minutes}</span>
-                    <span className="text-xs text-muted-foreground">Voice</span>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <MessageSquare className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">Unlimited</span>
-                    <span className="text-xs text-muted-foreground">SMS</span>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg border text-center">
-                    <Wifi className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <span className="font-bold text-sm block">{plan.data_amount}</span>
-                    <span className="text-xs text-muted-foreground">Data</span>
-                  </div>
-                </div>
-
-                {/* Features List */}
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        <Check className="h-5 w-5 text-primary" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{feature}</span>
+                <dl className="mb-5 divide-y divide-border border-y border-border">
+                  {([
+                    ['Data', plan.data_amount],
+                    ['Calls', plan.voice],
+                    ['Texts', plan.sms],
+                  ] as const).map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-5 py-3 text-sm">
+                      <dt className="text-foreground/75">{label}</dt>
+                      <dd className={value ? 'text-right font-semibold' : 'text-right text-foreground/50'}>
+                        {value || <><span aria-hidden="true">—</span><span className="sr-only">Not listed</span></>}
+                      </dd>
                     </div>
                   ))}
-                </div>
-
-                {/* Info Box */}
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-start gap-2">
-                      <Phone className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Includes a real US phone number for voice calls and text messaging. Perfect for staying connected in the United States.
-                      </p>
+                  {plan.coverage && plan.coverage !== 'United States' && (
+                    <div className="flex justify-between gap-5 py-3 text-sm">
+                      <dt className="text-foreground/75">Coverage</dt>
+                      <dd className="text-right font-semibold">{plan.coverage}</dd>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Add to Cart Section */}
-                {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
-                    inCart ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-center gap-3 bg-muted/50 rounded-lg p-3 border border-primary/30">
-                            <Button
-                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 1) - 1)}
-                              variant="default"
-                              size="sm"
-                              className="h-9 w-9 p-0"
-                            >
-                              −
-                            </Button>
-                            <div className="flex-1 text-center">
-                              <span className="text-lg font-bold">{cartItem?.quantity || 0}</span>
-                              <div className="text-primary text-xs font-medium">in cart</div>
-                            </div>
-                            <Button
-                              onClick={() => updateQuantity(plan.id, (cartItem?.quantity || 0) + 1)}
-                              variant="default"
-                              size="sm"
-                              className="h-9 w-9 p-0"
-                            >
-                              +
-                            </Button>
-                          </div>
-                          <Button
-                            onClick={() => removeFromCart(plan.id)}
-                            variant="destructive"
-                            className="w-full"
-                          >
-                            Remove from Cart
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => addToCart(plan)}
-                          disabled={provisioningPkgId === plan.id}
-                          className="w-full gap-2"
-                        >
-                          {provisioningPkgId === plan.id ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-                          {provisioningPkgId === plan.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                        </Button>
-                      )
+                  )}
+                </dl>
+                {plan.warnings && (
+                  <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{plan.warnings}</p>
                 )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Info Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Why Choose USA eSIM?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Phone className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Real US Phone Number</h4>
-                <p className="text-sm text-muted-foreground">
-                  Get a genuine US phone number for making and receiving calls just like a local resident.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <MessageSquare className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Unlimited Messaging</h4>
-                <p className="text-sm text-muted-foreground">
-                  Send and receive unlimited SMS and MMS messages to any US number without restrictions.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Wifi className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">High-Speed Data</h4>
-                <p className="text-sm text-muted-foreground">
-                  Enjoy fast 4G/5G data connectivity for browsing, streaming, and staying connected on the go.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Check className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Instant Activation</h4>
-                <p className="text-sm text-muted-foreground">
-                  Activate your eSIM instantly after purchase. No waiting for physical SIM cards to arrive.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                {plan.description && (
+                  <ul className="mb-5 space-y-1.5 text-sm leading-6 text-foreground/85">
+                    {plan.description.split('\n').map((line) => line.trim()).filter(Boolean).map((line, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span aria-hidden="true" className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {plan.activation_note && <p className="mb-5 text-sm leading-6 text-foreground/70">{plan.activation_note}</p>}
+                <div className="mt-auto space-y-3">
+                  {canBuy && (formPlanId === plan.id ? (
+                    <DeviceDetailsForm
+                      plan={plan}
+                      submitLabel={submitLabel}
+                      isSubmitting={provisioningPkgId === plan.id}
+                      onCancel={() => setFormPlanId(null)}
+                      onSubmit={(details) => addLine(plan, details)}
+                    />
+                  ) : (
+                    <>
+                      {inCart > 0 && <p className="text-sm font-medium">{inCart} {inCart === 1 ? 'line' : 'lines'} in cart</p>}
+                      <Button onClick={() => setFormPlanId(plan.id)} className="min-h-12 w-full">
+                        {inCart > 0 ? 'Add another line' : submitLabel}
+                      </Button>
+                    </>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

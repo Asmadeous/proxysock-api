@@ -97,7 +97,7 @@ export function useSyncProducts() {
 export function useAdminPurchaseProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { product_id: number; customer_email: string; quantity?: number; metadata?: Record<string, unknown> }) =>
+    mutationFn: (data: { product_id: string; customer_email: string; quantity?: number; metadata?: Record<string, unknown> }) =>
       createAdminOrder(data),
     onSuccess: () => {
       toast.success("Order created and provisioning started");

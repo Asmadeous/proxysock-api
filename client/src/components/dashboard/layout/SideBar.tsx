@@ -77,7 +77,7 @@ const navigationSections: NavigationSection[] = [
         name: "eSIM Packages",
         href: "/dashboard/esim",
         icon: Smartphone,
-        description: "Global eSIM data packages",
+        description: "Phone-number and data-only eSIM plans",
       },
       {
         name: "VPS Hosting",

@@ -44,12 +44,19 @@ class Order < ApplicationRecord
   has_one :residential_rotating_proxy_order, dependent: :destroy
   has_one :premium_isp_proxy_order, dependent: :destroy
   has_one :esim_order, dependent: :destroy
-  has_one :usa_esim_order, dependent: :destroy
   has_one :vpn_order, dependent: :destroy
   has_many :vpns, through: :vpn_order, source: :vpns
   has_many :vpn_accounts, dependent: :destroy
   has_many :global_isp_proxy_orders, dependent: :destroy
   has_many :global_isp_proxies, dependent: :destroy
+
+  # Product name with the unit price this buyer paid, before promo discounts.
+  def product_display_name
+    return unless product
+
+    paid = metadata&.dig('original_total') || total_amount
+    product.display_name(paid && (paid.to_d / [quantity.to_i, 1].max))
+  end
 
   def all_provisioned_resources
     case product.product_type
@@ -65,7 +72,6 @@ class Order < ApplicationRecord
       resources << GlobalIspProxy.joins(:global_isp_proxy_order).where(global_isp_proxy_orders: { order_id: id }).to_a
       resources.flatten.compact
     when 'esim' then [esim_order].compact
-    when 'usa_esim' then [usa_esim_order].compact
     when 'vpn' then vpns.to_a
     else []
     end
@@ -166,6 +172,8 @@ class Order < ApplicationRecord
     WebhookDispatchWorker.perform_later(reseller.id, 'order.completed', payload)
   end
 
+  validate :meisim_device_details, on: :create
+
   aasm column: :status do
     state :pending, initial: true
     state :awaiting_payment # For gateway checkout
@@ -229,5 +237,14 @@ class Order < ApplicationRecord
       return false
     end
     true
+  end
+
+  # US carrier eSIMs from MeiSIM cannot be activated without device details, so
+  # reject the order before any payment is taken.
+  def meisim_device_details
+    return unless MeisimDeviceDetails.required_for?(product)
+
+    MeisimDeviceDetails.new(product, metadata).errors.each { |message| errors.add(:metadata, message) }
+    errors.add(:quantity, 'must be 1 for US carrier eSIMs (one device per line)') if quantity.to_i > 1
   end
 end

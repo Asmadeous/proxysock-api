@@ -39,22 +39,6 @@ RSpec.describe FundSplitterService do
       end
     end
 
-    context 'with a USA eSIM product' do
-      let(:product) { instance_double('Product', product_type: 'usa_esim') }
-      let(:product_pricing) { instance_double('ProductPricing', selling_price: 25.0, api_price: 5.0) }
-
-      it 'calculates capital as $13 per item' do
-        FundSplitterService.process_order!(order)
-        expect(OrderFundSplit).to have_received(:create!).with(
-          order: order,
-          total_amount: 50.0,
-          capital_amount: 26.0, # 13 * 2
-          profit_amount: 24.0,
-          status: 'pending'
-        )
-      end
-    end
-
     it 'does not create a duplicate split if one already exists' do
       allow(order).to receive(:order_fund_split).and_return(double)
       FundSplitterService.process_order!(order)

@@ -31,7 +31,7 @@ class InHouseProductSyncService
     category_slug = data['product_category_slug']
     category = ProductCategory.find_or_create_by!(slug: category_slug) do |c|
       c.name = data['product_category_name'] || category_slug.titleize
-      c.category_type = data['product_type'] == 'usa_esim' ? 'esim' : 'vm'
+      c.category_type = 'vm'
       c.active = true
       c.available_to = 'both'
     end

@@ -10,7 +10,7 @@ module Web
       def index
         cache_version = Product.catalog_cache_version
 
-        cache_key = "products/web/index_v7/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
+        cache_key = "products/web/index_v8/#{price_audience}/#{cache_version}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:category_slug] || 'all'}/#{params[:product_type] || 'all'}/#{params[:per_page] || 100}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           scope = Product.where(active: true).includes(:product_pricings, :product_category)
@@ -55,7 +55,7 @@ module Web
       # GET /web/api/products/:id
       def show
         product = Product.where(active: true).find(params[:id])
-        cache_key = "products/web/show_v2/#{product.id}/#{product.cache_version}"
+        cache_key = "products/web/show_v3/#{price_audience}/#{product.id}/#{product.cache_version}"
 
         product_json = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
           { product: serialize_product(product) }.to_json
@@ -102,20 +102,40 @@ module Web
 
       private
 
+      # The catalog is public, so reseller prices go only to a request carrying a
+      # valid reseller token. The token is decoded without being consumed, so a
+      # rotating reseller token stays usable for the caller's next request.
+      def price_audience
+        @price_audience ||= reseller_viewer? ? 'reseller' : 'public'
+      end
+
+      def reseller_viewer?
+        token = request.headers['Authorization']&.split(' ')&.last
+        return false if token.blank?
+        return Reseller.exists?(dedicated_api_key: token) if token.start_with?('ps_live_')
+
+        payload = jwt_decode(token)
+        reseller = payload[:reseller_id] && Reseller.find_by(id: payload[:reseller_id])
+        return false unless reseller
+
+        payload[:token_version].nil? || reseller.token_version.nil? || payload[:token_version] >= reseller.token_version
+      rescue JWT::DecodeError
+        false
+      end
+
       def serialize_product(product)
         pricings = product.product_pricings.select(&:active)
         default_pricing = pricings.first
 
         base_data = {
           id: product.id,
-          name: product.name,
+          name: product.display_name(default_pricing&.user_selling_price || default_pricing&.selling_price),
           slug: product.slug,
           description: product.description,
           product_type: product.product_type,
           category: product.product_category&.name,
           category_slug: product.product_category&.slug,
           price: default_pricing&.user_selling_price || default_pricing&.selling_price,
-          api_price: default_pricing&.api_price,
           currency: default_pricing&.currency,
           provider_type: product.provider_type,
           provider: product.provider,
@@ -123,7 +143,7 @@ module Web
         }
 
         # Merge metadata (which contains cpu, ram, storage specs for VMs, or data/days for eSIMs)
-        base_data.merge!(product.metadata.symbolize_keys) if product.metadata.is_a?(Hash)
+        base_data.merge!(product.public_metadata.symbolize_keys)
 
         # Proxy-specific metadata defaults if missing
         if product.proxy?
@@ -142,16 +162,18 @@ module Web
       end
 
       def serialize_pricing(pricing)
-        {
+        user_price = (pricing.user_selling_price || pricing.selling_price).to_f
+        data = {
           id: pricing.id,
           duration_type: pricing.duration_type,
           duration_value: pricing.duration_value,
-          api_price: pricing.api_price.to_f,
-          selling_price: pricing.selling_price.to_f,
-          user_selling_price: pricing.user_selling_price.to_f,
-          reseller_selling_price: pricing.reseller_selling_price.to_f,
+          selling_price: user_price,
+          user_selling_price: user_price,
           currency: pricing.currency
         }
+        return data unless price_audience == 'reseller'
+
+        data.merge(selling_price: pricing.selling_price.to_f, reseller_selling_price: pricing.reseller_selling_price.to_f)
       end
     end
   end

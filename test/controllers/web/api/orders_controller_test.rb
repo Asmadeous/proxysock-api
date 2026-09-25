@@ -74,6 +74,61 @@ module Web
         assert_response :accepted # or success depending on implementation
         assert json_response.key?('payment_url')
       end
+
+      test 'order JSON hides internal MeiSIM keys and exposes review_pending' do
+        product = Product.create!(name: 'JP 1GB', product_type: 'esim', provider: 'meisim', provider_product_id: 'jp-1',
+                                  available_to: 'both', product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'travel', 'retail_price' => 2.0 })
+        pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 2, active: true)
+        order = Order.create!(orderable: @user, product: product, product_pricing: pricing, status: 'processing',
+                              metadata: { 'meisim_review_required' => true, 'meisim_error' => 'Net::ReadTimeout' })
+
+        get "/web/api/orders/#{order.id}", headers: auth_header(@user)
+
+        assert_response :success
+        assert json_response['review_pending']
+        assert_not json_response['metadata'].key?('meisim_error')
+        assert_not json_response['metadata'].key?('meisim_review_required')
+        assert_not json_response['metadata'].key?('retail_price')
+        assert_equal 'travel', json_response['metadata']['meisim_line']
+      end
+
+      test 'MeiSIM plan names show the customer price in the catalog and on orders' do
+        product = Product.create!(name: 'Lycamobile · Unlimited International Plan', product_type: 'esim',
+                                  provider: 'meisim', provider_product_id: 'ly:1019', available_to: 'both',
+                                  active: true, product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'us_prepaid',
+                                              'name_template' => 'Lycamobile · {price} Unlimited International Plan' })
+        pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 19,
+                                         reseller_selling_price: 19, user_selling_price: 22.8, active: true)
+        order = Order.create!(orderable: @user, product: product, product_pricing: pricing, status: 'active',
+                              metadata: { 'imei' => '350923389416420', 'eid' => '8' * 32 })
+        order.update_columns(total_amount: 18.24, metadata: order.metadata.merge('original_total' => 22.8))
+
+        get "/web/api/products/#{product.id}"
+        assert_equal 'Lycamobile · $22.80 Unlimited International Plan', json_response.dig('product', 'name')
+
+        get "/web/api/orders/#{order.id}", headers: auth_header(@user)
+        assert_equal 'Lycamobile · $22.80 Unlimited International Plan', json_response['product_name']
+      end
+
+      test 'a rolled-back wallet cart checkout is reported to Sentry' do
+        product = Product.create!(name: 'AT&T Prepaid', product_type: 'esim', provider: 'meisim',
+                                  provider_product_id: 'p3:2:629', available_to: 'both',
+                                  product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'us_prepaid', 'network' => 'AT&T Prepaid' })
+        ProductPricing.create!(product: product, currency: 'USD', selling_price: 10, active: true)
+        Sentry.expects(:capture_exception).with(instance_of(ActiveRecord::RecordInvalid), anything).once
+
+        assert_no_difference ['Order.count', -> { @user.wallet.reload.balance }] do
+          post '/web/api/orders/checkout_cart',
+               params: { payment_method: 'wallet', items: [{ product_id: product.id, quantity: 1, metadata: {} }] },
+               headers: auth_header(@user)
+        end
+
+        assert_response :unprocessable_entity
+        assert_match(/imei/i, json_response['error'])
+      end
     end
   end
 end
