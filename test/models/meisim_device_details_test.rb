@@ -27,6 +27,11 @@ class MeisimDeviceDetailsTest < ActiveSupport::TestCase
     assert_not MeisimDeviceDetails.required_for?(meisim_product('fr-2gb', 'Orange'))
   end
 
+  test 'the manual AT&T line needs device details and UK lines do not' do
+    assert MeisimDeviceDetails.required_for?(meisim_product('man:att_30gb_6m', 'AT&T'))
+    assert_not MeisimDeviceDetails.required_for?(meisim_product('p2n:o2_8gb', 'O2 UK'))
+  end
+
   test 'order without imei and eid is rejected before payment' do
     order = order_for(@att, {})
 

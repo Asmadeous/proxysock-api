@@ -6,7 +6,8 @@ module Api
       include JwtAuthenticated
 
       ESIM_DETAIL_KEYS = %w[esim_type meisim_line countries regions network data_limit data_unit validity_days
-                            usage_tracking location_name location_code data_gb duration duration_unit].freeze
+                            usage_tracking location_name location_code data_gb duration duration_unit
+                            number_country manual_fulfilment].freeze
 
       # GET /api/v1/products
       def index

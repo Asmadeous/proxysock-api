@@ -100,6 +100,31 @@ const ESIMCardSkeleton = () => (
   </Card>
 );
 
+const GB = 1024 ** 3;
+
+// A volume of 0 means the plan has no data cap.
+const matchesDataAmount = (pkg: ESIMPackage, bucket: string) => {
+  if (bucket === "all") return true;
+  if (!pkg.volume) return bucket === "unlimited";
+  const gb = pkg.volume / GB;
+  if (bucket === "under5") return gb < 5;
+  if (bucket === "5to20") return gb >= 5 && gb <= 20;
+  if (bucket === "over20") return gb > 20;
+  return false;
+};
+
+const validityDays = (pkg: ESIMPackage) =>
+  pkg.duration_unit?.toLowerCase().startsWith("month") ? pkg.duration * 30 : pkg.duration;
+
+const matchesValidity = (pkg: ESIMPackage, bucket: string) => {
+  if (bucket === "all") return true;
+  const days = validityDays(pkg);
+  if (bucket === "upto7") return days <= 7;
+  if (bucket === "8to30") return days >= 8 && days <= 30;
+  if (bucket === "over30") return days > 30;
+  return false;
+};
+
 function ESIMPackagesPageContent({ 
   onBack, 
   isDirectBuy, 
@@ -116,6 +141,9 @@ function ESIMPackagesPageContent({
   const [smsSupport, setSmsSupport] = useState(false);
   const [dataType, setDataType] = useState<number | undefined>(undefined);
   const [packageScope, setPackageScope] = useState<PackageScope | "">("");
+  const [dataAmount, setDataAmount] = useState("all");
+  const [validity, setValidity] = useState("all");
+  const [sortOrder, setSortOrder] = useState("recommended");
   const [currentPage, setCurrentPage] = useState(1);
   const [cartItems, setCartItems] = useState<Array<{ esimPackage: ESIMPackage; quantity: number }>>([]);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
@@ -145,14 +173,23 @@ function ESIMPackagesPageContent({
   const { packages, loading, error } = useESIMPackages(filters);
   const { countries: countryList } = useESIMCountries();
 
-  const totalPages = Math.ceil(packages.length / ITEMS_PER_PAGE);
+  const visiblePackages = useMemo(() => {
+    const shown = packages.filter(
+      (pkg) => matchesDataAmount(pkg, dataAmount) && matchesValidity(pkg, validity),
+    );
+    if (sortOrder === "price-asc") return [...shown].sort((a, b) => a.price - b.price);
+    if (sortOrder === "price-desc") return [...shown].sort((a, b) => b.price - a.price);
+    return shown;
+  }, [packages, dataAmount, validity, sortOrder]);
+
+  const totalPages = Math.ceil(visiblePackages.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentPackages = packages.slice(startIndex, endIndex);
+  const currentPackages = visiblePackages.slice(startIndex, endIndex);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters]);
+  }, [filters, dataAmount, validity, sortOrder]);
 
   useEffect(() => {
     if (typeof globalThis === "undefined") return;
@@ -509,6 +546,54 @@ function ESIMPackagesPageContent({
               </Select>
             </div>
 
+            {/* Data amount */}
+            <div>
+              <Label htmlFor="data-amount">Data amount</Label>
+              <Select value={dataAmount} onValueChange={setDataAmount}>
+                <SelectTrigger id="data-amount" className="mt-1.5">
+                  <SelectValue placeholder="Any amount" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any amount</SelectItem>
+                  <SelectItem value="under5">Under 5 GB</SelectItem>
+                  <SelectItem value="5to20">5–20 GB</SelectItem>
+                  <SelectItem value="over20">More than 20 GB</SelectItem>
+                  <SelectItem value="unlimited">Unlimited</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Validity */}
+            <div>
+              <Label htmlFor="validity">Validity</Label>
+              <Select value={validity} onValueChange={setValidity}>
+                <SelectTrigger id="validity" className="mt-1.5">
+                  <SelectValue placeholder="Any length" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any length</SelectItem>
+                  <SelectItem value="upto7">Up to 7 days</SelectItem>
+                  <SelectItem value="8to30">8–30 days</SelectItem>
+                  <SelectItem value="over30">More than 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sort */}
+            <div>
+              <Label htmlFor="sort-order">Sort</Label>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger id="sort-order" className="mt-1.5">
+                  <SelectValue placeholder="Recommended" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                  <SelectItem value="price-asc">Price: low to high</SelectItem>
+                  <SelectItem value="price-desc">Price: high to low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <details className="col-span-full border-t border-border pt-4">
               <summary className="w-fit cursor-pointer rounded py-2 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">More filters</summary>
               <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -588,7 +673,7 @@ function ESIMPackagesPageContent({
         <div role="status" aria-label="Loading data plans" className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {[0, 1, 2, 3].map((index) => <ESIMCardSkeleton key={index} />)}
         </div>
-      ) : packages.length === 0 ? (
+      ) : visiblePackages.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <h3 className="font-semibold mb-2">No eSIM plans available</h3>

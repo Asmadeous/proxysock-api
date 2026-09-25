@@ -55,4 +55,17 @@ describe.each(["customer", "reseller"])("%s cart with a US phone-number line", (
     await waitFor(() => expect(savedCart()).toHaveLength(1));
     expect(savedCart()[0].productType).toBe("vpn");
   });
+
+  it("keeps a UK line with no phone details and shows it as a UK line", async () => {
+    const ukLine = {
+      productType: "usa-esim", quantity: 1, totalPrice: 14.87,
+      usaEsimPlan: { ...plan, id: "uk-1", name: "O2 UK · 8GB + EU Roaming", provider: "O2 UK", price: 14.87,
+        requires_imei: false, requires_eid: false, country: "GB" },
+    };
+    localStorage.setItem("cartItems", JSON.stringify([ukLine]));
+    openCart();
+    expect(await screen.findByText(/UK line · O2 UK/)).toBeInTheDocument();
+    expect(screen.queryByText("Phone IMEI")).not.toBeInTheDocument();
+    expect(savedCart()).toHaveLength(1);
+  });
 });

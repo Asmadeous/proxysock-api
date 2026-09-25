@@ -1,0 +1,6 @@
+# Fixed selling prices (USD) per MeiSIM productId. They replace the tiered markup
+# in MeisimCatalogSyncService for that plan; `customer` and `reseller` are set
+# separately. Resellers' own price multiplier still applies on top.
+'man:att_30gb_6m': # AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months ($145 retail)
+  customer: 200
+  reseller: 175
