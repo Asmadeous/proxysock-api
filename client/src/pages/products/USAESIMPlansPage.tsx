@@ -47,6 +47,18 @@ interface CartItem {
 
 const EMPTY_ADDRESS: DeviceAddress = { address_line_1: '', city: '', state: '', zip_code: '' };
 
+// MeiSIM sends "See plan" for many US lines; the allowance is then only in the name, e.g. "Prepaid · 1GB".
+const dataFromName = (name: unknown): string => {
+  const match = String(name ?? '').match(/(\d+(?:\.\d+)?)\s*(GB|MB)s?\b/i);
+  return match ? `${match[1]} ${match[2].toUpperCase()}` : '';
+};
+
+// "Moxee 2 Prepaid · Talk & Text" -> "Talk & Text"; the carrier is already shown above the title.
+const planTitle = (plan: USAESIMPlan) => {
+  const [first, ...rest] = plan.name.split(' · ');
+  return rest.length ? rest.join(' · ') : first;
+};
+
 export const toUsaEsimPlan = (p: any): USAESIMPlan => {
   const dataLimit = String(p.data_limit ?? '').trim();
   const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
@@ -56,8 +68,7 @@ export const toUsaEsimPlan = (p: any): USAESIMPlan => {
     name: p.name,
     price: Number(p.price) || 0,
     currency_code: p.currency || 'USD',
-    // MeiSIM sends "See plan" when the allowance is only in the description; show no Data row then.
-    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : '',
+    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name),
     duration: Number(p.validity_days) || 30,
     duration_unit: 'Days',
     requires_imei: p.requires_imei !== false,
@@ -295,41 +306,51 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
             const inCart = linesInCart(plan);
             const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
             return (
-              <article key={plan.id} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
+              <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 basis-40">
-                    <p className="mb-1 text-sm text-muted-foreground">{plan.provider}</p>
-                    <h3 className="text-lg font-semibold leading-7">{plan.name}</h3>
+                    <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
+                    <p className="mt-1 text-sm text-foreground/75">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
                   </div>
                 </div>
                 <dl className="mb-5 divide-y divide-border border-y border-border">
                   {([
-                    ['Phone number', 'US number included'],
+                    ['Data', plan.data_amount],
                     ['Calls', plan.voice],
                     ['Texts', plan.sms],
-                    ['Data', plan.data_amount],
-                    ['Coverage', plan.coverage],
-                  ] as const).filter(([, value]) => value).map(([label, value]) => (
+                  ] as const).map(([label, value]) => (
                     <div key={label} className="flex justify-between gap-5 py-3 text-sm">
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="text-right font-medium">{value}</dd>
+                      <dt className="text-foreground/75">{label}</dt>
+                      <dd className={value ? 'text-right font-semibold' : 'text-right text-foreground/50'}>
+                        {value || <><span aria-hidden="true">—</span><span className="sr-only">Not listed</span></>}
+                      </dd>
                     </div>
                   ))}
-                </dl>
-                {plan.warnings && <p className="mb-5 text-sm font-medium">{plan.warnings}</p>}
-                {(plan.description || plan.activation_note) && (
-                  <details className="mb-5 text-sm">
-                    <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Plan details</summary>
-                    <div className="mt-2 space-y-3 leading-6 text-muted-foreground">
-                      {plan.description && <p className="whitespace-pre-line">{plan.description}</p>}
-                      {plan.activation_note && <p>{plan.activation_note}</p>}
+                  {plan.coverage && plan.coverage !== 'United States' && (
+                    <div className="flex justify-between gap-5 py-3 text-sm">
+                      <dt className="text-foreground/75">Coverage</dt>
+                      <dd className="text-right font-semibold">{plan.coverage}</dd>
                     </div>
-                  </details>
+                  )}
+                </dl>
+                {plan.warnings && (
+                  <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{plan.warnings}</p>
                 )}
+                {plan.description && (
+                  <ul className="mb-5 space-y-1.5 text-sm leading-6 text-foreground/85">
+                    {plan.description.split('\n').map((line) => line.trim()).filter(Boolean).map((line, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span aria-hidden="true" className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {plan.activation_note && <p className="mb-5 text-sm leading-6 text-foreground/70">{plan.activation_note}</p>}
                 <div className="mt-auto space-y-3">
                   {canBuy && (formPlanId === plan.id ? (
                     <DeviceDetailsForm

@@ -30,14 +30,14 @@ afterEach(cleanup);
 
 const renderPage = (props = {}) => render(<MemoryRouter><USAESIMPlansPage {...props} /></MemoryRouter>);
 
-const card = async (name: string) => within((await screen.findByText(name)).closest("article")!);
+const card = async (name: string) => within(await screen.findByRole("article", { name }));
 const form = (name: string) => within(screen.getByRole("form", { name: `Phone details for ${name}` }));
 
 it("lists only MeiSIM US phone-number lines", async () => {
   renderPage();
-  expect(await screen.findByText(usLine.name)).toBeInTheDocument();
-  expect(screen.getByText(moxee.name)).toBeInTheDocument();
-  expect(screen.queryByText(travel.name)).not.toBeInTheDocument();
+  expect(await screen.findByRole("article", { name: usLine.name })).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: moxee.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: travel.name })).not.toBeInTheDocument();
   expect(api.get).toHaveBeenCalledWith("/web/api/products?product_type=esim&per_page=all");
 });
 
@@ -90,7 +90,7 @@ it("sends quantity 1 and the device details through direct purchase", async () =
   expect(localStorage.getItem("cartItems")).toBeNull();
 });
 
-it("shows calls, texts, coverage and the plan description instead of a placeholder", async () => {
+it("shows the full plan details on the card", async () => {
   vi.mocked(api.get).mockResolvedValue({
     data: {
       products: [{
@@ -103,12 +103,27 @@ it("shows calls, texts, coverage and the plan description instead of a placehold
   renderPage();
 
   const plan = await card(usLine.name);
+  expect(plan.getByRole("heading", { name: "AT&T Prepaid" })).toBeInTheDocument();
+  expect(plan.getByText("$35 Unlimited Saver")).toBeInTheDocument();
   expect(plan.getByText("Calls").nextSibling).toHaveTextContent("Unlimited");
   expect(plan.getByText("Texts").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.getByText("Coverage").nextSibling).toHaveTextContent("United States");
-  expect(plan.queryByText("Data")).not.toBeInTheDocument();
-  expect(plan.queryByText(/see plan/i)).not.toBeInTheDocument();
+  expect(plan.getByText("Data").nextSibling).toHaveTextContent("Not listed");
+  expect(plan.queryByText("Coverage")).not.toBeInTheDocument();
+  expect(plan.getByText("Real US phone number.")).toBeVisible();
+  expect(plan.getByText("10GB mobile hotspot included")).toBeVisible();
   expect(plan.getByText("Billed once for 3 months.")).toBeInTheDocument();
-  expect(plan.getByText(/10GB mobile hotspot included/)).toBeInTheDocument();
   expect(plan.getByText("Phone must be unlocked.")).toBeInTheDocument();
+});
+
+it("reads the data allowance from the plan name when MeiSIM only says See plan", async () => {
+  const linkup = { ...usLine, id: "linkup-1", name: "LinkUp Mobile Prepaid · 1GB", network: "LinkUp Mobile" };
+  const intl = { ...usLine, id: "ly-1", name: "Lycamobile · $15 international Plan", data_limit: "",
+    coverage: "United States + international calling" };
+  vi.mocked(api.get).mockResolvedValue({ data: { products: [linkup, intl] } });
+  renderPage();
+
+  expect((await card(linkup.name)).getByText("Data").nextSibling).toHaveTextContent("1 GB");
+  const lyca = await card(intl.name);
+  expect(lyca.getByText("Data").nextSibling).toHaveTextContent("Not listed");
+  expect(lyca.getByText("Coverage").nextSibling).toHaveTextContent("United States + international calling");
 });
