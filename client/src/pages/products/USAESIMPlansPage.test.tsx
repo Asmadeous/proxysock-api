@@ -103,11 +103,11 @@ it("shows the full plan details on the card", async () => {
   renderPage();
 
   const plan = await card(usLine.name);
-  expect(plan.getByRole("heading", { name: "AT&T Prepaid" })).toBeInTheDocument();
-  expect(plan.getByText("$35 Unlimited Saver")).toBeInTheDocument();
+  expect(plan.getByRole("heading", { name: "AT&T" })).toBeInTheDocument();
+  expect(plan.getByText("Unlimited Saver")).toBeInTheDocument();
   expect(plan.getByText("Calls").nextSibling).toHaveTextContent("Unlimited");
   expect(plan.getByText("Texts").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.getByText("Data").nextSibling).toHaveTextContent("Not listed");
+  expect(plan.queryByText("Data")).not.toBeInTheDocument();
   expect(plan.queryByText("Coverage")).not.toBeInTheDocument();
   expect(plan.getByText("Real US phone number.")).toBeVisible();
   expect(plan.getByText("10GB mobile hotspot included")).toBeVisible();
@@ -124,7 +124,7 @@ it("reads the data allowance from the plan name when MeiSIM only says See plan",
 
   expect((await card(linkup.name)).getByText("Data").nextSibling).toHaveTextContent("1 GB");
   const lyca = await card(intl.name);
-  expect(lyca.getByText("Data").nextSibling).toHaveTextContent("Not listed");
+  expect(lyca.queryByText("Data")).not.toBeInTheDocument();
   expect(lyca.getByText("Coverage").nextSibling).toHaveTextContent("United States + international calling");
 });
 
@@ -225,4 +225,37 @@ it("only offers the 911 address on carriers that use it", async () => {
 
   await user.click((await card(usLine.name)).getByRole("button", { name: "Add to Cart" }));
   expect(form(usLine.name).getByText(/used for 911 and your number's area code/)).toBeInTheDocument();
+});
+
+it("shows the price once, not again inside the plan name", async () => {
+  loadPlans({ ...usLine, id: "ly-1", name: "Lycamobile · $22.50-300 MB + 3000 mins&sms-national", price: "22.50", network: "Lycamobile" });
+  renderPage();
+
+  const plan = await card("Lycamobile · $22.50-300 MB + 3000 mins&sms-national");
+  expect(plan.getByText("300 MB + 3000 mins&sms-national")).toBeInTheDocument();
+  expect(plan.getAllByText("$22.50")).toHaveLength(1);
+});
+
+it("keeps only what is specific to the plan and says the shared requirements once", async () => {
+  loadPlans({
+    ...usLine, voice: "Unlimited", sms: "Unlimited",
+    description: "Real US phone number on the AT&T Prepaid network. Calls + texts + data. Activated as eSIM on your device.\n10GB mobile hotspot included",
+    activation_note: "You will need your device IMEI (15 digits) to activate. Your phone must be unlocked and compatible with the AT&T Prepaid network.",
+  });
+  renderPage();
+
+  const plan = await card(usLine.name);
+  expect(plan.getByText("10GB mobile hotspot included")).toBeInTheDocument();
+  expect(plan.queryByText(/Real US phone number/)).not.toBeInTheDocument();
+  expect(plan.queryByText(/device IMEI/)).not.toBeInTheDocument();
+  expect(screen.getByText(/Your phone must be unlocked/)).toBeInTheDocument();
+});
+
+it("reads texts from the plan name when MeiSIM leaves them out", async () => {
+  loadPlans(smsOnly, { ...smsOnly, id: "sms-2", name: "Moxee 2 Prepaid · SMS Verification - Incoming SMS Only" });
+  renderPage();
+
+  expect((await card(smsOnly.name)).getByText("Texts").nextSibling).toHaveTextContent("100 SMS");
+  expect((await card("Moxee 2 Prepaid · SMS Verification - Incoming SMS Only")).getByText("Texts").nextSibling)
+    .toHaveTextContent("Incoming SMS only");
 });
