@@ -2,7 +2,9 @@
 
 # USA eSIMs and inventory-backed eSIMs (Lyca, Colt, Lebara) are replaced by
 # MeiSIM. Their products are switched off rather than deleted because past
-# orders still reference them; the stock and credential tables are dropped.
+# orders still reference them. The usa_esim_credentials, usa_esim_orders and
+# esim_inventories tables are kept: they hold past customers' line details and
+# stock records, and nothing reads them any more.
 class RemoveUsaEsimAndEsimInventory < ActiveRecord::Migration[8.1]
   INVENTORY_PROVIDERS = %w[lyca colt lebara].freeze
 
@@ -15,13 +17,8 @@ class RemoveUsaEsimAndEsimInventory < ActiveRecord::Migration[8.1]
       WHERE product_type = 'usa_esim' OR (product_type = 'esim' AND provider IN (#{providers}))
     SQL
     execute "UPDATE product_categories SET active = false, updated_at = #{now} WHERE slug = 'usa_esim'"
-
-    drop_table :usa_esim_credentials
-    drop_table :usa_esim_orders
-    drop_table :esim_inventories
   end
 
-  def down
-    raise ActiveRecord::IrreversibleMigration, 'USA eSIM credentials and eSIM inventory were dropped; restore from backup'
-  end
+  # Products stay switched off; staff can re-enable any of them in the admin panel.
+  def down; end
 end
