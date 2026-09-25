@@ -13,7 +13,7 @@ import {
   carrierOf,
   filterGroups,
   toUsaEsimPlan,
-} from './USAESIMPlansPage';
+} from './phoneLines';
 
 // Where each country's plans live in the customer dashboard.
 export const COUNTRY_PATHS: Record<LineCountry, string> = { US: '/dashboard/usa-esim', GB: '/dashboard/uk-esim' };

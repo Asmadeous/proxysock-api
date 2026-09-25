@@ -14,8 +14,6 @@ class MeisimCatalogSyncService
   # plans arrive with "Carrier 8" in place of the carrier's name; the sync puts it back.
   P3_CARRIERS = { '2' => 'AT&T', '8' => 'T-Mobile', '197' => 'MobileX', '318' => 'LinkUp Mobile',
                   '445' => 'Moxee 2' }.freeze
-  # MeiSIM only takes an E911/area-code address on these US carriers.
-  ADDRESS_PREFIXES = %w[p3:].freeze
   # Markup on MeiSIM retail by retail price: [tier starts at, markup]. Cheap plans
   # get a bigger percentage so they still earn a real margin.
   CUSTOMER_MARKUP_TIERS = [[0, 0.50], [15, 0.30], [30, 0.20]].freeze
@@ -108,14 +106,19 @@ class MeisimCatalogSyncService
   # MeiSIM fills unknown values with "", "0" or "None"; "0" minutes also appears on
   # plans whose description includes calls, so it is treated as unknown.
   def detail_value(details, name)
-    value = details[name].to_s.strip
-    value unless value.empty? || %w[0 None].include?(value)
+    value = raw_detail(details, name)
+    value unless value == '0'
   end
 
-  # Some descriptions only repeat the title, which the card already shows.
+  def raw_detail(details, name)
+    value = details[name].to_s.strip
+    value unless value.empty? || value == 'None'
+  end
+
+  # MeiSIM's description as shown on its cards, minus MeiSIM's list price where a
+  # sentence starts with it ("$19 Unlimited International Plan").
   def plan_description(details)
-    description = detail_value(details, 'PLAN_DESCRIPTION')
-    description unless description.nil? || details['PLAN_TITLE'].to_s.include?(description)
+    raw_detail(details, 'PLAN_DESCRIPTION')&.gsub(/(^|(?<=\.\s))\$\d+(?:\.\d+)?\s*-?\s*/, '')
   end
 
   def phone_line(details, product_id)
@@ -136,7 +139,8 @@ class MeisimCatalogSyncService
       'number_country' => number_country,
       # MeiSIM's team activates these by hand, within 24 hours and without a QR code.
       'manual_fulfilment' => details['FULFILMENT'].to_s.strip.casecmp?('MANUAL'),
-      'accepts_address' => product_id.start_with?(*ADDRESS_PREFIXES),
+      # MeiSIM's checkout offers an activation address on every US line except Moxee.
+      'accepts_address' => line == 'us_prepaid' && network.to_s !~ /moxee/i,
       'countries' => Array(plan['countries']).grep(/\A[A-Z]{2}\z/),
       'regions' => Array(plan['regions']),
       'network' => network,
@@ -149,8 +153,20 @@ class MeisimCatalogSyncService
       'retail_price' => plan['retailPrice'],
       'usage_tracking' => details['USAGE_TRACKING'],
       'name_template' => name_template(details['PLAN_TITLE']),
-      'voice' => detail_value(details, 'VOICE'),
-      'sms' => detail_value(details, 'SMS'),
+      # Calls and texts as MeiSIM shows them, "0" included; the storefront mirrors MeiSIM's
+      # card and plan window (e.g. "Data only" when both are 0).
+      'voice' => raw_detail(details, 'VOICE'),
+      'sms' => raw_detail(details, 'SMS'),
+      'phone_number' => raw_detail(details, 'PHONE_NUMBER'),
+      'includes_number' => raw_detail(details, 'INCLUDES_NUMBER'),
+      'networks' => raw_detail(details, 'NETWORKS'),
+      'hotspot' => raw_detail(details, 'HOTSPOT'),
+      'topup' => raw_detail(details, 'TOPUP'),
+      'intl_minutes' => raw_detail(details, 'INTL_MINUTES'),
+      'intl_call_to' => raw_detail(details, 'INTL_CALL_TO'),
+      'roaming_free' => raw_detail(details, 'ROAMING_FREE'),
+      'roaming_data_only' => raw_detail(details, 'ROAMING_DATA_ONLY'),
+      'term_months' => raw_detail(details, 'TERM_MONTHS')&.to_i,
       'coverage' => detail_value(details, 'PLAN_COVERAGE'),
       'activation_note' => detail_value(details, 'ACTIVATION_NOTE'),
       'warnings' => detail_value(details, 'WARNINGS'),

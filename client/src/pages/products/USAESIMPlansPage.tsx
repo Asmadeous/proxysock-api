@@ -1,49 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { conversionTracker } from '@/utils/redditPixel';
-import {
-  DeviceAddress,
-  DeviceDetails,
-  DeviceDetailsErrors,
-  deviceDetailsMetadata,
-  validateDeviceDetails,
-} from '@/utils/esim/deviceDetails';
+import { DeviceDetails, deviceDetailsMetadata } from '@/utils/esim/deviceDetails';
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import api from '../../services/api';
+import PhonePlanDialog from './PhonePlanDialog';
+import {
+  COUNTRIES,
+  CarrierLogo,
+  CountryFlag,
+  LineCountry,
+  PHONE_LINES,
+  Pill,
+  USAESIMPlan,
+  carrierOf,
+  filterGroups,
+  planPills,
+  priceSuffix,
+  toUsaEsimPlan,
+} from './phoneLines';
 
-
-export type LineCountry = 'US' | 'GB';
-
-// A MeiSIM phone-number line (US or UK): a local number with talk, text and data.
-export interface USAESIMPlan {
-  id: string;
-  provider: string;
-  name: string;
-  price: number;
-  currency_code: string;
-  data_amount: string;
-  duration: number;
-  duration_unit: string;
-  requires_imei: boolean;
-  requires_eid: boolean;
-  voice: string;
-  sms: string;
-  coverage: string;
-  description: string;
-  activation_note: string;
-  warnings: string;
-  country: LineCountry;
-  // Activated by MeiSIM's team onto the phone's EID within 24 hours, with no QR code.
-  manual: boolean;
-  // MeiSIM only takes an E911/area-code address on some US carriers.
-  accepts_address: boolean;
-}
+export * from './phoneLines';
 
 interface CartItem {
   usaEsimPlan?: USAESIMPlan;
@@ -52,291 +33,25 @@ interface CartItem {
   productType: string;
 }
 
-const EMPTY_ADDRESS: DeviceAddress = { address_line_1: '', city: '', state: '', zip_code: '' };
-
-// MeiSIM sends "See plan" for many US lines; the allowance is then only in the name, e.g. "Prepaid · 1GB".
-const dataFromName = (name: unknown): string => {
-  const match = String(name ?? '').match(/(\d+(?:\.\d+)?)\s*(GB|MB)s?\b/i);
-  return match ? `${match[1]} ${match[2].toUpperCase()}` : '';
-};
-
-// SMS plans often leave MeiSIM's SMS field empty while the name says it: "100 SMS Only",
-// "Incoming SMS Only".
-const smsFromName = (name: unknown): string => {
-  const text = String(name ?? '');
-  if (/incoming sms only/i.test(text)) return 'Incoming SMS only';
-  const match = text.match(/(\d[\d,]*)\s*SMS/i);
-  return match ? `${match[1]} SMS` : '';
-};
-
-// "Moxee 2 Prepaid · Talk & Text" -> "Talk & Text"; the carrier is already shown above the title.
-// Names can carry the viewer's price where MeiSIM's list price was ("$22.50-300 MB"); the
-// card shows the price on its own, so the subtitle drops it.
-export const planTitle = (plan: USAESIMPlan) => {
-  const [first, ...rest] = plan.name.split(' · ');
-  const title = rest.length ? rest.join(' · ') : first;
-  return title.replace(/^\$\d+(?:\.\d+)?\s*-?\s*/, '');
-};
-
-// MeiSIM repeats the same sentences on most plans ("Real US phone number on the AT&T
-// network.", "Calls + texts + data."). The page says these once, so cards keep only the
-// sentences that describe that plan.
-const GENERIC_SENTENCES = [
-  /^real (us|uk) phone number on .+\.?$/i,
-  /^calls \+ texts \+ data\.?$/i,
-  /^activated as (an )?esim on your device\.?$/i,
-  /^we will generate a qr code/i,
-];
-export const planHighlights = (plan: USAESIMPlan): string[] =>
-  plan.description
-    .split('\n')
-    .map((line) => line.split(/(?<=\.)\s+/).filter((sentence) => !GENERIC_SENTENCES.some((re) => re.test(sentence.trim()))).join(' ').trim())
-    .filter(Boolean);
-
-// Activation notes that only repeat the page-level requirements (IMEI, unlocked phone,
-// activate in the UK) are left off the cards.
-const isGenericNote = (note: string) => /device imei|must be activated in the uk|^we will generate a qr code/i.test(note);
-
-// When MeiSIM leaves a field empty, use what the plan still tells us: its description's
-// "Calls + texts + data" means all three are included, and an "Unlimited…" plan name
-// (other than talk-and-text-only plans) means unlimited data.
-// SMS-only and talk-and-text-only plans carry the same generic sentence, so it is ignored for them.
-const includesAll = (p: any) =>
-  /calls \+ texts \+ data/i.test(String(p.description ?? '')) &&
-  !/sms only|sms verification|incoming sms|talk\s*(&|and)\s*text only/i.test(String(p.name ?? ''));
-const unlimitedFromName = (name: unknown) => {
-  const plan = String(name ?? '').split(' · ').slice(1).join(' · ').replace(/^\$\d+(?:\.\d+)?\s*-?\s*/, '');
-  return /^unlimited\b/i.test(plan) && !/talk\s*(&|and)\s*text/i.test(plan) ? 'Unlimited' : '';
-};
-
-export const toUsaEsimPlan = (p: any): USAESIMPlan => {
-  const dataLimit = String(p.data_limit ?? '').trim();
-  const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
-  const included = includesAll(p) ? 'Included' : '';
-  return {
-    id: String(p.id),
-    provider: p.network || 'Mobile network',
-    name: p.name,
-    price: Number(p.price) || 0,
-    currency_code: p.currency || 'USD',
-    data_amount: hasNumber
-      ? `${dataLimit} ${p.data_unit || 'GB'}`
-      : (dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name) || unlimitedFromName(p.name) || included),
-    duration: Number(p.validity_days) || 30,
-    duration_unit: 'Days',
-    requires_imei: p.requires_imei !== false,
-    requires_eid: p.requires_eid !== false,
-    voice: p.voice || included,
-    sms: p.sms || smsFromName(p.name) || included,
-    coverage: p.coverage || '',
-    description: p.description || '',
-    activation_note: p.activation_note || '',
-    warnings: p.warnings || '',
-    country: p.number_country === 'GB' || p.meisim_line === 'uk_prepaid' ? 'GB' : 'US',
-    manual: p.manual_fulfilment === true,
-    accepts_address: p.accepts_address === true,
-  };
-};
-
-export const PHONE_LINES = ['us_prepaid', 'uk_prepaid'];
-
-export const COUNTRIES: Record<LineCountry, { name: string; heading: string; facts: string[] }> = {
-  US: { name: 'USA', heading: 'USA phone-number plans', facts: ["Needs your phone's IMEI (and EID on most carriers)", 'Mobile data works inside the US only'] },
-  GB: { name: 'UK', heading: 'UK phone-number plans', facts: ['No IMEI or EID needed', 'EU roaming included · activate in the UK first'] },
-};
-
-type Option = { value: string; label: string; test: (plan: USAESIMPlan) => boolean };
-
-// MeiSIM names some networks with and without "Prepaid" ("AT&T" / "AT&T Prepaid"); group them.
-export const carrierOf = (plan: USAESIMPlan) => plan.provider.replace(/\s+prepaid$/i, '');
-
-// Carrier logos served from /public/carriers (official files from Wikimedia Commons or
-// the carrier's own site). MeiSIM sends none for phone-number lines, so a carrier
-// without an entry here shows its name only. `dark` logos have white lettering.
-export const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
-  'AT&T': { src: '/carriers/att.svg' },
-  'T-Mobile': { src: '/carriers/t-mobile.svg' },
-  Lycamobile: { src: '/carriers/lycamobile.svg' },
-  'Moxee 2': { src: '/carriers/moxee.svg' },
-  Moxee: { src: '/carriers/moxee.svg' },
-  'LinkUp Mobile': { src: '/carriers/linkup.png', dark: true },
-  MobileX: { src: '/carriers/mobilex.svg', dark: true },
-  'O2 UK': { src: '/carriers/o2.svg' },
-  'Three UK': { src: '/carriers/three.svg' },
-};
-
-// Every logo sits in the same-sized tile so a row of logos lines up, whatever their shape.
-export function CarrierLogo({ carrier, className = 'h-10 w-24' }: { carrier: string; className?: string }) {
-  const [failed, setFailed] = useState(false);
-  const logo = CARRIER_LOGOS[carrier];
-  if (!logo || failed) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className={`${className} inline-flex shrink-0 items-center justify-center rounded-md border p-1.5 ${logo.dark ? 'border-white/25 bg-neutral-900' : 'border-black/10 bg-white'}`}
-    >
-      <img src={logo.src} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />
-    </span>
-  );
-}
-
-const flagUrl = (country: LineCountry, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
-
-export function CountryFlag({ country }: { country: LineCountry }) {
-  return (
-    <img
-      src={flagUrl(country, 80)}
-      srcSet={`${flagUrl(country, 160)} 2x`}
-      width={40}
-      height={30}
-      alt=""
-      aria-hidden="true"
-      className="h-[30px] w-10 shrink-0 rounded-sm object-cover shadow-sm ring-1 ring-border"
-    />
-  );
-}
-
-const planText = (plan: USAESIMPlan) => `${plan.name} ${plan.description}`.toLowerCase();
-
-const isSmsOnly = (plan: USAESIMPlan) => /sms only|sms verification|incoming sms/.test(planText(plan));
-const isTalkAndText = (plan: USAESIMPlan) =>
-  !isSmsOnly(plan) && !plan.data_amount && /talk\s*(&|and)\s*text/i.test(plan.name);
-const hasIntlCalling = (plan: USAESIMPlan) => /international|intl/i.test(`${plan.name} ${plan.voice}`);
-const months = (plan: USAESIMPlan) => Math.max(1, Math.round(plan.duration / 30));
-
-// "8GB UK · 8GB roaming" -> 8; "Unlimited UK · 30GB roaming" -> Infinity.
-const ukDataGb = (plan: USAESIMPlan) => {
-  if (/^unlimited/i.test(plan.data_amount)) return Infinity;
-  const match = plan.data_amount.match(/(\d+(?:\.\d+)?)\s*GB/i);
-  return match ? Number(match[1]) : NaN;
-};
-
-// Each country gets filters that fit its own plans; options no plan matches are hidden.
-export const filterGroups = (country: LineCountry, plans: USAESIMPlan[]): { id: string; label: string; options: Option[] }[] => {
-  const carriers = Array.from(new Set(plans.map(carrierOf))).sort();
-  const carrier = {
-    id: 'carrier', label: 'Carrier',
-    options: carriers.map((name) => ({ value: name, label: name, test: (plan: USAESIMPlan) => carrierOf(plan) === name })),
-  };
-  const groups = country === 'US'
-    ? [
-        carrier,
-        {
-          id: 'includes', label: "What's included",
-          options: [
-            { value: 'all', label: 'Calls, texts + data', test: (plan: USAESIMPlan) => !isSmsOnly(plan) && !isTalkAndText(plan) },
-            { value: 'talk', label: 'Talk & text only', test: isTalkAndText },
-            { value: 'sms', label: 'SMS only', test: isSmsOnly },
-            { value: 'intl', label: 'International calling', test: hasIntlCalling },
-          ],
-        },
-        {
-          id: 'length', label: 'Length',
-          options: Array.from(new Set(plans.map(months))).sort((a, b) => a - b).map((m) => ({
-            value: String(m), label: `${m} ${m === 1 ? 'month' : 'months'}`, test: (plan: USAESIMPlan) => months(plan) === m,
-          })),
-        },
-      ]
-    : [
-        carrier,
-        {
-          id: 'data', label: 'UK data',
-          options: [
-            { value: 'upto25', label: 'Up to 25 GB', test: (plan: USAESIMPlan) => ukDataGb(plan) <= 25 },
-            { value: 'mid', label: '40–125 GB', test: (plan: USAESIMPlan) => ukDataGb(plan) > 25 && ukDataGb(plan) <= 125 },
-            { value: 'big', label: '200 GB+', test: (plan: USAESIMPlan) => ukDataGb(plan) > 125 && Number.isFinite(ukDataGb(plan)) },
-            { value: 'unlimited', label: 'Unlimited', test: (plan: USAESIMPlan) => ukDataGb(plan) === Infinity },
-          ],
-        },
-        {
-          id: 'intl', label: 'International minutes',
-          options: [{ value: 'yes', label: 'Included', test: hasIntlCalling }],
-        },
-      ];
-  return groups
-    .map((group) => ({ ...group, options: group.options.filter((option) => plans.some(option.test)) }))
-    .filter((group) => group.options.length > 1 || (group.id === 'intl' && group.options.length === 1));
+// Tinted pills with the theme's text colour, so they read in both light and dark mode
+// (this project themes through CSS variables; Tailwind's dark: variant is not wired up).
+const PILL_STYLES: Record<Pill['kind'], string> = {
+  number: 'bg-sky-500/20 text-foreground',
+  data: 'bg-muted text-foreground',
+  days: 'bg-muted text-foreground',
+  calls: 'bg-emerald-500/20 text-foreground',
+  texts: 'bg-emerald-500/20 text-foreground',
+  intl: 'bg-amber-500/20 text-foreground',
 };
 
 const USAESIMCardSkeleton = () => (
-  <div className="space-y-5 rounded-xl border border-border p-6" aria-hidden="true">
-    <Skeleton className="h-5 w-24" />
-    <Skeleton className="h-7 w-3/4" />
-    <Skeleton className="h-32 w-full" />
-    <Skeleton className="h-12 w-full" />
+  <div className="space-y-4 rounded-xl border border-border p-5" aria-hidden="true">
+    <Skeleton className="h-9 w-40" />
+    <Skeleton className="h-5 w-3/4" />
+    <Skeleton className="h-16 w-full" />
+    <Skeleton className="h-11 w-full" />
   </div>
 );
-
-interface DeviceDetailsFormProps {
-  plan: USAESIMPlan;
-  submitLabel: string;
-  isSubmitting: boolean;
-  onCancel: () => void;
-  onSubmit: (details: DeviceDetails) => void;
-}
-
-function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit }: DeviceDetailsFormProps) {
-  const [imei, setImei] = useState('');
-  const [eid, setEid] = useState('');
-  const [address, setAddress] = useState<DeviceAddress>(EMPTY_ADDRESS);
-  const [errors, setErrors] = useState<DeviceDetailsErrors>({});
-  const idPrefix = `device-${plan.id}`;
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    const result = validateDeviceDetails({ imei, eid, address }, plan.requires_eid);
-    setErrors(result.errors);
-    if (result.details) onSubmit(result.details);
-  };
-
-  const field = (
-    id: string, label: string, value: string, onChange: (value: string) => void,
-    error?: string, props: React.ComponentProps<'input'> = {},
-  ) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={`${idPrefix}-${id}`}>{label}</Label>
-      <Input
-        id={`${idPrefix}-${id}`} value={value} onChange={(e) => onChange(e.target.value)}
-        aria-invalid={!!error} aria-describedby={error ? `${idPrefix}-${id}-error` : undefined} {...props}
-      />
-      {error && <p id={`${idPrefix}-${id}-error`} className="text-sm text-destructive">{error}</p>}
-    </div>
-  );
-
-  const setAddressField = (key: keyof DeviceAddress) => (value: string) => setAddress((prev) => ({ ...prev, [key]: value }));
-
-  return (
-    <form onSubmit={submit} noValidate aria-label={`Phone details for ${plan.name}`} className="space-y-4 rounded-lg border border-border p-4">
-      <p className="text-sm text-muted-foreground">
-        The carrier activates the line on one phone. Dial <span className="font-medium text-foreground">*#06#</span> on that phone to see its IMEI{plan.requires_eid ? ' and EID' : ''}.
-      </p>
-      {field('imei', 'IMEI', imei, setImei, errors.imei, { inputMode: 'numeric', autoComplete: 'off', placeholder: '15 digits' })}
-      {plan.requires_eid && field('eid', 'EID', eid, setEid, errors.eid, { inputMode: 'numeric', autoComplete: 'off', placeholder: '32 digits' })}
-      {plan.manual && (
-        <p className="text-sm font-medium">Enter the EID of the phone you'll actually use. The line is tied to that phone and can't be moved to another one later.</p>
-      )}
-      {plan.accepts_address && <details className="text-sm">
-        <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4">US address (optional): used for 911 and your number's area code</summary>
-        <div className="mt-3 space-y-3">
-          {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
-          <div className="grid grid-cols-3 gap-3">
-            {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
-            {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
-            {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
-          </div>
-          <p className="text-muted-foreground">Leave it empty and the carrier assigns the number's location.</p>
-        </div>
-      </details>}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={isSubmitting} className="min-h-11 flex-1 gap-2">
-          {isSubmitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Provisioning...' : submitLabel}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="min-h-11">Cancel</Button>
-      </div>
-    </form>
-  );
-}
 
 interface USAESIMPlansPageProps {
   // The country picked on the Voice, Data + Text country page.
@@ -351,7 +66,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<'asc' | 'desc'>('asc');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [formPlanId, setFormPlanId] = useState<string | null>(null);
+  const [openPlan, setOpenPlan] = useState<USAESIMPlan | null>(null);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -400,7 +115,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
       setProvisioningPkgId(plan.id);
       try {
         await onDirectBuy(plan.id, 1, deviceDetailsMetadata(details));
-        setFormPlanId(null);
+        setOpenPlan(null);
       } finally {
         setProvisioningPkgId(null);
       }
@@ -418,7 +133,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
 
     localStorage.setItem('cartItems', JSON.stringify(currentCart));
     setCartItems(currentCart.filter((item) => item.productType === 'usa-esim'));
-    setFormPlanId(null);
+    setOpenPlan(null);
     setShowSuccessAlert(true);
     setTimeout(() => setShowSuccessAlert(false), 3000);
 
@@ -557,87 +272,52 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {shownPlans.map((plan) => {
             const inCart = linesInCart(plan);
-            const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
-            const highlights = planHighlights(plan);
-            const rows = ([
-              ['Data', plan.data_amount],
-              ['Calls', plan.voice],
-              ['Texts', plan.sms],
-              ['Coverage', plan.coverage],
-            ] as const).filter(([, value]) => value);
+            const carrier = carrierOf(plan);
             return (
-              <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
-                {/* Logo and price share the top row; the carrier name gets the full width below,
-                    so a long name never runs into the price in a narrow card. */}
-                <div className="mb-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <CarrierLogo carrier={carrierOf(plan)} className="h-11 w-24" />
-                    <div className="ml-auto shrink-0 text-right">
-                      <p className="text-2xl font-semibold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
-                      <p className="mt-1 text-sm text-foreground/75">{plan.duration} {plan.duration_unit.toLowerCase()}</p>
-                    </div>
+              <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <CarrierLogo carrier={carrier} className="h-10 w-24" />
+                    <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide">
+                      <CountryFlag country={plan.country} className="h-3.5 w-5" />
+                      {plan.provider}
+                    </span>
                   </div>
-                  <h3 className="mt-4 text-2xl font-bold leading-8 tracking-tight">{carrierOf(plan)}</h3>
-                  <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-2xl font-extrabold tracking-tight">{formatPrice(plan.price, plan.currency_code)}</p>
+                    <p className="text-xs text-muted-foreground">{priceSuffix(plan)}</p>
+                  </div>
                 </div>
-                {rows.length > 0 && (
-                  <dl className="mb-5 divide-y divide-border border-y border-border">
-                    {rows.map(([label, value]) => (
-                      <div key={label} className="flex justify-between gap-5 py-3 text-sm">
-                        <dt className="text-foreground/75">{label}</dt>
-                        <dd className="text-right font-semibold">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-                {plan.manual && (
-                  <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">
-                    Activated by the carrier within 24 hours, straight onto your phone. No QR code needed.
-                  </p>
-                )}
-                {plan.warnings && (
-                  <p className="mb-5 rounded-md bg-muted/50 px-3 py-2 text-sm leading-6">{plan.warnings}</p>
-                )}
-                {highlights.length > 0 && (
-                  <ul className="mb-5 space-y-1.5 text-sm leading-6 text-foreground/85">
-                    {highlights.map((line, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span aria-hidden="true" className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {plan.activation_note && !isGenericNote(plan.activation_note) && (
-                  <p className="mb-5 text-sm leading-6 text-foreground/70">{plan.activation_note}</p>
-                )}
-                <div className="mt-auto space-y-3">
-                  {canBuy && (formPlanId === plan.id ? (
-                    <DeviceDetailsForm
-                      plan={plan}
-                      submitLabel={submitLabel}
-                      isSubmitting={provisioningPkgId === plan.id}
-                      onCancel={() => setFormPlanId(null)}
-                      onSubmit={(details) => addLine(plan, details)}
-                    />
-                  ) : (
-                    <>
-                      {inCart > 0 && <p className="text-sm font-medium">{inCart} {inCart === 1 ? 'line' : 'lines'} in cart</p>}
-                      <Button
-                        onClick={() => (plan.requires_imei ? setFormPlanId(plan.id) : addLine(plan))}
-                        disabled={provisioningPkgId === plan.id}
-                        className="min-h-12 w-full"
-                      >
-                        {inCart > 0 ? 'Add another line' : submitLabel}
-                      </Button>
-                    </>
+                <h3 className="mt-3 text-[15px] font-bold leading-6">{plan.name}</h3>
+                <ul aria-label="Plan includes" className="mt-3 flex flex-wrap gap-1.5">
+                  {planPills(plan).map((pill, i) => (
+                    <li key={`${pill.label}-${i}`} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${PILL_STYLES[pill.kind]}`}>{pill.label}</li>
                   ))}
+                </ul>
+                {plan.description && (
+                  <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{plan.description.replace(/\s*\n+\s*/g, ' ')}</p>
+                )}
+                <div className="mt-auto space-y-2 pt-4">
+                  {inCart > 0 && <p className="text-sm font-medium">{inCart} {inCart === 1 ? 'line' : 'lines'} in cart</p>}
+                  {canBuy && (
+                    <Button onClick={() => setOpenPlan(plan)} className="min-h-11 w-full rounded-full font-bold">
+                      Get {plan.country === 'GB' ? 'UK' : 'US'} Number — {formatPrice(plan.price, plan.currency_code)}
+                    </Button>
+                  )}
                 </div>
               </article>
             );
           })}
         </div>
       )}
+
+      <PhonePlanDialog
+        plan={openPlan}
+        submitLabel={isDirectBuy ? "Instantly Provision" : "Add to Cart"}
+        isSubmitting={!!openPlan && provisioningPkgId === openPlan.id}
+        onClose={() => setOpenPlan(null)}
+        onSubmit={(plan, details) => addLine(plan, details)}
+      />
     </div>
   );
 }
