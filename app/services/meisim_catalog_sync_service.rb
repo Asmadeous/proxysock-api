@@ -8,11 +8,16 @@ class MeisimCatalogSyncService
   PROVIDER = 'meisim'
   DELISTED_KEY = 'delisted_by_sync'
   US_PREPAID_PREFIXES = %w[p3: ly:].freeze
+  # MeiSIM's PRODUCT_TYPE for plans that come with a phone number: [meisim_line, number country].
+  PHONE_LINES = { 'US_NUMBER' => %w[us_prepaid US], 'UK_NUMBER' => %w[uk_prepaid GB] }.freeze
+  # MeiSIM only takes an E911/area-code address on these US carriers.
+  ADDRESS_PREFIXES = %w[p3:].freeze
   # Markup on MeiSIM retail by retail price: [tier starts at, markup]. Cheap plans
   # get a bigger percentage so they still earn a real margin.
   CUSTOMER_MARKUP_TIERS = [[0, 0.50], [15, 0.30], [30, 0.20]].freeze
   RESELLER_MARKUP_TIERS = [[0, 0.25], [15, 0.15], [30, 0.10]].freeze
   DEALER_COSTS_PATH = Rails.root.join('config/meisim_dealer_costs.yml')
+  PRICE_OVERRIDES_PATH = Rails.root.join('config/meisim_price_overrides.yml')
 
   def initialize(client: MeisimService.new, logger: Rails.logger)
     @client = client
@@ -101,14 +106,23 @@ class MeisimCatalogSyncService
     description unless description.nil? || details['PLAN_TITLE'].to_s.include?(description)
   end
 
+  def phone_line(details, product_id)
+    PHONE_LINES[details['PRODUCT_TYPE'].to_s.strip] ||
+      (PHONE_LINES['US_NUMBER'] if product_id.start_with?(*US_PREPAID_PREFIXES))
+  end
+
   def build_metadata(plan, details, product_id)
-    us_prepaid = product_id.start_with?(*US_PREPAID_PREFIXES)
+    line, number_country = phone_line(details, product_id)
     network = details['PLAN_NETWORK'].presence || details['NETWORKS_SHORT'].presence || plan['providerName']
     requires_imei = MeisimDeviceDetails.device_required?(product_id)
 
     {
-      'meisim_line' => us_prepaid ? 'us_prepaid' : 'travel',
-      'esim_type' => us_prepaid ? 'voice_data_sms' : 'data_only',
+      'meisim_line' => line || 'travel',
+      'esim_type' => line ? 'voice_data_sms' : 'data_only',
+      'number_country' => number_country,
+      # MeiSIM's team activates these by hand, within 24 hours and without a QR code.
+      'manual_fulfilment' => details['FULFILMENT'].to_s.strip.casecmp?('MANUAL'),
+      'accepts_address' => product_id.start_with?(*ADDRESS_PREFIXES),
       'countries' => Array(plan['countries']).grep(/\A[A-Z]{2}\z/),
       'regions' => Array(plan['regions']),
       'network' => network,
@@ -137,8 +151,8 @@ class MeisimCatalogSyncService
       api_price: retail,
       cost_price: dealer_costs[product_id],
       selling_price: retail,
-      reseller_selling_price: marked_up(retail, RESELLER_MARKUP_TIERS),
-      user_selling_price: marked_up(retail, CUSTOMER_MARKUP_TIERS),
+      reseller_selling_price: price_override(product_id, 'reseller') || marked_up(retail, RESELLER_MARKUP_TIERS),
+      user_selling_price: price_override(product_id, 'customer') || marked_up(retail, CUSTOMER_MARKUP_TIERS),
       margin_percentage: 0,
       active: true
     )
@@ -157,6 +171,12 @@ class MeisimCatalogSyncService
 
   def dealer_costs
     @dealer_costs ||= YAML.load_file(DEALER_COSTS_PATH).transform_values(&:to_d)
+  end
+
+  # Fixed prices agreed for individual plans, used instead of the tiered markup.
+  def price_override(product_id, audience)
+    @price_overrides ||= YAML.load_file(PRICE_OVERRIDES_PATH) || {}
+    @price_overrides.dig(product_id, audience)&.to_d
   end
 
   # An empty result is treated as an upstream glitch, not a delisting of every plan.

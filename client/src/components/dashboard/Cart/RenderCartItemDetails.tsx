@@ -612,7 +612,7 @@ const UsaEsimItemDetails = ({
           <div className="flex-1 min-w-0">
             <Badge className="mb-2 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/30">
               <Smartphone className="w-3 h-3 mr-1" />
-              USA line · {item.usaEsimPlan.provider}
+              {item.usaEsimPlan.country === 'GB' ? 'UK' : 'USA'} line · {item.usaEsimPlan.provider}
             </Badge>
             <h3 className="text-lg font-bold truncate">
               {item.usaEsimPlan.name}
@@ -641,12 +641,14 @@ const UsaEsimItemDetails = ({
               {item.usaEsimPlan.duration} {item.usaEsimPlan.duration_unit}
             </span>
           </div>
-          <div className="flex justify-between gap-4 items-center min-w-0">
-            <span className="text-muted-foreground shrink-0">Phone IMEI</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">
-              {device?.imei ? `ending ${device.imei.slice(-4)}` : "Missing"}
-            </span>
-          </div>
+          {item.usaEsimPlan.requires_imei !== false && (
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">Phone IMEI</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">
+                {device?.imei ? `ending ${device.imei.slice(-4)}` : "Missing"}
+              </span>
+            </div>
+          )}
           {device?.address && (
             <div className="flex justify-between gap-4 items-center min-w-0">
               <span className="text-muted-foreground shrink-0">911 address</span>

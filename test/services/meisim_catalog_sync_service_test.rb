@@ -109,6 +109,43 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_operator above.reseller_selling_price, :>=, below.reseller_selling_price
   end
 
+  def with_details(plan, extra)
+    plan.merge('productDetails' => plan['productDetails'] + extra.map { |name, value| { 'name' => name, 'value' => value } })
+  end
+
+  test 'sorts phone-number plans into US and UK lines by MeiSIM product type' do
+    uk = with_details(plan('p2n:o2_8gb', retail: 9.91, countries: ['GB']), 'PRODUCT_TYPE' => 'UK_NUMBER')
+    us = with_details(plan('p3:2:629', retail: 44.2), 'PRODUCT_TYPE' => 'US_NUMBER')
+    travel = plan('fr-2gb', retail: 3.99, countries: ['FR'])
+    sync([uk, us, travel])
+
+    uk_meta = meisim_product('p2n:o2_8gb').metadata
+    assert_equal %w[uk_prepaid voice_data_sms GB], uk_meta.values_at('meisim_line', 'esim_type', 'number_country')
+    assert_not uk_meta['requires_imei'], 'UK lines need no device details'
+    assert_not uk_meta['accepts_address']
+    assert_equal %w[us_prepaid US], meisim_product('p3:2:629').metadata.values_at('meisim_line', 'number_country')
+    assert meisim_product('p3:2:629').metadata['accepts_address']
+    assert_equal 'travel', meisim_product('fr-2gb').metadata['meisim_line']
+    assert_nil meisim_product('fr-2gb').metadata['number_country']
+  end
+
+  test 'the manual AT&T plan is a US line needing IMEI and EID, at its agreed fixed prices' do
+    att = with_details(plan('man:att_30gb_6m', retail: 145, title: 'AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months'),
+                       'PRODUCT_TYPE' => 'US_NUMBER', 'FULFILMENT' => 'MANUAL', 'PLAN_NETWORK' => 'AT&T')
+    att['productDetails'].reject! { |d| d['name'] == 'PLAN_NETWORK' && d['value'] == 'Lycamobile' }
+    sync([att])
+
+    product = meisim_product('man:att_30gb_6m')
+    assert_equal 'us_prepaid', product.metadata['meisim_line']
+    assert product.metadata['manual_fulfilment']
+    assert product.metadata['requires_imei']
+    assert product.metadata['requires_eid']
+    assert_not product.metadata['accepts_address']
+    pricing = product.product_pricings.first
+    assert_equal BigDecimal('200'), pricing.user_selling_price
+    assert_equal BigDecimal('175'), pricing.reseller_selling_price
+  end
+
   test 'classifies non-US-prefix plans as travel with no known cost' do
     sync([plan('b5465006-105a-46c7-bd01-b5da432ae961', retail: 3.99, countries: ['FR'])])
 

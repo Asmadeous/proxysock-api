@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { conversionTracker } from '@/utils/redditPixel';
@@ -18,7 +18,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import api from '../../services/api';
 
 
-// A MeiSIM US prepaid line: a US phone number with talk, text and data.
+export type LineCountry = 'US' | 'GB';
+
+// A MeiSIM phone-number line (US or UK): a local number with talk, text and data.
 export interface USAESIMPlan {
   id: string;
   provider: string;
@@ -36,6 +38,11 @@ export interface USAESIMPlan {
   description: string;
   activation_note: string;
   warnings: string;
+  country: LineCountry;
+  // Activated by MeiSIM's team onto the phone's EID within 24 hours, with no QR code.
+  manual: boolean;
+  // MeiSIM only takes an E911/area-code address on some US carriers.
+  accepts_address: boolean;
 }
 
 interface CartItem {
@@ -79,7 +86,130 @@ export const toUsaEsimPlan = (p: any): USAESIMPlan => {
     description: p.description || '',
     activation_note: p.activation_note || '',
     warnings: p.warnings || '',
+    country: p.number_country === 'GB' || p.meisim_line === 'uk_prepaid' ? 'GB' : 'US',
+    manual: p.manual_fulfilment === true,
+    accepts_address: p.accepts_address === true,
   };
+};
+
+export const PHONE_LINES = ['us_prepaid', 'uk_prepaid'];
+
+export const COUNTRIES: Record<LineCountry, { name: string; heading: string; facts: string[] }> = {
+  US: { name: 'USA', heading: 'USA phone-number plans', facts: ["Needs your phone's IMEI (and EID on most carriers)", 'Mobile data works inside the US only'] },
+  GB: { name: 'UK', heading: 'UK phone-number plans', facts: ['No IMEI or EID needed', 'EU roaming included · activate in the UK first'] },
+};
+
+type Option = { value: string; label: string; test: (plan: USAESIMPlan) => boolean };
+
+// MeiSIM names some networks with and without "Prepaid" ("AT&T" / "AT&T Prepaid"); group them.
+export const carrierOf = (plan: USAESIMPlan) => plan.provider.replace(/\s+prepaid$/i, '');
+
+// Carrier logos served from /public/carriers (official files from Wikimedia Commons or
+// the carrier's own site). MeiSIM sends none for phone-number lines, so a carrier
+// without an entry here shows its name only. `dark` logos have white lettering.
+export const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
+  'AT&T': { src: '/carriers/att.svg' },
+  'T-Mobile': { src: '/carriers/t-mobile.svg' },
+  Lycamobile: { src: '/carriers/lycamobile.svg' },
+  'Moxee 2': { src: '/carriers/moxee.svg' },
+  Moxee: { src: '/carriers/moxee.svg' },
+  'LinkUp Mobile': { src: '/carriers/linkup.png', dark: true },
+  MobileX: { src: '/carriers/mobilex.svg', dark: true },
+  'O2 UK': { src: '/carriers/o2.svg' },
+  'Three UK': { src: '/carriers/three.svg' },
+};
+
+export function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  const logo = CARRIER_LOGOS[carrier];
+  if (!logo || failed) return null;
+  return (
+    <img
+      src={logo.src}
+      alt=""
+      aria-hidden="true"
+      onError={() => setFailed(true)}
+      className={`${className} w-auto shrink-0 rounded-md object-contain px-1.5 py-1 ${logo.dark ? 'bg-neutral-900' : 'bg-white'}`}
+    />
+  );
+}
+
+const flagUrl = (country: LineCountry, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
+
+export function CountryFlag({ country }: { country: LineCountry }) {
+  return (
+    <img
+      src={flagUrl(country, 80)}
+      srcSet={`${flagUrl(country, 160)} 2x`}
+      width={40}
+      height={30}
+      alt=""
+      aria-hidden="true"
+      className="h-[30px] w-10 shrink-0 rounded-sm object-cover shadow-sm ring-1 ring-border"
+    />
+  );
+}
+
+const planText = (plan: USAESIMPlan) => `${plan.name} ${plan.description}`.toLowerCase();
+
+const isSmsOnly = (plan: USAESIMPlan) => /sms only|sms verification|incoming sms/.test(planText(plan));
+const isTalkAndText = (plan: USAESIMPlan) =>
+  !isSmsOnly(plan) && !plan.data_amount && /talk\s*(&|and)\s*text/i.test(plan.name);
+const hasIntlCalling = (plan: USAESIMPlan) => /international|intl/i.test(`${plan.name} ${plan.voice}`);
+const months = (plan: USAESIMPlan) => Math.max(1, Math.round(plan.duration / 30));
+
+// "8GB UK · 8GB roaming" -> 8; "Unlimited UK · 30GB roaming" -> Infinity.
+const ukDataGb = (plan: USAESIMPlan) => {
+  if (/^unlimited/i.test(plan.data_amount)) return Infinity;
+  const match = plan.data_amount.match(/(\d+(?:\.\d+)?)\s*GB/i);
+  return match ? Number(match[1]) : NaN;
+};
+
+// Each country gets filters that fit its own plans; options no plan matches are hidden.
+export const filterGroups = (country: LineCountry, plans: USAESIMPlan[]): { id: string; label: string; options: Option[] }[] => {
+  const carriers = Array.from(new Set(plans.map(carrierOf))).sort();
+  const carrier = {
+    id: 'carrier', label: 'Carrier',
+    options: carriers.map((name) => ({ value: name, label: name, test: (plan: USAESIMPlan) => carrierOf(plan) === name })),
+  };
+  const groups = country === 'US'
+    ? [
+        carrier,
+        {
+          id: 'includes', label: "What's included",
+          options: [
+            { value: 'all', label: 'Calls, texts + data', test: (plan: USAESIMPlan) => !isSmsOnly(plan) && !isTalkAndText(plan) },
+            { value: 'talk', label: 'Talk & text only', test: isTalkAndText },
+            { value: 'sms', label: 'SMS only', test: isSmsOnly },
+            { value: 'intl', label: 'International calling', test: hasIntlCalling },
+          ],
+        },
+        {
+          id: 'length', label: 'Length',
+          options: Array.from(new Set(plans.map(months))).sort((a, b) => a - b).map((m) => ({
+            value: String(m), label: `${m} ${m === 1 ? 'month' : 'months'}`, test: (plan: USAESIMPlan) => months(plan) === m,
+          })),
+        },
+      ]
+    : [
+        carrier,
+        {
+          id: 'data', label: 'UK data',
+          options: [
+            { value: 'upto25', label: 'Up to 25 GB', test: (plan: USAESIMPlan) => ukDataGb(plan) <= 25 },
+            { value: 'mid', label: '40–125 GB', test: (plan: USAESIMPlan) => ukDataGb(plan) > 25 && ukDataGb(plan) <= 125 },
+            { value: 'big', label: '200 GB+', test: (plan: USAESIMPlan) => ukDataGb(plan) > 125 && Number.isFinite(ukDataGb(plan)) },
+            { value: 'unlimited', label: 'Unlimited', test: (plan: USAESIMPlan) => ukDataGb(plan) === Infinity },
+          ],
+        },
+        {
+          id: 'intl', label: 'International minutes',
+          options: [{ value: 'yes', label: 'Included', test: hasIntlCalling }],
+        },
+      ];
+  return groups
+    .map((group) => ({ ...group, options: group.options.filter((option) => plans.some(option.test)) }))
+    .filter((group) => group.options.length > 1 || (group.id === 'intl' && group.options.length === 1));
 };
 
 const USAESIMCardSkeleton = () => (
@@ -136,8 +266,11 @@ function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit
       </p>
       {field('imei', 'IMEI', imei, setImei, errors.imei, { inputMode: 'numeric', autoComplete: 'off', placeholder: '15 digits' })}
       {plan.requires_eid && field('eid', 'EID', eid, setEid, errors.eid, { inputMode: 'numeric', autoComplete: 'off', placeholder: '32 digits' })}
-      <details className="text-sm">
-        <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4">US address for 911 (optional)</summary>
+      {plan.manual && (
+        <p className="text-sm font-medium">Enter the EID of the phone you'll actually use. The line is tied to that phone and can't be moved to another one later.</p>
+      )}
+      {plan.accepts_address && <details className="text-sm">
+        <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4">US address (optional): used for 911 and your number's area code</summary>
         <div className="mt-3 space-y-3">
           {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
           <div className="grid grid-cols-3 gap-3">
@@ -145,8 +278,9 @@ function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit
             {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
             {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
           </div>
+          <p className="text-muted-foreground">Leave it empty and the carrier assigns the number's location.</p>
         </div>
-      </details>
+      </details>}
       <div className="flex gap-3">
         <Button type="submit" disabled={isSubmitting} className="min-h-11 flex-1 gap-2">
           {isSubmitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
@@ -159,13 +293,17 @@ function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit
 }
 
 interface USAESIMPlansPageProps {
+  // The country picked on the Voice, Data + Text country page.
+  country?: LineCountry;
   onBack?: () => void;
   isDirectBuy?: boolean;
   onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
 }
 
-export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
+export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [sort, setSort] = useState<'asc' | 'desc'>('asc');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [formPlanId, setFormPlanId] = useState<string | null>(null);
   const [provisioningPkgId, setProvisioningPkgId] = useState<string | null>(null);
@@ -177,7 +315,7 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     const fetchPlans = async () => {
       try {
         const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
-        const products = (data.products || []).filter((p: any) => p.meisim_line === 'us_prepaid');
+        const products = (data.products || []).filter((p: any) => PHONE_LINES.includes(p.meisim_line));
         setPlans(products.map(toUsaEsimPlan).sort((a: USAESIMPlan, b: USAESIMPlan) => a.price - b.price));
       } catch (err: any) {
         setError(err.message || 'Error loading plans. Please try again.');
@@ -211,7 +349,7 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
   }, []);
 
   // Each line belongs to one phone, so every add is its own cart item with quantity 1.
-  const addLine = async (plan: USAESIMPlan, details: DeviceDetails) => {
+  const addLine = async (plan: USAESIMPlan, details?: DeviceDetails) => {
     if (isDirectBuy && onDirectBuy) {
       setProvisioningPkgId(plan.id);
       try {
@@ -250,6 +388,21 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     });
   };
 
+  const countryPlans = useMemo(() => plans.filter((plan) => plan.country === country), [plans, country]);
+  const groups = useMemo(() => filterGroups(country, countryPlans), [country, countryPlans]);
+  const shownPlans = useMemo(() => {
+    const selected = groups.flatMap((group) => {
+      const option = group.options.find((o) => o.value === filters[group.id]);
+      return option ? [option.test] : [];
+    });
+    return countryPlans
+      .filter((plan) => selected.every((test) => test(plan)))
+      .sort((a, b) => (sort === 'asc' ? a.price - b.price : b.price - a.price));
+  }, [countryPlans, groups, filters, sort]);
+
+  const toggleFilter = (groupId: string, value: string) =>
+    setFilters((prev) => ({ ...prev, [groupId]: prev[groupId] === value ? '' : value }));
+
   const linesInCart = (plan: USAESIMPlan) =>
     cartItems.filter((item) => item.usaEsimPlan?.id === plan.id).length;
 
@@ -266,18 +419,66 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
     <div className="w-full space-y-7">
       <header>
         {onBack ? (
-          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</button>
+          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</button>
         ) : (
-          <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
+          <Link to="/dashboard/phone-esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</Link>
         )}
-        <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
-        <p className="mt-3 text-base leading-7 text-muted-foreground">US phone-number plans with calls, texts and data. Each line is activated on one phone.</p>
+        <div className="flex items-center gap-3">
+          <CountryFlag country={country} />
+          <h1 className="text-3xl font-semibold tracking-tight">{COUNTRIES[country].name} phone-number eSIM</h1>
+        </div>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">
+          Calls, texts and data on a {COUNTRIES[country].name} number. {COUNTRIES[country].facts.join('. ')}.
+        </p>
       </header>
 
+
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-5">
-        <h2 className="text-xl font-semibold">USA phone-number plans</h2>
-        {!isLoading && !error && <p role="status" className="text-sm text-muted-foreground">{plans.length} {plans.length === 1 ? 'plan' : 'plans'} available</p>}
+        <h2 className="text-xl font-semibold">{COUNTRIES[country].heading}</h2>
+        {!isLoading && !error && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {shownPlans.length === countryPlans.length
+              ? `${countryPlans.length} ${countryPlans.length === 1 ? 'plan' : 'plans'} available`
+              : `${shownPlans.length} of ${countryPlans.length} plans`}
+          </p>
+        )}
       </div>
+
+      {!isLoading && !error && countryPlans.length > 0 && (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <div key={group.id} role="group" aria-label={group.label} className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 w-full text-sm font-medium sm:w-36">{group.label}</span>
+              {group.options.map((option) => {
+                const on = filters[group.id] === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleFilter(group.id, option.value)}
+                    className={`min-h-9 rounded-full border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:border-foreground/40'}`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor="phone-plan-sort" className="mr-1 w-full text-sm font-medium sm:w-36">Sort</Label>
+            <select
+              id="phone-plan-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'asc' | 'desc')}
+              className="min-h-9 rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="asc">Price: low to high</option>
+              <option value="desc">Price: high to low</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {showSuccessAlert && (
         <div role="status" className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/40 px-4 py-3">
@@ -295,21 +496,29 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
           <h3 className="font-semibold">We couldn’t load the plans</h3>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         </div>
-      ) : plans.length === 0 ? (
+      ) : countryPlans.length === 0 ? (
         <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
-          <h3 className="font-semibold">USA plans are currently unavailable</h3>
+          <h3 className="font-semibold">{COUNTRIES[country].name} plans are currently unavailable</h3>
           <p className="mt-2 text-sm text-muted-foreground">Please check back soon.</p>
+        </div>
+      ) : shownPlans.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-6 py-12 text-center">
+          <h3 className="font-semibold">No plans match these filters</h3>
+          <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>Clear filters</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {plans.map((plan) => {
+          {shownPlans.map((plan) => {
             const inCart = linesInCart(plan);
             const submitLabel = isDirectBuy ? "Instantly Provision" : "Add to Cart";
             return (
               <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 basis-40">
-                    <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    <div className="flex items-center gap-2.5">
+                      <CarrierLogo carrier={carrierOf(plan)} />
+                      <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    </div>
                     <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
                   </div>
                   <div className="text-right">
@@ -337,6 +546,11 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
                     </div>
                   )}
                 </dl>
+                {plan.manual && (
+                  <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">
+                    Activated by the carrier within 24 hours, straight onto your phone. No QR code needed.
+                  </p>
+                )}
                 {plan.warnings && (
                   <p className="mb-5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{plan.warnings}</p>
                 )}
@@ -363,7 +577,11 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
                   ) : (
                     <>
                       {inCart > 0 && <p className="text-sm font-medium">{inCart} {inCart === 1 ? 'line' : 'lines'} in cart</p>}
-                      <Button onClick={() => setFormPlanId(plan.id)} className="min-h-12 w-full">
+                      <Button
+                        onClick={() => (plan.requires_imei ? setFormPlanId(plan.id) : addLine(plan))}
+                        disabled={provisioningPkgId === plan.id}
+                        className="min-h-12 w-full"
+                      >
                         {inCart > 0 ? 'Add another line' : submitLabel}
                       </Button>
                     </>

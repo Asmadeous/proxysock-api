@@ -2,9 +2,10 @@ type QuantityItem = {
   productType: string;
   quantity?: number;
   deviceDetails?: unknown;
+  usaEsimPlan?: { requires_imei?: boolean };
 };
 
-// A US phone-number line is activated on one phone, so its quantity is always 1.
+// A phone-number line (US or UK) is activated on one phone, so its quantity is always 1.
 export const isFixedQuantity = (item: QuantityItem) => item.productType === 'usa-esim';
 
 export function normalizeEsimQuantity(item: QuantityItem): number {
@@ -13,6 +14,7 @@ export function normalizeEsimQuantity(item: QuantityItem): number {
   return Number.isFinite(quantity) && quantity >= 1 ? Math.floor(quantity) : 1;
 }
 
-// US lines saved before device details were required cannot be ordered.
+// Lines that need the phone's IMEI/EID can't be ordered without them (e.g. US lines
+// saved before device details were required). UK lines need none.
 export const isOrderableCartItem = (item: QuantityItem) =>
-  item.productType !== 'usa-esim' || !!item.deviceDetails;
+  item.productType !== 'usa-esim' || !!item.deviceDetails || item.usaEsimPlan?.requires_imei === false;

@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
+// MeiSIM lines that come with a phone number; everything else here is data only.
+const PHONE_LINES = ['us_prepaid', 'uk_prepaid'];
+export const isPhoneLine = (product: { meisim_line?: string }) => PHONE_LINES.includes(product.meisim_line ?? '');
+
 
 
 
@@ -238,8 +242,8 @@ export function useESIMPackages(filters: PackageFilters = {}) {
   const packages = useMemo(() => {
     if (!allPackagesRaw.length) return [];
 
-    // MeiSIM US phone-number lines are listed on the USA eSIM page, not with data plans.
-    const dataProducts = allPackagesRaw.filter((p: any) => p.meisim_line !== 'us_prepaid');
+    // MeiSIM phone-number lines (US and UK) are listed on the Voice, Data + Text page, not with data plans.
+    const dataProducts = allPackagesRaw.filter((p: any) => !isPhoneLine(p));
 
     // Map backend products to ESIMPackage interface
     let processed: ESIMPackage[] = dataProducts.map((p: any) => {
@@ -499,9 +503,9 @@ export function useESIMCountries() {
       const allFetchedProducts: any[] = data.products || [];
 
       // Process packages to extract locations. Each country a MeiSIM travel plan
-      // covers becomes a filter option; US phone-number lines are not data plans.
+      // covers becomes a filter option; phone-number lines are not data plans.
       const allPackages = allFetchedProducts
-        .filter((p: any) => p.meisim_line !== 'us_prepaid')
+        .filter((p: any) => !isPhoneLine(p))
         .flatMap((p: any) => {
           if (p.provider === 'meisim') {
             return (Array.isArray(p.countries) ? p.countries : []).map((code: string) => ({

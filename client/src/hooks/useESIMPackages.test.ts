@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapMeisimPackage } from "./useESIMPackages";
+import { isPhoneLine, mapMeisimPackage } from "./useESIMPackages";
 
 const base = { id: "p1", slug: "meisim-p1", name: "Plan", price: "19.19", currency: "USD", provider: "meisim", meisim_line: "travel" };
 
@@ -22,5 +22,14 @@ describe("mapMeisimPackage", () => {
 
   it("marks unlimited or unknown data as having no fixed volume", () => {
     expect(mapMeisimPackage({ ...base, countries: ["US"], data_limit: "Unlimited" })).toMatchObject({ volume: 0, data_type: 0 });
+  });
+});
+
+describe("isPhoneLine", () => {
+  it("keeps US and UK phone-number lines out of the data-only list", () => {
+    expect(isPhoneLine({ meisim_line: "us_prepaid" })).toBe(true);
+    expect(isPhoneLine({ meisim_line: "uk_prepaid" })).toBe(true);
+    expect(isPhoneLine({ meisim_line: "travel" })).toBe(false);
+    expect(isPhoneLine({})).toBe(false);
   });
 });

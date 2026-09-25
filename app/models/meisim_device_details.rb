@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
-# Device details MeiSIM requires for US prepaid (p3: and ly:) lines, read from an
-# order's metadata: `imei`, `eid`, and an optional E911 `address`.
+# Device details MeiSIM requires for US prepaid (p3:, ly: and man:) lines, read from
+# an order's metadata: `imei`, `eid`, and an optional E911 `address`. UK lines need none.
 class MeisimDeviceDetails
+  # man: plans are activated by MeiSIM's team onto the phone's EID; the carrier needs both.
+  DEVICE_PREFIXES = %w[p3: ly: man:].freeze
   ADDRESS_KEYS = %w[first_name last_name address_line_1 address_line_2 city state zip_code phone].freeze
 
   def self.required_for?(product)
@@ -11,7 +13,7 @@ class MeisimDeviceDetails
 
   # MeiSIM: "A 15-digit customer IMEI is required for US prepaid plans".
   def self.device_required?(product_id)
-    product_id.to_s.start_with?(*MeisimCatalogSyncService::US_PREPAID_PREFIXES)
+    product_id.to_s.start_with?(*DEVICE_PREFIXES)
   end
 
   # MeiSIM documents EID as required for US prepaid lines except Moxee.

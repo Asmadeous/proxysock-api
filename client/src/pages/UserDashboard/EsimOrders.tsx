@@ -132,8 +132,8 @@ const ESIMOrdersPage = () => {
       // Add eSIM Access orders
       if (esimResponse.status === 'fulfilled' && esimResponse.value.data?.orders) {
         esimResponse.value.data.orders.forEach((o: any) => {
-          // MeiSIM US prepaid lines are grouped with the phone-number eSIMs.
-          const isUsLine = o.metadata?.meisim_line === 'us_prepaid';
+          // MeiSIM phone-number lines (US and UK) are grouped with the phone-number eSIMs.
+          const isUsLine = ['us_prepaid', 'uk_prepaid'].includes(o.metadata?.meisim_line);
           allOrders.push({ ...o, product_type: isUsLine ? 'usa_esim' : 'esim' });
         });
       }

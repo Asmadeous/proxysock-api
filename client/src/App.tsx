@@ -59,6 +59,7 @@ const RDPPlans = lazy(() => import("./pages/products/RDPPlans"));
 const ESIMPackages = lazy(() => import("./pages/products/EsimPackages"));
 const ESIMTypes = lazy(() => import("./pages/products/ESIMTypes"));
 const USAESIMPlans = lazy(() => import("./pages/products/USAESIMPlansPage"));
+const PhoneESIMCountries = lazy(() => import("./pages/products/PhoneESIMCountries"));
 const VPNBuy = lazy(() => import("./pages/products/VPNPlans"));
 
 // ─── Misc pages ──────────────────────────────────────────────
@@ -193,7 +194,9 @@ export default function App() {
                   <Route path="proxies" element={<BuyProxies />} />
                   <Route path="global-esim" element={<ESIMPackages />} />
                   <Route path="esim" element={<ESIMTypes />} />
-                  <Route path="usa-esim" element={<USAESIMPlans />} />
+                  <Route path="phone-esim" element={<PhoneESIMCountries />} />
+                  <Route path="usa-esim" element={<USAESIMPlans country="US" />} />
+                  <Route path="uk-esim" element={<USAESIMPlans country="GB" />} />
                   <Route path="vps" element={<VPSTypes />} />
                   <Route path="vps-plans" element={<VPSPlans />} />
                   <Route path="vps-plans/:type" element={<VPSPlans />} />

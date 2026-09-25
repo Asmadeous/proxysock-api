@@ -127,3 +127,102 @@ it("reads the data allowance from the plan name when MeiSIM only says See plan",
   expect(lyca.getByText("Data").nextSibling).toHaveTextContent("Not listed");
   expect(lyca.getByText("Coverage").nextSibling).toHaveTextContent("United States + international calling");
 });
+
+const ukO2 = {
+  ...usLine, id: "uk-o2", name: "O2 UK · 8GB + EU Roaming", price: "14.87", network: "O2 UK", meisim_line: "uk_prepaid",
+  number_country: "GB", data_limit: "8GB UK · 8GB roaming", voice: "Unlimited UK", requires_imei: false, requires_eid: false,
+  activation_note: "Must be activated in the UK before first use.",
+};
+const ukThree = {
+  ...ukO2, id: "uk-three", name: "Three UK · Unlimited + EU Roaming", price: "44.58", network: "Three UK",
+  data_limit: "Unlimited UK · 30GB roaming",
+};
+const smsOnly = { ...usLine, id: "sms-1", name: "Moxee 2 Prepaid · 100 SMS Only", price: "9.84", network: "Moxee 2", requires_eid: false };
+const manualAtt = {
+  ...usLine, id: "att-6m", name: "AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months", price: "200", network: "AT&T",
+  data_limit: "30GB per month", validity_days: 180, manual_fulfilment: true,
+};
+
+const loadPlans = (...products: object[]) =>
+  vi.mocked(api.get).mockResolvedValue({ data: { products } });
+
+it("shows only the chosen country's lines", async () => {
+  loadPlans(usLine, ukO2, ukThree, travel);
+  renderPage({ country: "GB" });
+
+  expect(await screen.findByRole("heading", { name: "UK phone-number eSIM" })).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: ukO2.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: usLine.name })).not.toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: travel.name })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Change country" })).toHaveAttribute("href", "/dashboard/phone-esim");
+});
+
+it("adds a UK line to the cart without asking for phone details", async () => {
+  const user = userEvent.setup();
+  loadPlans(ukO2);
+  renderPage({ country: "GB" });
+
+  await user.click((await card(ukO2.name)).getByRole("button", { name: "Add to Cart" }));
+
+  expect(screen.queryByRole("form")).not.toBeInTheDocument();
+  const cart = JSON.parse(localStorage.getItem("cartItems")!);
+  expect(cart).toHaveLength(1);
+  expect(cart[0]).toMatchObject({ productType: "usa-esim", usaEsimPlan: { id: "uk-o2", country: "GB", requires_imei: false } });
+  expect(cart[0].deviceDetails).toBeUndefined();
+});
+
+it("filters US lines by carrier and by what is included", async () => {
+  const user = userEvent.setup();
+  loadPlans(usLine, smsOnly, manualAtt);
+  renderPage();
+  await screen.findByRole("article", { name: usLine.name });
+
+  const included = screen.getByRole("group", { name: "What's included" });
+  await user.click(within(included).getByRole("button", { name: "SMS only" }));
+  expect(screen.getByRole("article", { name: smsOnly.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: usLine.name })).not.toBeInTheDocument();
+
+  await user.click(within(included).getByRole("button", { name: "SMS only" }));
+  await user.click(within(screen.getByRole("group", { name: "Length" })).getByRole("button", { name: "6 months" }));
+  expect(screen.getByRole("article", { name: manualAtt.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: smsOnly.name })).not.toBeInTheDocument();
+
+  const carriers = screen.getByRole("group", { name: "Carrier" });
+  expect(within(carriers).queryByRole("button", { name: "AT&T Prepaid" })).not.toBeInTheDocument();
+  await user.click(within(carriers).getByRole("button", { name: "Moxee 2" }));
+  expect(screen.getByText("No plans match these filters")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(screen.getAllByRole("article")).toHaveLength(3);
+});
+
+it("filters UK lines by data amount", async () => {
+  const user = userEvent.setup();
+  loadPlans(ukO2, ukThree);
+  renderPage({ country: "GB" });
+  await screen.findByRole("article", { name: ukO2.name });
+
+  await user.click(within(screen.getByRole("group", { name: "UK data" })).getByRole("button", { name: "Unlimited" }));
+  expect(screen.getByRole("article", { name: ukThree.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: ukO2.name })).not.toBeInTheDocument();
+});
+
+it("explains manual activation and asks for the EID of the phone that keeps the line", async () => {
+  const user = userEvent.setup();
+  loadPlans(manualAtt);
+  renderPage();
+
+  const plan = await card(manualAtt.name);
+  expect(plan.getByText(/Activated by the carrier within 24 hours/)).toBeInTheDocument();
+  await user.click(plan.getByRole("button", { name: "Add to Cart" }));
+  expect(form(manualAtt.name).getByText(/can't be moved to another one later/)).toBeInTheDocument();
+  expect(form(manualAtt.name).queryByText(/US address/)).not.toBeInTheDocument();
+});
+
+it("only offers the 911 address on carriers that use it", async () => {
+  const user = userEvent.setup();
+  loadPlans({ ...usLine, accepts_address: true });
+  renderPage();
+
+  await user.click((await card(usLine.name)).getByRole("button", { name: "Add to Cart" }));
+  expect(form(usLine.name).getByText(/used for 911 and your number's area code/)).toBeInTheDocument();
+});

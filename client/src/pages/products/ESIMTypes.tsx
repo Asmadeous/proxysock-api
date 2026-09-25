@@ -17,7 +17,7 @@ export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypes
         ["Coverage", "Varies by country and plan"],
       ],
       action: "Browse phone-number plans",
-      href: "/dashboard/usa-esim",
+      href: "/dashboard/phone-esim",
       onNavigate: onNavigateUSA,
     },
     {
