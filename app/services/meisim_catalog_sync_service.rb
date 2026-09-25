@@ -47,6 +47,7 @@ class MeisimCatalogSyncService
 
     product.assign_attributes(
       name: details['PLAN_TITLE'].presence || product_id,
+      description: plan_description(details),
       product_category: category,
       product_type: 'esim',
       provider_type: PROVIDER,
@@ -64,6 +65,19 @@ class MeisimCatalogSyncService
 
   def plan_details(plan)
     Array(plan['productDetails']).to_h { |d| [d['name'].to_s.strip, d['value']] }
+  end
+
+  # MeiSIM fills unknown values with "", "0" or "None"; "0" minutes also appears on
+  # plans whose description includes calls, so it is treated as unknown.
+  def detail_value(details, name)
+    value = details[name].to_s.strip
+    value unless value.empty? || %w[0 None].include?(value)
+  end
+
+  # Some descriptions only repeat the title, which the card already shows.
+  def plan_description(details)
+    description = detail_value(details, 'PLAN_DESCRIPTION')
+    description unless description.nil? || details['PLAN_TITLE'].to_s.include?(description)
   end
 
   def build_metadata(plan, details, product_id)
@@ -85,6 +99,11 @@ class MeisimCatalogSyncService
       'validity_days' => details['VALIDITY_IN_DAYS']&.to_i,
       'retail_price' => plan['retailPrice'],
       'usage_tracking' => details['USAGE_TRACKING'],
+      'voice' => detail_value(details, 'VOICE'),
+      'sms' => detail_value(details, 'SMS'),
+      'coverage' => detail_value(details, 'PLAN_COVERAGE'),
+      'activation_note' => detail_value(details, 'ACTIVATION_NOTE'),
+      'warnings' => detail_value(details, 'WARNINGS'),
       'synced_at' => Time.current.iso8601
     }
   end

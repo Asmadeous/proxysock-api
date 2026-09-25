@@ -89,3 +89,26 @@ it("sends quantity 1 and the device details through direct purchase", async () =
   expect(purchase).toHaveBeenCalledWith(usLine.id, 1, { imei: "350923389416420", eid: EID });
   expect(localStorage.getItem("cartItems")).toBeNull();
 });
+
+it("shows calls, texts, coverage and the plan description instead of a placeholder", async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    data: {
+      products: [{
+        ...usLine, voice: "Unlimited", sms: "Unlimited", coverage: "United States",
+        description: "Real US phone number.\n10GB mobile hotspot included",
+        activation_note: "Phone must be unlocked.", warnings: "Billed once for 3 months.",
+      }],
+    },
+  });
+  renderPage();
+
+  const plan = await card(usLine.name);
+  expect(plan.getByText("Calls").nextSibling).toHaveTextContent("Unlimited");
+  expect(plan.getByText("Texts").nextSibling).toHaveTextContent("Unlimited");
+  expect(plan.getByText("Coverage").nextSibling).toHaveTextContent("United States");
+  expect(plan.queryByText("Data")).not.toBeInTheDocument();
+  expect(plan.queryByText(/see plan/i)).not.toBeInTheDocument();
+  expect(plan.getByText("Billed once for 3 months.")).toBeInTheDocument();
+  expect(plan.getByText(/10GB mobile hotspot included/)).toBeInTheDocument();
+  expect(plan.getByText("Phone must be unlocked.")).toBeInTheDocument();
+});

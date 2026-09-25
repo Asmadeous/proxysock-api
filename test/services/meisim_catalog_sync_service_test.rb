@@ -52,6 +52,30 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_equal BigDecimal('12.65'), pricing.cost_price
   end
 
+  test 'keeps plan description, calls, texts, coverage and notes' do
+    att = plan('p3:2:630', retail: 45.0, title: 'AT&T Prepaid · $45 Unlimited Enhanced Select')
+    att['productDetails'] += [
+      { 'name' => 'PLAN_DESCRIPTION', 'value' => "Real US phone number.\n10GB mobile hotspot included" },
+      { 'name' => 'VOICE', 'value' => 'Unlimited' },
+      { 'name' => 'SMS', 'value' => '0' },
+      { 'name' => 'PLAN_COVERAGE', 'value' => 'United States' },
+      { 'name' => 'ACTIVATION_NOTE', 'value' => 'Phone must be unlocked.' },
+      { 'name' => 'WARNINGS', 'value' => '' }
+    ]
+    lyca = plan('ly:1012', retail: 15.0, title: 'Lycamobile · $15 international Plan')
+    lyca['productDetails'] << { 'name' => 'PLAN_DESCRIPTION', 'value' => '$15 international Plan' }
+    sync([att, lyca])
+
+    product = meisim_product('p3:2:630')
+    assert_equal "Real US phone number.\n10GB mobile hotspot included", product.description
+    assert_equal 'Unlimited', product.metadata['voice']
+    assert_nil product.metadata['sms'], '"0" is unknown, not zero texts'
+    assert_equal 'United States', product.metadata['coverage']
+    assert_equal 'Phone must be unlocked.', product.metadata['activation_note']
+    assert_nil product.metadata['warnings']
+    assert_nil meisim_product('ly:1012').description, 'a description that repeats the title is dropped'
+  end
+
   test 'classifies non-US-prefix plans as travel with no known cost' do
     sync([plan('b5465006-105a-46c7-bd01-b5da432ae961', retail: 3.99, countries: ['FR'])])
 

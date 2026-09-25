@@ -92,6 +92,24 @@ module Web
         assert_not json_response['metadata'].key?('retail_price')
         assert_equal 'travel', json_response['metadata']['meisim_line']
       end
+
+      test 'a rolled-back wallet cart checkout is reported to Sentry' do
+        product = Product.create!(name: 'AT&T Prepaid', product_type: 'esim', provider: 'meisim',
+                                  provider_product_id: 'p3:2:629', available_to: 'both',
+                                  product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'us_prepaid', 'network' => 'AT&T Prepaid' })
+        ProductPricing.create!(product: product, currency: 'USD', selling_price: 10, active: true)
+        Sentry.expects(:capture_exception).with(instance_of(ActiveRecord::RecordInvalid), anything).once
+
+        assert_no_difference ['Order.count', -> { @user.wallet.reload.balance }] do
+          post '/web/api/orders/checkout_cart',
+               params: { payment_method: 'wallet', items: [{ product_id: product.id, quantity: 1, metadata: {} }] },
+               headers: auth_header(@user)
+        end
+
+        assert_response :unprocessable_entity
+        assert_match(/imei/i, json_response['error'])
+      end
     end
   end
 end

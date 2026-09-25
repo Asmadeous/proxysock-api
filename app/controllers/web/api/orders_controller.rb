@@ -527,7 +527,12 @@ module Web
           }, status: :accepted
         end
       rescue StandardError => e
-        Rails.logger.error("Cart Checkout Error: #{e.message}")
+        # The checkout transaction rolls back every order and the debit, so this
+        # is the only trace a failed checkout leaves.
+        Rails.logger.error("Cart Checkout Error (#{current_actor.class.name} #{current_actor.id}, #{payment_method}): #{e.class}: #{e.message}")
+        Sentry.capture_exception(e, extra: { actor_type: current_actor.class.name, actor_id: current_actor.id,
+                                             payment_method: payment_method,
+                                             product_ids: items.map { |i| i[:product_id] || i['product_id'] } })
         render json: { error: e.message }, status: :unprocessable_entity
       end
 

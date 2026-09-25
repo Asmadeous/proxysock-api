@@ -629,10 +629,12 @@ const UsaEsimItemDetails = ({
           </Button>
         </div>
         <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between gap-4 items-center min-w-0">
-            <span className="text-muted-foreground shrink-0">Data</span>
-            <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.data_amount}</span>
-          </div>
+          {item.usaEsimPlan.data_amount && (
+            <div className="flex justify-between gap-4 items-center min-w-0">
+              <span className="text-muted-foreground shrink-0">Data</span>
+              <span className="font-medium truncate text-right flex-1 min-w-0">{item.usaEsimPlan.data_amount}</span>
+            </div>
+          )}
           <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Duration</span>
             <span className="font-medium truncate text-right flex-1 min-w-0">

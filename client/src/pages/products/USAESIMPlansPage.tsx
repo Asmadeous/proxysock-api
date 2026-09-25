@@ -30,6 +30,12 @@ export interface USAESIMPlan {
   duration_unit: string;
   requires_imei: boolean;
   requires_eid: boolean;
+  voice: string;
+  sms: string;
+  coverage: string;
+  description: string;
+  activation_note: string;
+  warnings: string;
 }
 
 interface CartItem {
@@ -50,11 +56,18 @@ export const toUsaEsimPlan = (p: any): USAESIMPlan => {
     name: p.name,
     price: Number(p.price) || 0,
     currency_code: p.currency || 'USD',
-    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : 'See plan details',
+    // MeiSIM sends "See plan" when the allowance is only in the description; show no Data row then.
+    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : '',
     duration: Number(p.validity_days) || 30,
     duration_unit: 'Days',
     requires_imei: p.requires_imei !== false,
     requires_eid: p.requires_eid !== false,
+    voice: p.voice || '',
+    sms: p.sms || '',
+    coverage: p.coverage || '',
+    description: p.description || '',
+    activation_note: p.activation_note || '',
+    warnings: p.warnings || '',
   };
 };
 
@@ -294,13 +307,29 @@ export default function USAESIMPlansPage({ onBack, isDirectBuy, onDirectBuy }: U
                   </div>
                 </div>
                 <dl className="mb-5 divide-y divide-border border-y border-border">
-                  {[['Phone number', 'US number included'], ['Data', plan.data_amount]].map(([label, value]) => (
+                  {([
+                    ['Phone number', 'US number included'],
+                    ['Calls', plan.voice],
+                    ['Texts', plan.sms],
+                    ['Data', plan.data_amount],
+                    ['Coverage', plan.coverage],
+                  ] as const).filter(([, value]) => value).map(([label, value]) => (
                     <div key={label} className="flex justify-between gap-5 py-3 text-sm">
                       <dt className="text-muted-foreground">{label}</dt>
                       <dd className="text-right font-medium">{value}</dd>
                     </div>
                   ))}
                 </dl>
+                {plan.warnings && <p className="mb-5 text-sm font-medium">{plan.warnings}</p>}
+                {(plan.description || plan.activation_note) && (
+                  <details className="mb-5 text-sm">
+                    <summary className="w-fit cursor-pointer rounded py-1 font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Plan details</summary>
+                    <div className="mt-2 space-y-3 leading-6 text-muted-foreground">
+                      {plan.description && <p className="whitespace-pre-line">{plan.description}</p>}
+                      {plan.activation_note && <p>{plan.activation_note}</p>}
+                    </div>
+                  </details>
+                )}
                 <div className="mt-auto space-y-3">
                   {canBuy && (formPlanId === plan.id ? (
                     <DeviceDetailsForm
