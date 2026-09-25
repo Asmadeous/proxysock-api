@@ -104,6 +104,52 @@ type Option = { value: string; label: string; test: (plan: USAESIMPlan) => boole
 // MeiSIM names some networks with and without "Prepaid" ("AT&T" / "AT&T Prepaid"); group them.
 const carrierOf = (plan: USAESIMPlan) => plan.provider.replace(/\s+prepaid$/i, '');
 
+// Carrier logos served from /public/carriers (official files from Wikimedia Commons or
+// the carrier's own site). MeiSIM sends none for phone-number lines, so a carrier
+// without an entry here shows its name only. `dark` logos have white lettering.
+const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
+  'AT&T': { src: '/carriers/att.svg' },
+  'T-Mobile': { src: '/carriers/t-mobile.svg' },
+  Lycamobile: { src: '/carriers/lycamobile.svg' },
+  'Moxee 2': { src: '/carriers/moxee.svg' },
+  Moxee: { src: '/carriers/moxee.svg' },
+  'LinkUp Mobile': { src: '/carriers/linkup.png', dark: true },
+  MobileX: { src: '/carriers/mobilex.svg', dark: true },
+  'O2 UK': { src: '/carriers/o2.svg' },
+  'Three UK': { src: '/carriers/three.svg' },
+};
+
+function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  const logo = CARRIER_LOGOS[carrier];
+  if (!logo || failed) return null;
+  return (
+    <img
+      src={logo.src}
+      alt=""
+      aria-hidden="true"
+      onError={() => setFailed(true)}
+      className={`${className} w-auto shrink-0 rounded-md object-contain px-1.5 py-1 ${logo.dark ? 'bg-neutral-900' : 'bg-white'}`}
+    />
+  );
+}
+
+const flagUrl = (country: LineCountry, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
+
+function CountryFlag({ country }: { country: LineCountry }) {
+  return (
+    <img
+      src={flagUrl(country, 80)}
+      srcSet={`${flagUrl(country, 160)} 2x`}
+      width={40}
+      height={30}
+      alt=""
+      aria-hidden="true"
+      className="h-[30px] w-10 shrink-0 rounded-sm object-cover shadow-sm ring-1 ring-border"
+    />
+  );
+}
+
 const planText = (plan: USAESIMPlan) => `${plan.name} ${plan.description}`.toLowerCase();
 
 const isSmsOnly = (plan: USAESIMPlan) => /sms only|sms verification|incoming sms/.test(planText(plan));
@@ -394,6 +440,8 @@ export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, 
           const info = COUNTRIES[code];
           const linePlans = plans.filter((plan) => plan.country === code);
           const carriers = Array.from(new Set(linePlans.map(carrierOf))).sort();
+          const kinds = filterGroups(code, linePlans).find((group) => group.id === (code === 'US' ? 'includes' : 'data'))?.options ?? [];
+          const fromPrice = linePlans.length ? Math.min(...linePlans.map((plan) => plan.price)) : null;
           const active = code === country;
           return (
             <button
@@ -403,11 +451,38 @@ export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, 
               onClick={() => chooseCountry(code)}
               className={`rounded-xl border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-foreground/40'}`}
             >
-              <span className="flex items-baseline justify-between gap-3">
+              <span className="flex items-center gap-3">
+                <CountryFlag country={code} />
                 <span className="text-xl font-bold tracking-tight">{info.name} phone number</span>
-                {!isLoading && <span className="text-sm text-foreground/75">{linePlans.length} {linePlans.length === 1 ? 'plan' : 'plans'}</span>}
+                {!isLoading && (
+                  <span className="ml-auto text-right text-sm text-foreground/75">
+                    {linePlans.length} {linePlans.length === 1 ? 'plan' : 'plans'}
+                    {fromPrice !== null && <span className="block font-semibold text-foreground">from {formatPrice(fromPrice)}</span>}
+                  </span>
+                )}
               </span>
-              {carriers.length > 0 && <span className="mt-1 block text-sm font-medium text-foreground/80">{carriers.join(' · ')}</span>}
+              {carriers.length > 0 && (
+                <span className="mt-4 flex flex-wrap items-center gap-2">
+                  {carriers.map((name) => (
+                    <span key={name} title={name} className="inline-flex min-h-8 items-center">
+                      {CARRIER_LOGOS[name] ? (
+                        <>
+                          <CarrierLogo carrier={name} className="h-8 max-w-28" />
+                          <span className="sr-only">{name}</span>
+                        </>
+                      ) : (
+                        <span className="rounded-md border border-border px-2 py-1 text-sm font-medium">{name}</span>
+                      )}
+                    </span>
+                  ))}
+                </span>
+              )}
+              {kinds.length > 0 && (
+                <span className="mt-3 block text-sm">
+                  <span className="font-medium">{code === 'US' ? 'Plans: ' : 'UK data: '}</span>
+                  <span className="text-foreground/80">{kinds.map((kind) => kind.label).join(' · ')}</span>
+                </span>
+              )}
               <span className="mt-3 block space-y-1 text-sm text-foreground/70">
                 {info.facts.map((fact) => <span key={fact} className="block">{fact}</span>)}
               </span>
@@ -498,7 +573,10 @@ export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, 
               <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 basis-40">
-                    <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    <div className="flex items-center gap-2.5">
+                      <CarrierLogo carrier={carrierOf(plan)} />
+                      <h3 className="text-2xl font-bold leading-8 tracking-tight">{plan.provider}</h3>
+                    </div>
                     <p className="mt-1 text-sm font-medium leading-6 text-foreground/75">{planTitle(plan)}</p>
                   </div>
                   <div className="text-right">
