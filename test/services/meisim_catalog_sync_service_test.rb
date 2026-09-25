@@ -46,9 +46,9 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert product.metadata['requires_eid']
 
     pricing = product.product_pricings.find_by!(currency: 'USD')
-    assert_equal BigDecimal('23.00'), pricing.reseller_selling_price
+    assert_equal BigDecimal('26.45'), pricing.reseller_selling_price, 'retail $15-30: resellers +15%'
     assert_equal BigDecimal('23.00'), pricing.selling_price
-    assert_equal BigDecimal('27.60'), pricing.user_selling_price
+    assert_equal BigDecimal('29.90'), pricing.user_selling_price, 'retail $15-30: customers +30%'
     assert_equal BigDecimal('12.65'), pricing.cost_price
   end
 
@@ -99,6 +99,16 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_equal 'Moxee 2 Prepaid · 100 SMS Only', meisim_product('p3:2:3').display_name(12)
   end
 
+  test 'a plan never costs less than a cheaper plan in the tier below' do
+    sync([plan('p3:2:1', retail: 29.5), plan('p3:2:2', retail: 30.0)])
+
+    below = meisim_product('p3:2:1').product_pricings.first
+    above = meisim_product('p3:2:2').product_pricings.first
+    assert_equal BigDecimal('38.35'), below.user_selling_price
+    assert_equal BigDecimal('39.00'), above.user_selling_price
+    assert_operator above.reseller_selling_price, :>=, below.reseller_selling_price
+  end
+
   test 'classifies non-US-prefix plans as travel with no known cost' do
     sync([plan('b5465006-105a-46c7-bd01-b5da432ae961', retail: 3.99, countries: ['FR'])])
 
@@ -106,7 +116,8 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_equal 'travel', product.metadata['meisim_line']
     assert_equal 'data_only', product.metadata['esim_type']
     assert_nil product.product_pricings.first.cost_price
-    assert_equal BigDecimal('4.79'), product.product_pricings.first.user_selling_price
+    assert_equal BigDecimal('5.99'), product.product_pricings.first.user_selling_price, 'retail under $15: customers +50%'
+    assert_equal BigDecimal('4.99'), product.product_pricings.first.reseller_selling_price
   end
 
   test 'skips delayed eKYC plans' do
@@ -126,7 +137,7 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_not product.active, 'a product staff disabled stays disabled'
     assert_equal 'Renamed', product.name
     assert_equal 1, product.product_pricings.count
-    assert_equal BigDecimal('46.00'), product.product_pricings.first.reseller_selling_price
+    assert_equal BigDecimal('50.60'), product.product_pricings.first.reseller_selling_price
   end
 
   test 'deactivates products that left the catalogue' do

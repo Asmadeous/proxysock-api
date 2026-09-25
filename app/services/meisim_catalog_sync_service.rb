@@ -5,7 +5,10 @@
 class MeisimCatalogSyncService
   PROVIDER = 'meisim'
   US_PREPAID_PREFIXES = %w[p3: ly:].freeze
-  USER_MARKUP = 1.20
+  # Markup on MeiSIM retail by retail price: [tier starts at, markup]. Cheap plans
+  # get a bigger percentage so they still earn a real margin.
+  CUSTOMER_MARKUP_TIERS = [[0, 0.50], [15, 0.30], [30, 0.20]].freeze
+  RESELLER_MARKUP_TIERS = [[0, 0.25], [15, 0.15], [30, 0.10]].freeze
   DEALER_COSTS_PATH = Rails.root.join('config/meisim_dealer_costs.yml')
 
   def initialize(client: MeisimService.new, logger: Rails.logger)
@@ -123,7 +126,6 @@ class MeisimCatalogSyncService
     }
   end
 
-  # Resellers pay MeiSIM retail; users pay retail + 20%.
   def sync_pricing(product, retail, product_id)
     pricing = product.product_pricings.find_or_initialize_by(currency: 'USD')
 
@@ -131,11 +133,22 @@ class MeisimCatalogSyncService
       api_price: retail,
       cost_price: dealer_costs[product_id],
       selling_price: retail,
-      reseller_selling_price: retail,
-      user_selling_price: (retail * USER_MARKUP).round(2),
+      reseller_selling_price: marked_up(retail, RESELLER_MARKUP_TIERS),
+      user_selling_price: marked_up(retail, CUSTOMER_MARKUP_TIERS),
       margin_percentage: 0,
       active: true
     )
+  end
+
+  # A plan never costs less than the top of the tier below it, so a $30 plan is not
+  # cheaper than a $29.50 one that sits in the higher-markup tier.
+  def marked_up(retail, tiers)
+    floor = 0
+    tiers.each_cons(2) do |(_, markup), (next_start, _)|
+      floor = next_start * (1 + markup) if retail >= next_start
+    end
+    markup = tiers.reverse.find { |start, _| retail >= start }.last
+    [retail * (1 + markup), floor].max.to_d.round(2)
   end
 
   def dealer_costs
