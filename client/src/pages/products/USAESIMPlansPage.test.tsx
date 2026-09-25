@@ -107,8 +107,8 @@ it("shows the full plan details on the card", async () => {
   expect(plan.getByText("Unlimited Saver")).toBeInTheDocument();
   expect(plan.getByText("Calls").nextSibling).toHaveTextContent("Unlimited");
   expect(plan.getByText("Texts").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.queryByText("Data")).not.toBeInTheDocument();
-  expect(plan.queryByText("Coverage")).not.toBeInTheDocument();
+  expect(plan.getByText("Data").nextSibling).toHaveTextContent("Unlimited");
+  expect(plan.getByText("Coverage").nextSibling).toHaveTextContent("United States");
   expect(plan.getByText("Real US phone number.")).toBeVisible();
   expect(plan.getByText("10GB mobile hotspot included")).toBeVisible();
   expect(plan.getByText("Billed once for 3 months.")).toBeInTheDocument();
@@ -258,4 +258,23 @@ it("reads texts from the plan name when MeiSIM leaves them out", async () => {
   expect((await card(smsOnly.name)).getByText("Texts").nextSibling).toHaveTextContent("100 SMS");
   expect((await card("Moxee 2 Prepaid · SMS Verification - Incoming SMS Only")).getByText("Texts").nextSibling)
     .toHaveTextContent("Incoming SMS only");
+});
+
+it("fills rows from what the plan still says when MeiSIM leaves them empty", async () => {
+  const generic = "Real US phone number on the T-Mobile network. Calls + texts + data. Activated as eSIM on your device.";
+  const tmo5 = { ...usLine, id: "tmo-5", name: "T-Mobile Prepaid · 5GB eSIM", network: "T-Mobile", description: generic };
+  const tmoUnl = { ...usLine, id: "tmo-u", name: "T-Mobile Prepaid · $63.00 Unlimited", network: "T-Mobile", description: generic,
+    voice: "Unlimited", sms: "Unlimited" };
+  const sms = { ...smsOnly, description: "Real US phone number on the Moxee 2 network. Calls + texts + data." };
+  loadPlans(tmo5, tmoUnl, sms);
+  renderPage();
+
+  const five = await card(tmo5.name);
+  expect(five.getByText("Data").nextSibling).toHaveTextContent("5 GB");
+  expect(five.getByText("Calls").nextSibling).toHaveTextContent("Included");
+  expect(five.getByText("Texts").nextSibling).toHaveTextContent("Included");
+  expect((await card(tmoUnl.name)).getByText("Data").nextSibling).toHaveTextContent("Unlimited");
+  const smsCard = await card(sms.name);
+  expect(smsCard.queryByText("Calls")).not.toBeInTheDocument();
+  expect(smsCard.queryByText("Data")).not.toBeInTheDocument();
 });

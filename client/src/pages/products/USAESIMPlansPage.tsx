@@ -97,22 +97,37 @@ export const planHighlights = (plan: USAESIMPlan): string[] =>
 // activate in the UK) are left off the cards.
 const isGenericNote = (note: string) => /device imei|must be activated in the uk|^we will generate a qr code/i.test(note);
 
+// When MeiSIM leaves a field empty, use what the plan still tells us: its description's
+// "Calls + texts + data" means all three are included, and an "Unlimited…" plan name
+// (other than talk-and-text-only plans) means unlimited data.
+// SMS-only and talk-and-text-only plans carry the same generic sentence, so it is ignored for them.
+const includesAll = (p: any) =>
+  /calls \+ texts \+ data/i.test(String(p.description ?? '')) &&
+  !/sms only|sms verification|incoming sms|talk\s*(&|and)\s*text only/i.test(String(p.name ?? ''));
+const unlimitedFromName = (name: unknown) => {
+  const plan = String(name ?? '').split(' · ').slice(1).join(' · ').replace(/^\$\d+(?:\.\d+)?\s*-?\s*/, '');
+  return /^unlimited\b/i.test(plan) && !/talk\s*(&|and)\s*text/i.test(plan) ? 'Unlimited' : '';
+};
+
 export const toUsaEsimPlan = (p: any): USAESIMPlan => {
   const dataLimit = String(p.data_limit ?? '').trim();
   const hasNumber = /^\d+(\.\d+)?$/.test(dataLimit);
+  const included = includesAll(p) ? 'Included' : '';
   return {
     id: String(p.id),
     provider: p.network || 'Mobile network',
     name: p.name,
     price: Number(p.price) || 0,
     currency_code: p.currency || 'USD',
-    data_amount: hasNumber ? `${dataLimit} ${p.data_unit || 'GB'}` : dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name),
+    data_amount: hasNumber
+      ? `${dataLimit} ${p.data_unit || 'GB'}`
+      : (dataLimit && !/see plan/i.test(dataLimit) ? dataLimit : dataFromName(p.name) || unlimitedFromName(p.name) || included),
     duration: Number(p.validity_days) || 30,
     duration_unit: 'Days',
     requires_imei: p.requires_imei !== false,
     requires_eid: p.requires_eid !== false,
-    voice: p.voice || '',
-    sms: p.sms || smsFromName(p.name),
+    voice: p.voice || included,
+    sms: p.sms || smsFromName(p.name) || included,
     coverage: p.coverage || '',
     description: p.description || '',
     activation_note: p.activation_note || '',
@@ -548,7 +563,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
               ['Data', plan.data_amount],
               ['Calls', plan.voice],
               ['Texts', plan.sms],
-              ['Coverage', plan.coverage && plan.coverage !== 'United States' ? plan.coverage : ''],
+              ['Coverage', plan.coverage],
             ] as const).filter(([, value]) => value);
             return (
               <article key={plan.id} aria-label={plan.name} className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
