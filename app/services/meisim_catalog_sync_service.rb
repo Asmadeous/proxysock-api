@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 # Syncs the MeiSIM catalogue into `esim` products. New plans go live on creation;
-# an existing product keeps its active flag so staff can switch plans off.
+# an existing product keeps its active flag so staff can switch plans off. Plans
+# the sync itself switched off because they left the catalogue come back on when
+# MeiSIM lists them again.
 class MeisimCatalogSyncService
   PROVIDER = 'meisim'
+  DELISTED_KEY = 'delisted_by_sync'
   US_PREPAID_PREFIXES = %w[p3: ly:].freeze
   # Markup on MeiSIM retail by retail price: [tier starts at, markup]. Cheap plans
   # get a bigger percentage so they still earn a real margin.
@@ -47,6 +50,7 @@ class MeisimCatalogSyncService
     product_id = plan.fetch('productId')
     details = plan_details(plan)
     product = Product.find_or_initialize_by(provider: PROVIDER, provider_product_id: product_id)
+    relisted = product.metadata.is_a?(Hash) && product.metadata[DELISTED_KEY]
 
     product.assign_attributes(
       name: plan_name(details['PLAN_TITLE']).presence || product_id,
@@ -58,7 +62,7 @@ class MeisimCatalogSyncService
       slug: "meisim-#{product_id.parameterize}",
       metadata: build_metadata(plan, details, product_id)
     )
-    product.active = true if product.new_record?
+    product.active = true if product.new_record? || relisted
 
     Product.transaction do
       product.save!
@@ -157,11 +161,16 @@ class MeisimCatalogSyncService
 
   # An empty result is treated as an upstream glitch, not a delisting of every plan.
   # update_all skips timestamps, so bump updated_at to keep the catalog cache honest.
+  # Marks what it switches off so a later sync can tell these apart from plans
+  # staff disabled. build_metadata drops the mark when the plan is synced again.
   def deactivate_missing(synced_ids)
     return if synced_ids.empty?
 
     Product.where(provider: PROVIDER, active: true)
            .where.not(provider_product_id: synced_ids)
-           .update_all(active: false, updated_at: Time.current)
+           .update_all([
+                         "active = false, updated_at = ?, metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(?, true)",
+                         Time.current, DELISTED_KEY
+                       ])
   end
 end

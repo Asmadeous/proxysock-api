@@ -149,6 +149,29 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_not meisim_product('p3:2:630').active
   end
 
+  test 'a plan that returns to the catalogue is switched back on' do
+    sync([plan('p3:2:629', retail: 44.2), plan('p3:2:630', retail: 45.0)])
+    sync([plan('p3:2:629', retail: 44.2)])
+    assert_not meisim_product('p3:2:630').active
+    assert meisim_product('p3:2:630').metadata['delisted_by_sync']
+
+    sync([plan('p3:2:629', retail: 44.2), plan('p3:2:630', retail: 45.0)])
+
+    product = meisim_product('p3:2:630')
+    assert product.active, 'relisted by MeiSIM'
+    assert_nil product.metadata['delisted_by_sync']
+  end
+
+  test 'a plan staff disabled stays off even after leaving and returning to the catalogue' do
+    sync([plan('p3:2:629', retail: 44.2), plan('p3:2:630', retail: 45.0)])
+    meisim_product('p3:2:630').update!(active: false)
+
+    sync([plan('p3:2:629', retail: 44.2)])
+    sync([plan('p3:2:629', retail: 44.2), plan('p3:2:630', retail: 45.0)])
+
+    assert_not meisim_product('p3:2:630').active
+  end
+
   test 'an empty catalogue deactivates nothing' do
     sync([plan('p3:2:629', retail: 44.2)])
     meisim_product('p3:2:629').update!(active: true)
