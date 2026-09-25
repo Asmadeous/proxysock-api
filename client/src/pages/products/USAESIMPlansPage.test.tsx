@@ -146,29 +146,21 @@ const manualAtt = {
 const loadPlans = (...products: object[]) =>
   vi.mocked(api.get).mockResolvedValue({ data: { products } });
 
-it("offers a USA and a UK card and lists each country's lines only", async () => {
-  const user = userEvent.setup();
+it("shows only the chosen country's lines", async () => {
   loadPlans(usLine, ukO2, ukThree, travel);
-  renderPage();
+  renderPage({ country: "GB" });
 
-  const usa = await screen.findByRole("button", { name: /USA phone number/ });
-  const uk = screen.getByRole("button", { name: /UK phone number/ });
-  expect(usa).toHaveAttribute("aria-pressed", "true");
-  expect(await screen.findByRole("article", { name: usLine.name })).toBeInTheDocument();
-  expect(screen.queryByRole("article", { name: ukO2.name })).not.toBeInTheDocument();
-
-  await user.click(uk);
-  expect(uk).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByRole("heading", { name: "UK phone-number plans" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "UK phone-number eSIM" })).toBeInTheDocument();
   expect(screen.getByRole("article", { name: ukO2.name })).toBeInTheDocument();
   expect(screen.queryByRole("article", { name: usLine.name })).not.toBeInTheDocument();
   expect(screen.queryByRole("article", { name: travel.name })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Change country" })).toHaveAttribute("href", "/dashboard/phone-esim");
 });
 
 it("adds a UK line to the cart without asking for phone details", async () => {
   const user = userEvent.setup();
   loadPlans(ukO2);
-  renderPage({ initialCountry: "GB" });
+  renderPage({ country: "GB" });
 
   await user.click((await card(ukO2.name)).getByRole("button", { name: "Add to Cart" }));
 
@@ -206,7 +198,7 @@ it("filters US lines by carrier and by what is included", async () => {
 it("filters UK lines by data amount", async () => {
   const user = userEvent.setup();
   loadPlans(ukO2, ukThree);
-  renderPage({ initialCountry: "GB" });
+  renderPage({ country: "GB" });
   await screen.findByRole("article", { name: ukO2.name });
 
   await user.click(within(screen.getByRole("group", { name: "UK data" })).getByRole("button", { name: "Unlimited" }));

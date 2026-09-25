@@ -59,6 +59,7 @@ const RDPPlans = lazy(() => import("../products/RDPPlans"));
 const ESIMTypes = lazy(() => import("../products/ESIMTypes"));
 const ESIMPackages = lazy(() => import("../products/EsimPackages"));
 const USAESIMPlans = lazy(() => import("../products/USAESIMPlansPage"));
+const PhoneESIMCountries = lazy(() => import("../products/PhoneESIMCountries"));
 const VPNPlans = lazy(() => import("../products/VPNPlans"));
 
 // Tab definitions per reseller tier
@@ -303,9 +304,11 @@ export default function ResellerDashboard() {
             case "buy-rdp-plans": return <RDPPlans country={selectedCountry} onBack={() => setActiveTab("buy-rdp")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
             // eSIM: three paths (type selection → global packages OR usa plans)
-            case "buy-esim": return withBack(<ESIMTypes onNavigateUSA={() => setActiveTab("buy-usa-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />);
+            case "buy-esim": return withBack(<ESIMTypes onNavigateUSA={() => setActiveTab("buy-phone-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />);
             case "buy-global-esim": return <ESIMPackages onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
-            case "buy-usa-esim": return <USAESIMPlans onBack={() => setActiveTab("buy-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+            case "buy-phone-esim": return <PhoneESIMCountries onBack={() => setActiveTab("buy-esim")} onSelect={(country) => setActiveTab(country === "GB" ? "buy-uk-esim" : "buy-usa-esim")} />;
+            case "buy-usa-esim": return <USAESIMPlans country="US" onBack={() => setActiveTab("buy-phone-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
+            case "buy-uk-esim": return <USAESIMPlans country="GB" onBack={() => setActiveTab("buy-phone-esim")} isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />;
 
             case "buy-vpn": return withBack(<VPNPlans isDirectBuy={isDirectBuy} onDirectBuy={handleDirectBuy} />);
 

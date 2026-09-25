@@ -92,9 +92,9 @@ export const toUsaEsimPlan = (p: any): USAESIMPlan => {
   };
 };
 
-const PHONE_LINES = ['us_prepaid', 'uk_prepaid'];
+export const PHONE_LINES = ['us_prepaid', 'uk_prepaid'];
 
-const COUNTRIES: Record<LineCountry, { name: string; heading: string; facts: string[] }> = {
+export const COUNTRIES: Record<LineCountry, { name: string; heading: string; facts: string[] }> = {
   US: { name: 'USA', heading: 'USA phone-number plans', facts: ["Needs your phone's IMEI (and EID on most carriers)", 'Mobile data works inside the US only'] },
   GB: { name: 'UK', heading: 'UK phone-number plans', facts: ['No IMEI or EID needed', 'EU roaming included · activate in the UK first'] },
 };
@@ -102,12 +102,12 @@ const COUNTRIES: Record<LineCountry, { name: string; heading: string; facts: str
 type Option = { value: string; label: string; test: (plan: USAESIMPlan) => boolean };
 
 // MeiSIM names some networks with and without "Prepaid" ("AT&T" / "AT&T Prepaid"); group them.
-const carrierOf = (plan: USAESIMPlan) => plan.provider.replace(/\s+prepaid$/i, '');
+export const carrierOf = (plan: USAESIMPlan) => plan.provider.replace(/\s+prepaid$/i, '');
 
 // Carrier logos served from /public/carriers (official files from Wikimedia Commons or
 // the carrier's own site). MeiSIM sends none for phone-number lines, so a carrier
 // without an entry here shows its name only. `dark` logos have white lettering.
-const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
+export const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
   'AT&T': { src: '/carriers/att.svg' },
   'T-Mobile': { src: '/carriers/t-mobile.svg' },
   Lycamobile: { src: '/carriers/lycamobile.svg' },
@@ -119,7 +119,7 @@ const CARRIER_LOGOS: Record<string, { src: string; dark?: boolean }> = {
   'Three UK': { src: '/carriers/three.svg' },
 };
 
-function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string; className?: string }) {
+export function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   const logo = CARRIER_LOGOS[carrier];
   if (!logo || failed) return null;
@@ -136,7 +136,7 @@ function CarrierLogo({ carrier, className = 'h-9 max-w-28' }: { carrier: string;
 
 const flagUrl = (country: LineCountry, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
 
-function CountryFlag({ country }: { country: LineCountry }) {
+export function CountryFlag({ country }: { country: LineCountry }) {
   return (
     <img
       src={flagUrl(country, 80)}
@@ -166,7 +166,7 @@ const ukDataGb = (plan: USAESIMPlan) => {
 };
 
 // Each country gets filters that fit its own plans; options no plan matches are hidden.
-const filterGroups = (country: LineCountry, plans: USAESIMPlan[]): { id: string; label: string; options: Option[] }[] => {
+export const filterGroups = (country: LineCountry, plans: USAESIMPlan[]): { id: string; label: string; options: Option[] }[] => {
   const carriers = Array.from(new Set(plans.map(carrierOf))).sort();
   const carrier = {
     id: 'carrier', label: 'Carrier',
@@ -293,17 +293,15 @@ function DeviceDetailsForm({ plan, submitLabel, isSubmitting, onCancel, onSubmit
 }
 
 interface USAESIMPlansPageProps {
-  initialCountry?: LineCountry;
+  // The country picked on the Voice, Data + Text country page.
+  country?: LineCountry;
   onBack?: () => void;
   isDirectBuy?: boolean;
   onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
 }
 
-export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
+export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, onDirectBuy }: USAESIMPlansPageProps = {}) {
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
-  const [country, setCountry] = useState<LineCountry>(
-    initialCountry ?? (new URLSearchParams(globalThis.location?.search).get('country') === 'uk' ? 'GB' : 'US'),
-  );
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<'asc' | 'desc'>('asc');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -402,12 +400,6 @@ export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, 
       .sort((a, b) => (sort === 'asc' ? a.price - b.price : b.price - a.price));
   }, [countryPlans, groups, filters, sort]);
 
-  const chooseCountry = (next: LineCountry) => {
-    setCountry(next);
-    setFilters({});
-    setFormPlanId(null);
-  };
-
   const toggleFilter = (groupId: string, value: string) =>
     setFilters((prev) => ({ ...prev, [groupId]: prev[groupId] === value ? '' : value }));
 
@@ -427,69 +419,19 @@ export default function USAESIMPlansPage({ initialCountry, onBack, isDirectBuy, 
     <div className="w-full space-y-7">
       <header>
         {onBack ? (
-          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</button>
+          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</button>
         ) : (
-          <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
+          <Link to="/dashboard/phone-esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</Link>
         )}
-        <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
-        <p className="mt-3 text-base leading-7 text-muted-foreground">Phone-number plans with calls, texts and data. Each line is activated on one phone.</p>
+        <div className="flex items-center gap-3">
+          <CountryFlag country={country} />
+          <h1 className="text-3xl font-semibold tracking-tight">{COUNTRIES[country].name} phone-number eSIM</h1>
+        </div>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">
+          Calls, texts and data on a {COUNTRIES[country].name} number. {COUNTRIES[country].facts.join('. ')}.
+        </p>
       </header>
 
-      <div role="group" aria-label="Phone number country" className="grid gap-4 sm:grid-cols-2">
-        {(Object.keys(COUNTRIES) as LineCountry[]).map((code) => {
-          const info = COUNTRIES[code];
-          const linePlans = plans.filter((plan) => plan.country === code);
-          const carriers = Array.from(new Set(linePlans.map(carrierOf))).sort();
-          const kinds = filterGroups(code, linePlans).find((group) => group.id === (code === 'US' ? 'includes' : 'data'))?.options ?? [];
-          const fromPrice = linePlans.length ? Math.min(...linePlans.map((plan) => plan.price)) : null;
-          const active = code === country;
-          return (
-            <button
-              key={code}
-              type="button"
-              aria-pressed={active}
-              onClick={() => chooseCountry(code)}
-              className={`rounded-xl border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-foreground/40'}`}
-            >
-              <span className="flex items-center gap-3">
-                <CountryFlag country={code} />
-                <span className="text-xl font-bold tracking-tight">{info.name} phone number</span>
-                {!isLoading && (
-                  <span className="ml-auto text-right text-sm text-foreground/75">
-                    {linePlans.length} {linePlans.length === 1 ? 'plan' : 'plans'}
-                    {fromPrice !== null && <span className="block font-semibold text-foreground">from {formatPrice(fromPrice)}</span>}
-                  </span>
-                )}
-              </span>
-              {carriers.length > 0 && (
-                <span className="mt-4 flex flex-wrap items-center gap-2">
-                  {carriers.map((name) => (
-                    <span key={name} title={name} className="inline-flex min-h-8 items-center">
-                      {CARRIER_LOGOS[name] ? (
-                        <>
-                          <CarrierLogo carrier={name} className="h-8 max-w-28" />
-                          <span className="sr-only">{name}</span>
-                        </>
-                      ) : (
-                        <span className="rounded-md border border-border px-2 py-1 text-sm font-medium">{name}</span>
-                      )}
-                    </span>
-                  ))}
-                </span>
-              )}
-              {kinds.length > 0 && (
-                <span className="mt-3 block text-sm">
-                  <span className="font-medium">{code === 'US' ? 'Plans: ' : 'UK data: '}</span>
-                  <span className="text-foreground/80">{kinds.map((kind) => kind.label).join(' · ')}</span>
-                </span>
-              )}
-              <span className="mt-3 block space-y-1 text-sm text-foreground/70">
-                {info.facts.map((fact) => <span key={fact} className="block">{fact}</span>)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-5">
         <h2 className="text-xl font-semibold">{COUNTRIES[country].heading}</h2>

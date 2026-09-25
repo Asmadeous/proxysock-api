@@ -11,6 +11,7 @@ import RDPPlans from "../../products/RDPPlans";
 import ESIMTypes from "../../products/ESIMTypes";
 import ESIMPackages from "../../products/EsimPackages";
 import USAESIMPlans from "../../products/USAESIMPlansPage";
+import PhoneESIMCountries from "../../products/PhoneESIMCountries";
 import VPNPlans from "../../products/VPNPlans";
 
 import { useAdminPurchaseProduct } from "../queries/products.queries";
@@ -70,9 +71,11 @@ export default function AdminPurchaseView({ onBack }: AdminPurchaseViewProps) {
             case "buy-vps-plans": return <VPSPlans country={selectedCountry} onBack={() => setActiveTab("buy-vps")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
             case "buy-rdp": return withBack(<RDPTypes onNavigate={(code) => { setSelectedCountry(code); setActiveTab("buy-rdp-plans"); }} />);
             case "buy-rdp-plans": return <RDPPlans country={selectedCountry} onBack={() => setActiveTab("buy-rdp")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
-            case "buy-esim": return withBack(<ESIMTypes onNavigateUSA={() => setActiveTab("buy-usa-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />);
+            case "buy-esim": return withBack(<ESIMTypes onNavigateUSA={() => setActiveTab("buy-phone-esim")} onNavigateGlobal={() => setActiveTab("buy-global-esim")} />);
             case "buy-global-esim": return <ESIMPackages onBack={() => setActiveTab("buy-esim")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
-            case "buy-usa-esim": return <USAESIMPlans onBack={() => setActiveTab("buy-esim")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
+            case "buy-phone-esim": return <PhoneESIMCountries onBack={() => setActiveTab("buy-esim")} onSelect={(country) => setActiveTab(country === "GB" ? "buy-uk-esim" : "buy-usa-esim")} />;
+            case "buy-usa-esim": return <USAESIMPlans country="US" onBack={() => setActiveTab("buy-phone-esim")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
+            case "buy-uk-esim": return <USAESIMPlans country="GB" onBack={() => setActiveTab("buy-phone-esim")} isDirectBuy={true} onDirectBuy={handleDirectBuy} />;
             case "buy-vpn": return withBack(<VPNPlans isDirectBuy={true} onDirectBuy={handleDirectBuy} />);
             default: return <ResStore onSelectCategory={(cat) => setActiveTab(cat)} resellerType="infrastructure" />;
         }

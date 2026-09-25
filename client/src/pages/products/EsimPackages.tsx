@@ -102,9 +102,12 @@ const ESIMCardSkeleton = () => (
 
 const GB = 1024 ** 3;
 
-// A volume of 0 means the plan has no data cap.
-const matchesDataAmount = (pkg: ESIMPackage, bucket: string) => {
+// A volume of 0 means the plan has no data cap. Daily-reset plans (data_type 2, e.g.
+// eSIM Access "1 GB/day") state a per-day amount, so they get their own option rather
+// than landing in the total-data ranges.
+export const matchesDataAmount = (pkg: ESIMPackage, bucket: string) => {
   if (bucket === "all") return true;
+  if (pkg.data_type === 2) return bucket === "daily";
   if (!pkg.volume) return bucket === "unlimited";
   const gb = pkg.volume / GB;
   if (bucket === "under5") return gb < 5;
@@ -116,7 +119,7 @@ const matchesDataAmount = (pkg: ESIMPackage, bucket: string) => {
 const validityDays = (pkg: ESIMPackage) =>
   pkg.duration_unit?.toLowerCase().startsWith("month") ? pkg.duration * 30 : pkg.duration;
 
-const matchesValidity = (pkg: ESIMPackage, bucket: string) => {
+export const matchesValidity = (pkg: ESIMPackage, bucket: string) => {
   if (bucket === "all") return true;
   const days = validityDays(pkg);
   if (bucket === "upto7") return days <= 7;
@@ -559,6 +562,7 @@ function ESIMPackagesPageContent({
                   <SelectItem value="5to20">5–20 GB</SelectItem>
                   <SelectItem value="over20">More than 20 GB</SelectItem>
                   <SelectItem value="unlimited">Unlimited</SelectItem>
+                  <SelectItem value="daily">Resets daily</SelectItem>
                 </SelectContent>
               </Select>
             </div>
