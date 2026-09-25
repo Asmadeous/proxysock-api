@@ -53,7 +53,7 @@ class InvoicePdfService
         { content: 'Amount', font_style: :bold }
       ],
       [
-        @product&.name || 'Product',
+        @order.product_display_name || 'Product',
         (@order.quantity || 1).to_s,
         format_currency(@order.total_amount)
       ]
@@ -62,7 +62,7 @@ class InvoicePdfService
     # Add period info if available
     if @order.metadata&.dig('period').present?
       period = @order.metadata['period']
-      table_data[1][0] = "#{@product&.name || 'Product'} (#{period} month#{'s' if period.to_i > 1})"
+      table_data[1][0] = "#{@order.product_display_name || 'Product'} (#{period} month#{'s' if period.to_i > 1})"
     end
 
     pdf.table(table_data, width: pdf.bounds.width) do |t|

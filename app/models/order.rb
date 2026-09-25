@@ -50,6 +50,14 @@ class Order < ApplicationRecord
   has_many :global_isp_proxy_orders, dependent: :destroy
   has_many :global_isp_proxies, dependent: :destroy
 
+  # Product name with the unit price this buyer paid, before promo discounts.
+  def product_display_name
+    return unless product
+
+    paid = metadata&.dig('original_total') || total_amount
+    product.display_name(paid && (paid.to_d / [quantity.to_i, 1].max))
+  end
+
   def all_provisioned_resources
     case product.product_type
     when 'vps', 'rdp', 'vm' then [vm].compact

@@ -129,7 +129,7 @@ module Web
 
         base_data = {
           id: product.id,
-          name: product.name,
+          name: product.display_name(default_pricing&.user_selling_price || default_pricing&.selling_price),
           slug: product.slug,
           description: product.description,
           product_type: product.product_type,

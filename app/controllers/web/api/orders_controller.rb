@@ -125,7 +125,7 @@ module Web
             total_amount: o.total_amount,
             created_at: o.created_at,
             product_type: o.product&.product_type,
-            product_name: o.product&.name
+            product_name: o.product_display_name
           }
         end
 
@@ -983,7 +983,7 @@ module Web
           id: order.id,
           order_number: order.try(:order_number) || [order.id, order.created_at.to_i].join('-'),
           product_id: order.product_id,
-          product_name: order.product.name,
+          product_name: order.product_display_name,
           product_type: order.product.product_type,
           proxy_type: order.product.product_category&.slug,
           country: order.product.metadata&.dig('location_name') || order.product.metadata&.dig('location_code'),
@@ -1096,7 +1096,7 @@ module Web
           base[:esim_order_no] = resource&.provider_order_no
           base[:package_code] = resource&.package_code
           base[:package_slug] = order.product.product_category&.slug
-          base[:package_name] = order.product.name
+          base[:package_name] = order.product_display_name
           base[:quantity] = 1 # Default for standard eSIM
 
           base[:profiles] = resource&.esims&.map do |esim|

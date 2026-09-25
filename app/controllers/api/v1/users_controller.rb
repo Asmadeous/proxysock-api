@@ -127,7 +127,7 @@ module Api
         {
           id: order.id,
           order_number: order.order_number,
-          product_name: order.product&.name,
+          product_name: order.product_display_name,
           product_type: order.product&.product_type,
           quantity: order.quantity,
           total_amount: order.total_amount,

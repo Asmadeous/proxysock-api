@@ -10,7 +10,7 @@ module Api
 
       # GET /api/v1/products
       def index
-        cache_key = "products/reseller/index/#{Product.catalog_cache_version}/#{current_reseller.reseller_type}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
+        cache_key = "products/reseller/index/#{Product.catalog_cache_version}/#{current_reseller.reseller_type}/#{current_reseller.price_multiplier}/#{current_reseller.allowed_product_category_id || 'all'}/#{params[:page] || 1}/#{params[:category_id] || 'all'}/#{params[:product_type] || 'all'}/#{params[:category_slug] || 'all'}"
 
         products_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = if current_reseller.infrastructure?
@@ -53,7 +53,7 @@ module Api
 
       # GET /api/v1/products/:id
       def show
-        cache_key = "products/reseller/show/#{current_reseller.reseller_type}/#{params[:id]}/#{Product.catalog_cache_version}"
+        cache_key = "products/reseller/show/#{current_reseller.reseller_type}/#{current_reseller.price_multiplier}/#{params[:id]}/#{Product.catalog_cache_version}"
 
         product_json = Rails.cache.fetch(cache_key, expires_in: 10.minutes) do
           scope = if current_reseller.single_product?
@@ -73,13 +73,13 @@ module Api
       def serialize_product(product)
         # Use find to leverage preloaded product_pricings instead of find_by
         pricing = product.product_pricings.find(&:active)
-        base_price = (pricing&.reseller_selling_price || pricing&.selling_price).to_f
+        base_price = (pricing&.reseller_selling_price || pricing&.selling_price).to_f * current_reseller.price_multiplier
 
         data = {
           id: product.id,
-          name: product.name,
+          name: product.display_name(base_price),
           category: product.product_category&.name,
-          base_price: (base_price * current_reseller.price_multiplier).to_f,
+          base_price: base_price.to_f,
           currency: pricing&.currency || 'USD',
           provider_type: product.provider,
           product_type: product.product_type,

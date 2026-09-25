@@ -47,7 +47,7 @@ class InvoiceMailer < ApplicationMailer
 
     mail(
       to: params[:target_email].presence || @owner.email,
-      subject: "Your #{@order.product.name} Credentials are Ready - Order ##{@order.order_number}"
+      subject: "Your #{@order.product_display_name} Credentials are Ready - Order ##{@order.order_number}"
     )
   end
 end

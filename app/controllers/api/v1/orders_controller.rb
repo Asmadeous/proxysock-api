@@ -108,7 +108,7 @@ module Api
             total_amount: o.total_amount,
             created_at: o.created_at,
             product_type: o.product&.product_type,
-            product_name: o.product&.name
+            product_name: o.product_display_name
           }
         end
 
@@ -522,7 +522,7 @@ module Api
           id: order.id,
           order_number: order.order_number,
           product_id: order.product_id,
-          product_name: order.product.name,
+          product_name: order.product_display_name,
           product_type: order.product.product_type,
           proxy_type: order.metadata.to_h['proxy_type'],
           quantity: order.quantity,
@@ -671,7 +671,7 @@ module Api
           payment_currency: payment_data[:currency],
           reference: checkout_session.gateway_reference,
           checkout_session_id: checkout_session.id,
-          product_name: product.name,
+          product_name: order.product_display_name,
           total_amount: total,
           customer_email: customer_email
         }, status: :accepted

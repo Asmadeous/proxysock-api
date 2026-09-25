@@ -28,6 +28,26 @@ module Api
         assert_not esim.key?('provider_name')
         assert json_response.dig('product', 'requires_imei')
       end
+
+      test 'MeiSIM plan names carry the reseller price, never the list price' do
+        Rails.cache.clear
+        reseller = resellers(:one)
+        product = Product.create!(
+          name: 'Lycamobile · Unlimited International Plan', product_type: 'esim', provider: 'meisim',
+          provider_product_id: 'ly:1019', available_to: 'both', active: true,
+          product_category: product_categories(:three),
+          metadata: { 'meisim_line' => 'us_prepaid', 'name_template' => 'Lycamobile · {price} Unlimited International Plan' }
+        )
+        ProductPricing.create!(product: product, currency: 'USD', selling_price: 19, reseller_selling_price: 19,
+                               user_selling_price: 22.8, active: true)
+        expected = format('$%.2f', 19 * reseller.price_multiplier)
+
+        get "/api/v1/products/#{product.id}", headers: auth_header(reseller)
+
+        assert_response :success
+        assert_equal "Lycamobile · #{expected} Unlimited International Plan", json_response.dig('product', 'name')
+        assert_not json_response.dig('product', 'esim').key?('name_template')
+      end
     end
   end
 end

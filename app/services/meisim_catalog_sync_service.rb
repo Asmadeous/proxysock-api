@@ -46,7 +46,7 @@ class MeisimCatalogSyncService
     product = Product.find_or_initialize_by(provider: PROVIDER, provider_product_id: product_id)
 
     product.assign_attributes(
-      name: details['PLAN_TITLE'].presence || product_id,
+      name: plan_name(details['PLAN_TITLE']).presence || product_id,
       description: plan_description(details),
       product_category: category,
       product_type: 'esim',
@@ -65,6 +65,20 @@ class MeisimCatalogSyncService
 
   def plan_details(plan)
     Array(plan['productDetails']).to_h { |d| [d['name'].to_s.strip, d['value']] }
+  end
+
+  # Titles lead with the carrier's list price ("Lycamobile · $19 Unlimited International
+  # Plan"), which would expose MeiSIM's cost. The stored name drops it, and
+  # `name_template` marks where Product#display_name puts the viewer's own price.
+  TITLE_PRICE = /\A\$\d+(?:\.\d+)?(\s*-?\s*)/.freeze
+
+  def plan_name(title)
+    title.to_s.split(' · ').map { |part| part.sub(TITLE_PRICE, '') }.join(' · ')
+  end
+
+  def name_template(title)
+    template = title.to_s.split(' · ').map { |part| part.sub(TITLE_PRICE) { "#{Product::NAME_PRICE_TOKEN}#{Regexp.last_match(1)}" } }.join(' · ')
+    template unless template == title.to_s
   end
 
   # MeiSIM fills unknown values with "", "0" or "None"; "0" minutes also appears on
@@ -99,6 +113,7 @@ class MeisimCatalogSyncService
       'validity_days' => details['VALIDITY_IN_DAYS']&.to_i,
       'retail_price' => plan['retailPrice'],
       'usage_tracking' => details['USAGE_TRACKING'],
+      'name_template' => name_template(details['PLAN_TITLE']),
       'voice' => detail_value(details, 'VOICE'),
       'sms' => detail_value(details, 'SMS'),
       'coverage' => detail_value(details, 'PLAN_COVERAGE'),

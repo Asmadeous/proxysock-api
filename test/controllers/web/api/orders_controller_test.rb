@@ -93,6 +93,25 @@ module Web
         assert_equal 'travel', json_response['metadata']['meisim_line']
       end
 
+      test 'MeiSIM plan names show the customer price in the catalog and on orders' do
+        product = Product.create!(name: 'Lycamobile · Unlimited International Plan', product_type: 'esim',
+                                  provider: 'meisim', provider_product_id: 'ly:1019', available_to: 'both',
+                                  active: true, product_category: product_categories(:three),
+                                  metadata: { 'meisim_line' => 'us_prepaid',
+                                              'name_template' => 'Lycamobile · {price} Unlimited International Plan' })
+        pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 19,
+                                         reseller_selling_price: 19, user_selling_price: 22.8, active: true)
+        order = Order.create!(orderable: @user, product: product, product_pricing: pricing, status: 'active',
+                              metadata: { 'imei' => '350923389416420', 'eid' => '8' * 32 })
+        order.update_columns(total_amount: 18.24, metadata: order.metadata.merge('original_total' => 22.8))
+
+        get "/web/api/products/#{product.id}"
+        assert_equal 'Lycamobile · $22.80 Unlimited International Plan', json_response.dig('product', 'name')
+
+        get "/web/api/orders/#{order.id}", headers: auth_header(@user)
+        assert_equal 'Lycamobile · $22.80 Unlimited International Plan', json_response['product_name']
+      end
+
       test 'a rolled-back wallet cart checkout is reported to Sentry' do
         product = Product.create!(name: 'AT&T Prepaid', product_type: 'esim', provider: 'meisim',
                                   provider_product_id: 'p3:2:629', available_to: 'both',

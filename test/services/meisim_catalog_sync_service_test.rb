@@ -35,7 +35,7 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     product = meisim_product('ly:1023')
     assert product.active
     assert_equal 'esim', product.product_type
-    assert_equal 'Lycamobile · $23 Unlimited International Plan', product.name
+    assert_equal 'Lycamobile · Unlimited International Plan', product.name
     assert_equal 'meisim-ly-1023', product.slug
     assert_equal 'us_prepaid', product.metadata['meisim_line']
     assert_equal 'voice_data_sms', product.metadata['esim_type']
@@ -74,6 +74,29 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_equal 'Phone must be unlocked.', product.metadata['activation_note']
     assert_nil product.metadata['warnings']
     assert_nil meisim_product('ly:1012').description, 'a description that repeats the title is dropped'
+  end
+
+  test 'strips the carrier list price from plan names' do
+    plans = [
+      plan('p3:2:1', retail: 49, title: 'T-Mobile Prepaid · $45.00 Starter 15GB'),
+      plan('ly:1', retail: 15, title: 'Lycamobile · $10-300 MB + 3000 mins&sms-national'),
+      plan('p3:2:2', retail: 29.5, title: 'AT&T Prepaid · $20 5GB')
+    ]
+    sync(plans)
+
+    assert_equal 'T-Mobile Prepaid · Starter 15GB', meisim_product('p3:2:1').name
+    assert_equal 'Lycamobile · 300 MB + 3000 mins&sms-national', meisim_product('ly:1').name
+    assert_equal 'AT&T Prepaid · 5GB', meisim_product('p3:2:2').name
+    assert_equal 'T-Mobile Prepaid · {price} Starter 15GB', meisim_product('p3:2:1').metadata['name_template']
+    assert_equal 'Lycamobile · {price}-300 MB + 3000 mins&sms-national', meisim_product('ly:1').metadata['name_template']
+    assert_nil meisim_product('p3:2:2').public_metadata['name_template']
+  end
+
+  test 'plans without a price in the title get no name template' do
+    sync([plan('p3:2:3', retail: 10, title: 'Moxee 2 Prepaid · 100 SMS Only')])
+
+    assert_nil meisim_product('p3:2:3').metadata['name_template']
+    assert_equal 'Moxee 2 Prepaid · 100 SMS Only', meisim_product('p3:2:3').display_name(12)
   end
 
   test 'classifies non-US-prefix plans as travel with no known cost' do
