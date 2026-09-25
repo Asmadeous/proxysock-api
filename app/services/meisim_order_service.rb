@@ -59,7 +59,7 @@ class MeisimOrderService
   def create_remote_order
     @client.create_order(
       product_id: @product.provider_product_id,
-      customer_email: owner.email,
+      customer_email: support_inbox,
       customer_name: customer_name,
       quantity: @order.quantity || 1,
       **device_params
@@ -74,6 +74,12 @@ class MeisimOrderService
     complete!(esim_order)
   rescue MeisimService::Error => e
     Rails.logger.warn("[MeisimOrderService] Order #{@order.id} left pending: #{e.message}")
+  end
+
+  # MeiSIM mails its own branded delivery email to customerEmail and has no way to
+  # turn it off, so it goes to our support inbox; customers get EsimMailer's email.
+  def support_inbox
+    Mail::Address.new(ApplicationMailer.default[:from]).address
   end
 
   def device_params

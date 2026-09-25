@@ -1,0 +1,32 @@
+<h1 style="font-size: 24px; margin-bottom: 24px; color: #000000;">Your eSIM is ready</h1>
+
+<p style="margin-bottom: 8px; font-size: 18px; font-weight: 600;"><%= @order.product_display_name %></p>
+<p style="margin-bottom: 32px;">Order <strong>#<%= @order.order_number %></strong></p>
+
+<% if attachments['esim-qr.png'] %>
+<div style="text-align: center; margin-bottom: 32px; background-color: #FFFFFF; padding: 24px; border-radius: 12px; border: 1px solid #E5E7EB;">
+    <p style="margin-bottom: 16px; font-weight: 600;">Scan with your phone to install</p>
+    <img src="<%= attachments['esim-qr.png'].url %>" alt="eSIM QR code" width="200" style="max-width: 100%; height: auto;">
+</div>
+<% end %>
+
+<% if @install_links.any? %>
+<p style="margin-bottom: 32px; text-align: center;">
+    <% @install_links.each do |device, url| %>
+        <a href="<%= url %>" class="btn" style="margin: 4px;">Install on <%= device %></a>
+    <% end %>
+</p>
+<% end %>
+
+<div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 24px 32px; margin-bottom: 32px;">
+    <% [
+         ['Phone number', @esim.msisdn],
+         ['ICCID', @esim.iccid],
+         ['SIM PIN', @esim.pin1],
+         ['SM-DP+ address', @esim.metadata&.dig('smdp')],
+         ['Matching ID', @esim.metadata&.dig('matching_id')],
+         ['Activation code', @esim.activation_code]
+       ].select { |_, value| value.present? }.each do |label, value| %>
+        <p style="margin: 0 0 12px;"><strong><%= label %>:</strong> <code style="color: #000000; word-break: break-all;"><%= value %></code></p>
+    <% end %>
+</div>

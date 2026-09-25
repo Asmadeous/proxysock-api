@@ -45,7 +45,8 @@ class MeisimOrderServiceTest < ActiveSupport::TestCase
   end
 
   test 'delivered order creates the eSIM, activates the order, and records cost' do
-    @client.expects(:create_order).with(has_entries(product_id: 'fr-2gb', customer_email: @user.email, quantity: 1))
+    support = Mail::Address.new(ApplicationMailer.default[:from]).address
+    @client.expects(:create_order).with(has_entries(product_id: 'fr-2gb', customer_email: support, quantity: 1))
            .returns(created('delivered'))
     @client.expects(:order).with('mo-1').returns(remote(state: 'fulfilled', lines: [LINE]))
     EsimMailer.expects(:with).once.returns(stub(delivery_email: stub(deliver_later: true)))
