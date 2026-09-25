@@ -27,6 +27,15 @@ class MeisimDeviceDetailsTest < ActiveSupport::TestCase
     assert_not MeisimDeviceDetails.required_for?(meisim_product('fr-2gb', 'Orange'))
   end
 
+  test 'a synced plan marked as needing no EID is ordered with the IMEI only' do
+    lyca = meisim_product('ly:1035', 'Lycamobile')
+    lyca.update!(metadata: lyca.metadata.merge('requires_eid' => false))
+
+    details = MeisimDeviceDetails.new(lyca, { 'imei' => IMEI })
+    assert_empty details.errors
+    assert_nil details.to_params[:eid], 'no EID is sent when the plan needs none'
+  end
+
   test 'the manual AT&T line needs device details and UK lines do not' do
     assert MeisimDeviceDetails.required_for?(meisim_product('man:att_30gb_6m', 'AT&T'))
     assert_not MeisimDeviceDetails.required_for?(meisim_product('p2n:o2_8gb', 'O2 UK'))

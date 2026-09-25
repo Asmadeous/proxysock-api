@@ -10,6 +10,10 @@ class MeisimCatalogSyncService
   US_PREPAID_PREFIXES = %w[p3: ly:].freeze
   # MeiSIM's PRODUCT_TYPE for plans that come with a phone number: [meisim_line, number country].
   PHONE_LINES = { 'US_NUMBER' => %w[us_prepaid US], 'UK_NUMBER' => %w[uk_prepaid GB] }.freeze
+  # MeiSIM's carrier id inside p3: product ids (p3:<carrier>:<plan>). Since 2026-09-25 some
+  # plans arrive with "Carrier 8" in place of the carrier's name; the sync puts it back.
+  P3_CARRIERS = { '2' => 'AT&T', '8' => 'T-Mobile', '197' => 'MobileX', '318' => 'LinkUp Mobile',
+                  '445' => 'Moxee 2' }.freeze
   # MeiSIM only takes an E911/area-code address on these US carriers.
   ADDRESS_PREFIXES = %w[p3:].freeze
   # Markup on MeiSIM retail by retail price: [tier starts at, markup]. Cheap plans
@@ -76,7 +80,15 @@ class MeisimCatalogSyncService
   end
 
   def plan_details(plan)
-    Array(plan['productDetails']).to_h { |d| [d['name'].to_s.strip, d['value']] }
+    details = Array(plan['productDetails']).to_h { |d| [d['name'].to_s.strip, d['value']] }
+    carrier = P3_CARRIERS[plan['productId'].to_s[/\Ap3:(\d+):/, 1]]
+    return details unless carrier
+
+    restored = details.transform_values { |value| value.is_a?(String) ? value.gsub(/\bCarrier \d+\b/, carrier) : value }
+    # "Carrier 8 Prepaid · Carrier 8 5GB eSIM" -> "T-Mobile Prepaid · 5GB eSIM"
+    brand, *rest = restored['PLAN_TITLE'].to_s.split(' · ')
+    restored['PLAN_TITLE'] = [brand, *rest.map { |part| part.delete_prefix("#{carrier} ") }].join(' · ') if rest.any?
+    restored
   end
 
   # Titles lead with the carrier's list price ("Lycamobile · $19 Unlimited International
@@ -115,6 +127,8 @@ class MeisimCatalogSyncService
     line, number_country = phone_line(details, product_id)
     network = details['PLAN_NETWORK'].presence || details['NETWORKS_SHORT'].presence || plan['providerName']
     requires_imei = MeisimDeviceDetails.device_required?(product_id)
+    # MeiSIM marks plans that need no EID (all Lycamobile lines) with REQUIRES_EID = "NO".
+    eid_waived = details['REQUIRES_EID'].to_s.strip.casecmp?('NO')
 
     {
       'meisim_line' => line || 'travel',
@@ -127,7 +141,7 @@ class MeisimCatalogSyncService
       'regions' => Array(plan['regions']),
       'network' => network,
       'requires_imei' => requires_imei,
-      'requires_eid' => requires_imei && MeisimDeviceDetails.eid_required?(network),
+      'requires_eid' => requires_imei && MeisimDeviceDetails.eid_required?(network) && !eid_waived,
       'provider_name' => plan['providerName'],
       'data_limit' => details['PLAN_DATA_LIMIT'],
       'data_unit' => details['PLAN_DATA_UNIT'],
