@@ -33,6 +33,7 @@ it("shows a USA and a UK card with what each country offers, and no plans", asyn
   expect(usa).toHaveAttribute("href", "/dashboard/usa-esim");
   expect(uk).toHaveAttribute("href", "/dashboard/uk-esim");
   expect(screen.queryByRole("article")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Back to eSIM services" })).toHaveAttribute("href", "/dashboard/esim");
 });
 
 it("hands the chosen country to reseller and admin views", async () => {
@@ -42,4 +43,9 @@ it("hands the chosen country to reseller and admin views", async () => {
 
   await user.click(await screen.findByRole("button", { name: /UK phone number/ }));
   expect(onSelect).toHaveBeenCalledWith("GB");
+  const onBack = vi.fn();
+  cleanup();
+  render(<MemoryRouter><PhoneESIMCountries onSelect={onSelect} onBack={onBack} /></MemoryRouter>);
+  await user.click(screen.getByRole("button", { name: "Back to eSIM services" }));
+  expect(onBack).toHaveBeenCalled();
 });

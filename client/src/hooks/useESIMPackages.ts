@@ -63,8 +63,12 @@ export function mapMeisimPackage(p: any): ESIMPackage {
   const regions: string[] = Array.isArray(p.regions) ? p.regions : []
   const scope: PackageScope =
     countries.length >= MEISIM_GLOBAL_MIN_COUNTRIES ? 'global' : countries.length > 1 ? 'regional' : 'country'
-  const amount = Number.parseFloat(p.data_limit)
-  const unitBytes = dataUnitBytes[String(p.data_unit || 'MB').toUpperCase()] || dataUnitBytes.MB
+  // MeiSIM sends the allowance as text with its unit ("1.95 GB", "1000 MB") and usually
+  // no separate data_unit; the unit in the text wins.
+  const limit = String(p.data_limit ?? '').match(/(\d+(?:\.\d+)?)\s*(MB|GB|TB)?/i)
+  const amount = limit ? Number.parseFloat(limit[1]) : Number.NaN
+  const unit = (limit?.[2] || p.data_unit || 'MB').toUpperCase()
+  const unitBytes = dataUnitBytes[unit] || dataUnitBytes.MB
   const hasFixedData = Number.isFinite(amount) && amount > 0
 
   return {
@@ -97,15 +101,18 @@ export function mapMeisimPackage(p: any): ESIMPackage {
 /**
  * Main Hook
  */
+// Every eSIM product (data-only and phone-number lines), fetched once and shared by the
+// eSIM landing page, the Data Only page and anything else under the same query key.
+export function useEsimCatalog() {
+  return useQuery<any[]>(['esimPackages'], async () => {
+    const { default: api } = await import('../services/api');
+    const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
+    return data.products || [];
+  });
+}
+
 export function useESIMPackages(filters: PackageFilters = {}) {
-  const { data: allPackagesRaw = [], isLoading: loading, error: queryError } = useQuery(
-    ['esimPackages'],
-    async () => {
-      const { default: api } = await import('../services/api');
-      const { data } = await api.get('/web/api/products?product_type=esim&per_page=all');
-      return data.products || [];
-    }
-  );
+  const { data: allPackagesRaw = [], isLoading: loading, error: queryError } = useEsimCatalog();
 
   const error = queryError ? String(queryError) : null;
 
@@ -553,4 +560,24 @@ export function useESIMCountries() {
   const error = queryError ? String(queryError) : null;
 
   return { countries, loading, error }
+}
+// ISO country codes a plan covers ("FR", or "FR,DE,IT" for multi-country plans).
+export const packageCountries = (pkg: Pick<ESIMPackage, 'location_code'>): string[] =>
+  Array.from(new Set(String(pkg.location_code || '').split(',').map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c))))
+
+const regionNames = typeof Intl !== 'undefined' && 'DisplayNames' in Intl ? new Intl.DisplayNames(['en'], { type: 'region' }) : null
+
+// "FR" -> "France"; falls back to the code when the browser has no name for it.
+export const countryName = (code: string): string => {
+  try {
+    return regionNames?.of(code) || code
+  } catch {
+    return code
+  }
+}
+
+// What the plan's data allowance should read as: "Unlimited", "1 GB/day" or "5 GB".
+export const packageDataLabel = (pkg: Pick<ESIMPackage, 'volume' | 'data_type'>): string => {
+  if (!pkg.volume) return 'Unlimited'
+  return pkg.data_type === 2 ? `${formatDataVolume(pkg.volume)}/day` : formatDataVolume(pkg.volume)
 }

@@ -69,11 +69,11 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     product = meisim_product('p3:2:630')
     assert_equal "Real US phone number.\n10GB mobile hotspot included", product.description
     assert_equal 'Unlimited', product.metadata['voice']
-    assert_nil product.metadata['sms'], '"0" is unknown, not zero texts'
+    assert_equal '0', product.metadata['sms'], 'kept as MeiSIM shows it'
     assert_equal 'United States', product.metadata['coverage']
     assert_equal 'Phone must be unlocked.', product.metadata['activation_note']
     assert_nil product.metadata['warnings']
-    assert_nil meisim_product('ly:1012').description, 'a description that repeats the title is dropped'
+    assert_equal 'international Plan', meisim_product('ly:1012').description, "MeiSIM's price is removed from the description"
   end
 
   test 'strips the carrier list price from plan names' do
@@ -141,6 +141,26 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert_equal 'T-Mobile', product.metadata['network']
   end
 
+  test 'keeps the details MeiSIM shows in its plan window' do
+    o2 = with_details(plan('p2n:o2_25gb', retail: 14.86, countries: ['GB'], title: 'O2 UK · 25GB + 50 Intl Mins'),
+                      'PRODUCT_TYPE' => 'UK_NUMBER', 'PHONE_NUMBER' => 'UK number assigned on activation',
+                      'NETWORKS' => 'O2 (UK)', 'HOTSPOT' => 'Yes', 'TOPUP' => 'Yes — top up monthly via your account page',
+                      'INTL_MINUTES' => '50', 'ROAMING_FREE' => 'Austria, Belgium', 'ROAMING_DATA_ONLY' => '')
+    moxee = with_details(plan('p3:445:799', retail: 6.56, title: 'Moxee 2 Prepaid · 100 SMS Only'),
+                         'PRODUCT_TYPE' => 'US_NUMBER', 'PLAN_NETWORK' => 'Moxee 2', 'VOICE' => '0', 'SMS' => '0')
+    moxee['productDetails'].reject! { |d| d['name'] == 'PLAN_NETWORK' && d['value'] == 'Lycamobile' }
+    sync([o2, moxee])
+
+    uk = meisim_product('p2n:o2_25gb').metadata
+    assert_equal ['UK number assigned on activation', 'O2 (UK)', 'Yes', '50', 'Austria, Belgium'],
+                 uk.values_at('phone_number', 'networks', 'hotspot', 'intl_minutes', 'roaming_free')
+    assert_nil uk['roaming_data_only']
+    assert_not uk['accepts_address'], 'MeiSIM asks nothing on UK lines'
+    sms = meisim_product('p3:445:799').metadata
+    assert_equal %w[0 0], sms.values_at('voice', 'sms')
+    assert_not sms['accepts_address'], 'MeiSIM asks no address on Moxee lines'
+  end
+
   test 'follows MeiSIM when a plan needs no EID' do
     lyca = with_details(plan('ly:1035', retail: 33, title: 'Lycamobile · $33 High Data Plan'),
                         'PRODUCT_TYPE' => 'US_NUMBER', 'REQUIRES_IMEI' => 'YES', 'REQUIRES_EID' => 'NO')
@@ -162,7 +182,7 @@ class MeisimCatalogSyncServiceTest < ActiveSupport::TestCase
     assert product.metadata['manual_fulfilment']
     assert product.metadata['requires_imei']
     assert product.metadata['requires_eid']
-    assert_not product.metadata['accepts_address']
+    assert product.metadata['accepts_address'], 'MeiSIM offers the activation address on this plan'
     pricing = product.product_pricings.first
     assert_equal BigDecimal('200'), pricing.user_selling_price
     assert_equal BigDecimal('175'), pricing.reseller_selling_price

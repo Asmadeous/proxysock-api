@@ -10,56 +10,122 @@ vi.mock("@/utils/redditPixel", () => ({
   conversionTracker: { trackAddToCart: vi.fn() },
 }));
 
+// Plans as the storefront API returns them after a MeiSIM sync.
 const usLine = {
-  id: "0cf1fe4c-c82b-4a15-9de5-62daf21ea00f", name: "AT&T Prepaid · $35 Unlimited Saver", provider: "meisim",
-  price: "53.04", currency: "USD", meisim_line: "us_prepaid", network: "AT&T Prepaid",
-  data_limit: "See plan", data_unit: null, validity_days: 30, requires_imei: true, requires_eid: true,
+  id: "att-35", name: "AT&T Prepaid · $53.04 Unlimited Saver", provider: "meisim", price: "53.04", currency: "USD",
+  meisim_line: "us_prepaid", network: "AT&T Prepaid", networks: "AT&T Prepaid", data_limit: "See plan", validity_days: 30,
+  voice: "Unlimited", sms: "Unlimited", phone_number: "US number assigned on activation",
+  description: "Real US phone number on the AT&T Prepaid network. Calls + texts + data. Activated as eSIM on your device.",
+  activation_note: "You will need your device IMEI (15 digits) to activate.",
+  requires_imei: true, requires_eid: true, accepts_address: true,
 };
-const moxee = { ...usLine, id: "moxee-1", name: "Moxee 2 Prepaid · 100 SMS Only", price: "7.87", network: "Moxee 2", requires_eid: false };
-const travel = { ...usLine, id: "world-1", name: "World 1 GB", meisim_line: "travel", requires_imei: false, requires_eid: false };
+const tmo5 = {
+  ...usLine, id: "tmo-5", name: "T-Mobile Prepaid · 5GB eSIM", network: "T-Mobile", networks: "T-Mobile (US)",
+  voice: "0", sms: "0", price: "42.00",
+};
+const moxeeSms = {
+  ...usLine, id: "moxee-sms", name: "Moxee 2 Prepaid · 100 SMS Only", network: "Moxee 2", networks: "Moxee 2", price: "9.84",
+  voice: "0", sms: "0", requires_eid: false, accepts_address: false,
+};
+const lyca15 = {
+  ...usLine, id: "ly-15", name: "Lycamobile · $22.50 international Plan", network: "Lycamobile", networks: "Lycamobile (US)",
+  data_limit: "", voice: "", sms: "", description: "international Plan", activation_note: "", price: "22.50",
+  requires_eid: false, coverage: "United States + international calling",
+};
+const mobileX = {
+  ...usLine, id: "mx-20", name: "MobileX Prepaid · Mobile X Unlimited 20", network: "MobileX", networks: "MobileX (US)",
+  data_limit: "10GB", validity_days: 90, voice: "Unlimited — US, Canada & Mexico", sms: "Unlimited — US, Canada & Mexico",
+  warnings: "3-month plan — billed once and valid for 90 days. MobileX has no 1-month option, so this covers 3 months upfront.",
+  price: "50.40",
+};
+const manualAtt = {
+  ...usLine, id: "att-6m", name: "AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months", network: "AT&T", networks: "AT&T",
+  data_limit: "30GB per month", validity_days: 180, term_months: 6, voice: "Unlimited US", sms: "Unlimited US",
+  phone_number: "", includes_number: "YES", manual_fulfilment: true, price: "200",
+};
+const ukO2 = {
+  id: "uk-o2", name: "O2 UK · 25GB + 50 Intl Mins", provider: "meisim", price: "22.29", currency: "USD",
+  meisim_line: "uk_prepaid", number_country: "GB", network: "O2 UK", networks: "O2 (UK)",
+  data_limit: "25GB UK · 25GB roaming", validity_days: 30, voice: "Unlimited UK + 50 international", sms: "Unlimited UK",
+  phone_number: "UK number assigned on activation", hotspot: "Yes", topup: "Yes — top up monthly via your account page",
+  intl_minutes: "50", roaming_free: "Austria, Belgium", intl_call_to: "India, Nigeria",
+  activation_note: "Must be activated in the UK before first use.",
+  description: "UK number on O2. Unlimited UK + 50 mins to 40+ countries. 25GB UK + 25GB EU roaming.",
+  requires_imei: false, requires_eid: false, accepts_address: false,
+};
+const ukThree = {
+  ...ukO2, id: "uk-three", name: "Three UK · Unlimited + EU Roaming", network: "Three UK", networks: "Three (UK)",
+  data_limit: "Unlimited UK · 30GB roaming", voice: "Unlimited UK", intl_minutes: "", intl_call_to: "", price: "44.58",
+};
+const travel = { ...usLine, id: "world-1", name: "World 1 GB", meisim_line: "travel" };
 
 const IMEI = "35 092338 941642 0";
 const EID = "89049032007108888100137471946359";
 
+const loadPlans = (...products: object[]) => vi.mocked(api.get).mockResolvedValue({ data: { products } });
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
-  vi.mocked(api.get).mockResolvedValue({ data: { products: [usLine, travel, moxee] } });
+  loadPlans(usLine, tmo5, moxeeSms, lyca15, mobileX, manualAtt, ukO2, ukThree, travel);
 });
 afterEach(cleanup);
 
 const renderPage = (props = {}) => render(<MemoryRouter><USAESIMPlansPage {...props} /></MemoryRouter>);
-
 const card = async (name: string) => within(await screen.findByRole("article", { name }));
-const form = (name: string) => within(screen.getByRole("form", { name: `Phone details for ${name}` }));
+const pills = async (name: string) => (await card(name)).getAllByRole("listitem").map((li) => li.textContent);
+const openPlan = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+  await user.click((await card(name)).getByRole("button", { name: /^Get (US|UK) Number/ }));
+  return within(await screen.findByRole("dialog"));
+};
 
-it("lists only MeiSIM US phone-number lines", async () => {
+it("lists only the chosen country's phone-number lines", async () => {
   renderPage();
   expect(await screen.findByRole("article", { name: usLine.name })).toBeInTheDocument();
-  expect(screen.getByRole("article", { name: moxee.name })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: ukO2.name })).not.toBeInTheDocument();
   expect(screen.queryByRole("article", { name: travel.name })).not.toBeInTheDocument();
   expect(api.get).toHaveBeenCalledWith("/web/api/products?product_type=esim&per_page=all");
 });
 
-it("asks for the phone's IMEI and EID before adding a line to the cart", async () => {
+it("shows MeiSIM's card pills: See plan, days, calls and texts", async () => {
+  renderPage();
+  expect(await pills(usLine.name)).toEqual(["US Number", "See plan", "30 days", "Unlimited", "Unlimited"]);
+  expect(await pills(tmo5.name)).toEqual(["US Number", "See plan", "30 days", "Data only"]);
+  expect(await pills(lyca15.name)).toEqual(["US Number", "30 days"]);
+  expect((await card(usLine.name)).getByText("USD / mo")).toBeInTheDocument();
+  expect((await card(mobileX.name)).getByText("USD for 3 months")).toBeInTheDocument();
+  expect((await card(manualAtt.name)).getByText("USD for 6 months")).toBeInTheDocument();
+});
+
+it("shows UK pills without days and with international minutes", async () => {
+  renderPage({ country: "GB" });
+  expect(await pills(ukO2.name)).toEqual([
+    "UK Number", "25GB UK · 25GB roaming", "Unlimited UK + 50 international", "Unlimited UK", "50 intl mins",
+  ]);
+  expect(screen.getByRole("link", { name: "Back to countries" })).toHaveAttribute("href", "/dashboard/phone-esim");
+});
+
+it("asks for IMEI and EID where MeiSIM does, then adds one line to the cart", async () => {
   const user = userEvent.setup();
   const otherItem = { productType: "vpn", quantity: 1 };
   localStorage.setItem("cartItems", JSON.stringify([otherItem]));
   renderPage();
 
-  await user.click((await card(usLine.name)).getByRole("button", { name: "Add to Cart" }));
-  await user.click(form(usLine.name).getByRole("button", { name: "Add to Cart" }));
-  expect(screen.getByText("IMEI must be exactly 15 digits")).toBeInTheDocument();
-  expect(screen.getByText("EID must be exactly 32 digits")).toBeInTheDocument();
+  const dialog = await openPlan(user, usLine.name);
+  expect(dialog.getByText("Both IMEI and EID are required by the carrier. Without them, the activation will fail.")).toBeInTheDocument();
+  expect(dialog.getByText(/No QR code for this plan/)).toBeInTheDocument();
+  expect(dialog.getByText(/This is a United States plan/)).toBeInTheDocument();
+  await user.click(dialog.getByRole("button", { name: "Add to Cart" }));
+  expect(dialog.getByText("IMEI must be exactly 15 digits")).toBeInTheDocument();
+  expect(dialog.getByText("EID must be exactly 32 digits")).toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem("cartItems")!)).toEqual([otherItem]);
 
-  await user.type(form(usLine.name).getByLabelText("IMEI"), IMEI);
-  await user.type(form(usLine.name).getByLabelText("EID"), EID);
-  await user.click(form(usLine.name).getByRole("button", { name: "Add to Cart" }));
+  await user.type(dialog.getByLabelText(/Your device IMEI/i), IMEI);
+  await user.type(dialog.getByLabelText(/Your device EID/i), EID);
+  await user.click(dialog.getByRole("button", { name: "Add to Cart" }));
 
   const cart = JSON.parse(localStorage.getItem("cartItems")!);
   expect(cart).toHaveLength(2);
-  expect(cart[0]).toEqual(otherItem);
   expect(cart[1]).toMatchObject({
     productType: "usa-esim", quantity: 1,
     usaEsimPlan: { id: usLine.id, price: 53.04, requires_eid: true },
@@ -68,213 +134,110 @@ it("asks for the phone's IMEI and EID before adding a line to the cart", async (
   expect(screen.getByText("1 line in cart")).toBeInTheDocument();
 });
 
-it("does not ask for an EID on plans that do not need one", async () => {
+it("asks only for the IMEI on plans MeiSIM marks as needing no EID", async () => {
   const user = userEvent.setup();
   renderPage();
-  await user.click((await card(moxee.name)).getByRole("button", { name: "Add to Cart" }));
-  expect(form(moxee.name).getByLabelText("IMEI")).toBeInTheDocument();
-  expect(form(moxee.name).queryByLabelText("EID")).not.toBeInTheDocument();
+
+  const lyca = await openPlan(user, lyca15.name);
+  expect(lyca.getByText("Your IMEI is required. This plan needs no EID.")).toBeInTheDocument();
+  expect(lyca.queryByLabelText(/Your device EID/i)).not.toBeInTheDocument();
+  expect(lyca.getByText("Activation address")).toBeInTheDocument();
+  await user.click(lyca.getByRole("button", { name: "Cancel" }));
+
+  const moxee = await openPlan(user, moxeeSms.name);
+  expect(moxee.getByText(/No EID needed for this plan/)).toBeInTheDocument();
+  expect(moxee.queryByLabelText(/Your device EID/i)).not.toBeInTheDocument();
+  expect(moxee.queryByText("Activation address")).not.toBeInTheDocument();
 });
 
-it("sends quantity 1 and the device details through direct purchase", async () => {
+it("asks MobileX buyers for the second IMEI and shows the plan's restrictions", async () => {
+  const user = userEvent.setup();
+  renderPage();
+  const dialog = await openPlan(user, mobileX.name);
+  expect(dialog.getByText("Restrictions:")).toBeInTheDocument();
+  expect(dialog.getByText("3-month plan — billed once and valid for 90 days")).toBeInTheDocument();
+  expect(dialog.getByLabelText(/IMEI2/)).toBeInTheDocument();
+  expect(dialog.queryByText(/No QR code for this plan/)).not.toBeInTheDocument();
+});
+
+it("sends the device details and optional address through direct purchase", async () => {
   const user = userEvent.setup();
   const purchase = vi.fn().mockResolvedValue(undefined);
   renderPage({ isDirectBuy: true, onDirectBuy: purchase });
 
-  await user.click((await card(usLine.name)).getByRole("button", { name: "Instantly Provision" }));
-  await user.type(form(usLine.name).getByLabelText("IMEI"), IMEI);
-  await user.type(form(usLine.name).getByLabelText("EID"), EID);
-  await user.click(form(usLine.name).getByRole("button", { name: "Instantly Provision" }));
+  const dialog = await openPlan(user, usLine.name);
+  await user.type(dialog.getByLabelText(/Your device IMEI/i), IMEI);
+  await user.type(dialog.getByLabelText(/Your device EID/i), EID);
+  await user.click(dialog.getByRole("checkbox", { name: "Use default" }));
+  await user.type(dialog.getByLabelText("Street address"), "1 Main St");
+  await user.type(dialog.getByLabelText("City"), "Austin");
+  await user.type(dialog.getByLabelText("State"), "tx");
+  await user.type(dialog.getByLabelText("ZIP"), "73301");
+  await user.click(dialog.getByRole("button", { name: "Instantly Provision" }));
 
-  expect(purchase).toHaveBeenCalledWith(usLine.id, 1, { imei: "350923389416420", eid: EID });
+  expect(purchase).toHaveBeenCalledWith(usLine.id, 1, expect.objectContaining({
+    imei: "350923389416420", eid: EID, address: expect.objectContaining({ city: "Austin", zip_code: "73301" }),
+  }));
   expect(localStorage.getItem("cartItems")).toBeNull();
 });
 
-it("shows the full plan details on the card", async () => {
-  vi.mocked(api.get).mockResolvedValue({
-    data: {
-      products: [{
-        ...usLine, voice: "Unlimited", sms: "Unlimited", coverage: "United States",
-        description: "Real US phone number.\n10GB mobile hotspot included",
-        activation_note: "Phone must be unlocked.", warnings: "Billed once for 3 months.",
-      }],
-    },
-  });
-  renderPage();
-
-  const plan = await card(usLine.name);
-  expect(plan.getByRole("heading", { name: "AT&T" })).toBeInTheDocument();
-  expect(plan.getByText("Unlimited Saver")).toBeInTheDocument();
-  expect(plan.getByText("Calls").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.getByText("Texts").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.getByText("Data").nextSibling).toHaveTextContent("Unlimited");
-  expect(plan.getByText("Coverage").nextSibling).toHaveTextContent("United States");
-  expect(plan.getByText("Real US phone number.")).toBeVisible();
-  expect(plan.getByText("10GB mobile hotspot included")).toBeVisible();
-  expect(plan.getByText("Billed once for 3 months.")).toBeInTheDocument();
-  expect(plan.getByText("Phone must be unlocked.")).toBeInTheDocument();
-});
-
-it("reads the data allowance from the plan name when MeiSIM only says See plan", async () => {
-  const linkup = { ...usLine, id: "linkup-1", name: "LinkUp Mobile Prepaid · 1GB", network: "LinkUp Mobile" };
-  const intl = { ...usLine, id: "ly-1", name: "Lycamobile · $15 international Plan", data_limit: "",
-    coverage: "United States + international calling" };
-  vi.mocked(api.get).mockResolvedValue({ data: { products: [linkup, intl] } });
-  renderPage();
-
-  expect((await card(linkup.name)).getByText("Data").nextSibling).toHaveTextContent("1 GB");
-  const lyca = await card(intl.name);
-  expect(lyca.queryByText("Data")).not.toBeInTheDocument();
-  expect(lyca.getByText("Coverage").nextSibling).toHaveTextContent("United States + international calling");
-});
-
-const ukO2 = {
-  ...usLine, id: "uk-o2", name: "O2 UK · 8GB + EU Roaming", price: "14.87", network: "O2 UK", meisim_line: "uk_prepaid",
-  number_country: "GB", data_limit: "8GB UK · 8GB roaming", voice: "Unlimited UK", requires_imei: false, requires_eid: false,
-  activation_note: "Must be activated in the UK before first use.",
-};
-const ukThree = {
-  ...ukO2, id: "uk-three", name: "Three UK · Unlimited + EU Roaming", price: "44.58", network: "Three UK",
-  data_limit: "Unlimited UK · 30GB roaming",
-};
-const smsOnly = { ...usLine, id: "sms-1", name: "Moxee 2 Prepaid · 100 SMS Only", price: "9.84", network: "Moxee 2", requires_eid: false };
-const manualAtt = {
-  ...usLine, id: "att-6m", name: "AT&T Prepaid · 30GB · Unlimited Talk & Text · 6 months", price: "200", network: "AT&T",
-  data_limit: "30GB per month", validity_days: 180, manual_fulfilment: true,
-};
-
-const loadPlans = (...products: object[]) =>
-  vi.mocked(api.get).mockResolvedValue({ data: { products } });
-
-it("shows only the chosen country's lines", async () => {
-  loadPlans(usLine, ukO2, ukThree, travel);
-  renderPage({ country: "GB" });
-
-  expect(await screen.findByRole("heading", { name: "UK phone-number eSIM" })).toBeInTheDocument();
-  expect(screen.getByRole("article", { name: ukO2.name })).toBeInTheDocument();
-  expect(screen.queryByRole("article", { name: usLine.name })).not.toBeInTheDocument();
-  expect(screen.queryByRole("article", { name: travel.name })).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Change country" })).toHaveAttribute("href", "/dashboard/phone-esim");
-});
-
-it("adds a UK line to the cart without asking for phone details", async () => {
+it("adds a UK line with no device questions and shows its roaming details", async () => {
   const user = userEvent.setup();
-  loadPlans(ukO2);
   renderPage({ country: "GB" });
 
-  await user.click((await card(ukO2.name)).getByRole("button", { name: "Add to Cart" }));
+  const dialog = await openPlan(user, ukO2.name);
+  expect(dialog.getByText("Hotspot")).toBeInTheDocument();
+  expect(dialog.getByText("50 minutes/month")).toBeInTheDocument();
+  expect(dialog.getByText(/Roaming countries/)).toBeInTheDocument();
+  expect(dialog.getByText(/Call these countries/)).toBeInTheDocument();
+  expect(dialog.queryByLabelText(/IMEI/)).not.toBeInTheDocument();
+  expect(dialog.queryByText(/United States plan/)).not.toBeInTheDocument();
+  await user.click(dialog.getByRole("button", { name: "Add to Cart" }));
 
-  expect(screen.queryByRole("form")).not.toBeInTheDocument();
   const cart = JSON.parse(localStorage.getItem("cartItems")!);
-  expect(cart).toHaveLength(1);
   expect(cart[0]).toMatchObject({ productType: "usa-esim", usaEsimPlan: { id: "uk-o2", country: "GB", requires_imei: false } });
   expect(cart[0].deviceDetails).toBeUndefined();
 });
 
+it("shows MeiSIM's plan details in the window", async () => {
+  const user = userEvent.setup();
+  renderPage();
+  const dialog = await openPlan(user, manualAtt.name);
+  expect(dialog.getByText("30GB per month · 180 days · United States")).toBeInTheDocument();
+  expect(dialog.getByText("US phone number").nextSibling).toHaveTextContent("Yes");
+  expect(dialog.getByText("Network").nextSibling).toHaveTextContent("AT&T");
+  expect(dialog.getByText(/line is tied to that handset/)).toBeInTheDocument();
+});
+
 it("filters US lines by carrier and by what is included", async () => {
   const user = userEvent.setup();
-  loadPlans(usLine, smsOnly, manualAtt);
   renderPage();
   await screen.findByRole("article", { name: usLine.name });
 
   const included = screen.getByRole("group", { name: "What's included" });
   await user.click(within(included).getByRole("button", { name: "SMS only" }));
-  expect(screen.getByRole("article", { name: smsOnly.name })).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: moxeeSms.name })).toBeInTheDocument();
   expect(screen.queryByRole("article", { name: usLine.name })).not.toBeInTheDocument();
 
   await user.click(within(included).getByRole("button", { name: "SMS only" }));
   await user.click(within(screen.getByRole("group", { name: "Length" })).getByRole("button", { name: "6 months" }));
   expect(screen.getByRole("article", { name: manualAtt.name })).toBeInTheDocument();
-  expect(screen.queryByRole("article", { name: smsOnly.name })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("article")).toHaveLength(1);
 
   const carriers = screen.getByRole("group", { name: "Carrier" });
   expect(within(carriers).queryByRole("button", { name: "AT&T Prepaid" })).not.toBeInTheDocument();
   await user.click(within(carriers).getByRole("button", { name: "Moxee 2" }));
   expect(screen.getByText("No plans match these filters")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
-  expect(screen.getAllByRole("article")).toHaveLength(3);
+  expect(screen.getAllByRole("article")).toHaveLength(6);
 });
 
 it("filters UK lines by data amount", async () => {
   const user = userEvent.setup();
-  loadPlans(ukO2, ukThree);
   renderPage({ country: "GB" });
   await screen.findByRole("article", { name: ukO2.name });
 
   await user.click(within(screen.getByRole("group", { name: "UK data" })).getByRole("button", { name: "Unlimited" }));
   expect(screen.getByRole("article", { name: ukThree.name })).toBeInTheDocument();
   expect(screen.queryByRole("article", { name: ukO2.name })).not.toBeInTheDocument();
-});
-
-it("explains manual activation and asks for the EID of the phone that keeps the line", async () => {
-  const user = userEvent.setup();
-  loadPlans(manualAtt);
-  renderPage();
-
-  const plan = await card(manualAtt.name);
-  expect(plan.getByText(/Activated by the carrier within 24 hours/)).toBeInTheDocument();
-  await user.click(plan.getByRole("button", { name: "Add to Cart" }));
-  expect(form(manualAtt.name).getByText(/can't be moved to another one later/)).toBeInTheDocument();
-  expect(form(manualAtt.name).queryByText(/US address/)).not.toBeInTheDocument();
-});
-
-it("only offers the 911 address on carriers that use it", async () => {
-  const user = userEvent.setup();
-  loadPlans({ ...usLine, accepts_address: true });
-  renderPage();
-
-  await user.click((await card(usLine.name)).getByRole("button", { name: "Add to Cart" }));
-  expect(form(usLine.name).getByText(/used for 911 and your number's area code/)).toBeInTheDocument();
-});
-
-it("shows the price once, not again inside the plan name", async () => {
-  loadPlans({ ...usLine, id: "ly-1", name: "Lycamobile · $22.50-300 MB + 3000 mins&sms-national", price: "22.50", network: "Lycamobile" });
-  renderPage();
-
-  const plan = await card("Lycamobile · $22.50-300 MB + 3000 mins&sms-national");
-  expect(plan.getByText("300 MB + 3000 mins&sms-national")).toBeInTheDocument();
-  expect(plan.getAllByText("$22.50")).toHaveLength(1);
-});
-
-it("keeps only what is specific to the plan and says the shared requirements once", async () => {
-  loadPlans({
-    ...usLine, voice: "Unlimited", sms: "Unlimited",
-    description: "Real US phone number on the AT&T Prepaid network. Calls + texts + data. Activated as eSIM on your device.\n10GB mobile hotspot included",
-    activation_note: "You will need your device IMEI (15 digits) to activate. Your phone must be unlocked and compatible with the AT&T Prepaid network.",
-  });
-  renderPage();
-
-  const plan = await card(usLine.name);
-  expect(plan.getByText("10GB mobile hotspot included")).toBeInTheDocument();
-  expect(plan.queryByText(/Real US phone number/)).not.toBeInTheDocument();
-  expect(plan.queryByText(/device IMEI/)).not.toBeInTheDocument();
-  expect(screen.getByText(/Your phone must be unlocked/)).toBeInTheDocument();
-});
-
-it("reads texts from the plan name when MeiSIM leaves them out", async () => {
-  loadPlans(smsOnly, { ...smsOnly, id: "sms-2", name: "Moxee 2 Prepaid · SMS Verification - Incoming SMS Only" });
-  renderPage();
-
-  expect((await card(smsOnly.name)).getByText("Texts").nextSibling).toHaveTextContent("100 SMS");
-  expect((await card("Moxee 2 Prepaid · SMS Verification - Incoming SMS Only")).getByText("Texts").nextSibling)
-    .toHaveTextContent("Incoming SMS only");
-});
-
-it("fills rows from what the plan still says when MeiSIM leaves them empty", async () => {
-  const generic = "Real US phone number on the T-Mobile network. Calls + texts + data. Activated as eSIM on your device.";
-  const tmo5 = { ...usLine, id: "tmo-5", name: "T-Mobile Prepaid · 5GB eSIM", network: "T-Mobile", description: generic };
-  const tmoUnl = { ...usLine, id: "tmo-u", name: "T-Mobile Prepaid · $63.00 Unlimited", network: "T-Mobile", description: generic,
-    voice: "Unlimited", sms: "Unlimited" };
-  const sms = { ...smsOnly, description: "Real US phone number on the Moxee 2 network. Calls + texts + data." };
-  loadPlans(tmo5, tmoUnl, sms);
-  renderPage();
-
-  const five = await card(tmo5.name);
-  expect(five.getByText("Data").nextSibling).toHaveTextContent("5 GB");
-  expect(five.getByText("Calls").nextSibling).toHaveTextContent("Included");
-  expect(five.getByText("Texts").nextSibling).toHaveTextContent("Included");
-  expect((await card(tmoUnl.name)).getByText("Data").nextSibling).toHaveTextContent("Unlimited");
-  const smsCard = await card(sms.name);
-  expect(smsCard.queryByText("Calls")).not.toBeInTheDocument();
-  expect(smsCard.queryByText("Data")).not.toBeInTheDocument();
 });

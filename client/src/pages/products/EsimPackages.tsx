@@ -5,18 +5,26 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
+  CalendarDays,
+  Globe,
   Loader2,
+  MessageSquare,
+  Signal,
+  type LucideIcon,
 } from "lucide-react";
 import {
   useESIMPackages,
   formatPrice,
   useESIMCountries,
-  formatDataVolume,
   formatDuration,
   type ESIMPackage,
   type PackageScope,
   getLocationDisplayName,
+  countryName,
+  packageCountries,
+  packageDataLabel,
 } from "../../hooks/useESIMPackages";
+import { CountryFlag } from "./phoneLines";
 import { useDebounce } from "use-debounce";
 import { ErrorBoundary } from "react-error-boundary";
 import {
@@ -102,6 +110,60 @@ const ESIMCardSkeleton = () => (
 
 const GB = 1024 ** 3;
 
+// Card header mark: the country's flag, a few flags for multi-country plans, or a globe.
+function CoverageMark({ pkg }: { pkg: ESIMPackage }) {
+  const codes = packageCountries(pkg);
+  if (codes.length === 1) return <CountryFlag country={codes[0]} className="h-8 w-11" />;
+  if (codes.length > 1 && pkg.scope !== "global") {
+    return (
+      <span className="flex items-center gap-1" aria-hidden="true">
+        {codes.slice(0, 4).map((code) => <CountryFlag key={code} country={code} className="h-6 w-8" />)}
+        {codes.length > 4 && <span className="text-xs font-semibold text-muted-foreground">+{codes.length - 4}</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10" aria-hidden="true">
+      <Globe className="h-5 w-5 text-primary" />
+    </span>
+  );
+}
+
+// "France", a region ("Europe"), "12 countries" or "Global".
+const cardTitle = (pkg: ESIMPackage) => {
+  const codes = packageCountries(pkg);
+  if (codes.length === 1) return countryName(codes[0]);
+  if (pkg.scope === "global" || codes.length === 0 && /^!GL|global/i.test(`${pkg.location_code} ${pkg.location_name}`)) return "Global";
+  const region = String(pkg.location_name || "").trim();
+  const readable = region && !/^[A-Z]{2}(\s*,|$)/.test(region) && !/^\d+ countries$/i.test(region) && !region.includes(",");
+  if (readable) return codes.length > 1 ? `${region} · ${codes.length} countries` : region;
+  // Small bundles read better by name: "Belarus & Russia", "Cyprus, Greece & Türkiye".
+  if (codes.length > 1 && codes.length <= 3) {
+    const names = codes.map(countryName);
+    return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+  }
+  return codes.length > 1 ? `${codes.length} countries` : getLocationDisplayName(pkg.location_code, pkg.location_name).replace(/^\S+\s/, "");
+};
+
+const cardPills = (pkg: ESIMPackage): [LucideIcon, string][] => {
+  const codes = packageCountries(pkg);
+  const pills: [LucideIcon, string][] = [
+    [Signal, packageDataLabel(pkg)],
+    [CalendarDays, formatDuration(pkg.duration, pkg.duration_unit)],
+    [Globe, pkg.scope === "global" ? (codes.length ? `Global · ${codes.length} countries` : "Global") : codes.length > 1 ? `${codes.length} countries` : "1 country"],
+  ];
+  if (pkg.sms_status) pills.push([MessageSquare, "SMS"]);
+  return pills;
+};
+
+const coverageText = (pkg: ESIMPackage) => {
+  const codes = packageCountries(pkg);
+  if (!codes.length) return `Coverage: ${getLocationDisplayName(pkg.location_code, pkg.location_name).replace(/^\S+\s/, "")}. Check your phone supports eSIM before purchasing.`;
+  const names = codes.slice(0, 5).map(countryName).join(", ");
+  return `Coverage: ${names}${codes.length > 5 ? ` and ${codes.length - 5} more` : ""}. Check your phone supports eSIM before purchasing.`;
+};
+
+
 // A volume of 0 means the plan has no data cap. Daily-reset plans (data_type 2, e.g.
 // eSIM Access "1 GB/day") state a per-day amount, so they get their own option rather
 // than landing in the total-data ranges.
@@ -174,6 +236,9 @@ function ESIMPackagesPageContent({
   );
 
   const { packages, loading, error } = useESIMPackages(filters);
+  // Unfiltered catalog (same cached query) for the header's coverage numbers.
+  const { packages: allPlans } = useESIMPackages({});
+  const coveredCountries = useMemo(() => new Set(allPlans.flatMap(packageCountries)).size, [allPlans]);
   const { countries: countryList } = useESIMCountries();
 
   const visiblePackages = useMemo(() => {
@@ -428,17 +493,16 @@ function ESIMPackagesPageContent({
     <div className="w-full space-y-7">
       {/* Page Header */}
       <div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onBack ? onBack() : globalThis.history.back()}
+          className="mb-5 gap-2 rounded-full"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          Back to eSIM services
+        </Button>
         <div className="flex items-center gap-3 mb-2">
-          <Button
-            aria-label="Back to eSIM services"
-            variant="ghost"
-            size="sm"
-            onClick={() => onBack ? onBack() : globalThis.history.back()}
-            className="p-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-
           <h1 className="text-3xl font-semibold text-foreground">
             Data Only eSIM
           </h1>
@@ -446,6 +510,12 @@ function ESIMPackagesPageContent({
         <p className="text-muted-foreground">
           Find mobile data for your destination. Compare allowances, validity, and price.
         </p>
+        {allPlans.length > 0 && (
+          <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold">
+            <span className="inline-flex items-center gap-1.5"><Globe aria-hidden="true" className="h-4 w-4 text-primary" />{coveredCountries} countries</span>
+            <span className="inline-flex items-center gap-1.5"><Signal aria-hidden="true" className="h-4 w-4 text-primary" />{allPlans.length} plans</span>
+          </p>
+        )}
       </div>
 
       {/* Success Alert */}
@@ -694,51 +764,34 @@ function ESIMPackagesPageContent({
               const inCart = !!cartItem;
 
               return (
-                <Card
+                <article
                   key={pkg.id}
-                  className="flex h-full min-w-0 flex-col rounded-xl border-border shadow-none"
+                  aria-label={cardTitle(pkg)}
+                  className="flex h-full min-w-0 flex-col rounded-xl border border-border bg-card p-5"
                 >
-                  <CardHeader className="border-b">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        {pkg.packageType === "topup" && (
-                          <Badge
-                            variant="destructive"
-                            className="mb-2"
-                          >
-                            TOP-UP PLAN
-                          </Badge>
-                        )}
-                        <CardTitle className="text-xl mb-2">
-                          {getLocationDisplayName(pkg.location_code, pkg.location_name)}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">Data only</p>
-                      </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <CoverageMark pkg={pkg} />
+                    <div className="shrink-0 text-right">
+                      <p className="text-2xl font-extrabold tracking-tight">{formatPrice(pkg.price, pkg.currency_code)}</p>
+                      <p className="text-xs text-muted-foreground">{pkg.currency_code}</p>
                     </div>
-                    <div className="mt-4">
-                      <span className="text-2xl font-semibold tracking-tight text-foreground">
-                        {formatPrice(pkg.price, pkg.currency_code)}
-                      </span>
-                    </div>
-                  </CardHeader>
+                  </div>
+                  {pkg.packageType === "topup" && (
+                    <Badge variant="destructive" className="mt-3 w-fit">TOP-UP PLAN</Badge>
+                  )}
+                  <h3 className="mt-3 text-lg font-bold leading-6">{cardTitle(pkg)}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data only · no phone number</p>
+                  <ul aria-label="Plan includes" className="mt-3 flex flex-wrap gap-1.5">
+                    {cardPills(pkg).map(([Icon, label]) => (
+                      <li key={label} className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                        <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 line-clamp-2 text-xs leading-5 text-muted-foreground">{coverageText(pkg)}</p>
 
-                  <CardContent className="flex flex-1 flex-col gap-6 pt-6">
-                    <dl className="divide-y divide-border border-y border-border">
-                      {[
-                        ["Data", formatDataVolume(pkg.volume)],
-                        ["Validity", formatDuration(pkg.duration, pkg.duration_unit)],
-                      ].map(([label, value]) => (
-                        <div key={label} className="flex justify-between gap-4 py-3 text-sm">
-                          <dt className="text-muted-foreground">{label}</dt>
-                          <dd className="text-right font-medium">{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Coverage: {getLocationDisplayName(pkg.location_code, pkg.location_name)}.
-                      Check your device supports eSIM before purchasing.
-                    </p>
-
+                  <div className="mt-auto space-y-3 pt-4">
                     {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
                         inCart ? (
                             <div className="space-y-3">
@@ -782,8 +835,8 @@ function ESIMPackagesPageContent({
                               </div>
                               <Button
                                 onClick={() => removeFromCart(pkg.id)}
-                                variant="destructive"
-                                className="w-full"
+                                variant="outline"
+                                className="w-full rounded-full"
                               >
                                 Remove from Cart
                               </Button>
@@ -792,15 +845,15 @@ function ESIMPackagesPageContent({
                             <Button
                               onClick={() => addToCart(pkg)}
                               disabled={provisioningPkgId === pkg.id}
-                              className="mt-auto min-h-12 w-full gap-2"
+                              className="min-h-11 w-full gap-2 rounded-full font-bold"
                             >
                               {provisioningPkgId === pkg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                               {provisioningPkgId === pkg.id ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
                             </Button>
                           )
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </article>
               );
             })}
           </div>
