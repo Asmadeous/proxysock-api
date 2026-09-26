@@ -33,3 +33,11 @@ describe("isPhoneLine", () => {
     expect(isPhoneLine({})).toBe(false);
   });
 });
+
+describe("MeiSIM travel data amounts", () => {
+  it("reads the unit from MeiSIM's text allowance", () => {
+    expect(mapMeisimPackage({ ...base, countries: ["KR"], data_limit: "1.95 GB" }).volume).toBeCloseTo(1.95 * 1024 ** 3);
+    expect(mapMeisimPackage({ ...base, countries: ["AE"], data_limit: "1000 MB" }).volume).toBe(1000 * 1024 ** 2);
+    expect(mapMeisimPackage({ ...base, countries: ["JP"], data_limit: "1", data_unit: "GB" }).volume).toBe(1024 ** 3);
+  });
+});
