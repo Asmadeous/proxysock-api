@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { CalendarDays, Globe, MessageSquare, Phone, Signal, Smartphone, type LucideIcon } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
 import { DeviceDetails, deviceDetailsMetadata } from '@/utils/esim/deviceDetails';
@@ -11,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import api from '../../services/api';
 import PhonePlanDialog from './PhonePlanDialog';
 import {
+  BackButton,
   COUNTRIES,
   CarrierLogo,
   CountryFlag,
@@ -180,11 +180,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
   return (
     <div className="w-full space-y-7">
       <header>
-        {onBack ? (
-          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</button>
-        ) : (
-          <Link to="/dashboard/phone-esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Change country</Link>
-        )}
+        <BackButton label="Back to countries" to="/dashboard/phone-esim" onBack={onBack} />
         <div className="flex items-center gap-3">
           <CountryFlag country={country} />
           <h1 className="text-3xl font-semibold tracking-tight">{COUNTRIES[country].name} phone-number eSIM</h1>

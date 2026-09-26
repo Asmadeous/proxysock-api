@@ -102,7 +102,7 @@ it("shows UK pills without days and with international minutes", async () => {
   expect(await pills(ukO2.name)).toEqual([
     "UK Number", "25GB UK · 25GB roaming", "Unlimited UK + 50 international", "Unlimited UK", "50 intl mins",
   ]);
-  expect(screen.getByRole("link", { name: "Change country" })).toHaveAttribute("href", "/dashboard/phone-esim");
+  expect(screen.getByRole("link", { name: "Back to countries" })).toHaveAttribute("href", "/dashboard/phone-esim");
 });
 
 it("asks for IMEI and EID where MeiSIM does, then adds one line to the cart", async () => {

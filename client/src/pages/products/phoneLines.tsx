@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+import { Button } from '@/components/ui/button';
 
 // MeiSIM phone-number lines (US and UK), shown the way MeiSIM's own plan cards and plan
 // window show them: the same pills, description, details and requirements, with our
@@ -152,9 +156,10 @@ export function CarrierLogo({ carrier, className = 'h-10 w-24' }: { carrier: str
   );
 }
 
-const flagUrl = (country: LineCountry, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
+const flagUrl = (country: string, width: number) => `https://flagcdn.com/w${width}/${country.toLowerCase()}.png`;
 
-export function CountryFlag({ country, className = 'h-[30px] w-10' }: { country: LineCountry; className?: string }) {
+// Any ISO country code (flagcdn.com, as used elsewhere in the app).
+export function CountryFlag({ country, className = 'h-[30px] w-10' }: { country: string; className?: string }) {
   return (
     <img
       src={flagUrl(country, 80)}
@@ -228,3 +233,14 @@ export const filterGroups = (country: LineCountry, plans: USAESIMPlan[]): { id: 
     .map((group) => ({ ...group, options: group.options.filter((option) => plans.some(option.test)) }))
     .filter((group) => group.options.length > 1 || (group.id === 'intl' && group.options.length === 1));
 };
+
+// Back navigation for the eSIM steps: a real button (with an arrow), routing on the
+// customer dashboard and switching tabs in the reseller and admin views.
+export function BackButton({ label, to, onBack }: { label: string; to: string; onBack?: () => void }) {
+  const content = (<><ArrowLeft aria-hidden="true" className="h-4 w-4" />{label}</>);
+  return onBack ? (
+    <Button type="button" variant="outline" onClick={onBack} className="mb-5 gap-2 rounded-full">{content}</Button>
+  ) : (
+    <Button asChild variant="outline" className="mb-5 gap-2 rounded-full"><Link to={to}>{content}</Link></Button>
+  );
+}

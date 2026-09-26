@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import api from '../../services/api';
 import {
+  BackButton,
   CARRIER_LOGOS,
   COUNTRIES,
   CarrierLogo,
@@ -45,11 +46,7 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
   return (
     <div className="w-full space-y-7">
       <header>
-        {onBack ? (
-          <button type="button" onClick={onBack} className="mb-4 rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</button>
-        ) : (
-          <Link to="/dashboard/esim" className="mb-4 inline-block rounded py-2 text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All eSIM services</Link>
-        )}
+        <BackButton label="Back to eSIM services" to="/dashboard/esim" onBack={onBack} />
         <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
         <p className="mt-3 text-base leading-7 text-muted-foreground">Choose the country for your phone number. Each line comes with calls, texts and data and is activated on one phone.</p>
       </header>
