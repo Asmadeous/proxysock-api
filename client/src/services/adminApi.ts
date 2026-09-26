@@ -341,3 +341,11 @@ export const executeDatabaseQuery = (query: string) =>
     adminApi.post("/database/query", { query });
 
 export default adminApi;
+
+// ── eSIM Top-ups ──────────────────────────────────
+export const fetchEsimTopups = (params?: Record<string, string>) =>
+    adminApi.get("/esim_topups", { params });
+export const completeEsimTopup = (id: string, note?: string) =>
+    adminApi.patch(`/esim_topups/${id}/complete`, { note });
+export const cancelEsimTopup = (id: string, note?: string) =>
+    adminApi.patch(`/esim_topups/${id}/cancel`, { note });

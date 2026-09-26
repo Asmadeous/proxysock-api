@@ -38,6 +38,10 @@ rexpay_reconciliation:
   cron: "*/5 * * * *"   # Every 5 minutes — fallback poller for RexPay (no webhook)
   class: "RexpayReconciliationJob"
 
+esim_topup_renewal:
+  cron: "15 * * * *"   # Hourly — charges monthly eSIM auto top-ups that are due
+  class: "EsimTopupRenewalJob"
+
 meisim_catalog_sync:
   cron: "30 4 * * *"   # Every day at 4:30 AM
   class: "MeisimCatalogSyncJob"

@@ -44,6 +44,10 @@ Rails.application.routes.draw do
           post :refund
           post :reorder
           post :update_subscription
+          get :topups, to: 'esim_topups#index'
+          post :topups, to: 'esim_topups#create'
+          post :topup_subscription, to: 'esim_topups#subscribe'
+          delete :topup_subscription, to: 'esim_topups#unsubscribe'
         end
       end
 
@@ -176,6 +180,10 @@ Rails.application.routes.draw do
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
           post :claim_crypto_refund
+          get :topups, to: 'esim_topups#index'
+          post :topups, to: 'esim_topups#create'
+          post :topup_subscription, to: 'esim_topups#subscribe'
+          delete :topup_subscription, to: 'esim_topups#unsubscribe'
         end
       end
       resource :wallet, only: [:show] do
@@ -365,6 +373,12 @@ Rails.application.routes.draw do
       end
       resources :affiliate_payouts, only: %i[index show] do
         patch :process_payout, on: :member
+      end
+      resources :esim_topups, only: [:index] do
+        member do
+          patch :complete
+          patch :cancel
+        end
       end
 
       # Promo Codes management

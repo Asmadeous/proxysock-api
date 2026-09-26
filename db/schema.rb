@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_26_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -325,6 +325,47 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.index ["provider_order_no"], name: "index_esim_orders_on_provider_order_no"
+  end
+
+  create_table "esim_topup_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "order_id", null: false
+    t.string "orderable_type", null: false
+    t.uuid "orderable_id", null: false
+    t.decimal "topup_value", precision: 10, scale: 2, null: false
+    t.decimal "price", precision: 10, scale: 2, null: false
+    t.string "status", default: "active", null: false
+    t.datetime "next_charge_at", null: false
+    t.datetime "last_charged_at"
+    t.datetime "cancelled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_esim_topup_subscriptions_on_order_id"
+    t.index ["order_id"], name: "index_esim_topup_subscriptions_one_live_per_order", unique: true, where: "((status)::text <> 'cancelled'::text)"
+    t.index ["orderable_type", "orderable_id"], name: "index_esim_topup_subscriptions_on_orderable"
+    t.index ["status", "next_charge_at"], name: "index_esim_topup_subscriptions_on_status_and_next_charge_at"
+  end
+
+  create_table "esim_topups", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "order_id", null: false
+    t.string "orderable_type", null: false
+    t.uuid "orderable_id", null: false
+    t.uuid "esim_topup_subscription_id"
+    t.uuid "charge_transaction_id"
+    t.decimal "topup_value", precision: 10, scale: 2, null: false
+    t.decimal "price", precision: 10, scale: 2, null: false
+    t.string "status", default: "pending", null: false
+    t.string "reference", null: false
+    t.text "admin_note"
+    t.datetime "completed_at"
+    t.datetime "cancelled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["charge_transaction_id"], name: "index_esim_topups_on_charge_transaction_id"
+    t.index ["esim_topup_subscription_id"], name: "index_esim_topups_on_esim_topup_subscription_id"
+    t.index ["order_id"], name: "index_esim_topups_on_order_id"
+    t.index ["orderable_type", "orderable_id"], name: "index_esim_topups_on_orderable"
+    t.index ["reference"], name: "index_esim_topups_on_reference", unique: true
+    t.index ["status"], name: "index_esim_topups_on_status"
   end
 
   create_table "esims", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1374,6 +1415,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
   add_foreign_key "ecommerce_orders", "users"
   add_foreign_key "employees", "departments"
   add_foreign_key "esim_orders", "orders"
+  add_foreign_key "esim_topup_subscriptions", "orders"
+  add_foreign_key "esim_topups", "esim_topup_subscriptions"
+  add_foreign_key "esim_topups", "orders"
+  add_foreign_key "esim_topups", "transactions", column: "charge_transaction_id"
   add_foreign_key "esims", "esim_orders"
   add_foreign_key "guest_chat_messages", "guest_chats"
   add_foreign_key "guest_chats", "employees", column: "assigned_to_id"

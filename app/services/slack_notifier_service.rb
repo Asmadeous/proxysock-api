@@ -21,7 +21,8 @@ class SlackNotifierService
     ticket_reply: :support,
     guest_chat_message: :support,
     support_chat_message: :support,
-    provisioning_failed: :alerts
+    provisioning_failed: :alerts,
+    esim_topup_requested: :alerts
   }.freeze
 
   class << self
@@ -85,6 +86,7 @@ class SlackNotifierService
       when :guest_chat_message  then guest_chat_blocks(record)
       when :support_chat_message then support_chat_blocks(record)
       when :provisioning_failed then provisioning_failure_blocks(record, **opts)
+      when :esim_topup_requested then esim_topup_blocks(record)
       end
     end
 
@@ -101,6 +103,8 @@ class SlackNotifierService
         '💬 Support chat message'
       when :provisioning_failed
         "🚨 Provisioning failed: Order ##{record.order_number}"
+      when :esim_topup_requested
+        "📲 eSIM top-up to apply: $#{record.topup_value.to_i} on order ##{record.order.order_number} (#{record.reference})"
       end
     end
 
@@ -208,6 +212,29 @@ class SlackNotifierService
     end
 
     # ─── Provisioning Failure ───────────────────────────────
+
+    # A paid top-up staff must apply by hand in the MeiSIM portal.
+    def esim_topup_blocks(topup)
+      order = topup.order
+      esim = order.esim_order&.esims&.first
+      owner = topup.orderable
+      kind = topup.esim_topup_subscription_id ? 'Monthly auto top-up' : 'One-time top-up'
+      [
+        { type: 'header', text: { type: 'plain_text', text: '📲 eSIM top-up to apply', emoji: true } },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: "*Credit to add:*\n$#{format('%.2f', topup.topup_value)}" },
+            { type: 'mrkdwn', text: "*Paid:*\n$#{format('%.2f', topup.price)} (#{kind})" },
+            { type: 'mrkdwn', text: "*Line:*\n#{order.product&.name}" },
+            { type: 'mrkdwn', text: "*Phone number:*\n#{esim&.msisdn.presence || 'not on file'}" },
+            { type: 'mrkdwn', text: "*ICCID:*\n#{esim&.iccid.presence || 'not on file'}" },
+            { type: 'mrkdwn', text: "*Customer:*\n#{owner.try(:email) || owner&.id}" }
+          ]
+        },
+        { type: 'context', elements: [{ type: 'mrkdwn', text: "Order `#{order.order_number}` • #{topup.reference} • apply in the MeiSIM portal, then mark it done in the admin panel" }] }
+      ]
+    end
 
     def provisioning_failure_blocks(order, **opts)
       error_msg = opts[:error] || 'Unknown error'

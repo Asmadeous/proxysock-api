@@ -1,0 +1,19 @@
+<h1 style="font-size: 22px; margin-bottom: 16px; color: #000000;">eSIM top-up to apply</h1>
+
+<p style="margin-bottom: 20px;">A customer paid for a top-up. Apply it in the MeiSIM portal, then mark it done in the admin panel (eSIM top-ups).</p>
+
+<div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
+  <% [
+       ['Reference', @topup.reference],
+       ['Type', @topup.esim_topup_subscription_id ? 'Monthly auto top-up' : 'One-time top-up'],
+       ['Credit to add', "$#{format('%.2f', @topup.topup_value)}"],
+       ['Customer paid', "$#{format('%.2f', @topup.price)}"],
+       ['Line', @order.product&.name],
+       ['Order', @order.order_number],
+       ['Phone number', @esim&.msisdn.presence || 'not on file'],
+       ['ICCID', @esim&.iccid.presence || 'not on file'],
+       ['Customer', @owner.try(:email) || @owner&.id]
+     ].each do |label, value| %>
+    <p style="margin: 0 0 10px;"><strong><%= label %>:</strong> <%= value %></p>
+  <% end %>
+</div>

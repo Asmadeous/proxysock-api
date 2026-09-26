@@ -23,6 +23,7 @@ import {
   Filter,
   ArrowLeft,
   MessageSquare,
+  PlusCircle,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -47,6 +48,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import EsimTopupDialog from "./EsimTopupDialog";
+
 interface ESIMOrder {
   id: string;
   order_number: string;
@@ -70,6 +73,8 @@ interface ESIMOrder {
   credentials_list?: any[];
   // True while support confirms an order whose provider outcome was unknown.
   review_pending?: boolean;
+  // Active MeiSIM phone-number line that can be topped up.
+  topup_eligible?: boolean;
   metadata?: Record<string, any>;
   // Related profile data
   profiles?: {
@@ -92,6 +97,7 @@ const ESIMOrdersPage = () => {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "esim" | "usa_esim">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<ESIMOrder | null>(null);
+  const [topupOrder, setTopupOrder] = useState<ESIMOrder | null>(null);
   const { accessToken } = useAuth();
 
   // Stats
@@ -739,7 +745,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       {["delivered", "allocated", "completed", "active"].includes(order.status) && (
                         <>
                           <Button
@@ -751,7 +757,17 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                             Details
                           </Button>
 
-                          {order.reorderable && (
+                          {order.topup_eligible && (
+                            <Button
+                              onClick={() => setTopupOrder(order)}
+                              className="order-last basis-full gap-2"
+                            >
+                              <PlusCircle className="h-4 w-4" />
+                              Top up
+                            </Button>
+                          )}
+
+                          {order.reorderable && !order.topup_eligible && (
                             <Button
                               onClick={() => handleReorder(order.id)}
                               className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
@@ -802,6 +818,15 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
             );
           })}
         </div>
+      )}
+
+      {topupOrder && (
+        <EsimTopupDialog
+          orderId={topupOrder.id}
+          lineName={topupOrder.package_name || topupOrder.product_name || "Phone-number line"}
+          open={!!topupOrder}
+          onOpenChange={(open) => !open && setTopupOrder(null)}
+        />
       )}
 
       {/* Order Details Modal */}
