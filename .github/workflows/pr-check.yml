@@ -118,7 +118,7 @@ jobs:
         run: |
           bin/rails db:create
           bin/rails db:migrate
-          bin/rails db:rollback STEP=5
+          bin/rails db:rollback:primary STEP=5
           bin/rails db:migrate
         env:
           RAILS_ENV: test
