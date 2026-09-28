@@ -3,6 +3,8 @@
 class Order < ApplicationRecord
   belongs_to :orderable, polymorphic: true, optional: true # ResellOrder or EcommerceOrder (optional for direct orders)
   has_many :reseller_orders, dependent: :destroy
+  has_many :esim_topups, dependent: :restrict_with_error
+  has_many :esim_topup_subscriptions, dependent: :restrict_with_error
 
   # Active Storage attachment for VPN OVPN config files
   has_one_attached :ovpn_config

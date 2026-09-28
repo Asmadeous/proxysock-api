@@ -531,6 +531,7 @@ module Api
           auto_renew: !order.metadata.to_h['auto_renew'].nil?,
           renewal_method: order.metadata.to_h['renewal_method'] || 'wallet',
           resource_status: resource&.status,
+          topup_eligible: EsimTopupService.eligible?(order),
           # Conditional attributes based on resource availability
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
           expires_at: resource.try(:expires_at) || order.metadata.to_h['expires_at'],

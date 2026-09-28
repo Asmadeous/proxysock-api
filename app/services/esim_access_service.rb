@@ -17,15 +17,17 @@ class EsimAccessService
   end
 
   # Place an order for eSIM profiles.
-  # Endpoint: POST /order/profiles
-  # Required body fields: transactionId, packageInfoList[{ packageCode, count, price }]
-  def order_esim(package_code, count = 1, price = 0)
+  # Endpoint: POST /esim/order
+  # Body: transactionId, packageInfoList[{ packageCode, count, price (optional) }]
+  # The price check is optional; when a price is sent, eSIM Access rejects any that
+  # differs from theirs (200005), so it is only sent when the caller knows it.
+  def order_esim(package_code, count = 1, price = nil)
     transaction_id = SecureRandom.hex(16) # Unique reference per call
+    package = { packageCode: package_code, count: count }
+    package[:price] = price if price
     body = {
       transactionId: transaction_id,
-      packageInfoList: [
-        { packageCode: package_code, count: count, price: price }
-      ]
+      packageInfoList: [package]
     }
     response = request(:post, '/esim/order', body)
 

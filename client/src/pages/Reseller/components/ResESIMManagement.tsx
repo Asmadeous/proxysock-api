@@ -6,7 +6,8 @@ import {
     SignalIcon,
     ClipboardDocumentIcon,
 } from "@heroicons/react/24/outline";
-import { fetchResellerOrders } from "@/services/resellerApi";
+import resellerApi, { fetchResellerOrders } from "@/services/resellerApi";
+import EsimTopupDialog from "../../UserDashboard/EsimTopupDialog";
 import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,9 @@ interface ESIMProfile {
     activation_code: string;
     esim_status: string;
     expires_at: string;
+    order_id: string;
+    // Active MeiSIM phone-number line that can be topped up.
+    topup_eligible: boolean;
 }
 
 export default function ResESIMManagement() {
@@ -30,6 +34,7 @@ export default function ResESIMManagement() {
     const [productTypeFilter, setProductTypeFilter] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [_showActivation, _setShowActivation] = useState<{ [key: string]: boolean }>({});
+    const [topupProfile, setTopupProfile] = useState<ESIMProfile | null>(null);
 
     useEffect(() => {
         fetchProfiles();
@@ -41,8 +46,10 @@ export default function ResESIMManagement() {
             const response = await fetchResellerOrders({ product_type: 'esim,usa_esim' });
             if (response.data && response.data.orders) {
                 const transformed = response.data.orders.flatMap((order: any) => {
-                    const credentials = order.credentials_list || [order.credentials];
-                    return credentials.filter(Boolean).map((cred: any, index: number) => ({
+                    // The reseller order list carries no credentials, so every order still gets a card.
+                    const found = (order.credentials_list || [order.credentials]).filter(Boolean);
+                    const credentials = found.length ? found : [{}];
+                    return credentials.map((cred: any, index: number) => ({
                         id: `${order.id}-${index}`,
                         iccid: cred.iccid || '',
                         product_type: order.product_type || 'esim',
@@ -54,6 +61,8 @@ export default function ResESIMManagement() {
                         activation_code: cred.activation_code || cred.qr_activation_code || '',
                         esim_status: order.status,
                         expires_at: order.expires_at,
+                        order_id: order.id,
+                        topup_eligible: order.topup_eligible === true,
                     }));
                 });
                 setProfiles(transformed);
@@ -148,10 +157,29 @@ export default function ResESIMManagement() {
 
                         <div className="flex gap-2">
                             <button className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">View QR</button>
+                            {p.topup_eligible && (
+                                <button
+                                    onClick={() => setTopupProfile(p)}
+                                    className="flex-1 py-2 rounded-lg border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10"
+                                >
+                                    Top up
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 ))}
             </div>
+
+            {topupProfile && (
+                <EsimTopupDialog
+                    orderId={topupProfile.order_id}
+                    lineName={topupProfile.package_name}
+                    open={!!topupProfile}
+                    onOpenChange={(open) => !open && setTopupProfile(null)}
+                    client={resellerApi}
+                    ordersPath="/orders"
+                />
+            )}
         </div>
     );
 }

@@ -1006,6 +1006,7 @@ module Web
           renewal_method: resource.try(:metadata)&.dig('renewal_method') || order.metadata['payment_debug'] || order.metadata['renewal_method'] || 'wallet',
           metadata: order.metadata.except(*INTERNAL_ORDER_METADATA_KEYS).merge(order.product.public_metadata),
           review_pending: order.metadata['meisim_review_required'] == true,
+          topup_eligible: EsimTopupService.eligible?(order),
           duration: order.product_pricing&.duration_value ? (order.product_pricing.duration_value / 30.0).ceil : 1,
           transaction_id: order.metadata&.dig('transaction_id') || order.id
         }

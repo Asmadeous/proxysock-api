@@ -11,6 +11,7 @@ import {
 import { fetchAdminOrders } from "@/services/adminApi";
 import { toast } from "react-hot-toast";
 import ManagementFilters from "../components/ManagementFilters";
+import EsimTopupQueue from "../components/EsimTopupQueue";
 
 interface ESIMProfile {
     id: string;
@@ -115,6 +116,8 @@ export default function AdminESIMManagement() {
                     </select>
                 </div>
             </div>
+
+            <EsimTopupQueue />
 
             {loading ? (
                 <div className="p-8 text-center animate-pulse text-muted-foreground">Loading eSIMs...</div>
