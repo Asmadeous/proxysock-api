@@ -363,6 +363,7 @@ module Admin
           created_at: o.created_at,
           updated_at: o.updated_at
         }
+        data.merge!(o.esim_order.listing_details(provider_qr: true)) if o.product&.product_type == 'esim' && o.esim_order
         if full
           data[:order_number]     = o.order_number
           data[:currency]         = o.currency

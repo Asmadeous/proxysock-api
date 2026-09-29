@@ -71,6 +71,8 @@ interface RDPOrder {
   activated_at: string;
   ip_address: string;
   dns_name?: string;
+  username?: string;
+  password?: string;
   rdp_port: number;
   // Related plan data
   plan?: {
@@ -266,6 +268,8 @@ Network Information
 ==================
 Subdomain: ${order.dns_name || 'Generating...'}
 RDP Port: ${order.rdp_port || '3389'}
+Username: ${order.username || 'N/A'}
+Password: ${order.password || 'N/A'}
 
 Billing
 =======
@@ -894,6 +898,14 @@ Payment Method: ${order.payment_method || 'N/A'}
                       <div>
                         <span className="text-muted-foreground text-sm">RDP Port</span>
                         <p className="font-medium mt-1">{selectedOrder.rdp_port || '3389'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-sm">Username</span>
+                        <p className="font-mono font-medium mt-1 break-all">{selectedOrder.username || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-sm">Password</span>
+                        <p className="font-mono font-medium mt-1 break-all">{selectedOrder.password || 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>

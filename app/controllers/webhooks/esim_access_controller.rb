@@ -54,30 +54,12 @@ module Webhooks
       esim_order = find_esim_order(order_no)
       return unless esim_order
 
-      # Don't re-process already completed orders
-      return if %w[completed active].include?(esim_order.status)
-
-      # Fetch the full profile list from eSIM Access API by orderNo
+      # Saves the profiles, completes the order and sends the credentials (once, even if
+      # EsimAccessPollingJob gets there first).
       begin
-        client = EsimAccessService.new
-        profiles = client.fetch_profiles_by_order(order_no)
-
-        if profiles.blank?
-          Rails.logger.warn("[EsimAccess Webhook] No profiles returned for orderNo: #{order_no}")
-          return
+        unless EsimAccessFulfillmentService.new(esim_order).fulfill!
+          Rails.logger.warn("[EsimAccess Webhook] Profiles not allocated yet for orderNo: #{order_no}")
         end
-
-        # Create Esim records for each profile
-        profiles.each do |profile|
-          create_esim_from_profile(esim_order, profile)
-        end
-
-        # Mark order as completed/active
-        esim_order.update!(status: 'completed')
-        esim_order.order&.update!(status: 'active')
-
-        # Send credentials to the user/reseller
-        deliver_credentials(esim_order)
       rescue StandardError => e
         Rails.logger.error("[EsimAccess Webhook] Failed to process ORDER_STATUS for #{order_no}: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
@@ -200,95 +182,6 @@ module Webhooks
       esim = Esim.find_by(iccid: iccid) if iccid.present?
       esim ||= Esim.find_by(esimaccess_esim_tran_no: esim_tran_no) if esim_tran_no.present?
       esim
-    end
-
-    def create_esim_from_profile(esim_order, profile)
-      iccid = profile['iccid']
-      return if iccid.blank?
-
-      Esim.find_or_create_by(iccid: iccid) do |esim|
-        esim.esim_order = esim_order
-        esim.esim_provider = 'esim_access'
-        esim.smdp_status = profile['smdpStatus'] || 'RELEASED'
-        esim.esim_status = profile['esimStatus'] || 'GOT_RESOURCE'
-        esim.status = 'active'
-        esim.has_phone_number = false
-
-        # eSIM Access profile data
-        esim.iccid = iccid
-        esim.imsi = profile['imsi']
-        esim.msisdn = profile['msisdn']
-        esim.eid = profile['eid']
-        esim.qr_code_url = profile['qrCodeUrl']
-        esim.qr_code_data = profile['ac'] # The LPA activation code string
-        esim.activation_code = profile['ac']
-        esim.esimaccess_esim_tran_no = profile['esimTranNo']
-        esim.esimaccess_order_no = profile['orderNo']
-        esim.esimaccess_transaction_id = esim_order.api_response.is_a?(Hash) ? esim_order.api_response['transactionId'] : nil
-        esim.data_total_bytes = profile['totalVolume']
-        esim.expires_at = profile['expiredTime'].present? ? Time.parse(profile['expiredTime']) : esim_order.duration_days&.days&.from_now
-      end
-    end
-
-    def deliver_credentials(esim_order)
-      order = esim_order.order
-      return unless order
-
-      owner = order.orderable
-      return unless owner
-
-      # Send email for each eSIM profile
-      esim_order.esims.reload.each do |esim|
-        saved_esim = esim
-        saved_owner = owner
-        ActiveRecord.after_all_transactions_commit do
-          EsimMailer.with(
-            user: saved_owner,
-            esim: saved_esim
-          ).delivery_email.deliver_later
-        end
-      end
-
-      # If the owner is a reseller, also dispatch via their webhook endpoints
-      if owner.is_a?(Reseller)
-        credentials_payload = build_credentials_payload(esim_order)
-        saved_owner_id = owner.id
-        saved_payload = credentials_payload
-        ActiveRecord.after_all_transactions_commit do
-          WebhookDispatchWorker.perform_later(saved_owner_id, 'credentials.ready', saved_payload)
-        end
-      end
-
-      # Create in-app notification
-      Notification.create(
-        recipient: owner,
-        category: 'success',
-        title: "eSIM Ready - Order ##{order.order_number}",
-        message: "Your eSIM for order ##{order.order_number} is now ready for installation. Check your email for QR code and setup instructions."
-      )
-    end
-
-    def build_credentials_payload(esim_order)
-      order = esim_order.order
-      {
-        event: 'credentials.ready',
-        order_id: order.id,
-        order_number: order.order_number,
-        product_type: 'esim',
-        provider: 'esim_access',
-        esims: esim_order.esims.map do |esim|
-          {
-            iccid: esim.iccid,
-            imsi: esim.imsi,
-            qr_code_url: esim.qr_code_url,
-            activation_code: esim.activation_code,
-            smdp_status: esim.smdp_status,
-            esim_status: esim.esim_status,
-            expires_at: esim.expires_at&.iso8601,
-            data_total_bytes: esim.data_total_bytes
-          }
-        end
-      }
     end
 
     def log_webhook(data)

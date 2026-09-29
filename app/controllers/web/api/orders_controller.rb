@@ -15,8 +15,7 @@ module Web
         if params[:product_type].present?
           types = params[:product_type].split(',')
           if types.include?('proxy')
-            proxy_types = %w[proxy datacenter isp static_residential residential_rotating premium_isp mobile global_isp]
-            types = (types - ['proxy'] + proxy_types).uniq
+            types = (types - ['proxy'] + Product::PROXY_TYPES).uniq
           end
           scope = scope.joins(:product).where(products: { product_type: types })
         end
@@ -553,7 +552,7 @@ module Web
             ssh_port: vm&.ssh_port || 22,
             status: vm&.status
           }
-        when 'proxy'
+        when *Product::PROXY_TYPES
           service = ProxyManagementService.new(order)
           creds = service.credentials
           if creds
@@ -581,17 +580,17 @@ module Web
             puk1: esim&.puk1
           }
         when 'vpn'
-          if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
-            api_res = order.metadata['my_proxy_api_response']
+          details = ProxyManagementService.vpn_details(order) if order.product.provider_type == 'myproxyapi'
+          if details
             render json: {
               type: 'vpn',
-              server: api_res['server'] || api_res['ip'] || api_res['host'],
-              protocol: api_res['protocol'] || 'VPN',
-              username: api_res['username'],
-              password: api_res['password']
+              server: details[:server],
+              protocol: details[:protocol] || 'VPN',
+              username: details[:username],
+              password: details[:password]
             }
           else
-            vpn = order.vpn_account
+            vpn = order.vpn_accounts.first
             render json: {
               type: 'vpn',
               server: vpn&.server,
@@ -985,7 +984,8 @@ module Web
           product_id: order.product_id,
           product_name: order.product_display_name,
           product_type: order.product.product_type,
-          proxy_type: order.product.product_category&.slug,
+          # Proxy pages expect the proxy type ("global-isp"); other products keep their category.
+          proxy_type: order.product.proxy? ? order.product.product_type.dasherize : order.product.product_category&.slug,
           country: order.product.metadata&.dig('location_name') || order.product.metadata&.dig('location_code'),
           bandwidth_gb: order.product.metadata&.dig('data_gb') || 0,
           ips_included: order.product.metadata&.dig('ips_included') || 0,
@@ -1013,35 +1013,16 @@ module Web
 
         # Include product-specific details
         case order.product.product_type
-        when 'proxy'
-          if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
-            api_res = order.metadata['my_proxy_api_response']
-            base[:proxy_details] = api_res
-
-            # Handle both single record and multiple records (array)
-            records = api_res.is_a?(Array) ? api_res : [api_res]
-            first_rec = records.first || {}
-
-            # Extract from nested view-order structure if present
-            # { order: {}, ips: [...], config: { auth_user_pass: {} } }
-            auth = first_rec.dig('config', 'auth_user_pass') || {}
-
-            all_ips = records.flat_map do |rec|
-              rec['ips'] || [rec['ip']].compact
-            end.uniq
-
-            all_ips_info = records.flat_map do |rec|
-              rec['ips_info'] || []
-            end
-
-            base[:credentials] = {
-              username: auth['username'] || first_rec['username'],
-              password: auth['password'] || first_rec['password'],
-              endpoints: all_ips
-            }
-            base[:ips_info] = all_ips_info
-            # Extract expiry from nested order details
-            base[:expires_at] ||= first_rec.dig('order', 'end_time') || first_rec['expires_at']
+        when *Product::PROXY_TYPES
+          details = ProxyManagementService.connection_details(order) if order.product.provider_type == 'myproxyapi'
+          if details
+            first_rec = Array.wrap(order.metadata['my_proxy_api_response']).first || {}
+            base[:proxy_details] = details.slice(:protocol, :whitelist_ips, :locations)
+            # The page reads traffic used in bytes and the allowance in GB.
+            base[:proxy_details][:traffic_used] = (details[:traffic_used_gb].to_f * 1.gigabyte).round if details[:traffic_used_gb]
+            base[:bandwidth_gb] = details[:traffic_limit_gb] if details[:traffic_limit_gb].to_f.positive? && base[:bandwidth_gb].to_f.zero?
+            base[:credentials] = details.slice(:username, :password, :endpoints)
+            base[:country] = details[:locations].first if base[:country].blank?
             base[:provider_order_id] = first_rec.dig('order', 'order_id') || first_rec.dig('data', 'order_id') || first_rec['order_id']
           else
             base[:proxy_details] = resource&.as_json || {}
@@ -1052,18 +1033,14 @@ module Web
             }
           end
         when 'vpn'
-          if order.product.provider_type == 'myproxyapi' && order.metadata['my_proxy_api_response'].present?
+          vpn = ProxyManagementService.vpn_details(order) if order.product.provider_type == 'myproxyapi'
+          if vpn
             api_res = order.metadata['my_proxy_api_response']
-            base[:vpn_details] = api_res
-            auth = api_res.dig('config', 'auth_user_pass') || {}
-            ips = api_res['ips'] || []
-            base[:credentials] = {
-              username: auth['username'] || api_res['username'],
-              password: auth['password'] || api_res['password'],
-              server: ips.first&.split(':')&.first || api_res['server'] || api_res['ip'] || api_res['host'],
-              endpoints: ips
-            }
-            base[:expires_at] ||= api_res.dig('order', 'end_time')
+            base[:vpn_details] = vpn.slice(:protocol, :locations)
+            base[:credentials] = vpn.slice(:username, :password, :server, :endpoints)
+            base[:country] = vpn[:locations].first if base[:country].blank?
+            # The provider's end time is the real expiry; the base value is only a fallback.
+            base[:expires_at] = vpn[:expires_at] if vpn[:expires_at] && resource.try(:expires_at).blank? && order.expires_at.blank?
             base[:provider_order_id] = api_res.dig('order', 'order_id') || api_res.dig('data', 'order_id')
           else
             base[:vpn_details] = resource&.as_json || {}
@@ -1083,7 +1060,8 @@ module Web
           base[:management_type] = 'unmanaged'
           base[:ip_address] = resource&.ip_address
           base[:dns_name] = resource&.dns_name
-          base[:ssh_port] = resource&.ssh_port || 22
+          # A VM reached over RDP has no SSH port; don't advertise a default one.
+          base[:ssh_port] = resource&.ssh_port || (resource&.rdp_port ? nil : 22)
           base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)
           base[:concurrent_users] = order.product.metadata&.dig('concurrent_users') || 1
           base[:activated_at] = resource&.try(:provisioned_at) || resource&.created_at
@@ -1093,6 +1071,8 @@ module Web
             ip: resource&.try(:ip_address),
             port: resource&.try(:ssh_port) || resource&.try(:rdp_port) || 22
           }
+          base[:username] = base[:credentials][:username]
+          base[:password] = base[:credentials][:password]
         when 'esim'
           base[:esim_order_no] = resource&.provider_order_no
           base[:package_code] = resource&.package_code
@@ -1105,14 +1085,20 @@ module Web
               id: esim.id,
               iccid: esim.iccid,
               qr_code_data: esim.qr_code_data,
-              qr_code_url: esim.qr_code_data,
+              # The page draws the QR from the activation code; MeiSIM's own image link
+              # is not passed on, so customers never see the provider.
+              qr_code_url: (esim.qr_code_url unless esim.esim_provider == 'meisim'),
               activation_code: esim.activation_code,
+              install_links: esim.install_links,
               phone_number: esim.msisdn,
               pin1: esim.pin1,
               puk1: esim.puk1,
               total_volume: (esim.data_total_bytes.to_i / (1024 * 1024)).to_i, # MB
               used_volume: (esim.data_used_bytes.to_i / (1024 * 1024)).to_i,
+              data_label: esim.data_label,
               location_name: resource.country_code || 'Global',
+              # eSIMs without a fixed expiry run for this many days from activation.
+              validity_days: resource.duration_days,
               expired_time: esim.expires_at,
               status: esim.status
             }

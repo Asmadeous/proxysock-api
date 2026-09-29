@@ -52,8 +52,6 @@ class EsimProvisioningService
     # EsimAccessWebhookJob / polling is responsible for transitioning to 'active'.
     @order.update!(status: 'processing', provider_order_id: result['orderNo'])
 
-    # Schedule a polling job to check provisioning status and activate when ready.
-    # This is a safety net in case the webhook is missed.
-    EsimAccessPollingJob.perform_in(5.minutes, @order.id) if defined?(EsimAccessPollingJob)
+    # EsimAccessOrderPollJob completes the order if the webhook is missed.
   end
 end

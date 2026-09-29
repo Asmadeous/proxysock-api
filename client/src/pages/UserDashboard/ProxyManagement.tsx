@@ -134,7 +134,7 @@ export default function ProxyManagement() {
           product_name: order.product_name,
           product_type: order.proxy_type || 'datacenter',
           status: (order.status === 'completed' || order.status === 'active') ? 'active' : order.status,
-          period: 1, // To do, extract period appropriately
+          period: Number(order.metadata?.period) || order.duration || 1,
           protocol: order.proxy_details?.protocol || 'http',
           locations: order.country ? [order.country] : [],
           credentials: order.credentials || {},
@@ -186,7 +186,9 @@ export default function ProxyManagement() {
       'almost-expired': { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
       expired: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon },
       pending: { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
-      cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon }
+      cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
+      refunded: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
+      failed: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
@@ -342,6 +344,8 @@ export default function ProxyManagement() {
                   </div>
                 </div>
 
+                {/* Refunded, cancelled, failed and expired proxies have no usable credentials. */}
+                {!['refunded', 'cancelled', 'failed', 'expired'].includes(String(selectedOrder.status)) && (
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
@@ -360,6 +364,7 @@ export default function ProxyManagement() {
                     Manage Whitelist
                   </button>
                 </div>
+                )}
               </div>
             )}
 

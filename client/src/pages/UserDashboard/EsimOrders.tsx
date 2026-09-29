@@ -26,7 +26,10 @@ import {
   PlusCircle,
 } from "lucide-react";
 
+import { QRCodeSVG } from "qrcode.react";
+
 import { useAuth } from "../../context/AuthContext";
+import { countryName } from "@/hooks/useESIMPackages";
 import api from "../../services/api";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,16 +80,36 @@ interface ESIMOrder {
   topup_eligible?: boolean;
   metadata?: Record<string, any>;
   // Related profile data
-  profiles?: {
-    iccid: string;
-    qr_code_url: string;
-    activation_code: string;
-    phone_number?: string | null;
-    total_volume: number;
-    location_name: string;
-    expired_time: string;
-  }[];
+  profiles?: EsimProfile[];
 }
+
+interface EsimProfile {
+  iccid: string;
+  qr_code_url: string | null;
+  activation_code: string;
+  install_links?: { ios?: string; android?: string };
+  phone_number?: string | null;
+  total_volume: number;
+  data_label?: string | null;
+  location_name: string;
+  validity_days?: number | null;
+  expired_time: string | null;
+}
+
+// The plan's allowance: its own wording ("Unlimited", "1000 MB") or the recorded amount.
+const profileData = (p: EsimProfile) =>
+  p.data_label || (p.total_volume ? `${Math.round((p.total_volume / 1024) * 100) / 100} GB` : "N/A");
+
+// Plans without a fixed expiry date start their validity when the eSIM is activated.
+const profileExpiry = (p: EsimProfile) =>
+  p.expired_time
+    ? new Date(p.expired_time).toLocaleDateString()
+    : p.validity_days
+      ? `Valid ${p.validity_days} days from activation`
+      : "No expiry";
+
+const profileLocation = (code?: string | null) =>
+  !code || code.toLowerCase() === "global" ? "Global" : /^[A-Za-z]{2}$/.test(code) ? countryName(code.toUpperCase()) : code;
 
 const ESIMOrdersPage = () => {
   const navigate = useNavigate();
@@ -279,10 +302,10 @@ ${order.profiles
 eSIM Profile ${index + 1}
 ==============
 ICCID: ${profile.iccid}${profile.phone_number ? `\nPhone number: ${profile.phone_number}` : ""}
-Location: ${profile.location_name}
-Data: ${profile.total_volume} MB
+Location: ${profileLocation(profile.location_name)}
+Data: ${profileData(profile)}
 Activation Code: ${profile.activation_code}
-Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateString() : "No expiry"}
+Expires: ${profileExpiry(profile)}
 `
         )
         .join("\n") || "No profiles available"}
@@ -688,9 +711,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                           Data
                         </span>
                         <span className="font-medium">
-                          {order.profiles?.[0]?.total_volume
-                            ? `${Math.round(order.profiles[0].total_volume / 1024)} GB`
-                            : "N/A"}
+                          {order.profiles?.[0] ? profileData(order.profiles[0]) : "N/A"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
@@ -699,7 +720,7 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                           Location
                         </span>
                         <span className="font-medium">
-                          {order.profiles?.[0]?.location_name || "Global"}
+                          {profileLocation(order.profiles?.[0]?.location_name)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
@@ -904,12 +925,30 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                             <span className="text-sm text-muted-foreground">
                               Profile {index + 1}
                             </span>
-                            {profile.qr_code_url && (
-                              <Badge variant="outline" className="text-xs">
-                                QR Code Available
-                              </Badge>
-                            )}
                           </div>
+                          {profile.activation_code?.startsWith("LPA:") && (
+                            <div className="flex flex-col items-center gap-3 py-2">
+                              {/* White quiet zone so phones can scan it in dark mode too. */}
+                              <div className="rounded-lg bg-white p-3">
+                                <QRCodeSVG value={profile.activation_code} size={180} aria-label="eSIM installation QR code" />
+                              </div>
+                              <p className="text-xs text-muted-foreground text-center">
+                                Scan with your phone's camera, or install directly:
+                              </p>
+                              <div className="flex flex-wrap justify-center gap-2">
+                                {profile.install_links?.ios && (
+                                  <Button asChild size="sm" variant="outline">
+                                    <a href={profile.install_links.ios} target="_blank" rel="noopener noreferrer">Install on iPhone</a>
+                                  </Button>
+                                )}
+                                {profile.install_links?.android && (
+                                  <Button asChild size="sm" variant="outline">
+                                    <a href={profile.install_links.android} target="_blank" rel="noopener noreferrer">Install on Android</a>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-muted-foreground">ICCID:</span>
@@ -923,19 +962,15 @@ Expires: ${profile.expired_time ? new Date(profile.expired_time).toLocaleDateStr
                             )}
                             <div>
                               <span className="text-muted-foreground">Location:</span>
-                              <p className="mt-1">{profile.location_name}</p>
+                              <p className="mt-1">{profileLocation(profile.location_name)}</p>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Data:</span>
-                              <p className="mt-1">{Math.round(profile.total_volume / 1024)} GB</p>
+                              <p className="mt-1">{profileData(profile)}</p>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Expires:</span>
-                              <p className="mt-1">
-                                {profile.expired_time
-                                  ? new Date(profile.expired_time).toLocaleDateString()
-                                  : "No expiry"}
-                              </p>
+                              <p className="mt-1">{profileExpiry(profile)}</p>
                             </div>
                           </div>
                           {profile.activation_code && (

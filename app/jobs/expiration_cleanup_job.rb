@@ -34,10 +34,50 @@ class ExpirationCleanupJob < ApplicationJob
     active_resi_proxies = ResidentialRotatingProxy.where(status: 'active')
     process_expiries_and_warnings(active_resi_proxies)
 
+    # MyProxyAPI VPNs and proxies have no local resource; their term ends at the provider.
+    expire_provider_orders
+
     Rails.logger.info 'ExpirationCleanupJob completed.'
   end
 
   private
+
+  def expire_provider_orders
+    orders = Order.joins(:product)
+                  .where(status: %w[active completed],
+                         products: { provider_type: 'myproxyapi', product_type: Product::PROXY_TYPES + ['vpn'] })
+    orders.find_each do |order|
+      next unless provider_term_over?(order)
+
+      # An auto-renewed subscription has a later end time at MyProxyAPI than the one stored
+      # here, so confirm with the provider before expiring; a failed check waits for the next run.
+      next unless ProxyManagementService.new(order).refresh_details!
+      next unless provider_term_over?(order.reload)
+
+      expire_order(order)
+    rescue StandardError => e
+      Rails.logger.error "Failed to check provider expiry for Order ##{order.order_number}: #{e.message}"
+    end
+  end
+
+  def provider_term_over?(order)
+    ends_at = ProxyManagementService.provider_expires_at(order)
+    ends_at.present? && ends_at < Time.current
+  end
+
+  def expire_order(order)
+    Rails.logger.info "Expiring provider Order ##{order.order_number}"
+    order.update!(status: 'expired')
+    return unless order.orderable
+
+    Notification.create(
+      recipient: order.orderable,
+      category: 'warning',
+      title: "#{order.product.product_type == 'vpn' ? 'VPN' : 'Proxy'} Expired",
+      message: "Your #{order.product_display_name} for Order ##{order.order_number} has expired. Please reorder to continue service.",
+      metadata: { order_id: order.id, reorderable: true }
+    )
+  end
 
   def process_expiries_and_warnings(resources)
     resources.find_each do |resource|

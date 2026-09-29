@@ -57,6 +57,7 @@ interface VPSOrder {
   os_template: string;
   hostname: string;
   username?: string;
+  password?: string;
   total_amount: number;
   currency_code: string;
   status: 'pending' | 'provisioning' | 'active' | 'suspended' | 'terminated' | 'failed' | 'cancelled';
@@ -72,7 +73,8 @@ interface VPSOrder {
   expires_at?: string;
   ip_address: string;
   dns_name?: string;
-  ssh_port: number;
+  ssh_port?: number | null;
+  rdp_port?: number | null;
   // Related plan data
   plan?: {
     name: string;
@@ -84,6 +86,15 @@ interface VPSOrder {
     features: string[];
   };
 }
+
+const vpsUser = (o: VPSOrder) =>
+  o.username || (o.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (o.hostname || 'root'));
+const vpsHost = (o: VPSOrder) => o.dns_name || o.ip_address || 'subdomain.pending';
+// SSH when the VM has an SSH port; VMs reached over RDP have only an RDP port.
+const vpsConnection = (o: VPSOrder) =>
+  !o.ssh_port && o.rdp_port
+    ? { portLabel: 'RDP Port', port: o.rdp_port, commandLabel: 'Remote Desktop address', command: `${vpsHost(o)}:${o.rdp_port}` }
+    : { portLabel: 'SSH Port', port: o.ssh_port || 22, commandLabel: 'SSH Connection Command', command: `ssh ${vpsUser(o)}@${vpsHost(o)} -p ${o.ssh_port || 22}` };
 
 const VPSOrdersPage = () => {
   const navigate = useNavigate();
@@ -270,8 +281,7 @@ Bandwidth: ${order.plan?.bandwidth_gb || 'Unlimited'} GB
 Network Information
 ==================
 Subdomain: ${order.dns_name || 'Generating...'}
-SSH Port: ${order.ssh_port || 22}
-External Port: ${order.ssh_port || 'Default'}
+${vpsConnection(order).portLabel}: ${vpsConnection(order).port}
 
 Billing
 =======
@@ -280,9 +290,11 @@ Duration: ${order.duration} month(s)
 Total Amount: ${order.currency_code} ${order.total_amount}
 Payment Method: ${order.payment_method || 'N/A'}
 
-SSH Connection
-==============
-ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (order.hostname || 'root'))}@${order.dns_name || 'subdomain.pending'} -p ${order.ssh_port || 22}
+Connection
+==========
+Username: ${vpsUser(order)}
+Password: ${order.password || 'N/A'}
+${vpsConnection(order).commandLabel}: ${vpsConnection(order).command}
     `.trim();
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -815,7 +827,11 @@ ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 
                     </div>
                     <div>
                       <span className="text-muted-foreground text-sm">Username</span>
-                      <p className="font-medium mt-1">{selectedOrder.username || (selectedOrder.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedOrder.hostname || 'root'))}</p>
+                      <p className="font-medium mt-1">{vpsUser(selectedOrder)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-sm">Password</span>
+                      <p className="font-mono font-medium mt-1 break-all">{selectedOrder.password || 'N/A'}</p>
                     </div>
 
                     <div>
@@ -881,14 +897,14 @@ ssh ${order.username || (order.os_template?.toLowerCase().includes('windows') ? 
                           <p className="font-medium mt-1">{selectedOrder.dns_name || 'Generating...'}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground text-sm">SSH Port</span>
-                          <p className="font-medium mt-1">22</p>
+                          <span className="text-muted-foreground text-sm">{vpsConnection(selectedOrder).portLabel}</span>
+                          <p className="font-medium mt-1">{vpsConnection(selectedOrder).port}</p>
                         </div>
                       </div>
                       <div className="p-3 bg-card rounded-lg border">
-                        <p className="text-xs text-muted-foreground mb-2">SSH Connection Command:</p>
+                        <p className="text-xs text-muted-foreground mb-2">{vpsConnection(selectedOrder).commandLabel}:</p>
                         <code className="text-sm text-emerald-600 dark:text-emerald-400 font-mono">
-                          ssh ${selectedOrder.username || (selectedOrder.os_template?.toLowerCase().includes('windows') ? 'Administrator' : (selectedOrder.hostname || 'root'))}@{selectedOrder.dns_name || 'subdomain.pending'} -p ${selectedOrder.ssh_port || 22}
+                          {vpsConnection(selectedOrder).command}
                         </code>
                       </div>
                     </div>

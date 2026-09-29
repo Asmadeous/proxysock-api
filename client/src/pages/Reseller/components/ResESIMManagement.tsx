@@ -6,6 +6,7 @@ import {
     SignalIcon,
     ClipboardDocumentIcon,
 } from "@heroicons/react/24/outline";
+import { QRCodeSVG } from "qrcode.react";
 import resellerApi, { fetchResellerOrders } from "@/services/resellerApi";
 import EsimTopupDialog from "../../UserDashboard/EsimTopupDialog";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ interface ESIMProfile {
     activation_code: string;
     esim_status: string;
     expires_at: string;
+    data_label?: string;
     order_id: string;
     // Active MeiSIM phone-number line that can be topped up.
     topup_eligible: boolean;
@@ -35,6 +37,7 @@ export default function ResESIMManagement() {
     const [loading, setLoading] = useState(true);
     const [_showActivation, _setShowActivation] = useState<{ [key: string]: boolean }>({});
     const [topupProfile, setTopupProfile] = useState<ESIMProfile | null>(null);
+    const [qrProfileId, setQrProfileId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProfiles();
@@ -46,7 +49,7 @@ export default function ResESIMManagement() {
             const response = await fetchResellerOrders({ product_type: 'esim,usa_esim' });
             if (response.data && response.data.orders) {
                 const transformed = response.data.orders.flatMap((order: any) => {
-                    // The reseller order list carries no credentials, so every order still gets a card.
+                    // Every order gets a card, even before its eSIM is delivered.
                     const found = (order.credentials_list || [order.credentials]).filter(Boolean);
                     const credentials = found.length ? found : [{}];
                     return credentials.map((cred: any, index: number) => ({
@@ -61,6 +64,7 @@ export default function ResESIMManagement() {
                         activation_code: cred.activation_code || cred.qr_activation_code || '',
                         esim_status: order.status,
                         expires_at: order.expires_at,
+                        data_label: cred.data,
                         order_id: order.id,
                         topup_eligible: order.topup_eligible === true,
                     }));
@@ -143,20 +147,27 @@ export default function ResESIMManagement() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2"><GlobeAltIcon className="w-4 h-4" /> {p.data_limit_gb}GB</div>
+                            <div className="flex items-center gap-2"><GlobeAltIcon className="w-4 h-4" /> {p.data_label || `${p.data_limit_gb}GB`}</div>
                             <div className="flex items-center gap-2"><SignalIcon className="w-4 h-4" /> {p.duration_days} Days</div>
                         </div>
 
                         <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono break-all">
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">ICCID:</span>
-                                <span className="text-xs">{p.iccid.slice(-8)}...</span>
-                                <button onClick={() => copy(p.iccid)}><ClipboardDocumentIcon className="w-4 h-4" /></button>
+                                <span className="text-xs">{p.iccid ? `${p.iccid.slice(-8)}...` : 'Pending'}</span>
+                                {p.iccid && <button onClick={() => copy(p.iccid)} aria-label="Copy ICCID"><ClipboardDocumentIcon className="w-4 h-4" /></button>}
                             </div>
                         </div>
 
                         <div className="flex gap-2">
-                            <button className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">View QR</button>
+                            {p.activation_code?.startsWith('LPA:') && (
+                                <button
+                                    onClick={() => setQrProfileId(qrProfileId === p.id ? null : p.id)}
+                                    className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+                                >
+                                    {qrProfileId === p.id ? 'Hide QR' : 'View QR'}
+                                </button>
+                            )}
                             {p.topup_eligible && (
                                 <button
                                     onClick={() => setTopupProfile(p)}
@@ -166,6 +177,15 @@ export default function ResESIMManagement() {
                                 </button>
                             )}
                         </div>
+                        {qrProfileId === p.id && (
+                            <div className="flex flex-col items-center gap-2 pt-2">
+                                {/* White quiet zone so phones can scan it in dark mode too. */}
+                                <div className="rounded-lg bg-white p-3">
+                                    <QRCodeSVG value={p.activation_code} size={180} aria-label="eSIM installation QR code" />
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center">Scan with the phone's camera to install this eSIM.</p>
+                            </div>
+                        )}
                     </motion.div>
                 ))}
             </div>

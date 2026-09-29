@@ -26,6 +26,7 @@ interface ESIMProfile {
     esim_status: string;
     expires_at: string;
     user_email: string;
+    data_label?: string;
 }
 
 export default function AdminESIMManagement() {
@@ -62,7 +63,8 @@ export default function AdminESIMManagement() {
                         activation_code: cred.activation_code || cred.qr_activation_code || '',
                         esim_status: order.status,
                         expires_at: order.expires_at,
-                        user_email: order.entity_email || order.user_email
+                        user_email: order.entity_email || order.user_email,
+                        data_label: cred.data
                     }));
                 });
                 setProfiles(transformed);
@@ -142,7 +144,7 @@ export default function AdminESIMManagement() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2"><GlobeAltIcon className="w-4 h-4" /> {p.data_limit_gb}GB</div>
+                                <div className="flex items-center gap-2"><GlobeAltIcon className="w-4 h-4" /> {p.data_label || `${p.data_limit_gb}GB`}</div>
                                 <div className="flex items-center gap-2"><SignalIcon className="w-4 h-4" /> {p.duration_days} Days</div>
                             </div>
 

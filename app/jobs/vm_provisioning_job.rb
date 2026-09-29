@@ -53,7 +53,9 @@ class VmProvisioningJob < ApplicationJob
       root_password: result[:root_password] || result[:password],
       hostname: result[:hostname],
       dns_name: result[:dns_name],
-      api_response: result.to_json
+      api_response: result.to_json,
+      # ExpirationCleanupJob and renewals work from this date; without it the VM never expires.
+      expires_at: vm.expires_at || vm.period_days.days.from_now
     )
 
     vm.mark_active!

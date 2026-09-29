@@ -52,13 +52,30 @@ const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
     threshold: 0.1,
   });
 
+  // Orders also arrive refunded, failed or processing, beyond the statuses typed above.
+  const status = String(order.status);
+  const closedMessage =
+    status === 'refunded' ? 'Refunded. No credentials.'
+    : status === 'cancelled' ? 'Cancelled. No credentials.'
+    : status === 'failed' ? 'Order failed. No credentials.'
+    : status === 'expired' ? 'Expired. Renew to use this proxy again.'
+    : null;
+  const endpointCount = order.credentials.endpoints?.length || 0;
+  const missingCredentialsMessage =
+    closedMessage
+    ?? (['pending', 'processing'].includes(status)
+      ? 'Provisioning credentials...'
+      : 'Credentials unavailable. Contact support.');
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       active: { color: 'bg-primary/10 text-primary', icon: CheckCircleIcon },
       'almost-expired': { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
       expired: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon },
       pending: { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
-      cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon }
+      cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
+      refunded: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
+      failed: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
@@ -181,14 +198,16 @@ const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
       <div className="bg-muted/30 rounded-lg p-3 mb-4 border border-border/50">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Authentication</span>
-          <button
-            onClick={() => onOpenModal('credentials', order)}
-            className="text-primary hover:text-primary/80 text-xs font-medium"
-          >
-            Manage
-          </button>
+          {!closedMessage && (
+            <button
+              onClick={() => onOpenModal('credentials', order)}
+              className="text-primary hover:text-primary/80 text-xs font-medium"
+            >
+              Manage
+            </button>
+          )}
         </div>
-        {order.credentials.username ? (
+        {!closedMessage && order.credentials.username ? (
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-xs text-muted-foreground">User</span>
@@ -196,11 +215,11 @@ const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
             </div>
             <div className="text-right">
               <span className="text-xs text-muted-foreground">Endpoints</span>
-              <p>{order.credentials.endpoints?.length || 0} active</p>
+              <p>{endpointCount > 0 ? `${endpointCount} active` : 'Not received. Contact support.'}</p>
             </div>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic text-center">Provisioning credentials...</p>
+          <p className="text-xs text-muted-foreground italic text-center">{missingCredentialsMessage}</p>
         )}
       </div>
 
@@ -213,20 +232,24 @@ const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
           <EyeIcon className="h-4 w-4" />
           Details
         </button>
-        <button
-          onClick={() => onOpenModal('credentials', order)}
-          className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
-          title="Credentials"
-        >
-          <KeyIcon className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onOpenModal('whitelist', order)}
-          className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
-          title="Whitelist"
-        >
-          <CogIcon className="h-4 w-4" />
-        </button>
+        {!closedMessage && (
+          <>
+            <button
+              onClick={() => onOpenModal('credentials', order)}
+              className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
+              title="Credentials"
+            >
+              <KeyIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onOpenModal('whitelist', order)}
+              className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors"
+              title="Whitelist"
+            >
+              <CogIcon className="h-4 w-4" />
+            </button>
+          </>
+        )}
         {order.status === 'active' && (
           <button
             onClick={() => onOpenModal('subscription', order)}

@@ -103,10 +103,15 @@ class MeisimOrderService
       package_code: @product.provider_product_id,
       country_code: single_country || 'global',
       duration_days: @product.metadata&.dig('validity_days'),
+      data_amount_gb: data_bytes && (data_bytes / 1.gigabyte.to_f).round(2),
       moq_quantity: @order.quantity || 1,
       api_response: response.slice('orderId', 'shortId', 'unitPriceUsd', 'totalUsd', 'activation', 'failure'),
       metadata: { 'meisim_line' => @product.metadata&.dig('meisim_line') }.compact
     )
+  end
+
+  def data_bytes
+    @data_bytes ||= Esim.data_bytes(@product.metadata&.dig('data_limit'), @product.metadata&.dig('data_unit'))
   end
 
   def single_country
@@ -148,6 +153,7 @@ class MeisimOrderService
       qr_code_url: line['qr_png_url'],
       msisdn: line['phone_number'],
       has_phone_number: line['phone_number'].present?,
+      data_total_bytes: data_bytes,
       pin1: line['sim_pin'],
       status: 'active',
       esim_status: 'delivered',
