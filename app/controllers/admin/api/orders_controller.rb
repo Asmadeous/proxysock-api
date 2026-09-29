@@ -364,13 +364,14 @@ module Admin
           updated_at: o.updated_at
         }
         data.merge!(o.esim_order.listing_details(provider_qr: true)) if o.product&.product_type == 'esim' && o.esim_order
+        data[:credentials] = ProxyManagementService.credentials_for(o) if o.product&.proxy?
         if full
           data[:order_number]     = o.order_number
           data[:currency]         = o.currency
           data[:expires_at]       = o.expires_at
           data[:provider_order_id] = o.provider_order_id
           data[:metadata]         = o.metadata
-          data[:credentials]      = o.credentials
+          data[:credentials]      = o.product&.proxy? ? ProxyManagementService.credentials_for(o) : o.credentials
 
           data[:product] = {
             id: o.product&.id,

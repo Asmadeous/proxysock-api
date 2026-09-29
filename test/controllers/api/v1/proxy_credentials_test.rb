@@ -34,6 +34,22 @@ module Api
                        'password' => 'secret1' }, json_response['proxies'].first)
         assert_equal 2, json_response['proxies'].size
       end
+      test 'reseller order list returns proxy orders with their credentials' do
+        reseller = create_reseller_with_balance(0)
+        product = Product.create!(name: 'Datacenter Proxy', product_type: 'datacenter', provider_type: 'myproxyapi',
+                                  available_to: 'both', product_category: product_categories(:three))
+        pricing = ProductPricing.create!(product: product, currency: 'USD', selling_price: 5, active: true)
+        order = Order.create!(orderable: reseller, product: product, product_pricing: pricing, quantity: 1,
+                              status: 'active', total_amount: 5,
+                              metadata: { 'my_proxy_api_response' => VIEW.deep_dup })
+
+        get '/api/v1/orders', params: { product_type: 'proxy' }, headers: auth_header(reseller)
+
+        assert_response :success
+        listed = json_response['orders'].find { |o| o['id'] == order.id }
+        assert_equal 'fxq4r1wbz0', listed.dig('credentials', 'username')
+        assert_equal 2, listed.dig('credentials', 'endpoints').size
+      end
     end
   end
 end

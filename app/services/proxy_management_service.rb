@@ -41,6 +41,22 @@ class ProxyManagementService
     }
   end
 
+  # Connection details for any proxy order, as the admin and reseller lists show them:
+  # MyProxyAPI's stored view, else the local proxy record.
+  def self.credentials_for(order)
+    details = connection_details(order) if order.product.provider_type == 'myproxyapi'
+    if details && (details[:username].present? || details[:endpoints].present?)
+      return details.slice(:ip, :port, :username, :password, :protocol, :endpoints)
+    end
+
+    proxy = order.provisioned_resource
+    return {} unless proxy
+
+    endpoint = [proxy.try(:ip_address), proxy.try(:port)].compact.join(':')
+    { ip: proxy.try(:ip_address), port: proxy.try(:port), username: proxy.try(:username),
+      password: proxy.try(:password), protocol: proxy.try(:protocol) || 'http', endpoints: [endpoint].compact_blank }
+  end
+
   # VPN orders store { order: { end_time, timezone }, config: { auth_credentials: {} },
   # vpn_info: [{ vpn_name, vpn_type, ip_info: " - US, North Carolina, NC" }] }. There is no
   # server IP: customers connect with the downloaded .ovpn file.
