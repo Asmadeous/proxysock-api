@@ -49,4 +49,18 @@ class EsimMailerTest < ActionMailer::TestCase
     assert_nil mail.attachments['esim-qr.png']
     assert_includes mail.body.decoded, 'LPA:1$SMDP.EXAMPLE$ABC123'
   end
+
+  test 'eSIM Access email embeds the QR and gives the install links and activation code' do
+    @esim.update!(esim_provider: 'esim_access', qr_code_url: 'https://static.redteago.com/qr/x.png', msisdn: nil, pin1: nil,
+                  metadata: {})
+    HTTParty.stubs(:get).returns(stub(success?: true, headers: { 'content-type' => 'image/png' }, body: 'PNG'))
+
+    mail = EsimMailer.with(user: @user, esim: @esim).delivery_email
+    html = mail.html_part&.body&.decoded || mail.body.decoded
+
+    assert mail.attachments['esim-qr.png'].inline?
+    assert_includes html, "cid:#{mail.attachments['esim-qr.png'].cid}"
+    ['Install on iPhone', 'Install on Android', 'LPA:1$SMDP.EXAMPLE$ABC123', '8901'].each { |value| assert_includes html, value }
+    assert_not_includes html, 'redteago', 'the QR is embedded, not linked'
+  end
 end

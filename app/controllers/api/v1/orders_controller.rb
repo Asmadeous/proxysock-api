@@ -13,6 +13,8 @@ module Api
 
         if params[:product_type].present?
           types = params[:product_type].split(',')
+          # "proxy" means every proxy type, as on the storefront API.
+          types = (types - ['proxy'] + Product::PROXY_TYPES).uniq if types.include?('proxy')
           scope = scope.joins(:product).where(products: { product_type: types })
         end
 
@@ -520,7 +522,13 @@ module Api
 
       def serialize_order(order)
         resource = order.provisioned_resource
-        details = order.product.product_type == 'esim' && order.esim_order ? order.esim_order.listing_details : {}
+        details = if order.product.product_type == 'esim' && order.esim_order
+                    order.esim_order.listing_details
+                  elsif order.product.proxy?
+                    { credentials: ProxyManagementService.credentials_for(order) }
+                  else
+                    {}
+                  end
         {
           id: order.id,
           order_number: order.order_number,

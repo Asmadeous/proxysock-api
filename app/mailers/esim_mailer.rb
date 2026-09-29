@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class EsimMailer < ApplicationMailer
+  # Providers whose eSIMs get the credentials email with the QR embedded: remote QR images
+  # are blocked by many email apps, and the email links to nothing outside Proxysock.
+  CREDENTIALS_EMAIL_PROVIDERS = %w[meisim esim_access].freeze
+
   def delivery_email
     @user = params[:user]
     @owner = @user
@@ -10,16 +14,15 @@ class EsimMailer < ApplicationMailer
     @title = "Your eSIM is ready - Order ##{@order.order_number}"
     subject = "Your eSIM is ready (Order ##{@order.order_number})"
 
-    return meisim_delivery(subject) if @esim.esim_provider == 'meisim'
+    return credentials_delivery(subject) if CREDENTIALS_EMAIL_PROVIDERS.include?(@esim.esim_provider)
 
     mail(to: @user.email, subject: subject)
   end
 
   private
 
-  # MeiSIM lines get credentials only, with the QR embedded so the email links
-  # to nothing outside Proxysock.
-  def meisim_delivery(subject)
+  # Credentials only, with the QR embedded so the email links to nothing outside Proxysock.
+  def credentials_delivery(subject)
     # Apple's and Google's one-tap setup links never depend on (or point to) the provider.
     links = @esim.install_links
     @install_links = { 'iPhone' => links['ios'], 'Android' => links['android'] }.compact
@@ -27,7 +30,7 @@ class EsimMailer < ApplicationMailer
     qr = download_qr
     attachments.inline['esim-qr.png'] = qr if qr
 
-    mail(to: @user.email, subject: subject, template_name: 'meisim_delivery_email')
+    mail(to: @user.email, subject: subject, template_name: 'credentials_email')
   end
 
   def download_qr
