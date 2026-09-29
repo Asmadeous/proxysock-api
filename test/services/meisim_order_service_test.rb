@@ -20,7 +20,8 @@ class MeisimOrderServiceTest < ActiveSupport::TestCase
     @product = Product.create!(
       name: 'France 2 GB', product_type: 'esim', provider: 'meisim', provider_type: 'meisim',
       provider_product_id: 'fr-2gb', available_to: 'both', product_category: product_categories(:three),
-      metadata: { 'meisim_line' => 'travel', 'esim_type' => 'data_only', 'countries' => ['FR'], 'validity_days' => 15 }
+      metadata: { 'meisim_line' => 'travel', 'esim_type' => 'data_only', 'countries' => ['FR'], 'validity_days' => 15,
+                  'data_limit' => '2', 'data_unit' => 'GB' }
     )
     @pricing = ProductPricing.create!(product: @product, currency: 'USD', selling_price: 3.99,
                                       reseller_selling_price: 3.99, user_selling_price: 4.79, active: true)
@@ -61,6 +62,10 @@ class MeisimOrderServiceTest < ActiveSupport::TestCase
     assert_equal LINE['activation_code'], esim.activation_code
     assert_equal LINE['qr_png_url'], esim.qr_code_url
     assert_equal 'ABC123', esim.metadata['matching_id']
+    # The plan's 2 GB is recorded so the eSIM pages can show it.
+    assert_equal 2.gigabytes, esim.data_total_bytes
+    assert_equal 2, esim_order.data_amount_gb
+    assert_equal 15, esim_order.duration_days
     assert_equal BigDecimal('2.07'), @pricing.reload.cost_price
   end
 

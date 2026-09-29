@@ -1,13 +1,6 @@
 # frozen_string_literal: true
 
 class EsimMailer < ApplicationMailer
-  # Apple's and Google's standard one-tap eSIM setup links, built from the LPA
-  # activation code so they never depend on (or point to) the provider.
-  INSTALL_LINKS = {
-    'iPhone' => 'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=',
-    'Android' => 'https://esimsetup.android.com/esim_qrcode_provisioning?carddata='
-  }.freeze
-
   def delivery_email
     @user = params[:user]
     @owner = @user
@@ -27,8 +20,9 @@ class EsimMailer < ApplicationMailer
   # MeiSIM lines get credentials only, with the QR embedded so the email links
   # to nothing outside Proxysock.
   def meisim_delivery(subject)
-    code = @esim.activation_code.to_s
-    @install_links = code.start_with?('LPA:') ? INSTALL_LINKS.transform_values { |base| base + CGI.escape(code) } : {}
+    # Apple's and Google's one-tap setup links never depend on (or point to) the provider.
+    links = @esim.install_links
+    @install_links = { 'iPhone' => links['ios'], 'Android' => links['android'] }.compact
 
     qr = download_qr
     attachments.inline['esim-qr.png'] = qr if qr

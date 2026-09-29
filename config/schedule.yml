@@ -46,6 +46,10 @@ meisim_catalog_sync:
   cron: "30 4 * * *"   # Every day at 4:30 AM
   class: "MeisimCatalogSyncJob"
 
+esim_access_order_poll:
+  cron: "*/5 * * * *"   # Every 5 minutes — completes eSIM Access orders whose webhook was missed
+  class: "EsimAccessOrderPollJob"
+
 meisim_order_poll:
   cron: "*/5 * * * *"   # Every 5 minutes — MeiSIM has no webhooks
   class: "MeisimOrderPollJob"

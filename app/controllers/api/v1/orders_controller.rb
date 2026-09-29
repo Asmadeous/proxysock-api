@@ -259,6 +259,8 @@ module Api
       # Returns credentials dynamically based on product type
       def credentials
         order = order_scope.find(params[:id])
+        return if render_myproxyapi_credentials(order)
+
         resource = order.provisioned_resource
 
         unless resource
@@ -294,7 +296,7 @@ module Api
             server_ip: resource.server_ip,
             status: resource.status
           }
-        when 'proxy', 'isp', 'datacenter', 'global_isp', 'static_residential', 'residential_rotating', 'premium_isp'
+        when *Product::PROXY_TYPES
           # Dynamic credential mapping for various proxy models
           # MobileProxy, StaticDatacenterProxy, GlobalIspProxy, etc.
           proxies = if resource.respond_to?(:proxies)
@@ -518,6 +520,7 @@ module Api
 
       def serialize_order(order)
         resource = order.provisioned_resource
+        details = order.product.product_type == 'esim' && order.esim_order ? order.esim_order.listing_details : {}
         {
           id: order.id,
           order_number: order.order_number,
@@ -536,7 +539,7 @@ module Api
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
           expires_at: resource.try(:expires_at) || order.metadata.to_h['expires_at'],
           created_at: order.created_at
-        }
+        }.merge(details)
       end
 
       def pagination_meta(collection)
@@ -679,6 +682,23 @@ module Api
       end
 
       # Serialize credentials for JSON response (api_only resellers)
+      # MyProxyAPI proxies have no local proxy records; their details live on the order.
+      def render_myproxyapi_credentials(order)
+        return false unless Product::PROXY_TYPES.include?(order.product.product_type) &&
+                            order.product.provider_type == 'myproxyapi'
+
+        details = ProxyManagementService.connection_details(order)
+        return false unless details
+
+        proxies = details[:endpoints].map do |endpoint|
+          ip, port, username, password = endpoint.to_s.split(':', 4)
+          { ip_address: ip, port: port, username: username.presence || details[:username],
+            password: password.presence || details[:password] }.compact
+        end
+        render json: { type: 'proxy', order_id: order.id, protocol: details[:protocol], proxies: proxies }
+        true
+      end
+
       def serialize_credentials(order, resource)
         base = { order_id: order.id, status: resource.status }
 

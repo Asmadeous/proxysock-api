@@ -53,6 +53,12 @@ class Vm < ApplicationRecord
     hostname.present? ? "#{hostname}.#{base}" : ip_address
   end
 
+  # Days in one paid period: the order's duration_days (30 for monthly plans).
+  def period_days
+    days = order&.metadata&.dig('duration_days').to_i
+    days.positive? ? days : 30
+  end
+
   def can_renew?
     # Only active VMs can be renewed
     active?

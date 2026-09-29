@@ -42,6 +42,8 @@ class VmProvisioningJobTest < ActiveJob::TestCase
     assert @test_vm.active?
     assert_equal '10.0.0.5', @test_vm.ip_address
     assert_equal 'root', @test_vm.ssh_username
+    # Without an expiry the VM would never expire or come up for renewal.
+    assert_in_delta 30.days.from_now, @test_vm.expires_at, 60
   end
 
   test 'provisioning failure handles state' do
