@@ -367,7 +367,7 @@ export default function ResellerDashboard() {
             />
 
 
-            <main className="flex-1 overflow-y-auto">
+            <main data-page-scroll className="flex-1 overflow-y-auto">
                 {/* Developer Sub-tabs */}
                 {activeTab === "developer" && (
                     <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 pt-4 pb-4">

@@ -16,9 +16,10 @@ const support = [["Contact Support", "/contact"], ["FAQs", "/faq"], ["Documentat
 const legal = [["Terms", "/terms"], ["Privacy", "/privacy"], ["Cookies", "/cookie-policy"]];
 
 export const Footer = () => {
-  const isHome = useLocation().pathname === "/";
+  const { pathname } = useLocation();
+  const hasRedClosing = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact"].includes(pathname) || pathname.startsWith("/blog/");
   return (
-    <footer className={`site-footer ${isHome ? "site-footer-home" : ""}`}>
+    <footer className={`site-footer ${hasRedClosing ? "site-footer-home" : ""}`}>
       <div className="footer-content">
         <div className="footer-top">
           <div className="footer-intro">

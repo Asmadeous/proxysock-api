@@ -8,7 +8,7 @@ import "./public-layout.css";
 
 
 export default function PublicLayout() {
-  const isHome = useLocation().pathname === "/";
+  const hasInsetHero = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact"].includes(useLocation().pathname);
   const dark = useThemeStore((state) => state.dark);
 
   return (
@@ -19,7 +19,7 @@ export default function PublicLayout() {
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
-        <main className={`flex-grow ${isHome ? "" : "pt-20"}`}>
+        <main className={`flex-grow ${hasInsetHero ? "" : "pt-20"}`}>
           <Outlet />
         </main>
         <Footer />

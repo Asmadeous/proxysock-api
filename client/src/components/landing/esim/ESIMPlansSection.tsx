@@ -462,7 +462,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
                     </details>
 
                     <Link
-                      to="/dashboard/esim"
+                      to={voiceCountry === "GB" ? "/dashboard/uk-esim" : "/dashboard/usa-esim"}
                       onClick={trackPurchase}
                       className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
@@ -557,7 +557,7 @@ export const ESIMPlansSection = ({ trackConversion }: ESIMPlansSectionProps) => 
 
                 <div className="mt-8 flex justify-center">
                   <Link
-                    to="/dashboard/esim"
+                    to="/dashboard/global-esim"
                     onClick={trackPurchase}
                     className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >

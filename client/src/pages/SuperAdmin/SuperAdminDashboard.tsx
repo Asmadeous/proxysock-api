@@ -334,7 +334,7 @@ export default function SuperAdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
+        <div data-page-scroll className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
           <AdminErrorBoundary>
             <Suspense fallback={<TabLoader />}>
               <ActiveComponent />

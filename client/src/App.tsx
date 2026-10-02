@@ -121,7 +121,6 @@ export default function App() {
   return (
     <AuthProvider>
       <HelmetProvider>
-        <ScrollToTop />
         <Toaster position="top-right" richColors={true} />
         <HotToaster
           position="top-right"
@@ -149,6 +148,7 @@ export default function App() {
           defaultDescription="Buy premium proxies, VPN, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support."
         >
           <Suspense fallback={<PageLoader />}>
+            <ScrollToTop />
             <Routes>
               {/* Public Routes */}
               <Route element={<PublicLayout />}>

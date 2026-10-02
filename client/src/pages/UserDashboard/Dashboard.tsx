@@ -139,6 +139,7 @@ export default function Dashboard() {
           className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10"
         >
           <main
+            data-page-scroll
             className={`flex-1 overflow-y-auto landing-theme h-full bg-background text-foreground pb-8 ${dark ? "dark" : ""
               }`}
           >

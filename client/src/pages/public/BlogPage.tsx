@@ -1,371 +1,66 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useRedditTracking } from "../../utils/redditPixel";
-import { type ExtendedPost } from "../../data/blogPost";
-import { getBlogPosts, type BlogListResponse } from "../../services/blog";
-import { BlogHeroSection } from "../../components/landing/blog/BlogHeroSection";
-import { BlogNewsTicker } from "../../components/landing/blog/BlogNewsTicker";
-import { BlogSearchFilter } from "../../components/landing/blog/BlogSearchFilter";
-import { BlogFeaturedPosts } from "../../components/landing/blog/BlogFeaturedPosts";
-import { BlogPostsGrid } from "../../components/landing/blog/BlogPostsGrid";
-import backgroundNode from "@/assets/images/backgroundNode.webp";
-import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
-import { useThemeStore } from "@/store/themeStore";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowUpRight, Search } from "lucide-react";
+import type { ExtendedPost } from "@/data/blogPost";
+import { getBlogPosts } from "@/services/blog";
+import { useRedditTracking } from "@/utils/redditPixel";
+import { ResourcePage, ResourceHero, ResourceClosing, ResourceEmpty } from "@/components/landing/resources/ResourceLayout";
+import { ResourceArticleCard } from "@/components/landing/resources/ResourceArticleCard";
 
-// Newsdata.io Types
-interface NewsArticle {
-  title: string;
-  link: string;
-  keywords: string[] | null;
-  creator: string[] | null;
-  video_url: string | null;
-  description: string | null;
-  content: string | null;
-  pubDate: string;
-  image_url: string | null;
-  source_id: string;
-  country: string[];
-  category: string[];
-  language: string;
-}
-
-interface NewsResponse {
-  status: string;
-  totalResults: number;
-  results: NewsArticle[];
-  nextPage: string | null;
-}
-
-interface Category {
-  name: string;
-  count: number;
-}
-
-// Newsdata.io API Configuration
-const NEWSDATA_API_KEY =
-  import.meta.env.VITE_NEWSDATA_API_KEY || "YOUR_NEWSDATA_API_KEY";
-const NEWSDATA_BASE_URL = "https://newsdata.io/api/1/news";
-
+interface NewsItem { article_id?: string; title: string; description?: string; content?: string; source_id?: string; pubDate?: string; link: string; keywords?: string[]; image_url?: string; }
 export default function BlogPage() {
-  const { dark } = useThemeStore();
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [backendPosts, setBackendPosts] = useState<ExtendedPost[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [filteredPosts, setFilteredPosts] = useState<ExtendedPost[]>([]);
-  const [newsArticles, setNewsArticles] = useState<ExtendedPost[]>([]);
-  const [isLoadingNews, setIsLoadingNews] = useState<boolean>(false);
-  const [newsError, setNewsError] = useState<string | null>(null);
+  const newsKey = import.meta.env.VITE_NEWSDATA_API_KEY;
+  const [params, setParams] = useSearchParams();
+  const search = params.get("q") ?? "";
+  const category = params.get("category") ?? "All";
+  const [posts, setPosts] = useState<ExtendedPost[]>([]);
+  const [news, setNews] = useState<ExtendedPost[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(false);
   const [nextPage, setNextPage] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { trackPageView, trackSearch, trackViewContent } = useRedditTracking();
-
-  // Fetch backend blog posts
-  useEffect(() => {
-    getBlogPosts().then((res: BlogListResponse) => {
-      setBackendPosts(res.posts);
-
-      // Merge news count into the categories from API
-      const newCategories = [
-        { name: "All", count: res.total + newsArticles.length },
-        ...(res.categories || []).map((cat: Category) => ({
-          ...cat,
-          count: cat.name === "News" ? cat.count + newsArticles.length : cat.count
-        }))
-      ];
-      
-      setCategories(newCategories);
-    }).catch(console.error);
-  }, []);
-
-  // Fetch news from Newsdata.io
-  const fetchNews = async (page: string | null = null) => {
-    setIsLoadingNews(true);
-    setNewsError(null);
-
-
-    try {
-      // Build query parameters
-      const params = new URLSearchParams({
-        apikey: NEWSDATA_API_KEY,
-        language: "en",
-        category: "technology,business",
-        q: "proxy OR VPS OR RDP OR VPN OR hosting OR cloud OR datacenter OR esim",
-      });
-
-      if (page) {
-        params.append("page", page);
-      }
-
-      const response = await fetch(`${NEWSDATA_BASE_URL}?${params}`);
-
-      if (!response.ok) {
-        throw new Error(`News API Error: ${response.status}`);
-      }
-
-      const data: NewsResponse = await response.json();
-
-      if (data.status === "success") {
-        // Transform news data to match your blog post structure
-        const transformedNews: ExtendedPost[] = data.results.map(
-          (article, index) => ({
-            id: `news-${Date.now()}-${index}`,
-            title: article.title,
-            excerpt:
-              article.description ||
-              (article.content
-                ? article.content.substring(0, 200) + "..."
-                : ""),
-            content: article.content || article.description || "",
-            author: article.source_id || "News Source",
-            date: article.pubDate || new Date().toISOString(),
-            category: "News",
-            tags: article.keywords || ["technology", "news"],
-            readTime: "3 min read",
-            featured: false,
-            isNews: true,
-            sourceUrl: article.link,
-            imageUrl: article.image_url,
-            country: article.country,
-            language: article.language,
-          })
-        );
-
-        setNewsArticles((prevNews) =>
-          page ? [...prevNews, ...transformedNews] : transformedNews
-        );
-        setNextPage(data.nextPage || null);
-
-        // Update news count in categories
-        const newsCategory = categories.find((cat) => cat.name === "News");
-        if (newsCategory) {
-          newsCategory.count = transformedNews.length;
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching news:", error);
-      setNewsError(
-        error instanceof Error ? error.message : "Failed to fetch news"
-      );
-    } finally {
-      setIsLoadingNews(false);
-    }
-  };
-
-  // Fetch news on component mount
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  // Sync categories count when newsArticles or backendPosts change
-  useEffect(() => {
-    if (categories.length > 0) {
-      const counts = backendPosts.reduce((acc, p) => {
-        acc[p.category] = (acc[p.category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      setCategories(prev => prev.map(cat => {
-        if (cat.name === "All") return { ...cat, count: backendPosts.length + newsArticles.length };
-        if (cat.name === "News") return { ...cat, count: (counts["News"] || 0) + newsArticles.length };
-        return { ...cat, count: counts[cat.name] || 0 };
-      }));
-    }
-  }, [newsArticles, backendPosts]);
+  const { trackPageView, trackViewContent, trackSearch } = useRedditTracking();
 
   useEffect(() => {
-    // SEO Meta Tags
-    document.title =
-      "ProxySock Blog - Guides for Proxies, RDP, VPS & eSIM Services | Latest Tech News";
-
-    const metaDescription = document.createElement("meta");
-    metaDescription.setAttribute("name", "description");
-    metaDescription.content =
-      "Find answers to common questions about our proxy, VPS, RDP, VPN, and eSIM services. Get help with setup, billing, technical issues, and stay updated with latest tech news.";
-    document.head.appendChild(metaDescription);
-
-    const metaKeywords = document.createElement("meta");
-    metaKeywords.setAttribute("name", "keywords");
-    metaKeywords.content =
-      "proxy guides, RDP tutorials, VPN guides, VPS hosting guides, eSIM setup, web scraping tutorial, forex RDP, game server VPS, datacenter proxies, residential proxies, Windows RDP, Ubuntu VPS, tech news, cloud computing news";
-    document.head.appendChild(metaKeywords);
-
-    // Open Graph
-    const ogTitle = document.createElement("meta");
-    ogTitle.setAttribute("property", "og:title");
-    ogTitle.content =
-      "ProxySock Blog - Expert Guides for Digital Infrastructure & Tech News";
-    document.head.appendChild(ogTitle);
-
-    // Structured Data for Blog
-    const structuredData = document.createElement("script");
-    structuredData.type = "application/ld+json";
-    structuredData.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Blog",
-      name: "ProxySock Blog",
-      description:
-        "Expert guides for proxies, RDP, VPS, VPN, and eSIM services with latest tech news",
-      url: "https://proxysock.com/blog",
-      publisher: {
-        "@type": "Organization",
-        name: "ProxySock",
-        logo: {
-          "@type": "ImageObject",
-          url: "https://proxysock.com/assets/images/logo.svg",
-        },
-      },
-      blogPost: backendPosts.slice(0, 5).map((post) => ({
-        "@type": "BlogPosting",
-        headline: post.title,
-        description: post.excerpt,
-        datePublished: post.date,
-        author: {
-          "@type": "Person",
-          name: post.author,
-        },
-      })),
-    });
-    document.head.appendChild(structuredData);
-
-    // Track page view with Reddit Pixel
+    let active = true;
+    setLoading(true);
+    getBlogPosts().then((data) => { if (active) { setPosts(data.posts); setCategories(data.categories.map((item) => item.name)); } }).catch(() => { if (active) setError(true); }).finally(() => { if (active) setLoading(false); });
     trackPageView();
-
-    // Cleanup
-    return () => {
-      metaDescription.remove();
-      metaKeywords.remove();
-      ogTitle.remove();
-      structuredData.remove();
-    };
+    return () => { active = false; };
   }, [trackPageView]);
 
-  useEffect(() => {
-    // Filter posts based on category and search
-    let filtered: ExtendedPost[] = [];
+  async function fetchNews(page?: string, signal?: AbortSignal) {
+    if (!newsKey) return;
+    setNewsLoading(true); setNewsError(false);
+    try {
+      const query = new URLSearchParams({ apikey: newsKey, language: "en", category: "technology,business", q: "proxy OR VPS OR RDP OR VPN OR hosting OR cloud OR datacenter OR esim" });
+      if (page) query.set("page", page);
+      const response = await fetch(`https://newsdata.io/api/1/news?${query}`, { signal });
+      if (!response.ok) throw new Error("News unavailable");
+      const data = await response.json();
+      if (data.status !== "success") throw new Error("News unavailable");
+      const items: ExtendedPost[] = (data.results as NewsItem[]).map((item) => ({ id: item.article_id || item.link, title: item.title, excerpt: item.description || item.content?.slice(0, 200) || "", content: item.content || item.description || "", category: "News", author: item.source_id || "News source", date: item.pubDate || "", readTime: "News", featured: false, tags: item.keywords || [], isNews: true, sourceUrl: item.link, imageUrl: item.image_url }));
+      if (signal?.aborted) return;
+      setNews((previous) => Array.from(new Map((page ? [...previous, ...items] : items).map((item) => [item.id, item])).values()));
+      setNextPage(data.nextPage || null);
+    } catch { if (!signal?.aborted) setNewsError(true); }
+    finally { if (!signal?.aborted) setNewsLoading(false); }
+  }
+  useEffect(() => { const controller = new AbortController(); void fetchNews(undefined, controller.signal); return () => controller.abort(); }, []);
 
-    // Combine blog posts and news articles
-    const allContent: ExtendedPost[] = [...backendPosts, ...newsArticles];
+  const availableCategories = useMemo(() => ["All", ...Array.from(new Set([...categories, ...posts.map((post) => post.category), ...(newsKey ? ["News"] : [])])).filter((item) => item !== "All")], [categories, posts, newsKey]);
+  const filtered = useMemo(() => [...posts, ...news].filter((post) => (category === "All" || post.category === category) && `${post.title} ${post.excerpt} ${(post.tags ?? []).join(" ")}`.toLowerCase().includes(search.trim().toLowerCase())), [posts, news, category, search]);
+  const featured = category === "All" && !search.trim() ? posts.find((post) => post.featured) : undefined;
+  function changeFilter(key: string, value: string) { const next = new URLSearchParams(params); if (value && value !== "All") next.set(key, value); else next.delete(key); setParams(next, { replace: true, preventScrollReset: true }); if (key === "q" && value.length > 2) trackSearch(value, "blog"); }
+  function trackPost(post: ExtendedPost) { trackViewContent({ productId: post.id, productName: post.title, category: post.isNews ? "news_article" : "blog_post", value: 0 }); }
 
-    if (selectedCategory === "All") {
-      filtered = allContent;
-    } else if (selectedCategory === "News") {
-      filtered = newsArticles;
-    } else {
-      filtered = backendPosts.filter((post) => post.category === selectedCategory);
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (post) =>
-          post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          post.tags?.some((tag) =>
-            tag.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-      );
-
-      // Track search with Reddit Pixel
-      if (searchTerm.length > 2) {
-        trackSearch(searchTerm, "blog");
-      }
-    }
-
-    setFilteredPosts(filtered);
-  }, [selectedCategory, searchTerm, newsArticles]); // Removed trackSearch from deps to prevent loop
-
-  const handlePostClick = (post: ExtendedPost) => {
-    // Track content view with Reddit Pixel
-    trackViewContent({
-      productId: post.id,
-      productName: post.title,
-      category: post.isNews ? "news_article" : "blog_post",
-      value: 0,
-    });
-
-    // For news articles, open in new tab
-    if (post.isNews && post.sourceUrl) {
-      globalThis.open(post.sourceUrl, "_blank");
-    } else {
-      navigate(`/blog/${post.id}`);
-    }
-  };
-
-  const handleLoadMoreNews = () => {
-    if (nextPage && !isLoadingNews) {
-      fetchNews(nextPage);
-    }
-  };
-
-  const featuredPosts = backendPosts.filter((post) => post.featured);
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Modern Hero Section */}
-      <div className="relative overflow-hidden">
-        <div
-          className="absolute inset-0 z-0 opacity-[0.10] pointer-events-none"
-          style={{
-            backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
-        <div className="relative z-10">
-          <BlogHeroSection newsArticlesLength={newsArticles.length} />
-        </div>
-      </div>
-
-      {/* Modern News Ticker */}
-      <BlogNewsTicker
-        newsArticles={newsArticles}
-        onPostClick={handlePostClick}
-        onViewAllNews={() => setSelectedCategory("News")}
-      />
-
-      {/* Modern Search and Filter Section */}
-      <BlogSearchFilter
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        categories={categories}
-        isLoadingNews={isLoadingNews}
-        onRefreshNews={() => fetchNews()}
-      />
-
-      {/* Modern Featured Posts Section */}
-      <BlogFeaturedPosts
-        featuredPosts={featuredPosts}
-        onPostClick={handlePostClick}
-        selectedCategory={selectedCategory}
-        searchTerm={searchTerm}
-      />
-
-      {/* Modern Blog Posts Grid */}
-      <BlogPostsGrid
-        filteredPosts={filteredPosts}
-        newsError={newsError}
-        selectedCategory={selectedCategory}
-        isLoadingNews={isLoadingNews}
-        newsArticles={newsArticles}
-        onPostClick={handlePostClick}
-        onLoadMoreNews={handleLoadMoreNews}
-        nextPage={nextPage}
-        onClearFilters={() => {
-          setSearchTerm("");
-          setSelectedCategory("All");
-        }}
-        onTagClick={setSearchTerm}
-        onViewAllNews={() => setSelectedCategory("News")}
-      />
-
-      {/* Related Products CTA */}
-      {/* <BlogRelatedProducts /> */}
-
-      {/* Footer */}
-      {/* <BlogFooter /> */}
-    </div>
-  );
+  return <ResourcePage name="Blog & Insights" path="/blog" description="Explore ProxySock guides, practical insights and updates about proxies, servers, VPNs and eSIMs.">
+    <ResourceHero label="Blog" title="Ideas worth reading." accent="Connections worth making." description="Practical guides, useful perspectives and updates for the infrastructure you use every day."><div className="resource-blog-hero-note"><p className="proxy-eyebrow">From understanding to doing</p><h2>A little knowledge.<br />A better starting point.</h2><p>Ready to configure your service? Our tutorials put the steps and examples in one place.</p><Link to="/HowToConnect">Explore setup guides<ArrowUpRight size={15} aria-hidden="true" /></Link></div></ResourceHero>
+    <section className="resource-content" aria-label="Blog articles"><div className="resource-filterbar"><div className="resource-filters" role="group" aria-label="Article categories">{availableCategories.map((item) => <button type="button" key={item} aria-pressed={category === item} onClick={() => changeFilter("category", item)}>{item}</button>)}</div><label className="resource-search"><Search size={15} aria-hidden="true" /><input type="search" aria-label="Search articles" placeholder="Search articles and topics" value={search} onChange={(event) => changeFilter("q", event.target.value)} /></label></div>
+      {loading ? <ResourceEmpty title="Loading articles…" /> : error && !news.length ? <ResourceEmpty title="Articles are temporarily unavailable."><p>Please try again shortly.</p><button onClick={() => window.location.reload()}>Reload articles</button></ResourceEmpty> : <>{featured && <ResourceArticleCard post={featured} featured onOpen={trackPost} />}<div className="resource-section-heading"><h2>{category === "All" ? "From the journal" : category}</h2><span className="resource-count">{filtered.length} {filtered.length === 1 ? "article" : "articles"}</span></div>{filtered.length ? <div className="resource-article-grid">{filtered.filter((post) => post.id !== featured?.id).map((post) => <ResourceArticleCard key={post.id} post={post} onOpen={trackPost} />)}</div> : <ResourceEmpty title="No articles found."><p>Try a different topic or category.</p><button onClick={() => setParams({}, { replace: true })}>Clear filters</button></ResourceEmpty>}</>}
+      {(category === "News" || category === "All") && newsKey && <div className="resource-blog-news-actions">{newsError && <p role="status" className="resource-note">News is temporarily unavailable. Your ProxySock articles remain available.</p>}<button type="button" disabled={newsLoading} onClick={() => void fetchNews()}>{newsLoading ? "Loading news…" : "Refresh news"}</button>{nextPage && <button type="button" disabled={newsLoading} onClick={() => void fetchNews(nextPage)}>Load more news</button>}</div>}
+    </section><ResourceClosing title="Put what you've learned" accent="into your next connection." />
+  </ResourcePage>;
 }

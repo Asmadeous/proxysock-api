@@ -33,7 +33,9 @@ export default function Login() {
   const location = useLocation();
   const { trackPageView } = useRedditTracking();
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = typeof location.state?.from === "string"
+    ? location.state.from
+    : location.state?.from?.pathname || "/dashboard";
 
   useEffect(() => {
     // Track page view with Reddit Pixel

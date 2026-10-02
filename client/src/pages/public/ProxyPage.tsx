@@ -1,282 +1,47 @@
-"use client";
-
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  GlobeAltIcon,
-  ShieldCheckIcon,
-  BoltIcon,
-  ChartBarIcon,
-  ClockIcon,
-  CogIcon,
-} from "@heroicons/react/24/outline";
-import { motion } from "framer-motion";
-import { useAuth } from "../../context/AuthContext";
+import { Helmet } from "react-helmet-async";
+import { ArrowRight, ArrowUpRight, Plus } from "lucide-react";
 import { ProxyPageHeroSection } from "@/components/landing/services/proxies/ProxyPageHeroSection";
 import { ProxyType } from "@/components/landing/services/proxies/ProxyType";
-import { SecurePaymentsSection } from "@/components/landing/PaymentMethods";
+import "./proxies.css";
 
-const CompanyLogos = [
-  {
-    name: "AT&T",
-    url: "https://www.proxystore.net/landing/images/isp/ATT_ISP_Proxies.png",
-  },
-  {
-    name: "Windstream",
-    url: "https://www.proxystore.net/landing/images/isp/Windstream_ISP_Proxies.png",
-  },
-  {
-    name: "Cogent",
-    url: "https://www.proxystore.net/landing/images/isp/Cogent_ISP_Proxies.png",
-  },
-  {
-    name: "Virgin Media",
-    url: "https://www.proxystore.net/landing/images/isp/Virgin_Media_ISP_Proxies.png",
-  },
-  {
-    name: "Verizon",
-    url: "https://www.proxystore.net/landing/images/isp/Verizon_ISP_Proxies.png",
-  },
-  {
-    name: "Sprint",
-    url: "https://www.proxystore.net/landing/images/isp/Sprint_ISP_Proxies.png",
-  },
+const useCases = [
+  { title: "Market research", description: "Explore publicly available information and compare what different markets see." },
+  { title: "E-commerce insights", description: "Follow product availability, catalogue changes and public pricing across locations." },
+  { title: "Search monitoring", description: "Review search results and keep an eye on how your web presence appears in different regions." },
+  { title: "Testing & automation", description: "Connect your scripts and test your applications through a proxy-enabled workflow." },
 ];
-
-const features = [
-  {
-    title: "Instant Activation",
-    icon: BoltIcon,
-    description: "Start using your proxies immediately after purchase.",
-  },
-  {
-    title: "High-Speed Connections",
-    icon: ChartBarIcon,
-    description: "Enjoy 1GB speeds for seamless performance.",
-  },
-  {
-    title: "24/7 Support",
-    icon: ClockIcon,
-    description: "Round-the-clock assistance for any issues.",
-  },
-  {
-    title: "Global Proxy Network",
-    icon: GlobeAltIcon,
-    description: "Access proxy servers in multiple countries worldwide.",
-  },
-  {
-    title: "Enterprise-Grade Security",
-    icon: ShieldCheckIcon,
-    description: "Secure your connections with top-tier encryption.",
-  },
-  {
-    title: "Easy API Integration",
-    icon: CogIcon,
-    description: "Seamless setup with comprehensive API documentation.",
-  },
+const faqs = [
+  ["Which proxy type should I choose?", "Start with your workflow. Datacenter proxies suit repeatable data collection and testing. ISP and static residential options suit projects that need a consistent address. Rotating residential proxies offer an address pool for workflows that need different connections. Compare the plan details before you purchase."],
+  ["Where can I see prices and available locations?", "Open the proxy plans in your dashboard. Select a category to see available plans, locations and configuration options. Pricing depends on the plan, quantity and duration you choose."],
+  ["Can I use HTTP or SOCKS5?", "The proxy purchase flow supports HTTP and SOCKS5 selection. Check your chosen plan and the requirements of the application you want to connect before completing your order."],
+  ["Do all plans include unlimited bandwidth?", "Bandwidth allowances depend on the proxy type and plan. Review the bandwidth and usage details for your selected plan before purchasing."],
+  ["How do I connect after purchasing?", "Your account contains your proxy connection details. Use the setup documentation to add them to your browser, application or script. Our support team can help if you need a hand."],
 ];
 
 export default function ProxyPage() {
-  const { isLoading } = useAuth();
-
-  useEffect(() => {
-    document.title =
-      "Buy Proxies Online - Premium Datacenter, Residential & ISP Proxies | ProxySock";
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navbar - Commented Out */}
-      {/* <Navbar /> */}
-
-      {/* Hero Section */}
+    <div className="proxy-page">
+      <Helmet><title>Datacenter, ISP & Residential Proxies | ProxySock</title><meta name="description" content="Compare datacenter, ISP, static and rotating residential proxies. Find the right connection for research, testing and automation with ProxySock." /></Helmet>
       <ProxyPageHeroSection />
-      {/* <div className="relative min-h-[600px] flex items-center justify-center bg-gradient-to-br from-red-900 via-red-800 to-red-900 pt-20">
-        <div
-          className="absolute inset-0 z-0 opacity-10"
-          style={{
-            backgroundImage: `url(${backgroundNode})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        ></div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-5xl sm:text-6xl md:text-7xl font-manrope-bold font-bold text-foreground tracking-tight"
-          >
-            Buy Premium Proxies Online
-            <br />
-            <span className="text-white/90">
-              Fast, Secure & Reliable Proxy Services
-            </span>
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-6 max-w-3xl mx-auto text-xl font-inter-regular text-muted-foreground"
-          >
-            Purchase high-speed datacenter, residential, ISP, and static
-            residential proxies with unlimited bandwidth and global coverage.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-10"
-          >
-            <Link
-              to={isAuthenticated ? "/dashboard" : "/login"}
-              className="px-10 py-4 bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-colors duration-200 font-manrope-semibold font-semibold text-lg inline-block"
-            >
-              {isAuthenticated ? "Buy Premium Proxies" : "Sign In"}
-            </Link>
-          </motion.div>
-        </div>
-      </div> */}
-
-      {/* Proxy Types Section */}
       <ProxyType />
-
-      {/* Logo Cloud */}
-      <section className="relative overflow-hidden py-20 bg-background">
-        <div className="relative z-10 mx-auto max-w-7xl px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-16 text-center"
-          >
-            <h2 className="mb-4 font-manrope-bold font-bold text-3xl text-foreground lg:text-4xl">
-              Buy Proxies from Trusted Mobile ISP Providers
-            </h2>
-            <p className="font-inter-regular text-muted-foreground text-lg max-w-3xl mx-auto">
-              Purchase proxies from top-tier mobile ISP providers for authentic
-              residential connections and minimal detection rates.
-            </p>
-          </motion.div>
-
-          <div
-            className="relative overflow-hidden"
-            style={{
-              maskImage:
-                "linear-gradient(to right, transparent, black 20%, black 80%, transparent)",
-            }}
-          >
-            <motion.div
-              animate={{
-                x: [0, -200 * CompanyLogos.length],
-              }}
-              className="flex gap-12"
-              transition={{
-                x: {
-                  repeat: Infinity,
-                  repeatType: "loop",
-                  duration: 25,
-                  ease: "linear",
-                },
-              }}
-            >
-              {[...CompanyLogos, ...CompanyLogos, ...CompanyLogos].map(
-                (logo, index) => (
-                  <div
-                    key={`${logo.name}-${index}`}
-                    className="flex shrink-0 items-center justify-center p-6"
-                  >
-                    <img
-                      src={logo.url}
-                      alt={logo.name}
-                      className="h-12 w-auto opacity-70 hover:opacity-100 transition-opacity"
-                    />
-                  </div>
-                ),
-              )}
-            </motion.div>
-          </div>
+      <section id="proxy-workflows" className="proxy-workflows" aria-labelledby="proxy-workflows-title">
+        <div className="proxy-section-heading"><div><p className="proxy-eyebrow">Put your proxies to work</p><h2 id="proxy-workflows-title">Your workflow.<br /><em>A wider perspective.</em></h2></div></div>
+        <div className="proxy-workflow-grid">{useCases.map(({ title, description }) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div>
+      </section>
+      <section id="proxy-setup" className="proxy-setup" aria-labelledby="proxy-setup-title">
+        <div className="proxy-section-heading"><div><p className="proxy-eyebrow">From choice to connection</p><h2 id="proxy-setup-title">Set up once.<br /><em>Get on with your work.</em></h2></div><Link className="proxy-text-link" to="/HowToConnect">Read the setup guides <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+        <div className="proxy-setup-grid">
+          <article><h3>Choose your connection</h3><p>Compare proxy types, then select the plan, location and quantity that fit your project.</p><span>Options in your dashboard</span></article>
+          <article><h3>Connect your tools</h3><p>Find your connection details in your account and follow the guide for your application.</p><span>Step-by-step documentation</span></article>
+          <article><h3>Keep moving forward</h3><p>Manage your services from one account. Reach out to our team when you need help.</p><Link to="/contact">Talk to support <ArrowUpRight size={13} aria-hidden="true" /></Link></article>
         </div>
       </section>
-
-      {/* Why Buy Proxies */}
-      <div className="relative bg-background py-20">
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-manrope-bold font-bold text-foreground mb-4">
-              Why Buy Proxies from ProxySock?
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-primary rounded-3xl p-6 hover:bg-primary/90 transition-colors duration-300"
-              >
-                <div className="w-12 h-12 bg-primary-foreground/20 rounded-lg flex items-center justify-center mb-4">
-                  <feature.icon className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <h3 className="text-lg font-manrope-semibold font-semibold text-primary-foreground mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-primary-foreground/90 text-sm font-inter-regular">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Other Services CTA */}
-      <div className="relative bg-primary py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-manrope-bold font-bold text-primary-foreground mb-6">
-            Explore More Services from ProxySock
-          </h2>
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <Link
-              to="/esim"
-              className="px-8 py-3 bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-colors font-semibold"
-            >
-              eSIM Cards
-            </Link>
-            <Link
-              to="/rdp"
-              className="px-8 py-3 bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-colors font-semibold"
-            >
-              RDP Hosting
-            </Link>
-            <Link
-              to="/vps"
-              className="px-8 py-3 bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-colors font-semibold"
-            >
-              VPS Hosting
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Methods */}
-      <SecurePaymentsSection />
-
-      {/* Testimonials - Commented Out */}
-      {/* <div className="bg-gray-800 py-24">...</div> */}
-
-      {/* Footer - Commented Out */}
-      {/* <footer className="bg-gray-900">...</footer> */}
+      <section id="proxy-faq" className="proxy-faq" aria-labelledby="proxy-faq-title">
+        <div><p className="proxy-eyebrow">A little more clarity</p><h2 id="proxy-faq-title">Before you<br /><em>connect.</em></h2><Link className="proxy-text-link" to="/contact">Contact us <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+        <div className="proxy-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div>
+      </section>
+      <section className="proxy-closing" aria-labelledby="proxy-closing-title"><div><p className="proxy-eyebrow">Your next connection</p><h2 id="proxy-closing-title">Find your proxy.<br /><span>Make your next move.</span></h2><p>Explore the available plans and choose a connection that works for you.</p></div><div className="proxy-closing-actions"><Link to="/dashboard/proxies" className="proxy-button proxy-button-dark">Explore proxy plans <ArrowRight size={18} aria-hidden="true" /></Link><Link to="/contact" className="proxy-button proxy-button-outline">Contact sales <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
     </div>
   );
 }
