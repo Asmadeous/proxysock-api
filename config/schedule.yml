@@ -54,6 +54,10 @@ meisim_order_poll:
   cron: "*/5 * * * *"   # Every 5 minutes — MeiSIM has no webhooks
   class: "MeisimOrderPollJob"
 
+meisim_verify_poll:
+  cron: "*/5 * * * *"   # Every 5 minutes — saves eSIM Verify results the admin page left unread
+  class: "MeisimVerifyPollJob"
+
 meisim_usage_sync:
   cron: "*/30 * * * *"  # Every 30 minutes
   class: "MeisimUsageSyncJob"

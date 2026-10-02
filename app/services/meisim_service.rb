@@ -69,7 +69,7 @@ class MeisimService
   def statement(from: nil, to: nil)
     query = { from: from, to: to }.compact.to_query
     path = "/dealer/statement#{"?#{query}" if query.present?}"
-    response = HTTParty.get("#{BASE_URL}#{path}", headers: headers.merge('Accept' => 'text/csv'), timeout: TIMEOUT)
+    response = http(:get, path, headers: headers.merge('Accept' => 'text/csv'))
     raise Error.new("MeiSIM GET #{path} failed: #{error_message(response.parsed_response)}", status: response.code) unless response.success?
 
     response.body
@@ -90,11 +90,20 @@ class MeisimService
     request(:get, "/dealer/esim-verify/#{ERB::Util.url_encode(batch_id)}")
   end
 
+  # Verdict of a one-code verify batch: pending until MeiSIM has checked it, then the single
+  # non-zero bucket (available, used, invalid, unknown), or error (refunded by MeiSIM).
+  def self.verify_verdict(progress)
+    return 'pending' if progress['pending'].to_i.positive? || progress['in_progress'].to_i.positive?
+
+    %w[available used invalid unknown].find { |k| progress[k].to_i.positive? } ||
+      (progress['error_count'].to_i.positive? ? 'error' : 'pending')
+  end
+
   # Verify batch results as CSV: iccid, lpa, status, reason, checked_at (pending rows
   # show status=pending while the batch runs).
   def esim_verify_results_csv(batch_id)
     path = "/dealer/esim-verify/#{ERB::Util.url_encode(batch_id)}/results.csv"
-    response = HTTParty.get("#{BASE_URL}#{path}", headers: headers.merge('Accept' => 'text/csv'), timeout: TIMEOUT)
+    response = http(:get, path, headers: headers.merge('Accept' => 'text/csv'))
     raise Error.new("MeiSIM GET #{path} failed: #{error_message(response.parsed_response)}", status: response.code) unless response.success?
 
     response.body
@@ -107,7 +116,7 @@ class MeisimService
   # answers 409 when there is no QR, 410 for cancelled orders, 404 for an unknown line.
   def qr_png(order_id, line: 1, size: 480)
     path = "/dealer/order/#{ERB::Util.url_encode(order_id)}/qr?line=#{line.to_i}&size=#{size.to_i}"
-    response = HTTParty.get("#{BASE_URL}#{path}", headers: headers.merge('Accept' => 'image/png'), timeout: TIMEOUT)
+    response = http(:get, path, headers: headers.merge('Accept' => 'image/png'))
     unless response.success? && response.headers['content-type'].to_s.start_with?('image/')
       raise Error.new("MeiSIM GET #{path} failed: #{error_message(response.parsed_response)}", status: response.code)
     end
@@ -120,9 +129,9 @@ class MeisimService
   private
 
   def request(method, path, payload = nil)
-    options = { headers: headers, timeout: TIMEOUT }
+    options = { headers: headers }
     options[:body] = payload.to_json if payload
-    response = HTTParty.public_send(method, "#{BASE_URL}#{path}", **options)
+    response = http(method, path, **options)
     body = response.parsed_response
 
     unless response.success? && body.is_a?(Hash) && body['ok'] != false
@@ -132,6 +141,22 @@ class MeisimService
     body
   rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET => e
     raise Error, "MeiSIM #{method.upcase} #{path} failed: #{e.class}"
+  end
+
+  # Every MeiSIM call goes through here and is logged with its method, path, status and time.
+  # Never the dealer key or the body: bodies carry activation codes and customer details.
+  def http(method, path, **options)
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    response = HTTParty.public_send(method, "#{BASE_URL}#{path}", timeout: TIMEOUT, **options)
+    Rails.logger.info("[MeiSIM] #{method.upcase} #{path} -> #{response.code} (#{elapsed_ms(started)}ms)")
+    response
+  rescue StandardError => e
+    Rails.logger.warn("[MeiSIM] #{method.upcase} #{path} -> #{e.class} (#{elapsed_ms(started)}ms)")
+    raise
+  end
+
+  def elapsed_ms(started)
+    ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
   end
 
   def headers
