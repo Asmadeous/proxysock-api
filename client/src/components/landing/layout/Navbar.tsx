@@ -52,6 +52,9 @@ const focusStyle = "outline-none focus-visible:bg-white/10 focus-visible:text-wh
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedByHover = useRef(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -63,7 +66,22 @@ export default function Navbar() {
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setOpenDropdown(null);
   }, [location.pathname]);
+
+  const cancelDropdownClose = () => {
+    if (dropdownCloseTimer.current) clearTimeout(dropdownCloseTimer.current);
+    dropdownCloseTimer.current = null;
+  };
+
+  const scheduleDropdownClose = () => {
+    cancelDropdownClose();
+    dropdownCloseTimer.current = setTimeout(() => setOpenDropdown(null), 180);
+  };
+
+  useEffect(() => () => {
+    if (dropdownCloseTimer.current) clearTimeout(dropdownCloseTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -114,12 +132,26 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 lg:flex xl:gap-5">
           {navigationGroups.map((group) => (
-            <DropdownMenu key={group.label}>
-              <DropdownMenuTrigger className={`group inline-flex h-10 items-center gap-2 rounded px-2 text-[13px] font-medium text-white/80 transition-colors hover:text-white data-[state=open]:text-white ${focusStyle}`}>
+            <DropdownMenu key={group.label} modal={false} open={openDropdown === group.label} onOpenChange={(open) => { cancelDropdownClose(); setOpenDropdown(open ? group.label : null); }}>
+              <DropdownMenuTrigger
+                onPointerEnter={(event) => {
+                  if (event.pointerType !== "mouse") return;
+                  cancelDropdownClose();
+                  openedByHover.current = true;
+                  setOpenDropdown(group.label);
+                }}
+                onPointerLeave={scheduleDropdownClose}
+                onPointerDown={() => { openedByHover.current = false; }}
+                onKeyDown={() => { openedByHover.current = false; }}
+                className={`group inline-flex h-10 items-center gap-2 rounded px-2 text-[13px] font-medium text-white/80 transition-colors hover:text-white data-[state=open]:text-white ${focusStyle}`}>
                 {group.label}
                 <ChevronDown aria-hidden="true" className="h-3 w-3 text-white/50 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={12} className="w-[340px] max-w-[calc(100vw-32px)] rounded-[4px] border-white/10 bg-[#171717] p-2 text-white shadow-2xl">
+              <DropdownMenuContent align="start" sideOffset={12}
+                onPointerEnter={cancelDropdownClose}
+                onPointerLeave={scheduleDropdownClose}
+                onCloseAutoFocus={(event) => { if (openedByHover.current) event.preventDefault(); }}
+                className="w-[340px] max-w-[calc(100vw-32px)] rounded-[4px] border-white/10 bg-[#171717] p-2 text-white shadow-2xl">
                 <div className="px-3 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">{group.label}</div>
                 {group.items.map((item) => (
                   <DropdownMenuItem key={item.href} asChild className="group w-full cursor-pointer gap-3 rounded-[3px] px-3 py-3 text-left focus:bg-white/[0.06] focus:text-white">
@@ -150,9 +182,9 @@ export default function Navbar() {
             {dark ? <Sun aria-hidden="true" className="h-4 w-4" /> : <Moon aria-hidden="true" className="h-4 w-4" />}
           </button>
           {!isAuthenticated && (
-            <Link to="/login" onClick={() => handleLinkClick("Login", "/login")} className={`hidden h-12 min-w-[106px] items-center justify-center rounded-[3px] bg-white/[0.08] px-6 text-sm font-medium transition-colors hover:bg-white/15 lg:inline-flex ${focusStyle}`}>Login</Link>
+            <Link to="/login" onClick={() => handleLinkClick("Login", "/login")} className={`hidden h-10 min-w-[90px] items-center justify-center rounded-[3px] bg-white/[0.08] px-4 text-[13px] font-medium transition-colors hover:bg-white/15 lg:inline-flex ${focusStyle}`}>Login</Link>
           )}
-          <Link to={accountHref} onClick={() => handleLinkClick(accountLabel, accountHref)} className={`inline-flex h-11 items-center justify-center rounded-[3px] bg-red-600 px-4 text-xs sm:h-12 sm:min-w-[124px] sm:text-sm font-semibold text-white transition-colors hover:bg-red-700 sm:px-5 ${focusStyle}`}>{accountLabel}</Link>
+          <Link to={accountHref} onClick={() => handleLinkClick(accountLabel, accountHref)} className={`inline-flex h-11 items-center justify-center rounded-[3px] bg-red-600 px-4 text-xs sm:h-10 sm:min-w-[108px] sm:text-[13px] font-semibold text-white transition-colors hover:bg-red-700 ${focusStyle}`}>{accountLabel}</Link>
           <button ref={menuButtonRef} type="button" aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={isMenuOpen} aria-controls="public-mobile-navigation" onClick={() => setIsMenuOpen((open) => !open)} className={`inline-flex h-11 w-11 items-center justify-center rounded text-white transition-colors hover:bg-white/10 lg:hidden ${focusStyle}`}>
             {isMenuOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
           </button>

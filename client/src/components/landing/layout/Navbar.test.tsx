@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +40,32 @@ function renderNavigation() {
 }
 
 describe("Public navigation", () => {
+  it("opens on hover and stays open while moving into the dropdown", async () => {
+    const user = userEvent.setup();
+    renderNavigation();
+    const trigger = screen.getByRole("button", { name: "Services" });
+    await user.hover(trigger);
+    const menu = await screen.findByRole("menu");
+    fireEvent.pointerLeave(trigger);
+    fireEvent.pointerEnter(menu);
+    await new Promise((resolve) => setTimeout(resolve, 220));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.pointerLeave(menu);
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("allows keyboard access and closes with Escape", async () => {
+    const user = userEvent.setup();
+    renderNavigation();
+    const trigger = screen.getByRole("button", { name: "Services" });
+    trigger.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("directs guests to registration and authenticated users to their dashboard", () => {
     renderNavigation();
     expect(screen.getByRole("link", { name: "Get started" })).toHaveAttribute("href", "/register");

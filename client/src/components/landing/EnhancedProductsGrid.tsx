@@ -111,7 +111,6 @@ export const EnhancedProductsGrid = ({ trackConversion, trackViewContent }: Enha
     <section className="infrastructure" aria-labelledby="services-heading">
       <header className="infrastructure-heading">
         <h2 id="services-heading">Digital infrastructure, connected.</h2>
-        <span>02 / Explore our services</span>
       </header>
       <nav className="infrastructure-nav" aria-label="Explore services">
         {services.map((service, index) => (

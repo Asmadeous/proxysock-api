@@ -1,52 +1,65 @@
+import { useId } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
-
+import "./call-to-action.css";
 
 interface CallToActionProps {
   isAuthenticated: boolean;
-  trackConversion: (
-    eventName: string,
-    eventType: string,
-    pagePath: string
-  ) => void;
+  trackConversion: (eventName: string, eventType: string, pagePath: string) => void;
 }
 
-export const CallToAction = ({
-  isAuthenticated,
-  trackConversion,
-}: CallToActionProps) => {
+export const CallToAction = ({ isAuthenticated, trackConversion }: CallToActionProps) => {
+  const gradientId = useId();
+  const accountHref = isAuthenticated ? "/dashboard" : "/register";
 
   return (
-    <section className="bg-primary py-20">
-      <div className="max-w-4xl mx-auto px-4 text-center">
-        <h2 className="text-4xl sm:text-5xl font-manrope-bold font-bold text-primary-foreground mb-6">
-          Ready to Scale your Business?
-        </h2>
-        <p className="text-base sm:text-lg font-inter-regular text-primary-foreground mb-8 sm:mb-10">
-          Join 15,000+ businesses using our premium digital infrastructure
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            to={isAuthenticated ? "/dashboard" : "/register"}
-            onClick={() =>
-              trackConversion(
-                "final_cta_lead",
-                "conversion",
-                isAuthenticated ? "/dashboard" : "/register"
-              )
-            }
-            className="inline-flex items-center justify-center px-6 sm:px-10 py-3 sm:py-4 bg-primary-foreground text-primary rounded-full hover:bg-primary-foreground/90 transition-all duration-200 text-sm sm:text-lg font-manrope-semibold font-semibold"
-          >
-            Start Now From $2.99/proxy
-          </Link>
-          <Link
-            to="/contact"
-            onClick={() =>
-              trackConversion("contact_sales_lead", "sales", "/contact")
-            }
-            className="inline-flex items-center justify-center px-6 sm:px-10 py-3 sm:py-4 bg-transparent border border-primary-foreground text-primary-foreground rounded-full hover:bg-primary-foreground hover:text-primary transition-all duration-200 text-sm sm:text-lg font-manrope-semibold font-semibold"
-          >
-            Contact Sales
-          </Link>
+    <section className="join-section" aria-labelledby="join-heading">
+      <div className="join-rail"><span>Your next chapter</span></div>
+      <div className="join-main">
+        <div className="join-copy">
+          <h2 id="join-heading">Your next move.<br /><span>Starts here.</span></h2>
+          <p>Bring your ideas online with proxies, servers, VPNs, and eSIMs. One account opens up a world of possibilities.</p>
+          <div className="join-actions">
+            <Link className="join-primary" to={accountHref} onClick={() => trackConversion(
+              isAuthenticated ? "dashboard_navigation" : "final_cta_lead",
+              isAuthenticated ? "navigation" : "conversion",
+              accountHref,
+            )}>
+              {isAuthenticated ? "Open your dashboard" : "Start Now From $2.99/proxy"}
+              <span><ArrowUpRight size={23} aria-hidden="true" /></span>
+            </Link>
+            <Link className="join-secondary" to="/contact" onClick={() => trackConversion("contact_sales_lead", "sales", "/contact")}>Contact Sales</Link>
+          </div>
+        </div>
+        <div className="join-art" aria-hidden="true">
+          <svg viewBox="0 0 700 660" fill="none">
+            <defs>
+              <linearGradient id={`${gradientId}-ring`} x1="220" y1="160" x2="550" y2="540" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#fff" /><stop offset=".5" stopColor="#ffc3c3" /><stop offset="1" stopColor="#ef6464" />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-edge`} x1="220" y1="140" x2="530" y2="550" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#fff" stopOpacity=".7" /><stop offset="1" stopColor="#fff" stopOpacity=".05" />
+              </linearGradient>
+              <radialGradient id={`${gradientId}-glow`}>
+                <stop stopColor="#ff9797" stopOpacity=".35" /><stop offset="1" stopColor="#ff9797" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <circle cx="370" cy="330" r="310" fill={`url(#${gradientId}-glow)`} />
+            <circle cx="370" cy="330" r="264" stroke="#fff" strokeOpacity=".1" />
+            <circle cx="370" cy="330" r="305" stroke="#fff" strokeOpacity=".05" />
+            <path d="M265 220 168 111M484 222 564 134M487 443 572 537" stroke="#810e19" strokeOpacity=".3" strokeWidth="20" />
+            <path d="m261 213-99-110m313 110 84-94m-80 314 84 94" stroke={`url(#${gradientId}-ring)`} strokeWidth="14" />
+            <circle cx="378" cy="340" r="148" stroke="#850f1c" strokeOpacity=".35" strokeWidth="54" />
+            <circle cx="370" cy="330" r="148" stroke={`url(#${gradientId}-ring)`} strokeWidth="54" />
+            <circle cx="370" cy="330" r="175" stroke={`url(#${gradientId}-edge)`} strokeWidth="2" />
+            <circle cx="370" cy="330" r="121" stroke="#6f091a" strokeOpacity=".2" strokeWidth="2" />
+            <circle cx="139" cy="78" r="34" stroke="#fff0f0" strokeWidth="9" />
+            <circle cx="582" cy="93" r="29" fill="#ffe5e5" />
+            <circle cx="586" cy="553" r="23" stroke="#ffb2b2" strokeWidth="8" />
+            <path d="M75 328h14m-7-7v14m478-98h14m-7-7v14M272 592h12m-6-6v12" stroke="#fff" strokeOpacity=".35" />
+            <circle cx="641" cy="400" r="3" fill="#fff" fillOpacity=".5" />
+          </svg>
+          <span className="join-art-caption">One account. Every connection.</span>
         </div>
       </div>
     </section>

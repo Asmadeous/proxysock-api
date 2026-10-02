@@ -13,7 +13,7 @@ const benefits = [
 
 export const WhyChooseUs = () => (
   <section className="trust-section trust-benefits" aria-labelledby="features-heading">
-    <div className="trust-section-rail"><span>The ProxySock advantage</span><span>04 / Why choose us</span></div>
+    <div className="trust-section-rail"><span>The ProxySock advantage</span></div>
     <div className="trust-section-intro">
       <h2 id="features-heading">More possibilities.<br /><span>Less to manage.</span></h2>
       <div className="trust-section-summary"><p>The services you need, with a simpler way to set up, stay connected, and keep your work moving.</p></div>

@@ -18,7 +18,7 @@ export const EnhancedStatsSection = () => {
 
   return (
     <section ref={ref} className="trust-section trust-scale" aria-labelledby="stats-heading">
-      <div className="trust-section-rail"><span>Our network, in numbers</span><span>03 / The scale</span></div>
+      <div className="trust-section-rail"><span>Our network, in numbers</span></div>
       <div className="trust-section-intro">
         <h2 id="stats-heading">Built for scale.<br /><span>Ready for you.</span></h2>
         <div className="trust-section-summary">
