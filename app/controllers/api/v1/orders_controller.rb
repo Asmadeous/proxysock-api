@@ -355,9 +355,10 @@ module Api
       def renew
         order = order_scope.find(params[:id])
 
-        # Double check reseller restriction (already handled by model but safe to be explicit)
-        unless order.product.product_type == 'vm'
-          return render json: { error: 'Only VMs can be renewed via this endpoint' }, status: :forbidden
+        # VMs renew locally; MyProxyAPI proxies and VPNs are extended at the provider.
+        unless order.product.product_type == 'vm' || order.product.provider_type == 'myproxyapi'
+          return render json: { error: 'Only VMs and MyProxyAPI proxies/VPNs can be renewed via this endpoint' },
+                        status: :forbidden
         end
 
         begin
@@ -367,6 +368,26 @@ module Api
           else
             render json: { error: 'Renewal failed' }, status: :unprocessable_entity
           end
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /api/v1/orders/:id/restart_vpn
+      def restart_vpn
+        order = order_scope.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).restart_vpn.except(:response)
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /api/v1/orders/:id/rotation  (status: "on" or "off", mobile proxies only)
+      def update_rotation
+        order = order_scope.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).update_rotation(params[:status]).except(:response)
         rescue StandardError => e
           render json: { error: e.message }, status: :unprocessable_entity
         end
@@ -522,10 +543,17 @@ module Api
 
       def serialize_order(order)
         resource = order.provisioned_resource
-        details = if order.product.product_type == 'esim' && order.esim_order
-                    order.esim_order.listing_details
-                  elsif order.product.proxy?
+        details = case order.product.product_type
+                  when 'esim'
+                    order.esim_order ? order.esim_order.listing_details : {}
+                  when *Product::PROXY_TYPES
                     { credentials: ProxyManagementService.credentials_for(order) }
+                  when 'vpn'
+                    vpn = ProxyManagementService.vpn_credentials_for(order)
+                    { credentials: vpn.except(:expires_at, :locations), country: vpn[:locations]&.first,
+                      expires_at: vpn[:expires_at] }.compact
+                  when 'vps', 'rdp', 'vm'
+                    order.vm ? { credentials: order.vm.login_details } : {}
                   else
                     {}
                   end
@@ -545,9 +573,9 @@ module Api
           topup_eligible: EsimTopupService.eligible?(order),
           # Conditional attributes based on resource availability
           ip_address: resource.try(:ip_address) || resource.try(:server_ip),
-          expires_at: resource.try(:expires_at) || order.metadata.to_h['expires_at'],
+          expires_at: resource.try(:expires_at) || order.expires_at || order.metadata.to_h['expires_at'],
           created_at: order.created_at
-        }.merge(details)
+        }.merge(details) { |_key, base, detail| detail.nil? ? base : detail }
       end
 
       def pagination_meta(collection)

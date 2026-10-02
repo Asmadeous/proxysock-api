@@ -9,6 +9,7 @@ module Admin
       #   {
       #     myproxy: { available_balance: 123.45, currency: "USD", ... },
       #     esim_access: { balance: 45.67, raw_balance: 456700 },
+      #     meisim: { balance: 63.55, markup_pct: 15, currency: "USD" },
       #     fetched_at: "2026-06-02T12:00:00Z"
       #   }
       def index
@@ -46,6 +47,19 @@ module Admin
         rescue StandardError => e
           Rails.logger.error("Provider balance fetch failed (eSIM Access): #{e.message}")
           balances[:esim_access] = { error: e.message }
+        end
+
+        # ── MeiSIM dealer wallet ──────────────────────────────
+        begin
+          wallet = MeisimService.new.wallet
+          balances[:meisim] = {
+            balance: wallet['balance'],
+            markup_pct: wallet['markupPct'],
+            currency: 'USD'
+          }
+        rescue StandardError => e
+          Rails.logger.error("Provider balance fetch failed (MeiSIM): #{e.message}")
+          balances[:meisim] = { error: e.message }
         end
 
         balances[:fetched_at] = Time.current.iso8601

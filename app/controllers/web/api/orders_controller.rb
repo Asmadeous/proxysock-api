@@ -793,6 +793,26 @@ module Web
         end
       end
 
+      # POST /web/api/orders/:id/restart_vpn
+      def restart_vpn
+        order = current_actor.orders.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).restart_vpn.except(:response)
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /web/api/orders/:id/rotation  (status: "on" or "off", mobile proxies only)
+      def update_rotation
+        order = current_actor.orders.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).update_rotation(params[:status]).except(:response)
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       # POST /web/api/orders/:id/whitelist
       def whitelist_add
         order = current_actor.orders.find(params[:id])

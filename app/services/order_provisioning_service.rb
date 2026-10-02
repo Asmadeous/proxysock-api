@@ -1308,6 +1308,10 @@ class OrderProvisioningService
     @order.activate!
   end
 
+  def ips_info_location(info)
+    info.is_a?(Hash) ? info['location'] : info
+  end
+
   def save_specialized_proxy_records(category_slug, provider_order_id, response)
     return if response.blank?
 
@@ -1336,9 +1340,9 @@ class OrderProvisioningService
             username: parts[2],
             password: parts[3],
             country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
-            city: response.dig('ips_info', idx)&.split(',')&.last&.strip,
-            isp_name: response.dig('ips_info', idx)&.split(',')&.first&.strip,
-            status: 'active'
+            # ips_info entries come as text or as { "ip", "location" } objects.
+            city: ips_info_location(response.dig('ips_info', idx))&.split(',')&.last&.strip,
+            isp_name: ips_info_location(response.dig('ips_info', idx))&.split(',')&.first&.strip
           }
           if GlobalIspProxy.column_names.include?('metadata')
             params[:metadata] = {
@@ -1366,8 +1370,7 @@ class OrderProvisioningService
             password: parts[3],
             country_code: @order.metadata['selected_country_id'] || @order.metadata['countryCode'] || @order.metadata['country_code'] || @product.metadata&.dig('country_code'),
             city: info['location']&.split(',')&.last&.strip,
-            isp_name: info['location']&.split(',')&.first&.strip,
-            status: 'active'
+            isp_name: info['location']&.split(',')&.first&.strip
           }
           if GlobalIspProxy.column_names.include?('metadata')
             params[:metadata] = {

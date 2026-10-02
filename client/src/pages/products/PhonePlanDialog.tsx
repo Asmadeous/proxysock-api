@@ -34,14 +34,12 @@ interface PhonePlanDialogProps {
 export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClose, onSubmit }: PhonePlanDialogProps) {
   const [imei, setImei] = useState('');
   const [eid, setEid] = useState('');
-  const [useDefaultAddress, setUseDefaultAddress] = useState(true);
   const [address, setAddress] = useState<DeviceAddress>(EMPTY_ADDRESS);
   const [errors, setErrors] = useState<DeviceDetailsErrors>({});
 
   useEffect(() => {
     setImei('');
     setEid('');
-    setUseDefaultAddress(true);
     setAddress(EMPTY_ADDRESS);
     setErrors({});
   }, [plan?.id]);
@@ -87,8 +85,9 @@ export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClo
       return;
     }
     const result = validateDeviceDetails(
-      { imei, eid, address: plan.accepts_address && !useDefaultAddress ? address : EMPTY_ADDRESS },
+      { imei, eid, address: plan.accepts_address ? address : EMPTY_ADDRESS },
       plan.requires_eid,
+      plan.accepts_address,
     );
     setErrors(result.errors);
     if (result.details) onSubmit(plan, result.details);
@@ -229,23 +228,17 @@ export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClo
           {plan.accepts_address && (
             <fieldset className="space-y-3 rounded-lg border border-border p-3">
               <legend className="flex items-center gap-1.5 px-1 text-xs font-bold uppercase tracking-wide"><MapPin aria-hidden="true" className={ICON} />Activation address</legend>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={useDefaultAddress} onChange={(e) => setUseDefaultAddress(e.target.checked)} className="h-4 w-4" />
-                Use default
-              </label>
               <p className="text-xs leading-5 text-muted-foreground">
-                Have a US address you'll actually use this line at? Uncheck "Use default" and enter it. It is also the address used for emergency (911) calls, and the carrier picks your number's area code from its ZIP. Some carriers verify the activation address; if an activation has failed before, try entering your real address here.
+                The US address you'll use this line at. It is the address for emergency (911) calls, and the carrier picks your number's area code from its ZIP.
               </p>
-              {!useDefaultAddress && (
-                <div className="space-y-3">
-                  {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
-                  <div className="grid grid-cols-3 gap-3">
-                    {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
-                    {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
-                    {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
-                  </div>
+              <div className="space-y-3">
+                {field('address_line_1', 'Street address', address.address_line_1, setAddressField('address_line_1'), errors.address_line_1, { autoComplete: 'address-line1' })}
+                <div className="grid grid-cols-3 gap-3">
+                  {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
+                  {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
+                  {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
                 </div>
-              )}
+              </div>
             </fieldset>
           )}
 

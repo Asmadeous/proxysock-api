@@ -47,6 +47,7 @@ interface ProxyOrder {
   traffic_used?: number;
   traffic_limit?: number;
   subscription_active?: boolean;
+  rotation?: 'on' | 'off';
   auto_renew?: boolean;
   renewal_method?: string;
 }
@@ -145,7 +146,8 @@ export default function ProxyManagement() {
           traffic_limit: order.bandwidth_gb,
           subscription_active: order.status === 'completed',
           auto_renew: order.auto_renew,
-          renewal_method: order.renewal_method
+          renewal_method: order.renewal_method,
+          rotation: order.metadata?.rotation === 'off' ? 'off' : 'on'
         }));
 
         setProxyOrders(transformedOrders);

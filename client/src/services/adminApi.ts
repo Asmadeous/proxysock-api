@@ -99,6 +99,7 @@ export const updateAdminProduct = (id: string | number, data: Record<string, unk
 export const deleteAdminProduct = (id: string | number) => adminApi.delete(`/products/${id}`);
 export const syncAdminProxies = () => adminApi.post("/products/sync_proxies");
 export const syncAdminEsims = () => adminApi.post("/products/sync_esims");
+export const syncAdminMeisim = () => adminApi.post("/products/sync_meisim");
 export const syncAdminVPS = () => adminApi.post("/products/sync_vps");
 export const syncAdminVPN = () => adminApi.post("/products/sync_vpn");
 export const syncAdminRDP = () => adminApi.post("/products/sync_rdp");
@@ -314,7 +315,7 @@ export const fetchResourceAlerts = (params?: Record<string, string>) =>
 export const acknowledgeResourceAlert = (id: string) =>
     adminApi.post(`/monitoring/resource_alerts/${id}/acknowledge`);
 
-// ── Provider Balances (MyProxyApi + eSIM Access) ──
+// ── Provider Balances (MyProxyApi + eSIM Access + MeiSIM) ──
 export const fetchProviderBalances = () =>
     adminApi.get("/provider_balances").then(res => res.data);
 

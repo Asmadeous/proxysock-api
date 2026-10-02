@@ -84,6 +84,16 @@ module Admin
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
+      # MeiSIM phone lines and travel plans; the same sync the hourly job runs.
+      def sync_meisim
+        synced = MeisimCatalogSyncService.new.sync!
+        render json: { message: "MeiSIM synced: #{synced} plans", synced: synced }
+      rescue StandardError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      ensure
+        Product.bust_catalog_cache!
+      end
+
       def sync_vps
         InHouseProductSyncService.new.sync(type: 'vps')
         render json: { message: 'Cloud VPS products synced successfully' }

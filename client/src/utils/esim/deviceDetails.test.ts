@@ -25,7 +25,14 @@ describe("validateDeviceDetails", () => {
     expect(details).toEqual({ imei: "350923389416420" });
   });
 
-  it("validates the optional 911 address only when one is entered", () => {
+  it("requires the 911 address when the plan takes one", () => {
+    const { errors, details } = validateDeviceDetails({ imei: "350923389416420", eid: EID, address: noAddress }, true, true);
+
+    expect(details).toBeUndefined();
+    expect(Object.keys(errors).sort()).toEqual(["address_line_1", "city", "state", "zip_code"]);
+  });
+
+  it("validates the 911 address when one is entered", () => {
     const bad = validateDeviceDetails(
       { imei: "350923389416420", eid: EID, address: { address_line_1: "Teal Ct", city: "D", state: "Delaware", zip_code: "1990" } },
       true,

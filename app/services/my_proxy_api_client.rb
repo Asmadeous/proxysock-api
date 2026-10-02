@@ -300,21 +300,36 @@ class MyProxyApiClient
     request(:patch, "#{BASE_URL}/mobile-orders/update-rotation", body)
   end
 
+  # Switch a mobile order between user:pass and whitelisted-IP authentication.
+  # Endpoint: PATCH /mobile-orders/update-auth (ip only for the "ip" auth type)
+  def mobile_update_auth(order_id, auth_type, ip = nil)
+    body = { order_id: order_id, auth_type: auth_type }
+    body[:ip] = ip if ip.present?
+    request(:patch, "#{BASE_URL}/mobile-orders/update-auth", body)
+  end
+
   # Restart a VPN order.
   # Endpoint: GET /orders/vpn/restart/{order_id}
   def restart_vpn(order_id)
     request(:get, "#{BASE_URL}/orders/vpn/restart/#{order_id}")
   end
 
-  # Extend an order.
-  # Endpoint: POST /products/place-extend
+  # Extend an active Static IPs or VPN order, paid from our reseller deposit.
+  # Endpoint: POST /products/place-extend. `period` is months for Static IPs ("1d", "1w",
+  # 1, 3, 6, 12) and the plan id for VPN.
+  # A refusal such as { "status": 402, "message": "Insufficient funds." } can arrive with
+  # HTTP 200, so the body's status is checked too.
   def place_extend(user_id:, order_id:, period:)
     payload = {
       user_id: user_id.to_s,
       order_id: order_id.to_s,
       period: period.to_s
     }
-    request(:post, "#{BASE_URL}/products/place-extend", payload)
+    response = request(:post, "#{BASE_URL}/products/place-extend", payload)
+    status = response['status'].to_i
+    raise "MyProxyApi extend refused: #{response['message'] || status}" if status.positive? && status != 200
+
+    response
   end
 
   # ==========================================================================

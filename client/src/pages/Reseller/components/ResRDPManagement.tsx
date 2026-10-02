@@ -7,8 +7,7 @@ import {
     EyeSlashIcon,
     XCircleIcon
 } from "@heroicons/react/24/outline";
-import resellerApi, { fetchResellerVms } from "@/services/resellerApi";
-import { startVm, stopVm, rebootVm } from "@/services/api";
+import resellerApi, { fetchResellerVms, startResellerVm as startVm, stopResellerVm as stopVm, rebootResellerVm as rebootVm } from "@/services/resellerApi";
 import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";

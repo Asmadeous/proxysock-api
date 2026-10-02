@@ -22,6 +22,7 @@ export const normalizeDigits = (value: string) => value.replace(/[\s-]/g, "");
 export function validateDeviceDetails(
   input: { imei: string; eid: string; address: DeviceAddress },
   requiresEid: boolean,
+  requiresAddress = false,
 ): { errors: DeviceDetailsErrors; details?: DeviceDetails } {
   const errors: DeviceDetailsErrors = {};
   const imei = normalizeDigits(input.imei);
@@ -37,7 +38,7 @@ export function validateDeviceDetails(
     zip_code: input.address.zip_code.trim(),
   };
   const hasAddress = Object.values(address).some(Boolean);
-  if (hasAddress) {
+  if (hasAddress || requiresAddress) {
     if (!/^\d+\s+\S/.test(address.address_line_1)) errors.address_line_1 = "Start with the street number, e.g. 120 Main St";
     if (address.city.length < 2) errors.city = "Enter the city";
     if (!/^[A-Z]{2}$/.test(address.state)) errors.state = "Use the 2-letter state code, e.g. AZ";
@@ -51,7 +52,7 @@ export function validateDeviceDetails(
     details: {
       imei,
       ...(requiresEid ? { eid } : {}),
-      ...(hasAddress ? { address } : {}),
+      ...(hasAddress || requiresAddress ? { address } : {}),
     },
   };
 }

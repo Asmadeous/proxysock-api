@@ -155,7 +155,7 @@ export default function ResApiDocs() {
         },
         {
             id: "prov-usa-esim", category: "provisioning", method: "POST", path: isEnterprise ? "/api/v1/orders/checkout_cart" : "/api/v1/orders",
-            name: "USA Phone-Number eSIM", description: "Payload required to provision a US prepaid line (products with `requires_imei: true`). Each line is activated on one phone, so `quantity` must be 1. `metadata.imei` (15 digits) is required, `metadata.eid` (32 digits) is required when the product has `requires_eid: true`, and `metadata.address` (E911) is optional. Invalid details are rejected with 422 before any payment.",
+            name: "USA Phone-Number eSIM", description: "Payload required to provision a US prepaid line (products with `requires_imei: true`). Each line is activated on one phone, so `quantity` must be 1. `metadata.imei` (15 digits) is required, `metadata.eid` (32 digits) is required when the product has `requires_eid: true`, and `metadata.address` (E911: `address_line_1` starting with a street number, `city`, 2-letter `state`, 5-digit `zip_code`) is required when the product has `accepts_address: true`. Invalid details are rejected with 422 before any payment.",
             visible: true,
             body: isEnterprise
                 ? { items: [{ product_id: "0cf1fe4c-c82b-4a15-9de5-62daf21ea00f", quantity: 1, metadata: { imei: "356938035643809", eid: "89049032000001000000000000000001", address: { address_line_1: "120 Main St", city: "Phoenix", state: "AZ", zip_code: "85001" } } }] }
@@ -207,6 +207,25 @@ export default function ResApiDocs() {
             name: "Cancel Order", description: "Cancel an order and refund to wallet (must be within 1 hour).",
             visible: true,
             response: { message: "Order cancelled and refunded" }
+        },
+        {
+            id: "order-renew", category: "orders", method: "POST", path: "/api/v1/orders/:id/renew",
+            name: "Renew Order", description: "Extend an active VM, static proxy or VPN by one period, paid from your balance.",
+            visible: true,
+            response: { message: "Order renewed successfully" }
+        },
+        {
+            id: "order-restart-vpn", category: "orders", method: "POST", path: "/api/v1/orders/:id/restart_vpn",
+            name: "Restart VPN", description: "Restart a VPN whose connection misbehaves.",
+            visible: true,
+            response: { message: "VPN restart requested" }
+        },
+        {
+            id: "order-rotation", category: "orders", method: "POST", path: "/api/v1/orders/:id/rotation",
+            name: "Mobile IP Rotation", description: "Turn 30-minute IP rotation on or off for a mobile proxy order.",
+            visible: true,
+            body: { status: "off" },
+            response: { message: "Rotation turned off" }
         },
 
         // Billing

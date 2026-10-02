@@ -5,7 +5,8 @@ import {
     GlobeAltIcon,
     UserIcon,
     MagnifyingGlassIcon,
-    DocumentArrowDownIcon
+    EyeIcon,
+    EyeSlashIcon
 } from "@heroicons/react/24/outline";
 import { fetchAdminOrders } from "@/services/adminApi";
 import { toast } from "react-hot-toast";
@@ -28,6 +29,7 @@ export default function AdminVPNManagement() {
     const [loading, setLoading] = useState(true);
     const [userType, setUserType] = useState("");
     const [search, setSearch] = useState("");
+    const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         fetchVpns();
@@ -116,9 +118,16 @@ export default function AdminVPNManagement() {
                                     <span className="text-muted-foreground">User:</span>
                                     <span className="text-foreground truncate">{vpn.username || 'N/A'}</span>
                                 </div>
-                                <div className="flex justify-between">
+                                <div className="flex justify-between items-center gap-2">
                                     <span className="text-muted-foreground">Pass:</span>
-                                    <span className="text-foreground truncate">••••••••</span>
+                                    <span className="text-foreground truncate">{showPassword[vpn.id] ? (vpn.password || 'N/A') : '••••••••'}</span>
+                                    <button
+                                        onClick={() => setShowPassword(p => ({ ...p, [vpn.id]: !p[vpn.id] }))}
+                                        aria-label={showPassword[vpn.id] ? "Hide password" : "Show password"}
+                                        className="text-muted-foreground hover:text-foreground"
+                                    >
+                                        {showPassword[vpn.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                                    </button>
                                 </div>
                             </div>
 
@@ -127,15 +136,9 @@ export default function AdminVPNManagement() {
                                     <GlobeAltIcon className="w-3.5 h-3.5" />
                                     <span>{vpn.country || 'Global'}</span>
                                 </div>
-                                <span>Expires: {new Date(vpn.expires_at).toLocaleDateString()}</span>
+                                <span>Expires: {vpn.expires_at ? new Date(vpn.expires_at).toLocaleDateString() : 'N/A'}</span>
                             </div>
 
-                            <div className="flex gap-2">
-                                <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors">
-                                    <DocumentArrowDownIcon className="w-4 h-4" />
-                                    Download Config
-                                </button>
-                            </div>
                         </motion.div>
                     ))}
                 </div>

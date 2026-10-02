@@ -22,7 +22,7 @@ import { fetchProviderBalances } from "../../../services/adminApi";
 import { adminQueryKeys } from "../queries/queryKeys";
 
 // Lucide icons for provider cards
-import { Globe, Wifi } from "lucide-react";
+import { Globe, Wifi, Smartphone } from "lucide-react";
 
 export default function OverviewTab() {
     const { isLoading, stats, recentOrders } = useOverviewStats();
@@ -107,7 +107,7 @@ export default function OverviewTab() {
                     <WalletIcon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                     Provider Balances
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* MyProxyApi Balance */}
                     <div className="relative overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
                         <div className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] pointer-events-none">
@@ -192,6 +192,48 @@ export default function OverviewTab() {
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {balances?.esim_access?.currency || "USD"} • Available balance
                                 </p>
+                            </>
+                        )}
+                    </div>
+
+                    {/* MeiSIM dealer wallet */}
+                    <div className="relative overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
+                        <div className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] pointer-events-none">
+                            <Smartphone className="w-full h-full" />
+                        </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 rounded-lg bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 ring-1 ring-violet-500/20">
+                                <Smartphone className="h-5 w-5 text-violet-500" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">MeiSIM</p>
+                                <p className="text-xs text-muted-foreground">Phone line &amp; travel eSIM dealer wallet</p>
+                            </div>
+                        </div>
+                        {balancesLoading ? (
+                            <div className="space-y-2">
+                                <div className="h-8 w-28 bg-muted animate-pulse rounded" />
+                                <div className="h-3 w-20 bg-muted/70 animate-pulse rounded" />
+                            </div>
+                        ) : balances?.meisim?.error ? (
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                                <p className="text-sm text-destructive">Connection failed</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-3xl font-bold text-foreground tracking-tight">
+                                    {formatBalance(balances?.meisim?.balance)}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {balances?.meisim?.currency || "USD"} • Available balance
+                                </p>
+                                {balances?.meisim?.markup_pct != null && (
+                                    <div className="mt-3 pt-3 border-t border-border/50">
+                                        <p className="text-xs text-muted-foreground">Dealer markup</p>
+                                        <p className="text-sm font-medium text-foreground">{balances.meisim.markup_pct}%</p>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

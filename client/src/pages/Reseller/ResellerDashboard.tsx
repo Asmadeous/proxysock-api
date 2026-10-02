@@ -40,6 +40,7 @@ const ResManagement = lazy(() => import("./components/ResManagement"));
 const ResProxyManagement = lazy(() => import("./components/ResProxyManagement"));
 const ResVPSManagement = lazy(() => import("./components/ResVPSManagement"));
 const ResRDPManagement = lazy(() => import("./components/ResRDPManagement"));
+const ResVPNManagement = lazy(() => import("./components/ResVPNManagement"));
 const ResESIMManagement = lazy(() => import("./components/ResESIMManagement"));
 const ResUserManagement = lazy(() => import("./components/ResUserManagement"));
 const ResApiDocs = lazy(() => import("./components/ResApiDocs"));
@@ -316,6 +317,7 @@ export default function ResellerDashboard() {
             case "proxy-management": return <ResProxyManagement />;
             case "vps-management": return <ResVPSManagement />;
             case "rdp-management": return <ResRDPManagement />;
+            case "vpn-management": return <ResVPNManagement />;
             case "esim-management": return <ResESIMManagement />;
 
             default: return <ResOverview />;

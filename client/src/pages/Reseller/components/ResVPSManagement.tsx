@@ -9,8 +9,7 @@ import {
     EyeSlashIcon,
     XCircleIcon,
 } from "@heroicons/react/24/outline";
-import resellerApi, { fetchResellerVms } from "@/services/resellerApi";
-import { startVm, stopVm, rebootVm } from "@/services/api";
+import resellerApi, { fetchResellerVms, startResellerVm as startVm, stopResellerVm as stopVm, rebootResellerVm as rebootVm } from "@/services/resellerApi";
 import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +29,9 @@ interface VPSInstance {
     os_template: string;
     root_password: string;
     ssh_port: number;
+    port?: number;
+    protocol?: "ssh" | "rdp";
+    username?: string;
     expires_at: string;
     plan_name?: string;
     order_id?: string | number;
@@ -141,9 +143,17 @@ export default function ResVPSManagement() {
                         </div>
 
                         <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono relative group">
+                            <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Host:</span>
+                                <span className="truncate">{vps.dns_name || vps.ip_address || 'Generating...'}</span>
+                            </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Subdomain:</span>
-                                <span>{vps.dns_name || 'Generating...'}</span>
+                                <span className="text-muted-foreground">{vps.protocol === 'rdp' ? 'RDP port:' : 'SSH port:'}</span>
+                                <span>{vps.port ?? vps.ssh_port}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Username:</span>
+                                <span>{vps.username || 'root'}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Password:</span>

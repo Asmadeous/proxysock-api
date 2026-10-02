@@ -69,9 +69,10 @@ class Product < ApplicationRecord
   # neither of which a plain `products.updated_at` would catch.
   #
   # NOTE: update_columns / update_all bypass timestamps, so use update/save for
-  # product, pricing and category edits (or bust this version explicitly).
+  # product, pricing and category edits (or call bust_catalog_cache!).
   def self.catalog_cache_version
     [
+      catalog_cache_generation,
       unscoped.maximum(:updated_at).to_i,
       unscoped.count,
       ProductPricing.unscoped.maximum(:updated_at).to_i,
@@ -79,10 +80,23 @@ class Product < ApplicationRecord
     ].join('-')
   end
 
+  CATALOG_GENERATION_KEY = 'products/catalog_generation'
+
+  # Solid Cache cannot delete by pattern, so every product cache key carries this
+  # generation; bumping it makes all list and show caches rebuild on the next request.
+  def self.bust_catalog_cache!
+    Rails.cache.write(CATALOG_GENERATION_KEY, SecureRandom.hex(4))
+  end
+
+  def self.catalog_cache_generation
+    Rails.cache.read(CATALOG_GENERATION_KEY) || '0'
+  end
+
   # Cache version for a single product's SHOW endpoint. Scoped to this product
   # so one product's edit doesn't flush every other product's cache.
   def cache_version
     [
+      self.class.catalog_cache_generation,
       updated_at.to_i,
       product_pricings.maximum(:updated_at).to_i,
       product_category&.updated_at.to_i

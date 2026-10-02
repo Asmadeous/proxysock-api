@@ -53,6 +53,9 @@ export const fetchResellerOrders = (params: Record<string, string> = {}) =>
     resellerApi.get("/orders", { params });
 export const fetchResellerVms = (params: Record<string, string> = {}) =>
     resellerApi.get("/vms", { params });
+export const startResellerVm = (id: string | number) => resellerApi.post(`/vms/${id}/start`);
+export const stopResellerVm = (id: string | number) => resellerApi.post(`/vms/${id}/stop`);
+export const rebootResellerVm = (id: string | number) => resellerApi.post(`/vms/${id}/restart`);
 export const reorderResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/reorder`);
 export const renewResellerOrder = (id: string) =>

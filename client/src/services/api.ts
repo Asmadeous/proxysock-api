@@ -126,6 +126,12 @@ export const rotateProxyIp = (id: string | number) =>
 export const changeProxyProtocol = (id: string | number, protocol: string) =>
   api.post(`/web/api/orders/${id}/change_protocol`, { protocol });
 
+export const restartVpn = (id: string | number) =>
+  api.post(`/web/api/orders/${id}/restart_vpn`);
+
+export const updateMobileRotation = (id: string | number, status: "on" | "off") =>
+  api.post(`/web/api/orders/${id}/rotation`, { status });
+
 export const whitelistAdd = (id: string | number, ip: string, description?: string) =>
   api.post(`/web/api/orders/${id}/whitelist`, { ip, description });
 

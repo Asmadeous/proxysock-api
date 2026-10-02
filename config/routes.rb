@@ -44,6 +44,8 @@ Rails.application.routes.draw do
           post :refund
           post :reorder
           post :update_subscription
+          post :restart_vpn
+          post :rotation, action: :update_rotation
           get :topups, to: 'esim_topups#index'
           post :topups, to: 'esim_topups#create'
           post :topup_subscription, to: 'esim_topups#subscribe'
@@ -177,6 +179,8 @@ Rails.application.routes.draw do
           post :change_protocol
           post :update_credentials
           post :rotate_ip
+          post :restart_vpn
+          post :rotation, action: :update_rotation
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
           post :claim_crypto_refund
@@ -290,6 +294,7 @@ Rails.application.routes.draw do
         collection do
           post :sync_proxies
           post :sync_esims
+          post :sync_meisim
           post :sync_vps
           post :sync_rdp
           post :sync_vpn

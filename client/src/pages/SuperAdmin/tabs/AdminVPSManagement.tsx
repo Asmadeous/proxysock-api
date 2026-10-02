@@ -26,6 +26,11 @@ interface VPSInstance {
     hostname: string;
     rdp_username: string;
     rdp_password: string;
+    host?: string;
+    port?: number;
+    protocol?: "ssh" | "rdp";
+    username?: string;
+    password?: string;
     expires_at: string;
     plan_name?: string;
     order_id?: string | number;
@@ -111,17 +116,21 @@ export default function AdminVPSManagement() {
                         </div>
 
                         <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm font-mono">
+                            <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Host:</span>
+                                <span className="text-foreground truncate">{vps.host || vps.ip_address || 'Allocating...'}</span>
+                            </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">IP Address:</span>
-                                <span className="text-foreground">{vps.ip_address || 'Allocating...'}</span>
+                                <span className="text-muted-foreground">{vps.protocol === 'rdp' ? 'RDP port:' : 'SSH port:'}</span>
+                                <span className="text-foreground">{vps.port ?? '—'}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">User:</span>
-                                <span className="text-foreground">{vps.rdp_username || 'root'}</span>
+                                <span className="text-foreground">{vps.username || 'root'}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Pass:</span>
-                                <span className="text-foreground">{showPassword[vps.id] ? vps.rdp_password : '••••••••'}</span>
+                                <span className="text-foreground">{showPassword[vps.id] ? vps.password : '••••••••'}</span>
                                 <button onClick={() => setShowPassword(p => ({ ...p, [vps.id]: !p[vps.id] }))} className="text-muted-foreground hover:text-foreground">
                                     {showPassword[vps.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                 </button>

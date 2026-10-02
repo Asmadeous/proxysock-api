@@ -50,7 +50,7 @@ module Admin
 
       # GET /admin/api/orders
       def index
-        orders = Order.preload(:product, :orderable).order(created_at: :desc)
+        orders = Order.preload(:product, :orderable, :vm, :vpn_accounts).order(created_at: :desc)
 
         if params[:product_type].present?
           orders = case params[:product_type]
@@ -364,14 +364,14 @@ module Admin
           updated_at: o.updated_at
         }
         data.merge!(o.esim_order.listing_details(provider_qr: true)) if o.product&.product_type == 'esim' && o.esim_order
-        data[:credentials] = ProxyManagementService.credentials_for(o) if o.product&.proxy?
+        data.merge!(service_details(o))
         if full
           data[:order_number]     = o.order_number
           data[:currency]         = o.currency
-          data[:expires_at]       = o.expires_at
+          data[:expires_at]     ||= o.expires_at
           data[:provider_order_id] = o.provider_order_id
           data[:metadata]         = o.metadata
-          data[:credentials]      = o.product&.proxy? ? ProxyManagementService.credentials_for(o) : o.credentials
+          data[:credentials]    ||= o.credentials
 
           data[:product] = {
             id: o.product&.id,
@@ -416,6 +416,27 @@ module Admin
         end
 
         data
+      end
+
+      # Login, server and expiry for proxy, VPN and VPS/RDP orders, so the admin lists show
+      # the same values the customer sees.
+      def service_details(order)
+        product = order.product
+        return {} unless product
+
+        case product.product_type
+        when *Product::PROXY_TYPES
+          { credentials: ProxyManagementService.credentials_for(order) }
+        when 'vpn'
+          vpn = ProxyManagementService.vpn_credentials_for(order)
+          { credentials: vpn.except(:expires_at, :locations), country: vpn[:locations]&.first,
+            expires_at: vpn[:expires_at] || order.expires_at }
+        when 'vps', 'rdp', 'vm'
+          vm = order.vm
+          vm ? { credentials: vm.login_details, expires_at: vm.expires_at || order.expires_at, vm_status: vm.status } : {}
+        else
+          {}
+        end
       end
 
       # Serializes whichever provisioned resource(s) exist for this order so the

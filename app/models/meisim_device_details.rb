@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Device details MeiSIM requires for US prepaid (p3:, ly: and man:) lines, read from
-# an order's metadata: `imei`, `eid`, and an optional E911 `address`. UK lines need none.
+# an order's metadata: `imei`, `eid`, and the E911 `address`. UK lines need none.
 class MeisimDeviceDetails
   # man: plans are activated by MeiSIM's team onto the phone's EID; the carrier needs both.
   DEVICE_PREFIXES = %w[p3: ly: man:].freeze
@@ -31,7 +31,11 @@ class MeisimDeviceDetails
     errors = []
     errors << 'imei must be exactly 15 digits' unless imei.match?(/\A\d{15}\z/)
     errors << 'eid must be exactly 32 digits' if eid_required? && !eid.match?(/\A\d{32}\z/)
-    errors.concat(address_errors) if address.present?
+    if address.present?
+      errors.concat(address_errors)
+    elsif address_required?
+      errors << 'address is required (street, city, state and ZIP)'
+    end
     errors
   end
 
@@ -67,6 +71,11 @@ class MeisimDeviceDetails
     return metadata['requires_eid'] == true if metadata.key?('requires_eid')
 
     self.class.eid_required?(metadata['network'])
+  end
+
+  # Every US line that takes an activation address must have one (all but Moxee).
+  def address_required?
+    (@product.metadata || {})['accepts_address'] == true
   end
 
   def address_errors

@@ -57,6 +57,21 @@ class ProxyManagementService
       password: proxy.try(:password), protocol: proxy.try(:protocol) || 'http', endpoints: [endpoint].compact_blank }
   end
 
+  # VPN login for any VPN order, as the admin and reseller lists show it: MyProxyAPI's
+  # stored view, else the local VPN account.
+  def self.vpn_credentials_for(order)
+    details = vpn_details(order) if order.product.provider_type == 'myproxyapi'
+    if details && (details[:username].present? || details[:server].present?)
+      return details.slice(:server, :protocol, :username, :password, :endpoints, :locations, :expires_at)
+    end
+
+    account = order.vpn_accounts.first
+    return {} unless account
+
+    { server: account.server, protocol: account.protocol, username: account.username, password: account.password,
+      endpoints: [account.server].compact, locations: [], expires_at: account.expires_at }
+  end
+
   # VPN orders store { order: { end_time, timezone }, config: { auth_credentials: {} },
   # vpn_info: [{ vpn_name, vpn_type, ip_info: " - US, North Carolina, NC" }] }. There is no
   # server IP: customers connect with the downloaded .ovpn file.
@@ -124,8 +139,14 @@ class ProxyManagementService
     }
   end
 
+  # MyProxyAPI: "Alphanumeric characters allowed only. Minimum 5 characters. Maximum 20 characters."
+  CREDENTIAL_FORMAT = /\A[A-Za-z0-9]{5,20}\z/.freeze
+
   def update_credentials(username, password)
     verify_support!
+    unless CREDENTIAL_FORMAT.match?(username.to_s) && CREDENTIAL_FORMAT.match?(password.to_s)
+      raise 'Username and password must be 5 to 20 letters or digits'
+    end
 
     provider_order_id = extract_provider_order_id
     raise 'Provider order ID not found' unless provider_order_id.present?
@@ -166,13 +187,66 @@ class ProxyManagementService
     raise 'Provider order ID not found' unless provider_order_id.present?
 
     response = @client.rotate_ip(provider_order_id)
-
-    # Refresh details after rotation
-    full_details = @client.view_order(provider_order_id)
-    @order.metadata['my_proxy_api_response'] = full_details['data'].is_a?(Array) ? full_details['data'].first : full_details['data']
-    @order.save!
+    refresh_order_details(provider_order_id)
 
     { message: 'IP replacement triggered', response: response }
+  end
+
+  # Renewal through place-extend covers Static IPs and VPN orders only.
+  NOT_EXTENDABLE = {
+    'global-isp' => 'Global ISP orders cannot be renewed here.',
+    'mobile' => 'Mobile proxies cannot be extended; place a new order.',
+    'residential-rotating' => 'Residential rotating plans are topped up with traffic, not extended; buy more GB.'
+  }.freeze
+
+  # Extends the provider order by one paid period from our MyProxyAPI deposit, then
+  # stores the new end time. Raises (so the caller's wallet debit rolls back) on refusal.
+  def extend!
+    verify_support!
+    reason = NOT_EXTENDABLE[category_slug]
+    raise reason if reason
+
+    provider_order_id = extract_provider_order_id
+    raise 'Provider order ID not found' unless provider_order_id.present?
+
+    response = @client.place_extend(user_id: @client.reseller_user_id, order_id: provider_order_id, period: extend_period)
+    refresh_order_details(provider_order_id)
+    new_end = self.class.provider_expires_at(@order)
+    @order.update!(expires_at: new_end) if new_end
+    { message: 'Order extended', expires_at: new_end, response: response }
+  end
+
+  # Restarts a VPN whose connection misbehaves (GET /orders/vpn/restart/:id).
+  def restart_vpn
+    verify_support!
+    raise 'Only VPN orders can be restarted' unless @order.product.product_type == 'vpn'
+
+    provider_order_id = extract_provider_order_id
+    raise 'Provider order ID not found' unless provider_order_id.present?
+
+    { message: 'VPN restart requested', response: @client.restart_vpn(provider_order_id) }
+  end
+
+  # Turns 30-minute IP rotation on or off for a mobile order.
+  def update_rotation(status)
+    verify_support!
+    raise 'Only mobile proxies have rotation' unless category_slug == 'mobile'
+    raise 'Rotation must be on or off' unless %w[on off].include?(status.to_s)
+
+    provider_order_id = extract_provider_order_id
+    raise 'Provider order ID not found' unless provider_order_id.present?
+
+    # MyProxyAPI answers 422 "Order protocol unchanged." when rotation is already set that way.
+    response = begin
+      @client.mobile_update_rotation(provider_order_id, status.to_s)
+    rescue StandardError => e
+      raise unless e.message.include?('unchanged')
+
+      { 'status' => 200, 'message' => 'Already set' }
+    end
+    @order.metadata['rotation'] = status.to_s
+    @order.save!
+    { message: "Rotation turned #{status}", response: response }
   end
 
   def whitelist_add(ip, description = nil)
@@ -181,11 +255,12 @@ class ProxyManagementService
     provider_order_id = extract_provider_order_id
     raise 'Provider order ID not found' unless provider_order_id.present?
 
-    # Mobile orders use a different whitelist endpoint
+    # Mobile orders use a different whitelist endpoint. The static-IP endpoint requires a
+    # description ("The description field is required."), so one is always sent.
     response = if @order.product.product_category&.slug == 'mobile'
                  @client.mobile_update_whitelisted_ip(provider_order_id, ip)
                else
-                 @client.whitelist_add(provider_order_id, ip, description)
+                 @client.whitelist_add(provider_order_id, ip, description.presence || "Whitelisted #{ip}")
                end
     refresh_order_details(provider_order_id)
 
@@ -234,6 +309,17 @@ class ProxyManagementService
     refresh_details!
   rescue StandardError => e
     Rails.logger.warn("[ProxyManagementService] Could not refresh order #{@order.id} after whitelist change: #{e.message}")
+  end
+
+  def category_slug
+    @order.product.product_category&.slug
+  end
+
+  # One paid period in the form place-extend expects: the plan id for VPN, else months.
+  def extend_period
+    return @order.product.provider_product_id if @order.product.product_type == 'vpn'
+
+    (@order.metadata['period'] || @order.product.metadata&.dig('duration_value') || 1).to_s
   end
 
   def verify_support!
