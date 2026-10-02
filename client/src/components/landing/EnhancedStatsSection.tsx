@@ -1,139 +1,46 @@
-import { motion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import CountUp from "react-countup";
 import { useInView } from "react-intersection-observer";
-import { useThemeStore } from "../../store/themeStore";
-import backgroundNode from "../../assets/images/backgroundNode.webp";
-import backgroundNodeRed from "../../assets/images/backgroundNodeRed.webp";
+import { ArrowUpRight, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import "./trust-sections.css";
+
+const metrics = [
+  { value: 15000, suffix: "+", decimals: 0, display: "15,000+", label: "Active customers", detail: "People building with ProxySock" },
+  { value: 50000, suffix: "+", decimals: 0, display: "50,000+", label: "IPs in our network", detail: "Connections at a global scale" },
+  { value: 99.9, suffix: "%", decimals: 1, display: "99.9%", label: "Uptime SLA", detail: "Reliability you can plan around" },
+  { value: null, suffix: "", decimals: 0, display: "24/7", label: "Expert support", detail: "Help when you need a hand" },
+];
 
 export const EnhancedStatsSection = () => {
-  const { dark } = useThemeStore();
-  const { ref, inView } = useInView({
-    threshold: 0.3,
-    triggerOnce: true,
-  });
+  const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const reducedMotion = useReducedMotion();
 
   return (
-    <section
-      ref={ref}
-      className="relative bg-background py-16 sm:py-20 overflow-hidden pt-24 sm:pt-36"
-      aria-labelledby="stats-heading"
-    >
-      <div
-        className="absolute inset-0 z-0 rotate-[23deg] opacity-20"
-        style={{
-          backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      ></div>
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 id="stats-heading" className="sr-only">
-          ProxySock Statistics
-        </h2>
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12">
-          {/* Left Section */}
-          <div className="text-left">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight font-manrope-bold">
-              Trusted Infrastructure
-              <br />
-              at Global Scale
-            </h2>
-            <div className="inline-block bg-primary text-primary-foreground px-4 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-lg font-manrope-semibold">
-              Optimized Canadian Network
-            </div>
-          </div>
-
-          {/* Right Section - Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-            {/* Active Customers */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="text-5xl md:text-6xl font-manrope-extrabold text-foreground mb-2">
-                {inView ? (
-                  <CountUp
-                    end={15000}
-                    duration={2.5}
-                    separator=","
-                    suffix="+"
-                  />
-                ) : (
-                  "15,000+"
-                )}
-              </div>
-              <p className="text-muted-foreground text-sm font-inter-regular">
-                Active Customers
-              </p>
-            </motion.div>
-
-            {/* IPs in Network */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <div className="text-5xl md:text-6xl font-manrope-extrabold text-foreground mb-2">
-                {inView ? (
-                  <CountUp
-                    end={50000}
-                    duration={2.5}
-                    separator=","
-                    suffix="+"
-                  />
-                ) : (
-                  "50,000+"
-                )}
-              </div>
-              <p className="text-muted-foreground text-sm font-inter-regular">
-                IPs in Global Network
-              </p>
-            </motion.div>
-
-            {/* Uptime SLA */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <div className="text-5xl md:text-6xl font-manrope-extrabold text-foreground mb-2">
-                {inView ? (
-                  <>
-                    <CountUp
-                      end={99.9}
-                      duration={2.5}
-                      decimals={1}
-                      decimal="."
-                      suffix="%"
-                    />
-                  </>
-                ) : (
-                  "99.9%"
-                )}
-              </div>
-              <p className="text-muted-foreground text-sm font-inter-regular">
-                Uptime SLA
-              </p>
-            </motion.div>
-
-            {/* Expert Support */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="text-5xl md:text-6xl font-manrope-extrabold text-foreground mb-2">
-                24/7
-              </div>
-              <p className="text-muted-foreground text-sm font-inter-regular">
-                Expert Support
-              </p>
-            </motion.div>
-          </div>
+    <section ref={ref} className="trust-section trust-scale" aria-labelledby="stats-heading">
+      <div className="trust-section-rail"><span>Our network, in numbers</span><span>03 / The scale</span></div>
+      <div className="trust-section-intro">
+        <h2 id="stats-heading">Built for scale.<br /><span>Ready for you.</span></h2>
+        <div className="trust-section-summary">
+          <p>From your first connection to your next big project, put an established network behind your work.</p>
+          <div className="trust-network-label"><MapPin size={14} aria-hidden="true" /> Optimized Canadian network</div>
+          <Link to="/locations" className="trust-text-link">Explore our locations <ArrowUpRight size={16} aria-hidden="true" /></Link>
         </div>
       </div>
+      <dl className="trust-metrics">
+        {metrics.map((metric, index) => (
+          <div className="trust-metric" key={metric.label}>
+            <dt><span className="trust-metric-index" aria-hidden="true">0{index + 1}</span>{metric.label}</dt>
+            <dd className="trust-metric-value">
+              <span className="sr-only">{metric.display}</span>
+              <span aria-hidden="true">{inView && !reducedMotion && metric.value !== null
+                ? <CountUp end={metric.value} suffix={metric.suffix} decimals={metric.decimals} separator="," duration={1.6} />
+                : metric.display}</span>
+            </dd>
+            <dd className="trust-metric-detail">{metric.detail}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 };

@@ -66,6 +66,13 @@ end
 # ─── Resellers ────────────────────────────────────────────────────────────────
 
 begin
+  vps_category = ProductCategory.find_or_create_by!(slug: 'vps') do |category|
+    category.name = 'VPS'
+    category.category_type = 'vm'
+    category.active = true
+    category.available_to = 'both'
+  end
+
   resellers = [
     { email: 'reseller@proxysock.com', username: 'testreseller', company_name: 'Reseller Inc.',
       discount_percentage: 10.0, country_code: 'US', city: 'Delaware', reseller_type: 'api_only' },
@@ -74,7 +81,7 @@ begin
       infrastructure_surcharge_percentage: 5.0, subscription_fee: 499.99 },
     { email: 'vps_only_reseller@proxysock.com', username: 'vps_expert', company_name: 'VPS Specialty Reseller',
       discount_percentage: 15.0, country_code: 'CA', city: 'Toronto', reseller_type: 'single_product',
-      allowed_product_category: ProductCategory.find_by(slug: 'vps') }
+      allowed_product_category: vps_category }
   ]
 
   resellers.each do |attrs|

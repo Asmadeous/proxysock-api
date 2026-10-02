@@ -1,100 +1,33 @@
-import { motion } from "framer-motion";
-import {
-  BoltIcon,
-  ShieldCheckIcon,
-  ChartBarIcon,
-  ClockIcon,
-  GlobeAltIcon,
-  ServerIcon,
-} from "@heroicons/react/24/outline";
-import { useThemeStore } from "../../store/themeStore";
-import backgroundNode from "../../assets/images/backgroundNode.webp";
-import backgroundNodeRed from "../../assets/images/backgroundNodeRed.webp";
+import { ArrowRight, Gauge, Globe2, Headphones, Layers3, ShieldCheck, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
+import "./trust-sections.css";
 
+const benefits = [
+  { icon: Zap, title: "Get going sooner.", description: "Automated provisioning gets your order moving after payment. Find your service details in your account when it’s ready.", label: "Simple setup" },
+  { icon: ShieldCheck, title: "Keep access in your hands.", description: "Manage your service credentials and connection details from your account, with the tools to configure your own environment.", label: "Your access, your control" },
+  { icon: Gauge, title: "Find your fit.", description: "Choose the connection type, server resources, or data plan that suits the way you work. Build around what your project needs.", label: "Flexible options" },
+  { icon: Headphones, title: "A little help goes a long way.", description: "Get help with setup, connection questions, and your services through our support team and step-by-step guides.", label: "Expert support" },
+  { icon: Globe2, title: "Work beyond borders.", description: "Explore proxy locations and travel data plans to find the coverage you need, wherever your next project takes you.", label: "Global connectivity" },
+  { icon: Layers3, title: "Bring it all together.", description: "Keep your proxies, servers, VPNs, and eSIMs in one account. Manage your orders, services, and billing in one place.", label: "One place to manage it" },
+];
 
-export const WhyChooseUs = () => {
-  const { dark } = useThemeStore();
-  return (
-    <section
-      className="relative bg-background py-24 overflow-hidden"
-      aria-labelledby="features-heading"
-    >
-      <div
-        className="absolute inset-0 z-0 opacity-20 -rotate-[23deg]"
-        style={{
-          backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      ></div>
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2
-            id="features-heading"
-            className="text-4xl md:text-5xl font-manrope-bold font-bold text-foreground mb-4"
-          >
-            Why 15,000+ Businesses Choose ProxySock
-          </h2>
-        </div>
-        <div className="flex flex-wrap justify-center items-center gap-8 lg:gap-12">
-          {[
-            {
-              icon: BoltIcon,
-              title: "Instant Setup",
-              description: "Ready in 60 seconds",
-            },
-            {
-              icon: ShieldCheckIcon,
-              title: "Enterprise Security",
-              description: "Bank-grade encryption",
-            },
-            {
-              icon: ChartBarIcon,
-              title: "Lightning Speed",
-              description: "1Gbps+ connections",
-            },
-            {
-              icon: ClockIcon,
-              title: "24/7 Expert Support",
-              description: "Always here to help",
-            },
-            {
-              icon: GlobeAltIcon,
-              title: "Global Network",
-              description: "120+ countries",
-            },
-            {
-              icon: ServerIcon,
-              title: "99.9% Uptime SLA",
-              description: "Guaranteed reliability",
-            },
-          ].map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="flex items-center gap-4 group"
-            >
-              <div className="flex-shrink-0">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-foreground/10 rounded-lg group-hover:bg-primary-foreground/20 transition-all duration-300">
-                  <feature.icon className="h-6 w-6 text-foreground" />
-                </div>
-              </div>
-              <div className="text-left">
-                <h3 className="text-foreground font-manrope-semibold font-semibold text-base mb-0.5">
-                  {feature.title}
-                </h3>
-                <p className="text-foreground font-inter-regular text-sm">
-                  {feature.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
+export const WhyChooseUs = () => (
+  <section className="trust-section trust-benefits" aria-labelledby="features-heading">
+    <div className="trust-section-rail"><span>The ProxySock advantage</span><span>04 / Why choose us</span></div>
+    <div className="trust-section-intro">
+      <h2 id="features-heading">More possibilities.<br /><span>Less to manage.</span></h2>
+      <div className="trust-section-summary"><p>The services you need, with a simpler way to set up, stay connected, and keep your work moving.</p></div>
+    </div>
+    <div className="trust-benefit-grid">
+      {benefits.map((benefit, index) => (
+        <article className="trust-benefit" key={benefit.title}>
+          <div className="trust-benefit-top"><benefit.icon size={26} strokeWidth={1.4} aria-hidden="true" /><span aria-hidden="true">0{index + 1}</span></div>
+          <h3>{benefit.title}</h3>
+          <p>{benefit.description}</p>
+          <div className="trust-benefit-label"><span aria-hidden="true" />{benefit.label}</div>
+        </article>
+      ))}
+    </div>
+    <div className="trust-benefits-footer"><p>A clear path from choosing a service to getting connected.</p><Link to="/HowToConnect" className="trust-text-link">Browse setup guides <ArrowRight size={16} aria-hidden="true" /></Link></div>
+  </section>
+);

@@ -1,8 +1,5 @@
 import { Fragment } from "react";
 import { motion } from "framer-motion";
-import { useThemeStore } from "../../store/themeStore";
-import backgroundNode from "../../assets/images/backgroundNode.webp";
-import backgroundNodeRed from "../../assets/images/backgroundNodeRed.webp";
 
 interface Testimonial {
   name: string;
@@ -96,21 +93,11 @@ const TestimonialColumn = ({
 };
 
 export const TestimonialsSection = () => {
-  const { dark } = useThemeStore();
   return (
     <section
       className="relative bg-background py-24 overflow-hidden"
       aria-labelledby="testimonials-heading"
     >
-      <div
-        className="absolute inset-0 z-0 opacity-20 rotate-[23deg]"
-        style={{
-          backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      ></div>
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid items-center lg:grid-cols-2 lg:gap-16">
           <div>

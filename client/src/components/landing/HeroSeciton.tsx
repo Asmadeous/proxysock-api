@@ -1,141 +1,56 @@
-import { ArrowRightIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowRight, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useThemeStore } from "../../store/themeStore";
-import backgroundNode from "../../assets/images/backgroundNode.webp";
-import backgroundNodeRed from "../../assets/images/backgroundNodeRed.webp";
-
+import { HeroNetwork } from "./HeroNetwork";
+import { HeroServiceCarousel } from "./HeroServiceCarousel";
+import "./hero.css";
 
 interface HeroSectionProps {
-  trackConversion: (
-    eventName: string,
-    eventType: string,
-    pagePath: string,
-  ) => void;
+  trackConversion: (eventName: string, eventType: string, pagePath: string) => void;
 }
 
 export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
   const { isAuthenticated } = useAuth();
-  const { dark } = useThemeStore();
+  const accountHref = isAuthenticated ? "/dashboard" : "/register";
 
   return (
-    <div className="relative min-h-screen mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-32 bg-background">
-      <div
-        className="absolute inset-0 z-0 opacity-20 mt-20"
-        style={{
-          backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-          backgroundSize: "cover",
-          backgroundPosition: "end",
-          backgroundRepeat: "no-repeat",
-        }}
-      ></div>
-      <div className="relative z-10 w-full max-w-full py-20 sm:py-32">
-        <div>
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground tracking-tight leading-tight font-manrope-bold"
-          >
-            Premium Digital
-            <br />
-            Infrastructure for
-            <br />
-            <span className="text-primary">Modern Businesses</span>
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-8 max-w-2xl text-base sm:text-lg font-inter-regular text-foreground"
-          >
-            High-performance{" "}
-            <strong className="text-primary font-manrope-bold">residential VPNs</strong>,{" "}
-            <span className="text-primary font-manrope-bold">proxy services</span>, Windows{" "}
-            <span className="text-primary font-manrope-bold">RDP hosting</span>, enterprise{" "}
-            <span className="text-primary  font-manrope-bold">VPS servers</span>{" "}
-            and global{" "}
-            <span className="text-primary font-manrope-bold">
-              eSIM solutions
-            </span>
-            . Trusted by 15,000+ business worldwide with 99.9% uptime guarantee.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-12 flex flex-col sm:flex-row justify-start gap-4"
-          >
-            {isAuthenticated ? (
-              <Link
-                to="/dashboard"
-                onClick={() =>
-                  trackConversion(
-                    "dashboard_navigation",
-                    "navigation",
-                    "/dashboard",
-                  )
-                }
-                className="px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-lg bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all duration-200 flex items-center justify-center font-manrope-semibold font-medium"
-              >
-                Access Dashboard
-                <ArrowRightIcon className="h-5 w-5 ml-2" />
-              </Link>
-            ) : (
-              <Link
-                to="/register"
-                onClick={() =>
-                  trackConversion(
-                    "signup_intent_lead",
-                    "conversion",
-                    "/register",
-                  )
-                }
-                className="px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-lg bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all duration-200 flex items-center justify-center font-manrope-semibold font-medium"
-              >
-                Start Now From $2.99/proxy
-              </Link>
-            )}
-            <Link
-              to="/HowToConnect"
-              onClick={() =>
-                trackConversion(
-                  "documentation_navigation",
-                  "education",
-                  "/HowToConnect",
-                )
-              }
-              className="px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-lg bg-transparent border border-foreground text-foreground rounded-full hover:bg-foreground hover:text-background transition-all duration-200 flex items-center justify-center font-manrope-semibold font-medium"
-            >
-              View Documentation
-            </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-8 sm:mt-16 lg:mt-20 flex justify-center"
-          >
-            <div className="bg-primary border border-primary/20 rounded-2xl sm:rounded-full px-4 sm:px-8 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-8 lg:gap-12 text-xs sm:text-sm max-w-full">
-              <span className="text-primary-foreground">
-                Instant activation
-              </span>
-              <span className="text-primary-foreground hidden sm:inline">
-                30 day money back guarantee
-              </span>
-              <span className="text-primary-foreground">
-                Enterprise grade security
-              </span>
-              <span className="text-primary-foreground hidden sm:inline">
-                4.95 ratings from 2500+ reviews
-              </span>
+    <section aria-labelledby="hero-heading" className="proxysock-hero relative isolate overflow-hidden text-white">
+      <div className="hero-art"><HeroNetwork /></div>
+      <div className="hero-layout relative grid lg:grid-cols-2">
+        <div className="hero-copy relative z-10 flex flex-col">
+          <div className="my-auto pb-12">
+            <div className="inline-flex w-fit items-center gap-2.5 rounded-sm border border-white/10 bg-white/[0.08] px-3 py-2">
+              <Globe aria-hidden="true" className="h-3.5 w-3.5 text-white/85" />
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-white/90 sm:text-[10px]">Proxies. Hosting. Connectivity.</span>
             </div>
-          </motion.div>
+            <h1 id="hero-heading" className="mt-8 font-manrope text-[clamp(2.375rem,5.8vw,6rem)] font-medium leading-[1.06] tracking-[-0.065em] sm:mt-10">
+              Proxies, servers<br />
+              and global<br />
+              connectivity.
+            </h1>
+            <p className="mt-7 max-w-[410px] font-inter text-sm leading-[1.65] text-white/80 sm:mt-8 sm:text-[15px]">
+              Buy proxies, virtual servers (VPS), remote desktops (RDP), residential VPNs, and global eSIM plans. Choose your service and manage it all from one account.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3 sm:mt-9">
+              <Link
+                to={accountHref}
+                onClick={() => trackConversion(isAuthenticated ? "dashboard_navigation" : "signup_intent_lead", isAuthenticated ? "navigation" : "conversion", accountHref)}
+                className="inline-flex h-12 items-center justify-center gap-3 rounded-[3px] bg-white px-5 text-[13px] font-semibold text-[#171717] transition-colors hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+              >
+                {isAuthenticated ? "Access Dashboard" : "Start Now From $2.99/proxy"}
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#171717] text-white"><ArrowRight aria-hidden="true" className="h-3 w-3" /></span>
+              </Link>
+              <Link
+                to="/HowToConnect"
+                onClick={() => trackConversion("documentation_navigation", "education", "/HowToConnect")}
+                className="inline-flex h-12 items-center justify-center rounded-[3px] border border-white/50 px-6 text-[13px] font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+              >View Documentation</Link>
+            </div>
+          </div>
+          <HeroServiceCarousel />
         </div>
+
       </div>
-    </div>
+    </section>
   );
 };

@@ -10,6 +10,7 @@ import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { SecurePaymentsSection } from "@/components/landing/PaymentMethods";
 import { useAuth } from "@/context/AuthContext";
 import { Loading } from "@/components/ui/loading";
+import "./home.css";
 
 export default function MainLandingPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -165,7 +166,7 @@ export default function MainLandingPage() {
         </script>
       </Helmet>
 
-      <div className="min-h-screen ">
+      <div className="home-landing min-h-screen bg-background">
         {/* Enhanced Hero Section with Trust Signals */}
         <HeroSection trackConversion={trackConversion} />
 

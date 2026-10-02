@@ -1,0 +1,20 @@
+.landing-theme {
+  --public-page-gutter: clamp(20px, 4vw, 72px);
+  --public-nav-inset: 8px;
+  --public-nav-padding: clamp(12px, 1.25vw, 24px);
+}
+
+.public-header {
+  inset-inline: calc(var(--public-page-gutter) - var(--public-nav-padding));
+  top: var(--public-nav-inset);
+}
+
+.public-navigation {
+  padding-inline: var(--public-nav-padding);
+}
+
+@media (min-width: 640px) {
+  .landing-theme {
+    --public-nav-inset: 12px;
+  }
+}
