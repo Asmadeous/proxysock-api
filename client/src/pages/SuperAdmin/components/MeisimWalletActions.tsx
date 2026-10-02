@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { createMeisimTopup, downloadMeisimStatement, previewMeisimTopup } from "../../../services/adminApi";
 import MeisimVerifyDialog from "./MeisimVerifyDialog";
+import MeisimVerifyHistory from "./MeisimVerifyHistory";
 
 const apiError = (error: unknown, fallback: string) =>
     (error as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
@@ -96,6 +97,7 @@ function TopupDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
 export default function MeisimWalletActions() {
     const [topupOpen, setTopupOpen] = useState(false);
     const [verifyOpen, setVerifyOpen] = useState(false);
+    const [verifyRuns, setVerifyRuns] = useState(0);
 
     const statement = async () => {
         try {
@@ -125,8 +127,9 @@ export default function MeisimWalletActions() {
             <button onClick={statement} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <Download className="w-3.5 h-3.5" aria-hidden="true" /> Statement (CSV)
             </button>
+            <MeisimVerifyHistory refreshKey={verifyRuns} />
             <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} />
-            <MeisimVerifyDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
+            <MeisimVerifyDialog open={verifyOpen} onOpenChange={setVerifyOpen} onSubmitted={() => setVerifyRuns((n) => n + 1)} />
         </div>
     );
 }

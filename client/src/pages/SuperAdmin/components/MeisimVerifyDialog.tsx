@@ -37,7 +37,11 @@ const TILES: { key: keyof Progress; label: string }[] = [
 
 // MeiSIM eSIM Verify: checks activation codes without using them up. $1 per code from
 // the MeiSIM wallet; codes whose check errors are refunded.
-export default function MeisimVerifyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export default function MeisimVerifyDialog({ open, onOpenChange, onSubmitted }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSubmitted?: () => void;
+}) {
     const [codes, setCodes] = useState("");
     const [email, setEmail] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -80,6 +84,7 @@ export default function MeisimVerifyDialog({ open, onOpenChange }: { open: boole
             setBatchId(data.batch_id);
             setProgress({ total: data.total_rows, pending: data.total_rows });
             toast.success(`Submitted. $${Number(data.charged_usd ?? unique.length).toFixed(2)} charged to the MeiSIM wallet.`);
+            onSubmitted?.();
             timer.current = setTimeout(() => poll(data.batch_id), POLL_MS);
         } catch (error) {
             toast.error(apiError(error, "Verification could not be submitted"));
@@ -147,7 +152,7 @@ export default function MeisimVerifyDialog({ open, onOpenChange }: { open: boole
                             ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {running ? `Checking ${(progress?.pending ?? 0) + (progress?.in_progress ?? 0)}… you can close this.` : "Done."}
+                            {running ? `Checking ${(progress?.pending ?? 0) + (progress?.in_progress ?? 0)}… you can close this; results stay on the MeiSIM card.` : "Done."}
                         </p>
                     </div>
                 )}

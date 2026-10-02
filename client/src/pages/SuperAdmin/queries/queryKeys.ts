@@ -55,6 +55,9 @@ export const adminQueryKeys = {
   providerBalances: {
     all: () => ["admin", "provider_balances"] as const,
   },
+  meisimVerify: {
+    history: () => ["admin", "meisim_verify", "history"] as const,
+  },
   products: {
     all: () => ["admin", "products"] as const,
     list: () => ["admin", "products", "list"] as const,

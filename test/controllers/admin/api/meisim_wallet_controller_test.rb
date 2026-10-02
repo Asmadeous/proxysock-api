@@ -95,6 +95,26 @@ module Admin
 
         assert_response :payment_required
       end
+
+      test 'lists recent bulk checks with their results, after the Verify dialog is gone' do
+        employee = Employee.create!(email: "ops_#{SecureRandom.hex(4)}@test.com", first_name: 'Ana', last_name: 'Ops',
+                                    role: 'admin', active: true, department: departments(:one))
+        AuditLog.create!(action: 'meisim.esim_verify', user_id: employee.id, user_type: 'Employee', auditable: employee,
+                         object_changes: { batch_id: 'b-old', codes: 3 }, created_at: 1.hour.ago)
+        AuditLog.create!(action: 'meisim.esim_verify', user_id: employee.id, user_type: 'Employee', auditable: employee,
+                         object_changes: { batch_id: 'b-new', codes: 2 })
+        MeisimService.any_instance.stubs(:esim_verify_batch).with('b-old')
+                     .returns({ 'progress' => { 'total' => 3, 'pending' => 0, 'in_progress' => 0, 'used' => 2, 'available' => 1 } })
+        MeisimService.any_instance.stubs(:esim_verify_batch).with('b-new').raises(MeisimService::Error.new('boom'))
+
+        get '/admin/api/meisim/verify', headers: @admin
+
+        assert_response :success
+        newest, oldest = json_response['batches']
+        assert_equal %w[b-new 2 Ana], [newest['batch_id'], newest['codes'].to_s, newest['submitted_by']]
+        assert_nil newest['progress'], 'one batch MeiSIM cannot answer for does not break the list'
+        assert_equal 2, oldest.dig('progress', 'used')
+      end
     end
   end
 end

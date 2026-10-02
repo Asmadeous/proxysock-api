@@ -9,6 +9,7 @@ module Admin
       TOPUP_RANGE = (50..10_000).freeze
       LPA_FORMAT = /\ALPA:1\$[^$\s]+\$[^\s]+\z/i.freeze
       MAX_LPAS = 50_000
+      HISTORY_SIZE = 10
 
       # GET /admin/api/meisim/topup_preview?amount=100
       def topup_preview
@@ -65,6 +66,15 @@ module Admin
         render json: { error: e.message }, status: e.status == 402 ? :payment_required : :bad_gateway
       end
 
+      # GET /admin/api/meisim/verify
+      # The last bulk checks with MeiSIM's progress for each, so their results stay on the
+      # balance card after the Verify dialog closes. Batch ids come from the audit log.
+      def verify_history
+        logs = AuditLog.where(action: 'meisim.esim_verify').order(created_at: :desc).limit(HISTORY_SIZE).to_a
+        names = Employee.where(id: logs.map(&:user_id)).to_h { |e| [e.id, e.first_name] }
+        render json: { batches: logs.map { |log| serialize_batch(log, names) } }
+      end
+
       # GET /admin/api/meisim/verify/:batch_id
       def verify_status
         result = MeisimService.new.esim_verify_batch(params[:batch_id])
@@ -82,6 +92,30 @@ module Admin
       end
 
       private
+
+      def serialize_batch(log, names)
+        batch_id = log.object_changes['batch_id']
+        { batch_id: batch_id, codes: log.object_changes['codes'], submitted_at: log.created_at.iso8601,
+          submitted_by: names[log.user_id], progress: batch_progress(batch_id) }
+      end
+
+      # A finished batch never changes, so its progress is kept and MeiSIM is asked only about
+      # batches still running. nil when MeiSIM cannot be reached right now.
+      def batch_progress(batch_id)
+        key = "meisim/verify/#{batch_id}/progress"
+        cached = Rails.cache.read(key)
+        return cached if cached
+
+        progress = MeisimService.new.esim_verify_batch(batch_id)['progress'] || {}
+        Rails.cache.write(key, progress, expires_in: 30.days) if batch_finished?(progress)
+        progress
+      rescue MeisimService::Error
+        nil
+      end
+
+      def batch_finished?(progress)
+        progress['total'].to_i.positive? && progress['pending'].to_i.zero? && progress['in_progress'].to_i.zero?
+      end
 
       def amount
         params[:amount].to_d

@@ -12,6 +12,7 @@ vi.mock("../../../services/adminApi", () => ({
   fetchMeisimVerify: vi.fn(),
   downloadMeisimVerifyResults: vi.fn(),
 }));
+vi.mock("./MeisimVerifyHistory", () => ({ default: () => null }));
 afterEach(cleanup);
 
 it("tops up through MeiSIM's Stripe checkout from a small form", async () => {

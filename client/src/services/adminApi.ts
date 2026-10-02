@@ -323,6 +323,8 @@ export const createMeisimTopup = (amount: number) =>
 export const downloadMeisimStatement = () =>
     adminApi.get("/meisim/statement", { responseType: "blob" }).then(res => res.data as Blob);
 
+export const fetchMeisimVerifyHistory = () =>
+    adminApi.get("/meisim/verify").then(res => res.data);
 export const submitMeisimVerify = (lpas: string, notify_email?: string) =>
     adminApi.post("/meisim/verify", { lpas, notify_email }).then(res => res.data);
 export const fetchMeisimVerify = (batchId: string) =>
