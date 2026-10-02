@@ -21,6 +21,20 @@ class Esim < ApplicationRecord
     (amount * ((match[2] || unit).to_s.casecmp('MB').zero? ? 1.megabyte : 1.gigabyte)).round
   end
 
+  # Moxee and LinkUp keep the profile at the carrier (qr_source "carrier"): no activation
+  # code, only a QR image MeiSIM fetches for us. We serve it from our own URL, never
+  # MeiSIM's. Physical SIM cards come with qr_available false and have no QR at all.
+  def carrier_qr?
+    esim_provider == 'meisim' && activation_code.blank? && (metadata || {})['qr_available'] != false &&
+      esim_order&.provider_order_no.present?
+  end
+
+  def carrier_qr_png
+    Rails.cache.fetch("esim/#{id}/carrier_qr", expires_in: 1.day) do
+      MeisimService.new.qr_png(esim_order.provider_order_no, line: (metadata || {})['line'] || 1)
+    end
+  end
+
   def install_links
     code = activation_code.to_s
     return {} unless code.start_with?('LPA:')

@@ -52,4 +52,12 @@ describe("deviceDetailsMetadata", () => {
     expect(deviceDetailsMetadata({ imei: "350923389416420", eid: EID })).toEqual({ imei: "350923389416420", eid: EID });
     expect(deviceDetailsMetadata(undefined)).toEqual({});
   });
+  it("accepts ZIP+4 and refuses a PO Box", () => {
+    const base = { imei: "350923389416420", eid: EID };
+    const plus4 = validateDeviceDetails({ ...base, address: { address_line_1: "35 Teal Ct", city: "Dover", state: "DE", zip_code: "19904-1234" } }, true, true);
+    expect(plus4.errors).toEqual({});
+
+    const poBox = validateDeviceDetails({ ...base, address: { address_line_1: "12 PO Box 445", city: "Dover", state: "DE", zip_code: "19904" } }, true, true);
+    expect(poBox.errors.address_line_1).toMatch(/PO Box/);
+  });
 });

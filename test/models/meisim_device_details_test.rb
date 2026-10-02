@@ -127,4 +127,14 @@ class MeisimDeviceDetailsTest < ActiveSupport::TestCase
     assert_equal '350923389416420', details.to_params[:imei]
     assert_equal '89049032007108888100137471946359', details.to_params[:eid]
   end
+  test 'ZIP+4 is accepted and sent as five digits; a PO Box is refused' do
+    plus4 = ADDRESS.merge('zip_code' => '85001-1234')
+    details = MeisimDeviceDetails.new(@att, { 'imei' => IMEI, 'eid' => EID, 'address' => plus4 })
+    assert_empty details.errors
+    assert_equal '85001', details.to_params.dig(:address, 'zip_code')
+
+    po_box = ADDRESS.merge('address_line_1' => '12 PO Box 445')
+    assert_includes MeisimDeviceDetails.new(@att, { 'imei' => IMEI, 'eid' => EID, 'address' => po_box }).errors,
+                    'address.address_line_1 cannot be a PO Box or mailbox'
+  end
 end

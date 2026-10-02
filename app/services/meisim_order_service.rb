@@ -44,6 +44,8 @@ class MeisimOrderService
     if FAILED_STATES.include?(remote['state']) || lines.any? { |l| l['status'] == 'failed' }
       esim_order.update!(status: 'failed', api_response: esim_order.api_response.merge('remote_state' => remote['state']))
       fail_order_and_refund!("MeiSIM order #{remote['state']}")
+    elsif lines.any? { |l| l['status'] == 'unavailable' }
+      flag_unavailable!(esim_order)
     else
       complete!(esim_order, remote)
     end
@@ -157,7 +159,8 @@ class MeisimOrderService
       pin1: line['sim_pin'],
       status: 'active',
       esim_status: 'delivered',
-      metadata: line.slice('line', 'smdp', 'matching_id', 'install_ios_url', 'install_android_url', 'kyc_url')
+      metadata: line.slice('line', 'smdp', 'matching_id', 'install_ios_url', 'install_android_url', 'kyc_url',
+                           'qr_source', 'qr_available')
     )
   end
 
@@ -188,6 +191,18 @@ class MeisimOrderService
     else
       raise OrderFailed, error.message
     end
+  end
+
+  # MeiSIM: "unavailable — order finished with nothing recorded. Won't change on its own —
+  # contact us." We have paid, so staff take it up with MeiSIM instead of a refund.
+  def flag_unavailable!(esim_order)
+    return if esim_order.metadata['unavailable_alerted']
+
+    esim_order.update!(metadata: esim_order.metadata.merge('unavailable_alerted' => true))
+    @order.update!(metadata: (@order.metadata || {}).merge('meisim_review_required' => true))
+    SlackNotifierService.notify(:provisioning_failed, @order,
+                                error: "MeiSIM order #{esim_order.provider_order_no} is unavailable (nothing recorded); " \
+                                       'contact MeiSIM support')
   end
 
   def hold_for_review!(error)

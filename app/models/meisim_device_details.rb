@@ -6,6 +6,9 @@ class MeisimDeviceDetails
   # man: plans are activated by MeiSIM's team onto the phone's EID; the carrier needs both.
   DEVICE_PREFIXES = %w[p3: ly: man:].freeze
   ADDRESS_KEYS = %w[first_name last_name address_line_1 address_line_2 city state zip_code phone].freeze
+  ZIP = /\A\d{5}(-?\d{4})?\z/.freeze
+  # MeiSIM: "A PO Box or PMB/mailbox is never a valid E911 address."
+  MAILBOX = /\b(P\.?\s*O\.?\s*Box|Post\s+Office\s+Box|PMB)\b/i.freeze
 
   def self.required_for?(product)
     product&.provider == 'meisim' && device_required?(product.provider_product_id)
@@ -41,7 +44,8 @@ class MeisimDeviceDetails
 
   # Keyword arguments for MeisimService#create_order.
   def to_params
-    normalized = address.presence&.merge('state' => address['state'].upcase)
+    # MeiSIM accepts ZIP+4 and ignores the extra digits; send the five it uses.
+    normalized = address.presence&.merge('state' => address['state'].upcase, 'zip_code' => address['zip_code'][0, 5])
     { imei: imei, eid: (eid.presence if eid_required?), address: normalized }
   end
 
@@ -81,9 +85,10 @@ class MeisimDeviceDetails
   def address_errors
     errors = []
     errors << 'address.address_line_1 must start with a street number' unless address['address_line_1'].to_s.match?(/\A\d+\s+\S/)
+    errors << 'address.address_line_1 cannot be a PO Box or mailbox' if address['address_line_1'].to_s.match?(MAILBOX)
     errors << 'address.city must be at least 2 characters' if address['city'].to_s.length < 2
     errors << 'address.state must be a 2-letter code' unless address['state'].to_s.match?(/\A[A-Za-z]{2}\z/)
-    errors << 'address.zip_code must be 5 digits' unless address['zip_code'].to_s.match?(/\A\d{5}\z/)
+    errors << 'address.zip_code must be 5 digits (ZIP+4 accepted)' unless address['zip_code'].to_s.match?(ZIP)
     errors
   end
 end

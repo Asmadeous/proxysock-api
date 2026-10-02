@@ -8,13 +8,14 @@ import {
     UserIcon,
     MagnifyingGlassIcon
 } from "@heroicons/react/24/outline";
-import { fetchAdminOrders } from "@/services/adminApi";
+import { fetchAdminOrders, verifyAdminEsim, fetchAdminEsimVerification } from "@/services/adminApi";
 import { toast } from "react-hot-toast";
 import ManagementFilters from "../components/ManagementFilters";
 import EsimTopupQueue from "../components/EsimTopupQueue";
 
 interface ESIMProfile {
     id: string;
+    esim_id?: string;
     iccid: string;
     product_type: string;
     package_name: string;
@@ -53,6 +54,7 @@ export default function AdminESIMManagement() {
                     const credentials = order.credentials_list || [order.credentials];
                     return credentials.filter(Boolean).map((cred: any, index: number) => ({
                         id: `${order.id}-${index}`,
+                        esim_id: cred.id,
                         iccid: cred.iccid || '',
                         product_type: order.product_type || 'esim',
                         package_name: order.product_name,
@@ -74,6 +76,40 @@ export default function AdminESIMManagement() {
             toast.error("Failed to load eSIM profiles");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // MeiSIM eSIM Verify: "available" = never installed, "used" = already installed.
+    const [verification, setVerification] = useState<Record<string, string>>({});
+    const VERDICTS: Record<string, string> = {
+        available: "Available — not installed yet",
+        used: "Used — already installed",
+        invalid: "Invalid activation code",
+        unknown: "Unknown — carrier gave no answer",
+        error: "Check failed (refunded)",
+        pending: "Checking…",
+    };
+
+    const pollVerification = async (esimId: string, attempt = 0) => {
+        try {
+            const { data } = await fetchAdminEsimVerification(esimId);
+            setVerification(v => ({ ...v, [esimId]: data.status }));
+            if (data.status === "pending" && attempt < 20) setTimeout(() => pollVerification(esimId, attempt + 1), 15000);
+        } catch (error: any) {
+            setVerification(v => ({ ...v, [esimId]: "error" }));
+            toast.error(error?.response?.data?.error || "Could not read the verification");
+        }
+    };
+
+    const verify = async (esimId: string) => {
+        if (!confirm("Verify this eSIM with MeiSIM? It costs $1 from the MeiSIM wallet.")) return;
+        setVerification(v => ({ ...v, [esimId]: "pending" }));
+        try {
+            await verifyAdminEsim(esimId);
+            setTimeout(() => pollVerification(esimId), 15000);
+        } catch (error: any) {
+            setVerification(v => { const { [esimId]: _, ...rest } = v; return rest; });
+            toast.error(error?.response?.data?.error || "Verification failed to start");
         }
     };
 
@@ -156,7 +192,22 @@ export default function AdminESIMManagement() {
                                 </div>
                             </div>
 
+                            {p.esim_id && verification[p.esim_id] && (
+                                <p className="text-xs text-muted-foreground" role="status">
+                                    Verify: {VERDICTS[verification[p.esim_id]] || verification[p.esim_id]}
+                                </p>
+                            )}
+
                             <div className="flex gap-2">
+                                {p.esim_id && p.activation_code?.startsWith("LPA:") && (
+                                    <button
+                                        onClick={() => verify(p.esim_id!)}
+                                        disabled={verification[p.esim_id] === "pending"}
+                                        className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                                    >
+                                        Verify eSIM ($1)
+                                    </button>
+                                )}
                                 {p.qr_code_url && (
                                     <a href={p.qr_code_url} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center hover:opacity-90 transition-opacity">
                                         View QR Code

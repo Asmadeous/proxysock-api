@@ -373,6 +373,18 @@ module Api
         end
       end
 
+      # GET /api/v1/orders/:id/esims/:esim_id/qr
+      # The install QR for a carrier-held eSIM (Moxee, LinkUp) that has no activation code.
+      def esim_qr
+        esim = order_scope.find(params[:id]).esim_order&.esims&.find_by(id: params[:esim_id])
+        return render json: { error: 'eSIM not found' }, status: :not_found unless esim
+        return render json: { error: 'This eSIM installs from its activation code' }, status: :unprocessable_entity unless esim.carrier_qr?
+
+        send_data esim.carrier_qr_png, type: 'image/png', disposition: 'inline', filename: "esim-#{esim.iccid}.png"
+      rescue MeisimService::Error => e
+        render json: { error: "QR not available yet (#{e.status || 'no reply'})" }, status: :service_unavailable
+      end
+
       # POST /api/v1/orders/:id/restart_vpn
       def restart_vpn
         order = order_scope.find(params[:id])

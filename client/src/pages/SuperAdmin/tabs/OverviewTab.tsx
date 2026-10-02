@@ -20,6 +20,7 @@ import { StatsCardSkeleton } from "../components/TableSkeleton";
 import { useOverviewStats } from "../queries/overview.queries";
 import { fetchProviderBalances } from "../../../services/adminApi";
 import { adminQueryKeys } from "../queries/queryKeys";
+import MeisimWalletActions from "../components/MeisimWalletActions";
 
 // Lucide icons for provider cards
 import { Globe, Wifi, Smartphone } from "lucide-react";
@@ -234,6 +235,7 @@ export default function OverviewTab() {
                                         <p className="text-sm font-medium text-foreground">{balances.meisim.markup_pct}%</p>
                                     </div>
                                 )}
+                                <MeisimWalletActions />
                             </>
                         )}
                     </div>

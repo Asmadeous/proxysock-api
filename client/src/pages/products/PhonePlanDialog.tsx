@@ -236,7 +236,7 @@ export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClo
                 <div className="grid grid-cols-3 gap-3">
                   {field('city', 'City', address.city, setAddressField('city'), errors.city, { autoComplete: 'address-level2' })}
                   {field('state', 'State', address.state, setAddressField('state'), errors.state, { autoComplete: 'address-level1', maxLength: 2 })}
-                  {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 5 })}
+                  {field('zip_code', 'ZIP', address.zip_code, setAddressField('zip_code'), errors.zip_code, { autoComplete: 'postal-code', inputMode: 'numeric', maxLength: 10 })}
                 </div>
               </div>
             </fieldset>

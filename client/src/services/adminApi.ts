@@ -315,6 +315,18 @@ export const fetchResourceAlerts = (params?: Record<string, string>) =>
 export const acknowledgeResourceAlert = (id: string) =>
     adminApi.post(`/monitoring/resource_alerts/${id}/acknowledge`);
 
+// ── MeiSIM dealer wallet: Stripe top-up link and statement ──
+export const previewMeisimTopup = (amount: number) =>
+    adminApi.get("/meisim/topup_preview", { params: { amount } }).then(res => res.data);
+export const createMeisimTopup = (amount: number) =>
+    adminApi.post("/meisim/topup", { amount }).then(res => res.data);
+export const downloadMeisimStatement = () =>
+    adminApi.get("/meisim/statement", { responseType: "blob" }).then(res => res.data as Blob);
+
+// ── eSIM Verify (MeiSIM, $1 per check) ──
+export const verifyAdminEsim = (id: string) => adminApi.post(`/esims/${id}/verify`);
+export const fetchAdminEsimVerification = (id: string) => adminApi.get(`/esims/${id}/verify`);
+
 // ── Provider Balances (MyProxyApi + eSIM Access + MeiSIM) ──
 export const fetchProviderBalances = () =>
     adminApi.get("/provider_balances").then(res => res.data);

@@ -87,6 +87,8 @@ interface EsimProfile {
   iccid: string;
   qr_code_url: string | null;
   activation_code: string;
+  // Set for carrier-held eSIMs (Moxee) that come with a QR image and no activation code.
+  qr_image_path?: string | null;
   install_links?: { ios?: string; android?: string };
   phone_number?: string | null;
   total_volume: number;
@@ -95,6 +97,30 @@ interface EsimProfile {
   validity_days?: number | null;
   expired_time: string | null;
 }
+
+// A carrier-held eSIM's QR, loaded with the customer's login from our own API.
+const CarrierQr = ({ path }: { path: string }) => {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let url: string | null = null;
+    api.get(path, { responseType: "blob" })
+      .then((res) => { url = URL.createObjectURL(res.data); setSrc(url); })
+      .catch(() => setFailed(true));
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [path]);
+
+  if (failed) {
+    return <p className="text-xs text-muted-foreground text-center">The QR code is not ready yet. Please check back shortly or contact support.</p>;
+  }
+  if (!src) return <div className="h-[204px] w-[204px] animate-pulse rounded-lg bg-muted" aria-label="Loading QR code" />;
+  return (
+    <div className="rounded-lg bg-white p-3">
+      <img src={src} width={180} height={180} alt="eSIM installation QR code" />
+    </div>
+  );
+};
 
 // The plan's allowance: its own wording ("Unlimited", "1000 MB") or the recorded amount.
 const profileData = (p: EsimProfile) =>
@@ -926,6 +952,14 @@ Expires: ${profileExpiry(profile)}
                               Profile {index + 1}
                             </span>
                           </div>
+                          {!profile.activation_code && profile.qr_image_path && (
+                            <div className="flex flex-col items-center gap-3 py-2">
+                              <CarrierQr path={profile.qr_image_path} />
+                              <p className="text-xs text-muted-foreground text-center">
+                                Scan with your phone's camera to install.
+                              </p>
+                            </div>
+                          )}
                           {profile.activation_code?.startsWith("LPA:") && (
                             <div className="flex flex-col items-center gap-3 py-2">
                               {/* White quiet zone so phones can scan it in dark mode too. */}
