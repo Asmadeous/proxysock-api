@@ -57,7 +57,7 @@ module Admin
 
         assert_response :forbidden
       end
-          test 'verifies a batch of activation codes, reports progress and returns the CSV' do
+      test 'verifies a batch of activation codes, reports progress and returns the CSV' do
         lpas = "LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE\nLPA:1$T-MOBILE.IDEMIA.IO$O0VQX-7MJVW"
         MeisimService.any_instance.expects(:esim_verify)
                      .with(['LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE', 'LPA:1$T-MOBILE.IDEMIA.IO$O0VQX-7MJVW'],
@@ -95,6 +95,6 @@ module Admin
 
         assert_response :payment_required
       end
-end
+    end
   end
 end
