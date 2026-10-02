@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# # frozen_string_literal: true
-
 class VmHealthCheckJob < ApplicationJob
   queue_as :default
 
@@ -28,7 +26,9 @@ class VmHealthCheckJob < ApplicationJob
 
       if reachable
         vm.update_column(:last_health_check_at, Time.current) if vm.respond_to?(:last_health_check_at)
+        recovered = vm.metadata&.dig('alerted')
         update_metadata(vm, 'healthy')
+        notify_admins_about_recovery(vm) if recovered
       else
         failed += 1
         handle_failure(vm, 'unreachable', 'Network/SSH unreachable')
@@ -56,18 +56,20 @@ class VmHealthCheckJob < ApplicationJob
     vm.metadata['failure_reason'] = reason
     vm.update_column(:metadata, vm.metadata)
 
-    notify_admins_about_unhealthy_vm(vm, consecutive_failures, status, reason) if consecutive_failures >= 2
+    # Alert once, on the second failure in a row, not on every check after it.
+    return unless consecutive_failures >= 2 && !vm.metadata['alerted']
+
+    notify_admins_about_unhealthy_vm(vm, consecutive_failures, status, reason)
+    vm.metadata['alerted'] = true
+    vm.update_column(:metadata, vm.metadata)
   end
 
   def ping_vm(vm)
     # Quick ICMP ping (2 second timeout, 2 pings)
     result = system('ping', '-c', '2', '-W', '2', vm.ip_address.to_s, out: File::NULL, err: File::NULL)
 
-    # If ping fails, try TCP connect to SSH/RDP port as fallback
-    unless result
-      port = vm.metadata&.dig('vm_type') == 'rdp' ? (vm.rdp_port || 3389) : (vm.ssh_port || 22)
-      result = tcp_check(vm.ip_address, port)
-    end
+    # If ping fails, try the port customers log in on: the RDP port, or with none the SSH port.
+    result ||= tcp_check(vm.ip_address, vm.login_details[:port])
 
     result
   end
@@ -82,8 +84,20 @@ class VmHealthCheckJob < ApplicationJob
     vm.metadata ||= {}
     vm.metadata['health_status'] = status
     vm.metadata['last_health_check'] = Time.current.iso8601
-    vm.metadata['consecutive_failures'] = 0 if status == 'healthy'
+    vm.metadata.merge!('consecutive_failures' => 0, 'alerted' => false) if status == 'healthy'
     vm.update_column(:metadata, vm.metadata)
+  end
+
+  def notify_admins_about_recovery(vm)
+    Employee.where(active: true).find_each do |employee|
+      NotificationService.notify(
+        recipient: employee,
+        category: 'success',
+        title: 'VM Health: Recovered',
+        message: "VM #{vm.ip_address} (ID: #{vm.id.to_s[0..7]}) is reachable again.",
+        metadata: { vm_id: vm.id, ip: vm.ip_address, status: 'healthy' }
+      )
+    end
   end
 
   def notify_admins_about_unhealthy_vm(vm, consecutive_failures, status, reason)

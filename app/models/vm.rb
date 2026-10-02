@@ -135,9 +135,34 @@ class Vm < ApplicationRecord
 
   private
 
+  # Runs inside expire!'s transaction: a failed stop (VM already gone, Proxmox unreachable)
+  # must not roll the expiry back, or the VM stays "active" forever and is never cleaned
+  # up. The failure is recorded and admins are told once; VmGarbageCollectionJob still
+  # destroys it after the grace period.
   def stop_vm_on_proxmox
-    service = VmProvisioningService.new(nil, Rails.logger)
-    service.stop_vm(proxmox_vm_id)
+    return if proxmox_vm_id.blank?
+
+    VmProvisioningService.new(nil, Rails.logger).stop_vm(proxmox_vm_id)
+  rescue StandardError => e
+    Rails.logger.warn("[Vm] Expired VM #{id} (Proxmox #{proxmox_vm_id}) could not be stopped: #{e.message}")
+    update_column(:metadata, (metadata || {}).merge('stop_failed_at' => Time.current.iso8601,
+                                                    'stop_error' => e.message.to_s[0, 200]))
+    notify_admins_stop_failed(e)
+  end
+
+  def notify_admins_stop_failed(error)
+    Employee.where(active: true).find_each do |employee|
+      NotificationService.notify(
+        recipient: employee,
+        category: 'warning',
+        title: 'Expired VM not stopped',
+        message: "VM #{ip_address} (Proxmox #{proxmox_vm_id}) expired but could not be stopped: " \
+                 "#{error.message.to_s[0, 120]}. It will be destroyed after the grace period; stop it by hand if it is still running.",
+        metadata: { vm_id: id, proxmox_vm_id: proxmox_vm_id }
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.error("[Vm] Could not notify admins about VM #{id}: #{e.message}")
   end
 
   def cleanup_vm_on_proxmox
