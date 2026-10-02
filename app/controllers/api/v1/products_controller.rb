@@ -85,7 +85,8 @@ module Api
           provider_type: product.provider,
           product_type: product.product_type,
           requires_imei: product.metadata&.dig('requires_imei') || false,
-          requires_eid: product.metadata&.dig('requires_eid') || false
+          requires_eid: product.metadata&.dig('requires_eid') || false,
+          accepts_address: product.metadata&.dig('accepts_address') || false
         }
         data[:esim] = product.public_metadata.slice(*ESIM_DETAIL_KEYS) if product.product_type == 'esim'
         data

@@ -11,6 +11,7 @@ import {
     Copy,
     Key,
     Download,
+    RotateCcw,
     Shield,
     ArrowLeft,
 } from "lucide-react";
@@ -32,7 +33,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
-import api from "../../services/api";
+import api, { restartVpn } from "../../services/api";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
 interface VPNOrder {
     id: string;
@@ -64,6 +65,7 @@ export default function VPNManagement() {
     const [selectedOrder, setSelectedOrder] = useState<VPNOrder | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
+    const [restarting, setRestarting] = useState(false);
     const { user, accessToken } = useAuth();
     const location = useLocation();
 
@@ -396,6 +398,19 @@ export default function VPNManagement() {
 
                             <div className="flex justify-end gap-2">
                                 <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Close</Button>
+                                <Button variant="outline" disabled={restarting} className="gap-2" onClick={async () => {
+                                    setRestarting(true);
+                                    try {
+                                        await restartVpn(selectedOrder.id);
+                                        alert('VPN restart requested. Reconnect in about a minute.');
+                                    } catch (error: any) {
+                                        alert(error?.response?.data?.error || 'Failed to restart the VPN.');
+                                    } finally {
+                                        setRestarting(false);
+                                    }
+                                }}>
+                                    <RotateCcw className={`h-4 w-4 ${restarting ? 'animate-spin' : ''}`} /> Restart VPN
+                                </Button>
                                 <Button variant="default" onClick={async () => {
                                     try {
                                         const response = await api.get(`/web/api/orders/${selectedOrder.id}/download_ovpn`, {

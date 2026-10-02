@@ -4,13 +4,14 @@ module Admin
   module Api
     class VmsController < Admin::Api::BaseController
       before_action :set_vm, only: %i[show start stop reboot status destroy]
+      before_action :require_vm!, only: %i[start stop reboot status destroy]
 
       # GET /admin/api/vms
       def index
-        vms = VmOrder.joins(:order).preload(:vm, order: :orderable).order(created_at: :desc)
+        vms = VmOrder.joins(:order).preload(:vm, order: %i[orderable product]).order(created_at: :desc)
 
         vms = vms.where(vm_type: params[:vm_type]) if params[:vm_type].present?
-        vms = vms.where(status: params[:status]) if params[:status].present?
+        vms = vms.left_joins(:vm).where(vms: { status: params[:status] }) if params[:status].present?
         vms = vms.where(orders: { orderable_type: params[:entity_type] }) if params[:entity_type].present?
 
         if params[:q].present?
@@ -35,52 +36,32 @@ module Admin
 
       # POST /admin/api/vms/:id/start
       def start
-        res = ProxmoxService.new.start_vm(@vm.vm_id)
-        @vm.update!(status: 'starting')
-        record_audit_log('vm.started', @vm)
-        render json: { message: 'VM start initiated', response: res }
-      rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        control('start')
       end
 
       # POST /admin/api/vms/:id/stop
       def stop
-        res = ProxmoxService.new.stop_vm(@vm.vm_id)
-        @vm.update!(status: 'stopping')
-        record_audit_log('vm.stopped', @vm)
-        render json: { message: 'VM stop initiated', response: res }
-      rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        control('stop')
       end
 
       # POST /admin/api/vms/:id/reboot
       def reboot
-        res = ProxmoxService.new.reboot_vm(@vm.vm_id)
-        @vm.update!(status: 'rebooting')
-        record_audit_log('vm.rebooted', @vm)
-        render json: { message: 'VM reboot initiated', response: res }
-      rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        control('reboot')
       end
 
       # GET /admin/api/vms/:id/status
       def status
-        status = ProxmoxService.new.vm_status(@vm.vm_id)
-        render json: status
-      rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        render json: { status: vm_record.status, proxmox_vm_id: vm_record.proxmox_vm_id }
       end
 
       # DELETE /admin/api/vms/:id
       def destroy
-        # Dangerous! Only for admins
         require_admin!
-        res = ProxmoxService.new.delete_vm(@vm.vm_id)
-        @vm.update!(status: 'terminated')
-        record_audit_log('vm.deleted', @vm)
-        render json: { message: 'VM deletion initiated', response: res }
-      rescue StandardError => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        return if performed?
+
+        VmCleanupJob.perform_later(vm_record.id)
+        audit('vm.deleted')
+        render json: { message: 'VM deletion initiated' }
       end
 
       private
@@ -89,33 +70,67 @@ module Admin
         @vm = VmOrder.find(params[:id])
       end
 
+      def require_vm!
+        render json: { error: 'VM not provisioned yet' }, status: :unprocessable_entity unless @vm.vm
+      end
+
+      def vm_record
+        @vm.vm
+      end
+
+      # Same path the reseller API uses: a background job drives Proxmox by the VM's Proxmox id.
+      def control(action)
+        return render json: { error: 'VM has no Proxmox id yet' }, status: :unprocessable_entity if vm_record.proxmox_vm_id.blank?
+
+        VmControlJob.perform_later(vm_record.id, action)
+        audit("vm.#{action}")
+        render json: { message: "VM #{action} initiated" }
+      end
+
+      def audit(action)
+        AuditLog.create(action: action, user_id: current_employee.id, user_type: 'Employee', auditable: vm_record)
+      rescue StandardError
+        nil
+      end
+
+      # Login and state from the VM itself (the vm_order's status is never updated after
+      # provisioning), in the shape the admin VPS and RDP pages read.
       def vm_json(vm_order, full: false)
         vm = vm_order.vm
         order = vm_order.order
         entity = order&.orderable
+        login = vm&.login_details || {}
 
-        data = {
+        {
           id: vm_order.id,
           vm_id: vm&.proxmox_vm_id,
           vm_type: vm_order.vm_type,
-          status: vm_order.status,
+          status: vm&.status || vm_order.status,
           hostname: vm&.hostname,
+          host: login[:host],
           ip_address: vm&.ip_address,
           dns_name: vm&.dns_name,
           private_ip_address: vm&.private_ip_address,
-          rdp_port: vm&.rdp_port,
-          rdp_username: vm&.rdp_username,
+          protocol: login[:protocol],
+          port: login[:port],
+          ssh_port: login[:ssh_port],
+          rdp_port: login[:rdp_port],
+          username: login[:username],
+          password: login[:password],
+          rdp_username: login[:username],
+          rdp_password: login[:password],
+          cpu_cores: vm_order.cpu_cores,
+          ram_gb: vm_order.ram_gb,
+          storage_gb: vm_order.disk_gb,
+          os_type: vm_order.os_type,
           created_at: vm_order.created_at,
-          expires_at: order&.expires_at || vm&.expires_at,
+          expires_at: vm&.expires_at || order&.expires_at,
           order_id: vm_order.order_id,
+          order_number: order&.order_number,
           user_email: entity&.email,
           entity_type: order&.orderable_type,
           plan_name: order&.product&.name
-        }
-        if full || true
-          data[:rdp_password] = vm&.root_password || vm&.rdp_password_encrypted
-        end
-        data
+        }.tap { |data| data[:proxmox_node] = vm&.proxmox_node if full }
       end
     end
   end

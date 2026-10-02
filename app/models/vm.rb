@@ -53,6 +53,22 @@ class Vm < ApplicationRecord
     hostname.present? ? "#{hostname}.#{base}" : ip_address
   end
 
+  # How the customer logs in, the same values the customer's own order page shows:
+  # the Cloudflare host, the login, and the RDP port or (with no RDP port) the SSH port.
+  def login_details
+    rdp = rdp_port.present? || vm_type == 'rdp'
+    {
+      host: connection_host,
+      ip_address: ip_address,
+      protocol: rdp ? 'rdp' : 'ssh',
+      username: ssh_username.presence || rdp_username.presence || 'root',
+      password: root_password.presence || ssh_password.presence || rdp_password_encrypted,
+      port: rdp ? (rdp_port || 3389) : (ssh_port || 22),
+      ssh_port: rdp_port.present? ? ssh_port : (ssh_port || 22),
+      rdp_port: rdp_port || (vm_type == 'rdp' ? 3389 : nil)
+    }
+  end
+
   # Days in one paid period: the order's duration_days (30 for monthly plans).
   def period_days
     days = order&.metadata&.dig('duration_days').to_i

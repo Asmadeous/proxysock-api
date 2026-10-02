@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { toast } from "sonner";
+import { updateMobileRotation } from "@/services/api";
 import { motion } from "framer-motion";
 import {
   GlobeAltIcon,
@@ -38,6 +41,7 @@ interface ProxyOrder {
   subscription_active?: boolean;
   auto_renew?: boolean;
   renewal_method?: string;
+  rotation?: 'on' | 'off';
 }
 
 interface ProxyCardProps {
@@ -47,6 +51,23 @@ interface ProxyCardProps {
 }
 
 const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
+  const [rotation, setRotation] = useState<'on' | 'off'>(order.rotation || 'on');
+  const [savingRotation, setSavingRotation] = useState(false);
+
+  // Mobile IPs rotate every 30 minutes unless the customer turns rotation off.
+  const toggleRotation = async () => {
+    const next = rotation === 'on' ? 'off' : 'on';
+    setSavingRotation(true);
+    try {
+      await updateMobileRotation(order.id, next);
+      setRotation(next);
+      toast.success(`IP rotation turned ${next}`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Failed to change rotation');
+    } finally {
+      setSavingRotation(false);
+    }
+  };
   const { ref } = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -249,6 +270,17 @@ const ProxyCard = ({ order, onOpenModal, onReorder }: ProxyCardProps) => {
               <CogIcon className="h-4 w-4" />
             </button>
           </>
+        )}
+        {order.status === 'active' && order.product_type === 'mobile' && (
+          <button
+            onClick={toggleRotation}
+            disabled={savingRotation}
+            aria-pressed={rotation === 'on'}
+            className="py-2 px-3 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm transition-colors disabled:opacity-50"
+            title="IP rotation every 30 minutes"
+          >
+            Rotation: {rotation === 'on' ? 'On' : 'Off'}
+          </button>
         )}
         {order.status === 'active' && (
           <button

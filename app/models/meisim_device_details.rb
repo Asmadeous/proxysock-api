@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 # Device details MeiSIM requires for US prepaid (p3:, ly: and man:) lines, read from
-# an order's metadata: `imei`, `eid`, and an optional E911 `address`. UK lines need none.
+# an order's metadata: `imei`, `eid`, and the E911 `address`. UK lines need none.
 class MeisimDeviceDetails
   # man: plans are activated by MeiSIM's team onto the phone's EID; the carrier needs both.
   DEVICE_PREFIXES = %w[p3: ly: man:].freeze
   ADDRESS_KEYS = %w[first_name last_name address_line_1 address_line_2 city state zip_code phone].freeze
+  ZIP = /\A\d{5}(-?\d{4})?\z/.freeze
+  # MeiSIM: "A PO Box or PMB/mailbox is never a valid E911 address."
+  MAILBOX = /\b(P\.?\s*O\.?\s*Box|Post\s+Office\s+Box|PMB)\b/i.freeze
 
   def self.required_for?(product)
     product&.provider == 'meisim' && device_required?(product.provider_product_id)
@@ -31,13 +34,18 @@ class MeisimDeviceDetails
     errors = []
     errors << 'imei must be exactly 15 digits' unless imei.match?(/\A\d{15}\z/)
     errors << 'eid must be exactly 32 digits' if eid_required? && !eid.match?(/\A\d{32}\z/)
-    errors.concat(address_errors) if address.present?
+    if address.present?
+      errors.concat(address_errors)
+    elsif address_required?
+      errors << 'address is required (street, city, state and ZIP)'
+    end
     errors
   end
 
   # Keyword arguments for MeisimService#create_order.
   def to_params
-    normalized = address.presence&.merge('state' => address['state'].upcase)
+    # MeiSIM accepts ZIP+4 and ignores the extra digits; send the five it uses.
+    normalized = address.presence&.merge('state' => address['state'].upcase, 'zip_code' => address['zip_code'][0, 5])
     { imei: imei, eid: (eid.presence if eid_required?), address: normalized }
   end
 
@@ -69,12 +77,18 @@ class MeisimDeviceDetails
     self.class.eid_required?(metadata['network'])
   end
 
+  # Every US line that takes an activation address must have one (all but Moxee).
+  def address_required?
+    (@product.metadata || {})['accepts_address'] == true
+  end
+
   def address_errors
     errors = []
     errors << 'address.address_line_1 must start with a street number' unless address['address_line_1'].to_s.match?(/\A\d+\s+\S/)
+    errors << 'address.address_line_1 cannot be a PO Box or mailbox' if address['address_line_1'].to_s.match?(MAILBOX)
     errors << 'address.city must be at least 2 characters' if address['city'].to_s.length < 2
     errors << 'address.state must be a 2-letter code' unless address['state'].to_s.match?(/\A[A-Za-z]{2}\z/)
-    errors << 'address.zip_code must be 5 digits' unless address['zip_code'].to_s.match?(/\A\d{5}\z/)
+    errors << 'address.zip_code must be 5 digits (ZIP+4 accepted)' unless address['zip_code'].to_s.match?(ZIP)
     errors
   end
 end

@@ -118,10 +118,15 @@ it("asks for IMEI and EID where MeiSIM does, then adds one line to the cart", as
   await user.click(dialog.getByRole("button", { name: "Add to Cart" }));
   expect(dialog.getByText("IMEI must be exactly 15 digits")).toBeInTheDocument();
   expect(dialog.getByText("EID must be exactly 32 digits")).toBeInTheDocument();
+  expect(dialog.getByText("ZIP code must be 5 digits")).toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem("cartItems")!)).toEqual([otherItem]);
 
   await user.type(dialog.getByLabelText(/Your device IMEI/i), IMEI);
   await user.type(dialog.getByLabelText(/Your device EID/i), EID);
+  await user.type(dialog.getByLabelText("Street address"), "1 Main St");
+  await user.type(dialog.getByLabelText("City"), "Austin");
+  await user.type(dialog.getByLabelText("State"), "tx");
+  await user.type(dialog.getByLabelText("ZIP"), "73301");
   await user.click(dialog.getByRole("button", { name: "Add to Cart" }));
 
   const cart = JSON.parse(localStorage.getItem("cartItems")!);
@@ -129,7 +134,7 @@ it("asks for IMEI and EID where MeiSIM does, then adds one line to the cart", as
   expect(cart[1]).toMatchObject({
     productType: "usa-esim", quantity: 1,
     usaEsimPlan: { id: usLine.id, price: 53.04, requires_eid: true },
-    deviceDetails: { imei: "350923389416420", eid: EID },
+    deviceDetails: { imei: "350923389416420", eid: EID, address: { address_line_1: "1 Main St", city: "Austin", state: "TX", zip_code: "73301" } },
   });
   expect(screen.getByText("1 line in cart")).toBeInTheDocument();
 });
@@ -160,7 +165,7 @@ it("asks MobileX buyers for the second IMEI and shows the plan's restrictions", 
   expect(dialog.queryByText(/No QR code for this plan/)).not.toBeInTheDocument();
 });
 
-it("sends the device details and optional address through direct purchase", async () => {
+it("sends the device details and required address through direct purchase", async () => {
   const user = userEvent.setup();
   const purchase = vi.fn().mockResolvedValue(undefined);
   renderPage({ isDirectBuy: true, onDirectBuy: purchase });
@@ -168,7 +173,6 @@ it("sends the device details and optional address through direct purchase", asyn
   const dialog = await openPlan(user, usLine.name);
   await user.type(dialog.getByLabelText(/Your device IMEI/i), IMEI);
   await user.type(dialog.getByLabelText(/Your device EID/i), EID);
-  await user.click(dialog.getByRole("checkbox", { name: "Use default" }));
   await user.type(dialog.getByLabelText("Street address"), "1 Main St");
   await user.type(dialog.getByLabelText("City"), "Austin");
   await user.type(dialog.getByLabelText("State"), "tx");

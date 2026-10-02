@@ -11,7 +11,7 @@ response shapes, and what to remove.
 2. MeiSIM sells **travel data plans** and **US prepaid carrier lines** (with a
    US phone number).
 3. Some US lines need **IMEI** and **EID** from the customer's phone at
-   checkout. The product tells you which (`requires_imei`, `requires_eid`).
+   checkout. The product tells you which (`requires_imei`, `requires_eid`, `accepts_address`).
 4. **USA eSIM (`product_type: "usa_esim"`) is gone**, and so are the
    Lyca/Colt/Lebara inventory eSIMs and the admin USA eSIM credential screens.
 5. Ordered US lines return a `phone_number`.
@@ -217,7 +217,7 @@ Send these inside the order's `metadata` when the product has
 |---|---|---|
 | `metadata.imei` | `requires_imei` | Exactly 15 digits |
 | `metadata.eid` | `requires_eid` | Exactly 32 digits |
-| `metadata.address` | Optional (E911 and area code) | If sent, all rules below apply |
+| `metadata.address` | Required when the product has `accepts_address: true` (every US line except Moxee); otherwise optional (E911 and area code) | If sent, all rules below apply |
 | `metadata.address.address_line_1` | with address | Must start with a street number (`"120 Main St"`) |
 | `metadata.address.city` | with address | At least 2 characters |
 | `metadata.address.state` | with address | 2-letter code (`"AZ"`; lowercase accepted) |

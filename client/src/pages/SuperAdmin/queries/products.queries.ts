@@ -7,6 +7,7 @@ import {
   deleteAdminProduct,
   syncAdminProxies,
   syncAdminEsims,
+  syncAdminMeisim,
   syncAdminVPS,
   syncAdminVPN,
   syncAdminRDP,
@@ -72,11 +73,12 @@ export function useDeleteProduct() {
   });
 }
 
-type SyncType = "proxies" | "esims" | "vps" | "vpn" | "rdp";
+export type SyncType = "proxies" | "esims" | "meisim" | "vps" | "vpn" | "rdp";
 
 const SYNC_FNS: Record<SyncType, () => Promise<unknown>> = {
   proxies: syncAdminProxies,
   esims: syncAdminEsims,
+  meisim: syncAdminMeisim,
   vps: syncAdminVPS,
   vpn: syncAdminVPN,
   rdp: syncAdminRDP,
@@ -86,11 +88,15 @@ export function useSyncProducts() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (type: SyncType) => SYNC_FNS[type](),
-    onSuccess: (_data, type) => {
-      toast.success(`${type.toUpperCase()} sync complete`);
+    onSuccess: (data, type) => {
+      const message = (data as { data?: { message?: string } })?.data?.message;
+      toast.success(message || `${type.toUpperCase()} sync complete`);
       queryClient.invalidateQueries(adminQueryKeys.products.all());
     },
-    onError: (_err, type) => toast.error(`Failed to sync ${type}`),
+    onError: (err, type) => {
+      const detail = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(detail ? `Failed to sync ${type}: ${detail}` : `Failed to sync ${type}`);
+    },
   });
 }
 

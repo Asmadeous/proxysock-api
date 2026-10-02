@@ -44,6 +44,9 @@ Rails.application.routes.draw do
           post :refund
           post :reorder
           post :update_subscription
+          get 'esims/:esim_id/qr', action: :esim_qr
+          post :restart_vpn
+          post :rotation, action: :update_rotation
           get :topups, to: 'esim_topups#index'
           post :topups, to: 'esim_topups#create'
           post :topup_subscription, to: 'esim_topups#subscribe'
@@ -177,6 +180,9 @@ Rails.application.routes.draw do
           post :change_protocol
           post :update_credentials
           post :rotate_ip
+          get 'esims/:esim_id/qr', action: :esim_qr
+          post :restart_vpn
+          post :rotation, action: :update_rotation
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
           post :claim_crypto_refund
@@ -290,6 +296,7 @@ Rails.application.routes.draw do
         collection do
           post :sync_proxies
           post :sync_esims
+          post :sync_meisim
           post :sync_vps
           post :sync_rdp
           post :sync_vpn
@@ -378,6 +385,18 @@ Rails.application.routes.draw do
         member do
           patch :complete
           patch :cancel
+        end
+      end
+      # MeiSIM dealer wallet: fee preview, Stripe top-up link and CSV statement
+      get 'meisim/topup_preview', to: 'meisim_wallet#topup_preview'
+      post 'meisim/topup', to: 'meisim_wallet#topup'
+      get 'meisim/statement', to: 'meisim_wallet#statement'
+
+      # MeiSIM eSIM Verify: checks whether a sold eSIM's activation code is used or still available
+      resources :esims, only: [] do
+        member do
+          post :verify, to: 'esim_verifications#create'
+          get :verify, to: 'esim_verifications#show'
         end
       end
 

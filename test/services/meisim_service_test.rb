@@ -55,4 +55,38 @@ class MeisimServiceTest < ActiveSupport::TestCase
     assert_nil error.status
     assert_includes error.message, 'Net::ReadTimeout'
   end
+  test 'qr_png returns the PNG bytes of a line and raises on 409' do
+    HTTParty.expects(:get).with(
+      'https://api.meisimusa.com/dealer/order/ord-1/qr?line=2&size=480',
+      has_entries(headers: has_entry('x-dealer-key', 'msa_test_key'))
+    ).returns(stub(code: 200, success?: true, headers: { 'content-type' => 'image/png' }, body: 'PNG'))
+    assert_equal 'PNG', @service.qr_png('ord-1', line: 2)
+
+    HTTParty.expects(:get).returns(stub(code: 409, success?: false, headers: { 'content-type' => 'application/json' },
+                                        parsed_response: { 'error' => 'No QR' }))
+    error = assert_raises(MeisimService::Error) { @service.qr_png('ord-1') }
+    assert_equal 409, error.status
+  end
+  test 'esim_verify submits the codes and esim_verify_batch reads the progress' do
+    HTTParty.expects(:post).with('https://api.meisimusa.com/dealer/esim-verify', has_entry(body: { lpas: ['LPA:1$X$Y'] }.to_json))
+            .returns(http_response(200, { 'ok' => true, 'batch_id' => 'b-1', 'charged_usd' => 1.0 }))
+    assert_equal 'b-1', @service.esim_verify(['LPA:1$X$Y'])['batch_id']
+
+    HTTParty.expects(:get).with('https://api.meisimusa.com/dealer/esim-verify/b-1', anything)
+            .returns(http_response(200, { 'ok' => true, 'progress' => { 'available' => 1 } }))
+    assert_equal 1, @service.esim_verify_batch('b-1').dig('progress', 'available')
+  end
+  test 'topup, preview and statement call the documented paths' do
+    HTTParty.expects(:get).with('https://api.meisimusa.com/dealer/topup/preview?net=100.0', anything)
+            .returns(http_response(200, { 'ok' => true, 'fee' => 3.2 }))
+    assert_in_delta 3.2, @service.topup_preview(100)['fee']
+
+    HTTParty.expects(:post).with('https://api.meisimusa.com/dealer/topup', has_entry(body: { amountUsd: 100.0 }.to_json))
+            .returns(http_response(200, { 'ok' => true, 'checkoutUrl' => 'https://checkout.stripe.com/x' }))
+    assert_equal 'https://checkout.stripe.com/x', @service.topup(100)['checkoutUrl']
+
+    HTTParty.expects(:get).with('https://api.meisimusa.com/dealer/statement?from=2026-09-01', anything)
+            .returns(stub(success?: true, body: "Date,Type\n"))
+    assert_equal "Date,Type\n", @service.statement(from: '2026-09-01')
+  end
 end

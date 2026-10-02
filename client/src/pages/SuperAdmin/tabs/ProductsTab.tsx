@@ -21,9 +21,8 @@ import {
     useUpdateProduct,
     useDeleteProduct,
     useSyncProducts,
+    type SyncType,
 } from "../queries/products.queries";
-
-type SyncType = "proxies" | "esims" | "vps" | "vpn" | "rdp";
 
 interface CategoryColors {
     border: string;
@@ -48,7 +47,7 @@ interface ProductRow {
     product_type: string;
     provider: string;
     stock_status: string;
-    is_active: boolean;
+    active: boolean;
     metadata: Record<string, unknown>;
     product_category_name?: string;
     product_category_id?: number;
@@ -63,8 +62,7 @@ const STORE_CATEGORIES = [
         icon: GlobeAltIcon,
         color: "blue",
         types: ["proxy", "datacenter", "isp", "premium_isp", "global_isp", "static_residential", "residential_rotating", "mobile"],
-        syncType: "proxies" as SyncType,
-        syncLabel: "Sync Proxies"
+        syncs: [{ type: "proxies" as SyncType, label: "Sync Proxies" }]
     },
     {
         id: "vps",
@@ -73,8 +71,7 @@ const STORE_CATEGORIES = [
         icon: CpuChipIcon,
         color: "purple",
         types: ["vps"],
-        syncType: "vps" as SyncType,
-        syncLabel: "Sync VPS"
+        syncs: [{ type: "vps" as SyncType, label: "Sync VPS" }]
     },
     {
         id: "rdp",
@@ -83,8 +80,7 @@ const STORE_CATEGORIES = [
         icon: ComputerDesktopIcon,
         color: "orange",
         types: ["rdp"],
-        syncType: "rdp" as SyncType,
-        syncLabel: "Sync RDP"
+        syncs: [{ type: "rdp" as SyncType, label: "Sync RDP" }]
     },
     {
         id: "esim",
@@ -93,8 +89,10 @@ const STORE_CATEGORIES = [
         icon: DevicePhoneMobileIcon,
         color: "green",
         types: ["esim"],
-        syncType: "esims" as SyncType,
-        syncLabel: "Sync eSIMs"
+        syncs: [
+            { type: "esims" as SyncType, label: "Sync eSIM Access" },
+            { type: "meisim" as SyncType, label: "Sync MeiSIM" },
+        ]
     },
     {
         id: "vpn",
@@ -103,8 +101,7 @@ const STORE_CATEGORIES = [
         icon: ShieldCheckIcon,
         color: "red",
         types: ["vpn"],
-        syncType: "vpn" as SyncType,
-        syncLabel: "Sync VPN"
+        syncs: [{ type: "vpn" as SyncType, label: "Sync VPN" }]
     }
 ];
 
@@ -114,6 +111,7 @@ export default function ProductsTab() {
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+    const [providerFilter, setProviderFilter] = useState("all");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -121,7 +119,7 @@ export default function ProductsTab() {
         product_type: "proxy",
         provider: "",
         stock_status: "in_stock",
-        is_active: true,
+        active: true,
         metadataString: "{}"
     });
 
@@ -134,9 +132,13 @@ export default function ProductsTab() {
     const syncProducts = useSyncProducts();
 
     const activeCatData = STORE_CATEGORIES.find(c => c.id === activeCategory);
-    const filteredProducts = activeCatData
+    const categoryProducts = activeCatData
         ? products.filter(p => activeCatData.types.includes(p.product_type))
         : products;
+    const categoryProviders = [...new Set(categoryProducts.map(p => p.provider).filter(Boolean))].sort();
+    const filteredProducts = providerFilter !== "all"
+        ? categoryProducts.filter(p => p.provider === providerFilter)
+        : categoryProducts;
 
     const openModal = (mode: "create" | "edit", product?: ProductRow) => {
         setModalMode(mode);
@@ -148,7 +150,7 @@ export default function ProductsTab() {
                 product_type: product.product_type || "proxy",
                 provider: product.provider || "",
                 stock_status: product.stock_status || "in_stock",
-                is_active: product.is_active,
+                active: product.active,
                 metadataString: JSON.stringify(product.metadata || {}, null, 2)
             });
         } else {
@@ -171,7 +173,7 @@ export default function ProductsTab() {
                 product_type: activeCatData?.types[0] || "proxy",
                 provider: "inhouse", // Manual products are in-house
                 stock_status: "in_stock",
-                is_active: true,
+                active: true,
                 metadataString: JSON.stringify(defaultMetadata, null, 2)
             });
         }
@@ -203,11 +205,13 @@ export default function ProductsTab() {
         setDeleteTarget(null);
     };
 
-    const handleSync = () => {
-        if (!activeCatData) return;
-        if (!window.confirm(`Are you sure you want to sync ${activeCatData.name} products?`)) return;
-        syncProducts.mutate(activeCatData.syncType);
+    const handleSync = (sync: { type: SyncType; label: string }) => {
+        if (!window.confirm(`${sync.label}? This updates plans and prices from the provider.`)) return;
+        syncProducts.mutate(sync.type);
     };
+
+    const toggleActive = (row: ProductRow) =>
+        updateProduct.mutate({ id: row.id, data: { active: !row.active } });
 
 
     const columns = [
@@ -249,7 +253,19 @@ export default function ProductsTab() {
             </div>
         )},
         { key: "stock_status", label: "Stock", render: (row: ProductRow) => <StatusBadge status={row.stock_status === "in_stock" ? "success" : "warning"} /> },
-        { key: "is_active", label: "Active", render: (row: ProductRow) => <StatusBadge status={row.is_active ? "active" : "inactive"} /> },
+        { key: "active", label: "Active", render: (row: ProductRow) => (
+            <button
+                type="button"
+                role="switch"
+                aria-checked={row.active}
+                aria-label={`${row.active ? "Deactivate" : "Activate"} ${row.name}`}
+                onClick={() => toggleActive(row)}
+                disabled={updateProduct.isLoading}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${row.active ? "bg-green-500" : "bg-muted-foreground/30"}`}
+            >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${row.active ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
+        ) },
     ];
 
 
@@ -366,7 +382,7 @@ export default function ProductsTab() {
                         <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
                             <div className="flex items-center gap-4">
                                 <button
-                                    onClick={() => setActiveCategory(null)}
+                                    onClick={() => { setActiveCategory(null); setProviderFilter("all"); }}
                                     className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
                                 >
                                     <ArrowLeftIcon className="h-5 w-5" />
@@ -380,14 +396,28 @@ export default function ProductsTab() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handleSync}
-                                    disabled={syncProducts.isLoading}
-                                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border transition-colors rounded-xl text-sm font-medium border border-border disabled:opacity-50 text-foreground"
-                                >
-                                    <ArrowPathIcon className={`h-4 w-4 ${syncProducts.isLoading ? 'animate-spin' : ''}`} />
-                                    {activeCatData?.syncLabel}
-                                </button>
+                                {categoryProviders.length > 1 && (
+                                    <select
+                                        aria-label="Filter by provider"
+                                        value={providerFilter}
+                                        onChange={e => setProviderFilter(e.target.value)}
+                                        className="px-3 py-2 bg-muted rounded-xl text-sm border border-border text-foreground"
+                                    >
+                                        <option value="all">All providers</option>
+                                        {categoryProviders.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                )}
+                                {activeCatData?.syncs.map(sync => (
+                                    <button
+                                        key={sync.type}
+                                        onClick={() => handleSync(sync)}
+                                        disabled={syncProducts.isLoading}
+                                        className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-border transition-colors rounded-xl text-sm font-medium border border-border disabled:opacity-50 text-foreground"
+                                    >
+                                        <ArrowPathIcon className={`h-4 w-4 ${syncProducts.isLoading && syncProducts.variables === sync.type ? 'animate-spin' : ''}`} />
+                                        {sync.label}
+                                    </button>
+                                ))}
                                 <Button onClick={() => openModal("create")}>
                                     <PlusIcon className="h-4 w-4" /> Add Product
                                 </Button>
@@ -399,7 +429,7 @@ export default function ProductsTab() {
                                 columns={columns}
                                 data={filteredProducts}
                                 loading={isLoading}
-                                emptyMessage={<EmptyState icon={BuildingStorefrontIcon} title={`No ${activeCatData?.name} found`} description="Click Sync or Add Product to populate." action={{ label: activeCatData?.syncLabel || "Sync", onClick: handleSync }} />}
+                                emptyMessage={<EmptyState icon={BuildingStorefrontIcon} title={`No ${activeCatData?.name} found`} description="Click Sync or Add Product to populate." action={activeCatData ? { label: activeCatData.syncs[0].label, onClick: () => handleSync(activeCatData.syncs[0]) } : undefined} />}
                                 actions={(row: ProductRow) => (
                                     <div className="flex items-center justify-end gap-2 pr-2">
                                         <button onClick={() => openModal("edit", row)} aria-label="Edit product" className="p-1.5 text-muted-foreground hover:text-blue-400 hover:bg-muted rounded-lg transition-colors">
@@ -446,7 +476,7 @@ export default function ProductsTab() {
                 </div>
                 <Field label="Description"><textarea className={inputClasses} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></Field>
                 <Field label="Metadata (JSON)"><textarea className={`${inputClasses} font-mono text-xs h-32`} value={formData.metadataString} onChange={e => setFormData({ ...formData, metadataString: e.target.value })} /></Field>
-                <label className="flex items-center gap-2 cursor-pointer mt-2 text-sm font-medium"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} /> Active</label>
+                <label className="flex items-center gap-2 cursor-pointer mt-2 text-sm font-medium"><input type="checkbox" checked={formData.active} onChange={e => setFormData({ ...formData, active: e.target.checked })} /> Active</label>
             </FormModal>
 
             <ConfirmModal

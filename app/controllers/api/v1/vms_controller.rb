@@ -7,7 +7,8 @@ module Api
 
       # GET /api/v1/vms
       def index
-        @vms = current_reseller_vms.includes(:vm_order)
+        @vms = current_reseller_vms.preload(vm_order: { order: :product }).order(created_at: :desc)
+        @vms = @vms.where(vm_orders: { vm_type: params[:vm_type] }) if params[:vm_type].present?
 
         render json: {
           vms: @vms.map { |vm| serialize_vm(vm) }
@@ -157,21 +158,40 @@ module Api
         order
       end
 
+      # Everything the reseller dashboard and API clients need to hand the server over:
+      # the Cloudflare host, the login, the port, the specs and the term.
       def serialize_vm(vm)
-        order = vm.vm_order&.order
+        vm_order = vm.vm_order
+        order = vm_order&.order
+        login = vm.login_details
         {
           id: vm.id,
           order_id: order&.id,
           order_number: order&.order_number,
+          plan_name: order&.product_display_name,
           status: vm.status,
-          vm_type: vm.vm_type,
+          vm_type: vm_order&.vm_type || vm.vm_type,
+          hostname: vm.hostname,
+          host: login[:host],
+          dns_name: vm.dns_name,
           ip_address: vm.ip_address,
           proxmox_vm_id: vm.proxmox_vm_id,
-          ssh_port: vm.ssh_port,
-          rdp_port: vm.rdp_port,
+          protocol: login[:protocol],
+          port: login[:port],
+          ssh_port: login[:ssh_port],
+          rdp_port: login[:rdp_port],
+          username: login[:username],
+          password: login[:password],
+          root_password: login[:password],
+          rdp_username: login[:username],
+          rdp_password: login[:password],
+          cpu_cores: vm_order&.cpu_cores,
+          ram_gb: vm_order&.ram_gb,
+          storage_gb: vm_order&.disk_gb,
+          os_template: vm_order&.os_type,
           auto_renew: !(order&.metadata || {})['auto_renew'].nil?,
           renewal_method: (order&.metadata || {})['renewal_method'] || 'wallet',
-          expires_at: vm.expires_at,
+          expires_at: vm.expires_at || order&.expires_at,
           created_at: vm.created_at
         }
       end

@@ -47,8 +47,9 @@ class EsimOrder < ApplicationRecord
       country: country_code,
       esim_details: { data_amount_gb: data_amount_gb, duration_days: duration_days },
       credentials_list: esims.map do |esim|
-        { iccid: esim.iccid, qr_code: (esim.qr_code_url if provider_qr || esim.esim_provider != 'meisim'),
+        { id: esim.id, iccid: esim.iccid, qr_code: (esim.qr_code_url if provider_qr || esim.esim_provider != 'meisim'),
           activation_code: esim.activation_code,
+          qr_image_path: ("/api/v1/orders/#{order_id}/esims/#{esim.id}/qr" if esim.carrier_qr? && !provider_qr),
           phone_number: esim.msisdn, data: esim.data_label }
       end
     }

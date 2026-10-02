@@ -53,7 +53,7 @@ class ProxyManagementServiceTest < ActiveSupport::TestCase
   test 'whitelist changes refresh the stored order view' do
     client = mock('myproxyapi')
     MyProxyApiClient.stubs(:new).returns(client)
-    client.expects(:whitelist_add).with('A1F4LTYCDKKKWTULXTJK', '198.51.100.9', nil).returns('ok' => true)
+    client.expects(:whitelist_add).with('A1F4LTYCDKKKWTULXTJK', '198.51.100.9', 'Whitelisted 198.51.100.9').returns('ok' => true)
     updated = VIEW.deep_dup
     updated['config']['auth_whitelistip'] << { 'ip_address' => '198.51.100.9' }
     client.expects(:view_order).with('A1F4LTYCDKKKWTULXTJK').returns('data' => updated)
@@ -100,5 +100,17 @@ class ProxyManagementServiceTest < ActiveSupport::TestCase
 
     assert_equal 'gisp', details[:username]
     assert_empty details[:endpoints]
+  end
+
+  test 'whitelisting always sends a description and credentials follow the documented format' do
+    service = ProxyManagementService.new(@order)
+    client = service.instance_variable_get(:@client)
+    client.expects(:whitelist_add).with('A1F4LTYCDKKKWTULXTJK', '203.0.113.9', 'Whitelisted 203.0.113.9').returns({})
+    client.stubs(:view_order).returns({ 'data' => VIEW })
+    service.whitelist_add('203.0.113.9')
+
+    client.expects(:update_credentials).never
+    assert_raises(RuntimeError) { service.update_credentials('ab', 'secret1') }
+    assert_raises(RuntimeError) { service.update_credentials('user_name', 'secret1') }
   end
 end

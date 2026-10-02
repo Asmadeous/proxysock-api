@@ -5,6 +5,7 @@ require 'test_helper'
 class MeisimDeviceDetailsTest < ActiveSupport::TestCase
   IMEI = '356938035643809'
   EID = '89049032000001000000000000000001'
+  ADDRESS = { 'address_line_1' => '120 Main St', 'city' => 'Phoenix', 'state' => 'AZ', 'zip_code' => '85001' }.freeze
 
   setup do
     @user = create_user_with_balance(0)
@@ -60,7 +61,23 @@ class MeisimDeviceDetailsTest < ActiveSupport::TestCase
     assert_nil MeisimDeviceDetails.new(moxee, { 'imei' => IMEI, 'eid' => EID }).to_params[:eid]
   end
 
-  test 'address is optional but validated when given' do
+  test 'lines that take an activation address require one' do
+    @att.update!(metadata: @att.metadata.merge('accepts_address' => true))
+
+    missing = order_for(@att, { 'imei' => IMEI, 'eid' => EID })
+    assert_not missing.valid?
+    assert_includes missing.errors[:metadata], 'address is required (street, city, state and ZIP)'
+    assert order_for(@att, { 'imei' => IMEI, 'eid' => EID, 'address' => ADDRESS }).valid?
+  end
+
+  test 'lines that take no address (Moxee) do not require one' do
+    moxee = meisim_product('p3:445:799', 'Moxee 2')
+    moxee.update!(metadata: moxee.metadata.merge('accepts_address' => false))
+
+    assert order_for(moxee, { 'imei' => IMEI }).valid?
+  end
+
+  test 'address is validated when given' do
     bad = order_for(@att, { 'imei' => IMEI, 'eid' => EID,
                             'address' => { 'address_line_1' => 'Main St', 'city' => 'P', 'state' => 'Arizona', 'zip_code' => '8500' } })
 
@@ -109,5 +126,15 @@ class MeisimDeviceDetailsTest < ActiveSupport::TestCase
     assert_empty details.errors
     assert_equal '350923389416420', details.to_params[:imei]
     assert_equal '89049032007108888100137471946359', details.to_params[:eid]
+  end
+  test 'ZIP+4 is accepted and sent as five digits; a PO Box is refused' do
+    plus4 = ADDRESS.merge('zip_code' => '85001-1234')
+    details = MeisimDeviceDetails.new(@att, { 'imei' => IMEI, 'eid' => EID, 'address' => plus4 })
+    assert_empty details.errors
+    assert_equal '85001', details.to_params.dig(:address, 'zip_code')
+
+    po_box = ADDRESS.merge('address_line_1' => '12 PO Box 445')
+    assert_includes MeisimDeviceDetails.new(@att, { 'imei' => IMEI, 'eid' => EID, 'address' => po_box }).errors,
+                    'address.address_line_1 cannot be a PO Box or mailbox'
   end
 end

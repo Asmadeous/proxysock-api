@@ -43,7 +43,7 @@ esim_topup_renewal:
   class: "EsimTopupRenewalJob"
 
 meisim_catalog_sync:
-  cron: "30 4 * * *"   # Every day at 4:30 AM
+  cron: "15 * * * *"   # Every hour, then clears the product caches
   class: "MeisimCatalogSyncJob"
 
 esim_access_order_poll:

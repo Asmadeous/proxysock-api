@@ -793,6 +793,38 @@ module Web
         end
       end
 
+      # GET /web/api/orders/:id/esims/:esim_id/qr
+      # The install QR for a carrier-held eSIM (Moxee, LinkUp) that has no activation code.
+      def esim_qr
+        esim = current_actor.orders.find(params[:id]).esim_order&.esims&.find_by(id: params[:esim_id])
+        return render json: { error: 'eSIM not found' }, status: :not_found unless esim
+        return render json: { error: 'This eSIM installs from its activation code' }, status: :unprocessable_entity unless esim.carrier_qr?
+
+        send_data esim.carrier_qr_png, type: 'image/png', disposition: 'inline', filename: "esim-#{esim.iccid}.png"
+      rescue MeisimService::Error => e
+        render json: { error: "QR not available yet (#{e.status || 'no reply'})" }, status: :service_unavailable
+      end
+
+      # POST /web/api/orders/:id/restart_vpn
+      def restart_vpn
+        order = current_actor.orders.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).restart_vpn.except(:response)
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /web/api/orders/:id/rotation  (status: "on" or "off", mobile proxies only)
+      def update_rotation
+        order = current_actor.orders.find(params[:id])
+        begin
+          render json: ProxyManagementService.new(order).update_rotation(params[:status]).except(:response)
+        rescue StandardError => e
+          render json: { error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       # POST /web/api/orders/:id/whitelist
       def whitelist_add
         order = current_actor.orders.find(params[:id])
@@ -1089,6 +1121,7 @@ module Web
               # is not passed on, so customers never see the provider.
               qr_code_url: (esim.qr_code_url unless esim.esim_provider == 'meisim'),
               activation_code: esim.activation_code,
+              qr_image_path: ("/web/api/orders/#{order.id}/esims/#{esim.id}/qr" if esim.carrier_qr?),
               install_links: esim.install_links,
               phone_number: esim.msisdn,
               pin1: esim.pin1,
