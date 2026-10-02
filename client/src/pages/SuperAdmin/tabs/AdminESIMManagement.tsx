@@ -192,6 +192,9 @@ export default function AdminESIMManagement() {
                                 </div>
                             </div>
 
+                            {p.esim_id && !p.activation_code?.startsWith("LPA:") && (
+                                <p className="text-xs text-muted-foreground">Verify unavailable: carrier-held eSIM with no activation code (QR only).</p>
+                            )}
                             {p.esim_id && verification[p.esim_id] && (
                                 <p className="text-xs text-muted-foreground" role="status">
                                     Verify: {VERDICTS[verification[p.esim_id]] || verification[p.esim_id]}
@@ -199,11 +202,12 @@ export default function AdminESIMManagement() {
                             )}
 
                             <div className="flex gap-2">
-                                {p.esim_id && p.activation_code?.startsWith("LPA:") && (
+                                {p.esim_id && (
                                     <button
                                         onClick={() => verify(p.esim_id!)}
-                                        disabled={verification[p.esim_id] === "pending"}
-                                        className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                                        disabled={!p.activation_code?.startsWith("LPA:") || verification[p.esim_id] === "pending"}
+                                        title={p.activation_code?.startsWith("LPA:") ? "Check with MeiSIM whether this eSIM is installed ($1)" : "Carrier-held eSIM (e.g. Moxee): no activation code, so MeiSIM cannot verify it"}
+                                        className="flex-1 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         Verify eSIM ($1)
                                     </button>
