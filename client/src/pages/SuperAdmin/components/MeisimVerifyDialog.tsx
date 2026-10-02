@@ -27,12 +27,12 @@ const POLL_MS = 15000;
 const apiError = (error: unknown, fallback: string) =>
     (error as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
 
-const ROWS: { key: keyof Progress; label: string; hint: string }[] = [
-    { key: "available", label: "Available", hint: "never installed, still usable" },
-    { key: "used", label: "Used", hint: "already installed on a phone" },
-    { key: "invalid", label: "Invalid", hint: "not a real activation code" },
-    { key: "unknown", label: "Unknown", hint: "carrier gave no answer" },
-    { key: "error_count", label: "Error", hint: "check failed, refunded" },
+const TILES: { key: keyof Progress; label: string }[] = [
+    { key: "available", label: "Available" },
+    { key: "used", label: "Used" },
+    { key: "invalid", label: "Invalid" },
+    { key: "unknown", label: "Unknown" },
+    { key: "error_count", label: "Error" },
 ];
 
 // MeiSIM eSIM Verify: checks activation codes without using them up. $1 per code from
@@ -103,14 +103,14 @@ export default function MeisimVerifyDialog({ open, onOpenChange }: { open: boole
         }
     };
 
+    const inputClass = "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm";
+
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) reset(); onOpenChange(next); }}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>Verify eSIM</DialogTitle>
-                    <DialogDescription>
-                        Checks whether eSIM activation codes are still unused, without using them up. Costs $1 per code from the MeiSIM wallet; codes whose check errors are refunded.
-                    </DialogDescription>
+                    <DialogDescription>$1 per code, from the MeiSIM wallet.</DialogDescription>
                 </DialogHeader>
 
                 {!batchId ? (
@@ -121,67 +121,55 @@ export default function MeisimVerifyDialog({ open, onOpenChange }: { open: boole
                                 id="verify-codes"
                                 value={codes}
                                 onChange={(e) => setCodes(e.target.value)}
-                                rows={5}
-                                placeholder={"LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE-8PWDE-ZRXGS\nOne per line"}
-                                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono"
+                                rows={4}
+                                placeholder="LPA:1$…  (one per line)"
+                                className={`${inputClass} font-mono resize-y`}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                One per line, each starting with LPA:1$. Moxee lines have no activation code and cannot be verified.
-                            </p>
                             {invalid.length > 0 && (
                                 <p className="text-xs text-destructive" role="alert">
-                                    Not an activation code: {invalid.slice(0, 3).join(", ")}{invalid.length > 3 ? ` and ${invalid.length - 3} more` : ""}
+                                    Not a code: {invalid.slice(0, 2).join(", ")}{invalid.length > 2 ? ` +${invalid.length - 2}` : ""}
                                 </p>
                             )}
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="verify-email" className="text-sm font-medium">Email the results to (optional)</label>
-                            <input
-                                id="verify-email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="ops@proxysock.com"
-                                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-                            />
+                            <label htmlFor="verify-email" className="text-sm font-medium">Results email <span className="text-muted-foreground font-normal">(optional)</span></label>
+                            <input id="verify-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
                         </div>
-                        <p className="text-sm">
-                            {unique.length} code{unique.length === 1 ? "" : "s"} · <span className="font-semibold">${unique.length.toFixed(2)}</span> from the MeiSIM wallet
-                        </p>
                     </div>
                 ) : (
                     <div className="space-y-3" aria-live="polite">
-                        <p className="text-sm text-muted-foreground">
-                            {running ? "Checking… results usually arrive within minutes. You can close this window; the batch keeps running." : "Done."}
-                        </p>
-                        <dl className="grid grid-cols-1 gap-1.5 text-sm">
-                            {running && (
-                                <div className="flex justify-between"><dt>Still checking</dt><dd className="font-mono">{(progress?.pending ?? 0) + (progress?.in_progress ?? 0)}</dd></div>
-                            )}
-                            {ROWS.map((row) => (
-                                <div key={row.key} className="flex justify-between gap-4">
-                                    <dt>{row.label} <span className="text-xs text-muted-foreground">— {row.hint}</span></dt>
-                                    <dd className="font-mono">{progress?.[row.key] ?? 0}</dd>
+                        <div className="grid grid-cols-5 gap-2">
+                            {TILES.map((tile) => (
+                                <div key={tile.key} className="rounded-lg border border-border bg-muted/40 px-2 py-2 text-center">
+                                    <div className="text-lg font-semibold tabular-nums">{progress?.[tile.key] ?? 0}</div>
+                                    <div className="text-[11px] text-muted-foreground">{tile.label}</div>
                                 </div>
                             ))}
-                        </dl>
-                        <p className="text-xs text-muted-foreground font-mono break-all">Batch {batchId}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {running ? `Checking ${(progress?.pending ?? 0) + (progress?.in_progress ?? 0)}… you can close this.` : "Done."}
+                        </p>
                     </div>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="flex-row items-center justify-between sm:justify-between gap-2">
                     {!batchId ? (
-                        <button
-                            onClick={submit}
-                            disabled={submitting || unique.length === 0 || invalid.length > 0}
-                            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
-                        >
-                            {submitting ? "Submitting…" : `Verify ${unique.length || ""} for $${unique.length}`}
-                        </button>
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {unique.length} code{unique.length === 1 ? "" : "s"} · <span className="font-semibold text-foreground">${unique.length}</span>
+                            </span>
+                            <button
+                                onClick={submit}
+                                disabled={submitting || unique.length === 0 || invalid.length > 0}
+                                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+                            >
+                                {submitting ? "Submitting…" : "Verify"}
+                            </button>
+                        </>
                     ) : (
                         <>
-                            <button onClick={download} className="px-4 py-2 rounded-lg border border-border text-sm">Download results (CSV)</button>
-                            <button onClick={reset} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Verify more</button>
+                            <button onClick={download} className="px-3 py-2 rounded-lg border border-border text-sm">Download CSV</button>
+                            <button onClick={reset} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Verify more</button>
                         </>
                     )}
                 </DialogFooter>
