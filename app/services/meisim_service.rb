@@ -80,14 +80,26 @@ class MeisimService
   # eSIM Verify: classifies activation codes as available, used, invalid, error or unknown
   # without consuming them. $1 per code from our MeiSIM wallet; rows that error are
   # refunded. Returns { batch_id, total_rows, charged_usd, wallet_balance_usd }.
-  def esim_verify(lpas)
-    request(:post, '/dealer/esim-verify', { lpas: Array(lpas) })
+  def esim_verify(lpas, notify_email: nil)
+    request(:post, '/dealer/esim-verify', { lpas: Array(lpas), notify_email: notify_email.presence }.compact)
   end
 
   # Progress of a verify batch: { batch: {...}, progress: { pending, in_progress, used,
   # available, invalid, error_count, unknown, total } }.
   def esim_verify_batch(batch_id)
     request(:get, "/dealer/esim-verify/#{ERB::Util.url_encode(batch_id)}")
+  end
+
+  # Verify batch results as CSV: iccid, lpa, status, reason, checked_at (pending rows
+  # show status=pending while the batch runs).
+  def esim_verify_results_csv(batch_id)
+    path = "/dealer/esim-verify/#{ERB::Util.url_encode(batch_id)}/results.csv"
+    response = HTTParty.get("#{BASE_URL}#{path}", headers: headers.merge('Accept' => 'text/csv'), timeout: TIMEOUT)
+    raise Error.new("MeiSIM GET #{path} failed: #{error_message(response.parsed_response)}", status: response.code) unless response.success?
+
+    response.body
+  rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET => e
+    raise Error, "MeiSIM GET verify results failed: #{e.class}"
   end
 
   # PNG bytes of a line's install QR (GET /dealer/order/:orderId/qr). The only QR for

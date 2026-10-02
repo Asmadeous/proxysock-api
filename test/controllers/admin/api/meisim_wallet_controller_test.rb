@@ -57,6 +57,44 @@ module Admin
 
         assert_response :forbidden
       end
-    end
+          test 'verifies a batch of activation codes, reports progress and returns the CSV' do
+        lpas = "LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE\nLPA:1$T-MOBILE.IDEMIA.IO$O0VQX-7MJVW"
+        MeisimService.any_instance.expects(:esim_verify)
+                     .with(['LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE', 'LPA:1$T-MOBILE.IDEMIA.IO$O0VQX-7MJVW'],
+                           notify_email: 'ops@proxysock.com')
+                     .returns({ 'ok' => true, 'batch_id' => 'b-9', 'total_rows' => 2, 'charged_usd' => 2.0 })
+        post '/admin/api/meisim/verify', params: { lpas: lpas, notify_email: 'ops@proxysock.com' }, headers: @admin
+        assert_response :success
+        assert_equal ['b-9', 2.0], json_response.values_at('batch_id', 'charged_usd')
+
+        MeisimService.any_instance.stubs(:esim_verify_batch).with('b-9')
+                     .returns({ 'ok' => true, 'batch' => { 'id' => 'b-9' }, 'progress' => { 'total' => 2, 'used' => 1, 'available' => 1 } })
+        get '/admin/api/meisim/verify/b-9', headers: @admin
+        assert_equal 1, json_response.dig('progress', 'used')
+
+        MeisimService.any_instance.stubs(:esim_verify_results_csv).with('b-9').returns("iccid,lpa,status\n8901,LPA:1$X$Y,used\n")
+        get '/admin/api/meisim/verify/b-9/results', headers: @admin
+        assert_equal 'text/csv', response.media_type
+        assert_includes response.body, 'used'
+      end
+
+      test 'refuses empty input and anything that is not an activation code, without calling MeiSIM' do
+        MeisimService.any_instance.expects(:esim_verify).never
+
+        post '/admin/api/meisim/verify', params: { lpas: '  ' }, headers: @admin
+        assert_response :unprocessable_entity
+        post '/admin/api/meisim/verify', params: { lpas: "LPA:1$X$Y\n8901240527188633351" }, headers: @admin
+        assert_response :unprocessable_entity
+        assert_includes json_response['error'], '8901240527188633351'
+      end
+
+      test 'a low MeiSIM wallet is reported as such' do
+        MeisimService.any_instance.stubs(:esim_verify).raises(MeisimService::Error.new('INSUFFICIENT_FUNDS', status: 402))
+
+        post '/admin/api/meisim/verify', params: { lpas: 'LPA:1$X$Y' }, headers: @admin
+
+        assert_response :payment_required
+      end
+end
   end
 end

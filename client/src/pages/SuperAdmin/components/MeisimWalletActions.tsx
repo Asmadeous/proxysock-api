@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { createMeisimTopup, downloadMeisimStatement, previewMeisimTopup } from "../../../services/adminApi";
+import MeisimVerifyDialog from "./MeisimVerifyDialog";
 
 const apiError = (error: unknown, fallback: string) =>
     (error as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
@@ -11,6 +12,7 @@ export default function MeisimWalletActions() {
     const [amount, setAmount] = useState("100");
     const [fee, setFee] = useState<number | null>(null);
     const [busy, setBusy] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
 
     const value = Number(amount);
     const valid = Number.isFinite(value) && value >= 50 && value <= 10000;
@@ -78,7 +80,12 @@ export default function MeisimWalletActions() {
             {fee != null && valid && (
                 <p className="text-xs text-muted-foreground">Card fee ${fee.toFixed(2)} · you pay ${(value + fee).toFixed(2)}</p>
             )}
-            <button onClick={statement} className="text-xs text-primary underline underline-offset-2">Download statement (CSV)</button>
+            <div className="flex items-center justify-between gap-2 pt-1">
+                <button onClick={statement} className="text-xs text-primary underline underline-offset-2">Download statement (CSV)</button>
+                <button onClick={() => setVerifyOpen(true)}
+                    className="px-3 py-1.5 rounded-lg bg-muted text-sm border border-border">Verify eSIM</button>
+            </div>
+            <MeisimVerifyDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
         </div>
     );
 }
