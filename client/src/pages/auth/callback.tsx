@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { useAuth } from '../../context/AuthContext';
 import { storeSession, updateLastActivity } from '../../services/auth';
 import api from '../../services/api';
+import AuthPage from '@/components/auth/AuthPage';
+import { LoaderCircle } from 'lucide-react';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -73,25 +75,10 @@ export default function AuthCallback() {
   }, [isAuthenticated, user, navigate, isProcessing]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
-      <div className="bg-gray-900/80 backdrop-blur-xl rounded-2xl p-8 border border-gray-800">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-white mb-2">Completing sign in...</h2>
-          <p className="text-gray-400 text-sm">Please wait while we set up your account.</p>
-
-          <div className="mt-6 w-full bg-gray-700 rounded-full h-2">
-            <div
-              className="bg-red-500 h-2 rounded-full transition-all duration-1000 animate-pulse"
-              style={{ width: '60%' }}
-            ></div>
-          </div>
-
-          <p className="text-gray-500 text-xs mt-4">
-            If this takes longer than expected, please try refreshing the page.
-          </p>
-        </div>
-      </div>
-    </div>
+    <AuthPage variant="login" title="Connecting your account" eyebrow="Signing you in"
+      description="We're completing your sign-in and getting your account ready. You'll be redirected shortly."
+      icon={<LoaderCircle className="login-spinner" />}>
+      <div className="auth-note" role="status">Completing sign in...</div>
+    </AuthPage>
   );
 }

@@ -1,23 +1,25 @@
-import { useState } from 'react';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import api from '../../../services/api';
 
-interface VerificationContentProps {
-  userEmail?: string;
-}
-
-export default function VerificationContent({ userEmail }: VerificationContentProps) {
+export default function VerificationContent({ userEmail }: { userEmail?: string }) {
+  const [email, setEmail] = useState(userEmail || "");
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
-  const handleResendEmail = async () => {
-    if (!userEmail) return;
+  const handleResendEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email || resending) return;
     setResending(true);
     setMessage(null);
-
+    setHasError(false);
     try {
-      const { data } = await api.post('/web/api/auth/resend_confirmation', { email: userEmail });
-      setMessage(data.message || 'Verification email resent!');
+      const { data } = await api.post('/web/api/auth/resend_confirmation', { email });
+      setMessage(data.message || 'Verification email resent. Please check your inbox.');
     } catch (err: any) {
+      setHasError(true);
       setMessage(err.response?.data?.error || 'Failed to resend. Please try again.');
     } finally {
       setResending(false);
@@ -25,37 +27,15 @@ export default function VerificationContent({ userEmail }: VerificationContentPr
   };
 
   return (
-    <div className="bg-card/50 backdrop-blur-xl rounded-2xl border border-border shadow-xl p-6">
-      <div className="space-y-2 text-left mb-6">
-        <p className="text-foreground font-inter-regular">
-          <span className="font-medium font-manrope-medium">Email:</span> {userEmail}
-        </p>
-        <p className="text-foreground font-inter-regular">
-          <span className="font-medium font-manrope-medium">Tip:</span> If you don't see the email, check your spam folder.
-        </p>
-      </div>
-
-      {message && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 text-sm text-foreground font-inter-regular">
-          {message}
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <button
-          onClick={handleResendEmail}
-          disabled={!userEmail || resending}
-          className="block w-full bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 px-6 rounded-lg transition-colors font-manrope-semibold"
-        >
-          {resending ? 'Sending...' : 'Resend Verification Email'}
-        </button>
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-border">
-        <p className="text-muted-foreground text-sm font-inter-regular">
-          Need help? Contact our support team.
-        </p>
-      </div>
-    </div>
+    <>
+      <div className="auth-note">{userEmail && <><strong>{userEmail}</strong><br /></>}Can't find it? Check your spam folder, or request another email below.</div>
+      <form className="login-form" onSubmit={handleResendEmail} aria-busy={resending}>
+        {!userEmail && <div className="login-field"><label htmlFor="verification-email">Email address</label><input id="verification-email" type="email" autoComplete="email" required value={email} disabled={resending} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></div>}
+        {message && <div className={hasError ? "login-error" : "auth-note"} role={hasError ? "alert" : "status"}>{message}</div>}
+        <button type="submit" disabled={resending} className="login-submit"><span>{resending ? 'Sending email...' : 'Resend verification email'}</span>{resending ? <LoaderCircle className="login-spinner" size={18} aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}</button>
+      </form>
+      <Link to="/login" className="auth-secondary-link">Already verified? Sign in</Link>
+      <p className="login-register">Need a hand? <Link to="/contact">Contact support</Link></p>
+    </>
   );
 }

@@ -170,13 +170,13 @@ export default function App() {
                 <Route path="/ip-checker" element={<IPChecker />} />
                 <Route path="/blog" element={<BlogPage />} />
                 <Route path="/blog/:id" element={<BlogPostPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
               </Route>
 
               {/* Auth Routes */}
               <Route element={<AuthLayout />}>
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />

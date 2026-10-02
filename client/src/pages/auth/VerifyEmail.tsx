@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import AuthLogo from "../../components/auth/AuthLogo";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import AuthPage from "@/components/auth/AuthPage";
+import { ArrowRight, Check, Link2Off, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { verifyEmail } from "../../services/railsAuth";
 
@@ -29,13 +30,14 @@ export default function VerifyEmail() {
     }, [token, navigate]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="max-w-md w-full space-y-8 text-center">
-                <AuthLogo variant="auto" />
-                {status === "verifying" && <h2 className="text-xl">Verifying your email...</h2>}
-                {status === "success" && <h2 className="text-xl text-green-600">Email verified! Redirecting...</h2>}
-                {status === "error" && <h2 className="text-xl text-red-600">Verification failed or link expired.</h2>}
-            </div>
-        </div>
+      <AuthPage variant="verification" eyebrow="Email verification"
+        title={status === "verifying" ? "Confirming your email" : status === "success" ? "You're connected" : "Let's try that again"}
+        description={status === "verifying" ? "We're checking your verification link. This should only take a moment." : status === "success" ? "Your email is verified. We're taking you to your dashboard." : "This verification link is invalid or has expired. Request another email to complete your account setup."}
+        icon={status === "verifying" ? <LoaderCircle className="login-spinner" /> : status === "success" ? <Check /> : <Link2Off />}>
+        <div role="status" className="auth-note">{status === "verifying" ? "Verifying your email..." : status === "success" ? "Email verified. Your account is ready." : "We couldn't verify this link."}</div>
+        {status === "success" && <Link to="/dashboard" className="login-submit">Continue to dashboard <ArrowRight size={18} aria-hidden="true" /></Link>}
+        {status === "error" && <Link to="/wait-for-verification" className="login-submit">Request another email <ArrowRight size={18} aria-hidden="true" /></Link>}
+        {status !== "verifying" && <Link to="/login" className="auth-secondary-link">Back to sign in</Link>}
+      </AuthPage>
     );
 }

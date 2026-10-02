@@ -1,111 +1,50 @@
 import { useState } from "react";
-
+import { Link } from "react-router-dom";
+import { ArrowRight, KeyRound, LoaderCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import {
-  ForgotPasswordHeader,
-  ForgotPasswordForm,
-} from "../../components/auth/forgot-password";
-import {
-  AuroraBackground,
-  PasswordResetFeaturesCarousel,
-} from "../../components/auth/carousel";
-import AuthLogo from "../../components/auth/AuthLogo";
-import { EnvelopeIcon } from "@heroicons/react/24/outline";
+import AuthPage from "@/components/auth/AuthPage";
 import api from "../../services/api";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage("");
 
     try {
       await api.post("/web/api/auth/forgot_password", { email });
       setIsSuccess(true);
       toast.success("Instructions sent! Please check your email.");
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.error || "Failed to send reset instructions. Please try again."
-      );
+      const message = error.response?.data?.error || "Failed to send reset instructions. Please try again.";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Left Panel - Aurora Background with Features */}
-      <div className="hidden lg:flex w-[45%] xl:w-[40%] relative">
-        <AuroraBackground />
-        <PasswordResetFeaturesCarousel />
-        <div className="absolute top-8 left-8 z-10">
-          <AuthLogo variant="dark" />
-        </div>
-        <div className="absolute bottom-8 left-8 right-8 z-10">
-          <div className="bg-black/40 backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-white text-lg font-bold leading-relaxed mb-2">
-              Secure Password Recovery
-            </h3>
-            <p className="text-white/70 text-sm">
-              Reset your password safely and get back to accessing your ProxySock account
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Forgot Password Form or Success State */}
-      <div className="flex-1 flex flex-col bg-background">
-        <div className="lg:hidden flex items-center justify-center py-8 px-6">
-          <AuthLogo variant="auto" size="sm" />
-        </div>
-
-        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="w-full max-w-lg"
-          >
-            {isSuccess ? (
-              <div className="text-center space-y-6">
-                <div className="w-20 h-20 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-8">
-                  <EnvelopeIcon className="h-10 w-10 text-red-600" />
-                </div>
-                <h1 className="text-3xl font-bold text-foreground">Check your email</h1>
-                <p className="text-muted-foreground text-lg italic">
-                  We've sent password reset instructions to <span className="text-foreground font-semibold not-italic">{email}</span>.
-                  Please check your inbox and follow the link to reset your password.
-                </p>
-                <div className="pt-8">
-                  <a
-                    href="/login"
-                    className="inline-flex items-center justify-center w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-red-600/20"
-                  >
-                    Return to Login
-                  </a>
-                </div>
-                <p className="text-sm text-muted-foreground pt-4">
-                  Didn't receive an email? <button onClick={() => setIsSuccess(false)} className="text-red-500 font-semibold hover:underline">Try again</button>
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <ForgotPasswordHeader />
-                <ForgotPasswordForm
-                  email={email}
-                  setEmail={setEmail}
-                  isLoading={isLoading}
-                  onSubmit={handleSubmit}
-                />
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </div>
-    </div>
+    <AuthPage variant="recovery" title={isSuccess ? "Check your inbox" : "Forgot your password?"} eyebrow="Account recovery"
+      description={isSuccess ? "If an account exists for this email, you'll receive a link to reset your password." : "Enter the email address you use for ProxySock. We'll send you a password reset link."}
+      icon={isSuccess ? <Mail /> : <KeyRound />}>
+      {isSuccess ? <>
+        <div className="auth-note" role="status"><strong>{email}</strong><br />Check your spam folder too. Follow the link in the email to choose a new password.</div>
+        <Link to="/login" className="login-submit">Back to sign in <ArrowRight size={18} aria-hidden="true" /></Link>
+        <p className="login-register">Didn't get an email? <button type="button" onClick={() => setIsSuccess(false)}>Try again</button></p>
+      </> : <>
+        <form onSubmit={handleSubmit} className="login-form" aria-busy={isLoading}>
+          {errorMessage && <div className="login-error" role="alert">{errorMessage}</div>}
+          <div className="login-field"><label htmlFor="recovery-email">Email address</label><input id="recovery-email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} placeholder="you@example.com" /></div>
+          <button type="submit" className="login-submit" disabled={isLoading}><span>{isLoading ? "Sending link..." : "Send reset link"}</span>{isLoading ? <LoaderCircle size={18} className="login-spinner" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}</button>
+        </form>
+        <Link to="/login" className="auth-secondary-link">Back to sign in</Link>
+      </>}
+    </AuthPage>
   );
 }
