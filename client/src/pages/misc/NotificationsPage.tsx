@@ -226,7 +226,7 @@ export default function NotificationsPage() {
                                         const searchParam = meta.hostname || meta.rdp_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
                                         const query = searchParam ? `&search=${searchParam}` : "";
                                         
-                                        if (isAdmin) return `${adminPrefix}/management?type=rdp${query}`;
+                                        if (isAdmin) return `${adminPrefix}/management?type=rdp&view=orders${query}`;
                                         if (isReseller) return `/reseller/rdp-management${query}`;
                                         return `/dashboard/RDP-management${query}`;
                                     }
@@ -234,7 +234,7 @@ export default function NotificationsPage() {
                                         const searchParam = meta.hostname || meta.vps_host || (msg.match(/[\w-]+\.proxysock\.net/) || [])[0];
                                         const query = searchParam ? `&search=${searchParam}` : "";
                                         
-                                        if (isAdmin) return `${adminPrefix}/management?type=vps${query}`;
+                                        if (isAdmin) return `${adminPrefix}/management?type=vps&view=orders${query}`;
                                         if (isReseller) return `/reseller/vps-management${query}`;
                                         return `/dashboard/VPS-management${query}`;
                                     }
@@ -242,7 +242,7 @@ export default function NotificationsPage() {
                                         const searchParam = meta.iccid || meta.order_no || (msg.match(/ICCID:?\s*([\w]+)/i) || [])[1];
                                         const query = searchParam ? `?search=${searchParam}` : "";
 
-                                        if (isAdmin) return `${adminPrefix}/management?type=esim${query.replace('?', '&')}`;
+                                        if (isAdmin) return `${adminPrefix}/management?type=esim&view=orders${query.replace('?', '&')}`;
                                         if (isReseller) return `/reseller/esim-management${query}`;
                                         return `/dashboard/Esim-management${query}`;
                                     }
@@ -250,7 +250,7 @@ export default function NotificationsPage() {
                                         const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
                                         const query = searchParam ? `?search=${searchParam}` : "";
 
-                                        if (isAdmin) return `${adminPrefix}/management?type=proxy${query.replace('?', '&')}`;
+                                        if (isAdmin) return `${adminPrefix}/management?type=proxy&view=orders${query.replace('?', '&')}`;
                                         if (isReseller) return `/reseller/proxy-management${query}`;
                                         return `/dashboard/proxy-management${query}`;
                                     }
@@ -258,7 +258,7 @@ export default function NotificationsPage() {
                                         const searchParam = meta.order_id || meta.order_no || (msg.match(/#(\d+)/) || [])[1];
                                         const query = searchParam ? `?search=${searchParam}` : "";
 
-                                        if (isAdmin) return `${adminPrefix}/management?type=vpn${query.replace('?', '&')}`;
+                                        if (isAdmin) return `${adminPrefix}/management?type=vpn&view=orders${query.replace('?', '&')}`;
                                         if (isReseller) return `/reseller/vpn-management${query}`;
                                         return `/dashboard/vpn-management${query}`;
                                     }
