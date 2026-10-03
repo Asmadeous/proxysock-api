@@ -14,7 +14,6 @@ import {
   ServerStackIcon,
   ChartBarSquareIcon,
   CpuChipIcon,
-  CubeIcon,
   InboxIcon,
   TicketIcon,
   AdjustmentsHorizontalIcon,
@@ -38,7 +37,6 @@ const EmployeesTab = lazy(() => import("./tabs/EmployeesTab"));
 const ResellersTab = lazy(() => import("./tabs/ResellersTab"));
 const AffiliatesTab = lazy(() => import("./tabs/AffiliatesTab"));
 const OrdersTab = lazy(() => import("./tabs/OrdersTab"));
-const ProductsTab = lazy(() => import("./tabs/ProductsTab"));
 const TransactionsTab = lazy(() => import("./tabs/TransactionsTab"));
 const BlogTab = lazy(() => import("./tabs/BlogTab"));
 const TicketsTab = lazy(() => import("./tabs/TicketsTab"));
@@ -77,7 +75,6 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: "orders", name: "Orders", icon: ShoppingCartIcon },
       { id: "management", name: "Management", icon: Squares2X2Icon },
-      { id: "products", name: "Products", icon: CubeIcon },
       { id: "transactions", name: "Transactions", icon: CurrencyDollarIcon },
       { id: "promo_codes", name: "Promo Codes", icon: TicketIcon },
     ],
@@ -113,7 +110,8 @@ const TAB_COMPONENTS: Record<string, any> = {
   affiliates: AffiliatesTab,
   orders: OrdersTab,
   management: ManagementTab,
-  products: ProductsTab,
+  // Products and provisioning now live inside Management (per category).
+  products: ManagementTab,
   transactions: TransactionsTab,
   blog: BlogTab,
   tickets: TicketsTab,

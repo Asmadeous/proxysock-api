@@ -391,6 +391,10 @@ Rails.application.routes.draw do
       get 'meisim/topup_preview', to: 'meisim_wallet#topup_preview'
       post 'meisim/topup', to: 'meisim_wallet#topup'
       get 'meisim/statement', to: 'meisim_wallet#statement'
+      get 'meisim/verify', to: 'meisim_wallet#verify_history'
+      post 'meisim/verify', to: 'meisim_wallet#verify'
+      get 'meisim/verify/:batch_id', to: 'meisim_wallet#verify_status'
+      get 'meisim/verify/:batch_id/results', to: 'meisim_wallet#verify_results'
 
       # MeiSIM eSIM Verify: checks whether a sold eSIM's activation code is used or still available
       resources :esims, only: [] do

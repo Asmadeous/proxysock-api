@@ -9,9 +9,9 @@ module Admin
       LPA = 'LPA:1$T-MOBILE.IDEMIA.IO$AYU36-O48VE-8PWDE-ZRXGS'
 
       setup do
-        employee = Employee.create!(email: "staff_#{SecureRandom.hex(4)}@test.com", first_name: 'Sam', last_name: 'Staff',
-                                    role: 'admin', active: true, department: departments(:one))
-        @headers = { 'Authorization' => "Bearer #{JWT.encode({ employee_id: employee.id }, Rails.application.secret_key_base, 'HS256')}" }
+        @employee = Employee.create!(email: "staff_#{SecureRandom.hex(4)}@test.com", first_name: 'Sam', last_name: 'Staff',
+                                     role: 'admin', active: true, department: departments(:one))
+        @headers = { 'Authorization' => "Bearer #{JWT.encode({ employee_id: @employee.id }, Rails.application.secret_key_base, 'HS256')}" }
         user = create_user_with_balance(0)
         product = Product.create!(name: 'World 1 GB', product_type: 'esim', provider: 'meisim', provider_product_id: 'mm-1',
                                   available_to: 'both', product_category: product_categories(:three))
@@ -29,6 +29,8 @@ module Admin
         post "/admin/api/esims/#{@esim.id}/verify", headers: @headers
         assert_response :success
         assert_equal 'b-1', @esim.reload.metadata.dig('verification', 'batch_id')
+        assert_equal 'pending', @esim.verification_status
+        assert_equal @employee.id, @esim.verification['requested_by']
 
         MeisimService.any_instance.stubs(:esim_verify_batch).with('b-1')
                      .returns({ 'ok' => true, 'progress' => { 'total' => 1, 'pending' => 0, 'in_progress' => 0, 'used' => 1 } })
@@ -47,6 +49,35 @@ module Admin
         get "/admin/api/esims/#{@esim.id}/verify", headers: @headers
 
         assert_equal 'pending', json_response['status']
+      end
+
+      test 'a check already running is not submitted, or charged, again' do
+        @esim.update!(metadata: { 'verification' => { 'batch_id' => 'b-3', 'status' => 'pending' } })
+        MeisimService.any_instance.expects(:esim_verify).never
+
+        post "/admin/api/esims/#{@esim.id}/verify", headers: @headers
+
+        assert_response :success
+        assert_equal 'b-3', json_response['batch_id']
+      end
+
+      test 'a saved verdict is answered without asking MeiSIM, and a finished one can be checked again' do
+        @esim.update!(metadata: { 'verification' => { 'batch_id' => 'b-4', 'status' => 'used' } })
+        MeisimService.any_instance.expects(:esim_verify_batch).never
+        get "/admin/api/esims/#{@esim.id}/verify", headers: @headers
+        assert_equal 'used', json_response['status']
+
+        MeisimService.any_instance.expects(:esim_verify).returns({ 'batch_id' => 'b-5', 'charged_usd' => 1.0 })
+        post "/admin/api/esims/#{@esim.id}/verify", headers: @headers
+        assert_equal 'pending', @esim.reload.verification_status
+        assert_equal 'b-5', @esim.verification['batch_id']
+      end
+
+      test 'the admin eSIM list carries the saved verdict and the reseller list does not' do
+        @esim.update!(metadata: { 'verification' => { 'batch_id' => 'b-6', 'status' => 'available' } })
+
+        assert_equal 'available', @esim.esim_order.listing_details(provider_qr: true)[:credentials_list].first[:verification]
+        assert_not @esim.esim_order.listing_details[:credentials_list].first.key?(:verification)
       end
 
       test 'eSIMs without an activation code are not sent, and a low MeiSIM wallet is reported' do

@@ -86,7 +86,25 @@ class MeisimServiceTest < ActiveSupport::TestCase
     assert_equal 'https://checkout.stripe.com/x', @service.topup(100)['checkoutUrl']
 
     HTTParty.expects(:get).with('https://api.meisimusa.com/dealer/statement?from=2026-09-01', anything)
-            .returns(stub(success?: true, body: "Date,Type\n"))
+            .returns(stub(code: 200, success?: true, body: "Date,Type\n"))
     assert_equal "Date,Type\n", @service.statement(from: '2026-09-01')
+  end
+
+  test 'logs each call by method, path and status, never the dealer key or the codes sent' do
+    log = StringIO.new
+    Rails.logger.stubs(:info).with { |line| log.puts(line) || true }
+    HTTParty.expects(:post).returns(http_response(200, { 'ok' => true, 'batch_id' => 'b-1' }))
+
+    @service.esim_verify(['LPA:1$X$SECRET'])
+
+    assert_match(%r{\[MeiSIM\] POST /dealer/esim-verify -> 200 \(\d+ms\)}, log.string)
+    assert_not_includes log.string, 'msa_test_key'
+    assert_not_includes log.string, 'SECRET'
+  end
+
+  test 'verify_verdict reads a one-code batch' do
+    assert_equal 'pending', MeisimService.verify_verdict('pending' => 1)
+    assert_equal 'used', MeisimService.verify_verdict('pending' => 0, 'used' => 1)
+    assert_equal 'error', MeisimService.verify_verdict('error_count' => 1)
   end
 end

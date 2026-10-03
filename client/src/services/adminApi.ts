@@ -323,6 +323,15 @@ export const createMeisimTopup = (amount: number) =>
 export const downloadMeisimStatement = () =>
     adminApi.get("/meisim/statement", { responseType: "blob" }).then(res => res.data as Blob);
 
+export const fetchMeisimVerifyHistory = () =>
+    adminApi.get("/meisim/verify").then(res => res.data);
+export const submitMeisimVerify = (lpas: string, notify_email?: string) =>
+    adminApi.post("/meisim/verify", { lpas, notify_email }).then(res => res.data);
+export const fetchMeisimVerify = (batchId: string) =>
+    adminApi.get(`/meisim/verify/${batchId}`).then(res => res.data);
+export const downloadMeisimVerifyResults = (batchId: string) =>
+    adminApi.get(`/meisim/verify/${batchId}/results`, { responseType: "blob" }).then(res => res.data as Blob);
+
 // ── eSIM Verify (MeiSIM, $1 per check) ──
 export const verifyAdminEsim = (id: string) => adminApi.post(`/esims/${id}/verify`);
 export const fetchAdminEsimVerification = (id: string) => adminApi.get(`/esims/${id}/verify`);

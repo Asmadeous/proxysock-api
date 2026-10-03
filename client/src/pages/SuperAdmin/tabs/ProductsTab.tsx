@@ -105,9 +105,14 @@ const STORE_CATEGORIES = [
     }
 ];
 
-export default function ProductsTab() {
-    const [tabMode, setTabMode] = useState<"root" | "management" | "purchase">("root");
-    const [activeCategory, setActiveCategory] = useState<string | null>(null);
+interface ProductsTabProps {
+    // Opened from Management for one category: show only that category's catalogue.
+    category?: string;
+}
+
+export default function ProductsTab({ category }: ProductsTabProps = {}) {
+    const [tabMode, setTabMode] = useState<"root" | "management" | "purchase">(category ? "management" : "root");
+    const [activeCategory, setActiveCategory] = useState<string | null>(category ?? null);
     const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
@@ -381,13 +386,17 @@ export default function ProductsTab() {
                     >
                         <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
                             <div className="flex items-center gap-4">
-                                <button
-                                    onClick={() => { setActiveCategory(null); setProviderFilter("all"); }}
-                                    className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
-                                >
-                                    <ArrowLeftIcon className="h-5 w-5" />
-                                </button>
-                                <div className="h-8 w-px bg-border" />
+                                {!category && (
+                                    <>
+                                        <button
+                                            onClick={() => { setActiveCategory(null); setProviderFilter("all"); }}
+                                            className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
+                                        >
+                                            <ArrowLeftIcon className="h-5 w-5" />
+                                        </button>
+                                        <div className="h-8 w-px bg-border" />
+                                    </>
+                                )}
                                 <div className={`h-10 w-10 ${activeCatData ? COLOR_MAP[activeCatData.color]?.bg : ""} rounded-lg flex items-center justify-center`}>
                                     {activeCatData && <activeCatData.icon className={`h-5 w-5 ${COLOR_MAP[activeCatData.color]?.text}`} />}
                                 </div>

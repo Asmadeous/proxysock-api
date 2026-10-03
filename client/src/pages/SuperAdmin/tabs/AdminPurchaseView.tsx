@@ -17,11 +17,14 @@ import VPNPlans from "../../products/VPNPlans";
 import { useAdminPurchaseProduct } from "../queries/products.queries";
 
 interface AdminPurchaseViewProps {
-    onBack: () => void;
+    onBack?: () => void;
+    // Opened from Management for one category, e.g. "buy-vps": start there and stay there.
+    initialTab?: string;
 }
 
-export default function AdminPurchaseView({ onBack }: AdminPurchaseViewProps) {
-    const [activeTab, setActiveTab] = useState("store");
+export default function AdminPurchaseView({ onBack, initialTab }: AdminPurchaseViewProps) {
+    const home = initialTab ?? "store";
+    const [activeTab, setActiveTab] = useState(home);
     const [selectedCountry, setSelectedCountry] = useState("");
     const [customerEmail, setCustomerEmail] = useState("");
 
@@ -47,17 +50,17 @@ export default function AdminPurchaseView({ onBack }: AdminPurchaseViewProps) {
         });
         
         toast.success("Order provisioned successfully!");
-        setTimeout(() => setActiveTab("store"), 1500);
+        setTimeout(() => setActiveTab(home), 1500);
     };
 
-    const withBack = (content: React.ReactNode) => (
+    const withBack = (content: React.ReactNode) => activeTab === home ? <>{content}</> : (
         <div className="space-y-4">
             <button
-                onClick={() => setActiveTab("store")}
+                onClick={() => setActiveTab(home)}
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
             >
                 <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                Back to Store
+                {home === "store" ? "Back to Store" : "Back"}
             </button>
             {content}
         </div>
@@ -84,9 +87,11 @@ export default function AdminPurchaseView({ onBack }: AdminPurchaseViewProps) {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="w-4 h-4" /> Back to Products
-                </button>
+                {onBack ? (
+                    <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+                        <ArrowLeft className="w-4 h-4" /> Back to Products
+                    </button>
+                ) : <span />}
                 <div className="flex items-center gap-4 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl">
                     <div className="flex items-center gap-2 text-blue-500">
                         <AlertCircle className="w-5 h-5 hidden sm:block" />

@@ -41,7 +41,8 @@ class EsimOrder < ApplicationRecord
   end
 
   # What the admin and reseller eSIM lists show for each profile, whichever provider delivered it.
-  # Only staff see MeiSIM's own QR link; customers get a QR drawn from the activation code.
+  # Only staff see MeiSIM's own QR link and the eSIM Verify result; customers get a QR drawn
+  # from the activation code.
   def listing_details(provider_qr: false)
     {
       country: country_code,
@@ -51,6 +52,7 @@ class EsimOrder < ApplicationRecord
           activation_code: esim.activation_code,
           qr_image_path: ("/api/v1/orders/#{order_id}/esims/#{esim.id}/qr" if esim.carrier_qr? && !provider_qr),
           phone_number: esim.msisdn, data: esim.data_label }
+          .merge(provider_qr ? { verification: esim.verification_status } : {})
       end
     }
   end

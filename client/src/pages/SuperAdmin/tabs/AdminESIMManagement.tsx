@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
     DevicePhoneMobileIcon,
@@ -28,6 +28,7 @@ interface ESIMProfile {
     expires_at: string;
     user_email: string;
     data_label?: string;
+    verification?: string;
 }
 
 export default function AdminESIMManagement() {
@@ -66,10 +67,19 @@ export default function AdminESIMManagement() {
                         esim_status: order.status,
                         expires_at: order.expires_at,
                         user_email: order.entity_email || order.user_email,
-                        data_label: cred.data
+                        data_label: cred.data,
+                        verification: cred.verification
                     }));
                 });
                 setProfiles(transformed);
+
+                // Show each eSIM's saved Verify result, and keep watching checks still running.
+                const saved: Record<string, string> = {};
+                transformed.forEach((p: ESIMProfile) => {
+                    if (p.esim_id && p.verification) saved[p.esim_id] = p.verification;
+                });
+                setVerification(v => ({ ...v, ...saved }));
+                Object.keys(saved).filter(id => saved[id] === "pending").forEach(startPolling);
             }
         } catch (error) {
             console.error('Failed to fetch admin eSIM:', error);
@@ -88,17 +98,30 @@ export default function AdminESIMManagement() {
         unknown: "Unknown — carrier gave no answer",
         error: "Check failed (refunded)",
         pending: "Checking…",
+        timed_out: "No answer from MeiSIM within 24 hours — verify again",
+    };
+
+    // One poll loop per eSIM, however often the list reloads.
+    const polling = useRef(new Set<string>());
+    const startPolling = (esimId: string) => {
+        if (polling.current.has(esimId)) return;
+        polling.current.add(esimId);
+        setTimeout(() => pollVerification(esimId), 15000);
     };
 
     const pollVerification = async (esimId: string, attempt = 0) => {
         try {
             const { data } = await fetchAdminEsimVerification(esimId);
             setVerification(v => ({ ...v, [esimId]: data.status }));
-            if (data.status === "pending" && attempt < 20) setTimeout(() => pollVerification(esimId, attempt + 1), 15000);
+            if (data.status === "pending" && attempt < 20) {
+                setTimeout(() => pollVerification(esimId, attempt + 1), 15000);
+                return;
+            }
         } catch (error: any) {
             setVerification(v => ({ ...v, [esimId]: "error" }));
             toast.error(error?.response?.data?.error || "Could not read the verification");
         }
+        polling.current.delete(esimId);
     };
 
     const verify = async (esimId: string) => {
@@ -106,7 +129,7 @@ export default function AdminESIMManagement() {
         setVerification(v => ({ ...v, [esimId]: "pending" }));
         try {
             await verifyAdminEsim(esimId);
-            setTimeout(() => pollVerification(esimId), 15000);
+            startPolling(esimId);
         } catch (error: any) {
             setVerification(v => { const { [esimId]: _, ...rest } = v; return rest; });
             toast.error(error?.response?.data?.error || "Verification failed to start");

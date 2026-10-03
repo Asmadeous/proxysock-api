@@ -35,6 +35,35 @@ class Esim < ApplicationRecord
     end
   end
 
+  # MeiSIM eSIM Verify, kept in metadata['verification']: batch_id, status, submitted_at,
+  # requested_by and checked_at. A check is pending until MeiSIM gives its verdict; checks
+  # saved before status was recorded on submission count as pending too.
+  scope :verification_pending, lambda {
+    where("metadata->'verification'->>'batch_id' IS NOT NULL")
+      .where("COALESCE(metadata->'verification'->>'status', 'pending') = 'pending'")
+  }
+
+  def verification
+    (metadata || {})['verification'] || {}
+  end
+
+  # nil when never checked, otherwise pending, timed_out or MeiSIM's verdict.
+  def verification_status
+    verification['status'] || ('pending' if verification['batch_id'].present?)
+  end
+
+  def update_verification!(values)
+    update!(metadata: (metadata || {}).merge('verification' => verification.merge(values)))
+  end
+
+  # Asks MeiSIM how the verify batch went and saves the verdict once there is one.
+  def refresh_verification!
+    progress = MeisimService.new.esim_verify_batch(verification['batch_id'])['progress'] || {}
+    status = MeisimService.verify_verdict(progress)
+    update_verification!('status' => status, 'checked_at' => Time.current.iso8601) unless status == 'pending'
+    [status, progress]
+  end
+
   def install_links
     code = activation_code.to_s
     return {} unless code.start_with?('LPA:')
