@@ -17,7 +17,7 @@ const legal = [["Terms", "/terms"], ["Privacy", "/privacy"], ["Cookies", "/cooki
 
 export const Footer = () => {
   const { pathname } = useLocation();
-  const hasRedClosing = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact"].includes(pathname) || pathname.startsWith("/blog/");
+  const hasRedClosing = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact", "/about", "/affiliate-program", "/reseller-program", "/proxy-purpose"].includes(pathname) || pathname.startsWith("/blog/");
   return (
     <footer className={`site-footer ${hasRedClosing ? "site-footer-home" : ""}`}>
       <div className="footer-content">

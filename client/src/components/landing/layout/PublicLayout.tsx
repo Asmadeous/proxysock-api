@@ -8,7 +8,7 @@ import "./public-layout.css";
 
 
 export default function PublicLayout() {
-  const hasInsetHero = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact"].includes(useLocation().pathname);
+  const hasInsetHero = ["/", "/proxies", "/vps", "/rdp", "/vpn", "/esim", "/HowToConnect", "/ip-checker", "/locations", "/blog", "/faq", "/contact", "/about", "/affiliate-program", "/reseller-program", "/proxy-purpose"].includes(useLocation().pathname);
   const dark = useThemeStore((state) => state.dark);
 
   return (

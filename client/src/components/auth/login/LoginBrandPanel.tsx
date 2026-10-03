@@ -9,9 +9,10 @@ const services = [
   { name: "eSIM", icon: Smartphone, x: 270, y: 390 },
 ];
 
-export type AuthVariant = "login" | "register" | "recovery" | "reset" | "verification";
+export type AuthVariant = "login" | "register" | "recovery" | "reset" | "verification" | "reseller";
 
 const panels = {
+  reseller: { title: "Your business.", accent: "Connected.", description: "Manage your orders, services and next opportunity from your ProxySock reseller account." },
   login: { title: "Every connection.", accent: "One place.", description: "From your first proxy to your next server. Pick up where you left off, all in one account." },
   register: { title: "Your next idea.", accent: "Starts here.", description: "Proxies, servers, VPNs and eSIMs. Create your account and choose the connections that work for you." },
   recovery: { title: "A way back.", accent: "Always within reach.", description: "A forgotten password doesn't have to slow you down. We'll help you get back to your account." },
@@ -21,7 +22,7 @@ const panels = {
 
 export default function LoginBrandPanel({ variant = "login" }: { variant?: AuthVariant }) {
   const panel = panels[variant];
-  const isNetwork = variant === "login" || variant === "register";
+  const isNetwork = variant === "login" || variant === "register" || variant === "reseller";
   const StatusIcon = variant === "verification" ? Mail : KeyRound;
   return (
     <aside className="login-brand" aria-label="Your ProxySock services">

@@ -1,33 +1,9 @@
+import { Helmet } from "react-helmet-async";
 import { Link, useLocation } from "react-router-dom";
-import { XCircleIcon } from "@heroicons/react/24/solid";
-
+import { ArrowUpRight } from "lucide-react";
+import StatusLayout from "@/components/public/StatusLayout";
 export default function PaymentFailed() {
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const type = queryParams.get('type') || 'Unknown';
-
-  const isDeposit = type === 'deposit';
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="max-w-md w-full bg-gray-800 shadow-2xl rounded-xl overflow-hidden transform transition-all hover:scale-[1.02] duration-300">
-        <div className="px-8 py-12 text-center">
-          <XCircleIcon className="h-24 w-24 text-red-500 mx-auto mb-6 animate-pulse" />
-          <h2 className="text-3xl font-extrabold text-white mb-4">
-            {isDeposit ? 'Deposit Failed' : 'Payment Failed'}
-          </h2>
-          <p className="text-gray-300 mb-8 text-lg leading-relaxed">
-            {isDeposit
-              ? 'There was an issue processing your deposit. Please try again or contact support if the problem persists.'
-              : 'We encountered an issue processing your payment. Please try again or contact support if the problem persists.'}
-          </p>
-          <Link
-            to={isDeposit ? "/dashboard" : "/dashboard/cart"}
-            className="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 px-8 rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg">
-            {isDeposit ? 'Back to Dashboard' : 'Back to Cart'}
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+  const { search } = useLocation();
+  const isDeposit = new URLSearchParams(search).get('type') === 'deposit';
+  return <StatusLayout label="Payment update" mark="!"><Helmet><title>{isDeposit ? 'Deposit Failed' : 'Payment Failed'} | ProxySock</title><meta name="robots" content="noindex" /></Helmet><p className="proxy-eyebrow">Let’s get you back on track</p><h1>{isDeposit ? 'Deposit unsuccessful.' : 'Payment unsuccessful.'}</h1><p>We couldn’t complete this {isDeposit ? 'deposit' : 'payment'}. Check your account status before trying again. If you need help, our support team can look into it with you.</p><div className="status-actions"><Link to={isDeposit ? '/dashboard' : '/dashboard/cart'} className="proxy-button proxy-button-dark">{isDeposit ? 'Back to dashboard' : 'Back to cart'}<ArrowUpRight size={16} aria-hidden="true" /></Link><Link to="/contact" className="proxy-button">Contact support</Link></div></StatusLayout>;
 }

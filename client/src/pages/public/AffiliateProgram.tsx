@@ -1,343 +1,88 @@
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
-import { motion } from "framer-motion";
-import {
-    DollarSign,
-    TrendingUp,
-    ShieldCheck,
-    Zap,
-    Globe,
-    ArrowRight,
-    PieChart,
-    Clock,
-    MessageSquare,
-    Headphones,
-    Lock,
-    Rocket
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { ArrowDown, ArrowUpRight, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import backgroundNode from "@/assets/images/backgroundNode.webp";
-import backgroundNodeRed from "@/assets/images/backgroundNodeRed.webp";
-import { useThemeStore } from "@/store/themeStore";
-import api from '../../services/api';
+import api from "@/services/api";
+import wordmark from "@/assets/images/proxysock-wordmark.svg";
+import "./proxies.css";
+import "@/components/landing/affiliate/affiliate.css";
+
+const benefits = [
+  ["Terms built around your audience.", "Tell us about your channels, traffic and plans. We’ll discuss a commission arrangement that fits the partnership."],
+  ["A clear view of your referrals.", "Use your affiliate account to find your referral details, review recorded referrals and earnings, and follow payout requests."],
+  ["Services worth talking about.", "Connect your audience with proxies, virtual servers, remote desktops, residential VPNs and travel eSIMs for their next project."],
+];
+const steps = [
+  ["Tell us about your audience", "Share where you publish, who you reach and how you plan to introduce ProxySock."],
+  ["Agree on the details", "Our team reviews your inquiry and discusses commission rates, qualifying referrals and payout terms with you."],
+  ["Share your connection", "Once your arrangement is confirmed, use your referral details and follow the results in your affiliate account."],
+];
+const faqs = [
+  ["Who can apply?", "Creators, publishers, educators and community owners can tell us about their audience and promotion plans. We review partnership inquiries individually."],
+  ["What commission will I earn?", "Custom partnership rates are discussed with our team. Submit your audience and traffic details so we can review your proposal. Confirm your agreed rate and qualifying activity before you start promoting."],
+  ["How do I track referrals and earnings?", "Your affiliate dashboard provides your referral information, recorded referrals, earnings and payout history. Sign in to access your affiliate account."],
+  ["When and how will I get paid?", "Available payout methods and processing depend on your affiliate account and agreed terms. Confirm these with our team and review the options in your dashboard before requesting a payout."],
+  ["Is this the same as the reseller program?", "Affiliates introduce people to ProxySock using referral details. Resellers provide services to their own customers. If you want to sell services as part of your own business, explore our reseller program."],
+];
+
+function ReferralVisual() {
+  return <div className="affiliate-visual" role="img" aria-label="Your audience follows your referral to ProxySock. Qualifying orders generate commission under your agreed terms.">
+    <div className="affiliate-visual-grid" />
+    <div className="affiliate-visual-heading"><span>A connection that goes further</span><span>Partner network</span></div>
+    <svg viewBox="0 0 600 460" aria-hidden="true" fill="none"><g className="affiliate-paths"><path d="M75 125H200L300 225" /><path d="M75 230H300" /><path d="M75 335H200L300 225" /><path d="M300 225H510V340" /></g><g className="affiliate-signals"><path d="M75 125H200L300 225" /><path d="M75 230H300" /><path d="M75 335H200L300 225" /><path d="M300 225H510V340" /></g></svg>
+    <span className="affiliate-source affiliate-source-top">Your content</span><span className="affiliate-source affiliate-source-middle">Your community</span><span className="affiliate-source affiliate-source-bottom">Your recommendation</span>
+    <div className="affiliate-hub"><img src={wordmark} alt="" /><span>Your referral connection</span></div>
+    <div className="affiliate-result"><span>Qualifying order</span><strong>Commission earned</strong><div><i /><span>At your agreed rate</span></div></div>
+    <p className="affiliate-visual-caption">Your audience. Our infrastructure. Shared opportunity.</p>
+  </div>;
+}
 
 export default function AffiliateProgram() {
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        message: "",
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const navigate = useNavigate();
-    const { dark } = useThemeStore();
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const submitting = useRef(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
+    setStatus("sending");
+    try {
+      const name = form.name.trim();
+      const email = form.email.trim();
+      await api.post("/api/v1/guest_chats", {
+        guest_name: name, guest_email: email,
+        subject: `New Affiliate Application: ${name}`,
+        message: `Affiliate Partnership Inquiry:\n-----------------\nName: ${name}\nEmail: ${email}\nDetails: ${form.message.trim()}`,
+      });
+      setStatus("success");
+      setForm({ name: "", email: "", message: "" });
+      toast.success("Application received", { description: "Our team will review your inquiry and contact you using the email provided." });
+    } catch {
+      setStatus("error");
+    } finally {
+      submitting.current = false;
+    }
+  }
+  return <div className="proxy-page affiliate-page">
+    <Helmet><title>Affiliate Program | Partner with ProxySock</title><meta name="description" content="Introduce your audience to ProxySock. Apply for an affiliate partnership, discuss commission terms and track your referrals from your account." /><link rel="canonical" href="https://www.proxysock.com/affiliate-program" /><meta property="og:title" content="Affiliate Program | Partner with ProxySock" /><meta property="og:description" content="Your audience. Our infrastructure. A partnership built around your next opportunity." /><meta property="og:url" content="https://www.proxysock.com/affiliate-program" /><meta property="og:type" content="website" /></Helmet>
+    <section className="proxy-hero affiliate-hero" aria-labelledby="affiliate-title"><div className="proxy-hero-copy"><p className="proxy-eyebrow">Partners / Affiliate program</p><h1 id="affiliate-title">Good connections.<br /><span>Shared rewards.</span></h1><p className="proxy-hero-description">Introduce your audience to ProxySock and earn commission on qualifying referrals. Let’s build a partnership around the people you reach and the value you bring.</p><div className="proxy-actions"><a href="#apply-form" className="proxy-button proxy-button-white">Apply for partnership <ArrowDown size={16} aria-hidden="true" /></a><Link to="/dashboard/affiliate" className="proxy-button proxy-button-outline">Affiliate dashboard <ArrowUpRight size={16} aria-hidden="true" /></Link></div></div><ReferralVisual /></section>
 
-    const handleInputChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
+    <section className="affiliate-audience affiliate-section" aria-labelledby="affiliate-audience-title"><div><p className="proxy-eyebrow">Built around your reach</p><h2 id="affiliate-audience-title">You know your audience.<br /><em>We help them connect.</em></h2></div><div className="affiliate-audience-list"><article><h3>Creators & publishers</h3><p>Bring useful infrastructure into the articles, videos and resources your audience already turns to.</p></article><article><h3>Educators & communities</h3><p>Help developers, digital professionals and learners find services for their projects.</p></article><article><h3>Consultants & specialists</h3><p>Recommend relevant tools as part of the guidance you give your clients and network.</p></article></div></section>
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
+    <section className="affiliate-section affiliate-benefits" aria-labelledby="affiliate-benefits-title"><div className="proxy-section-heading"><div><p className="proxy-eyebrow">Why partner with us</p><h2 id="affiliate-benefits-title">A useful recommendation.<br /><em>A reason to grow together.</em></h2></div></div><div className="affiliate-three-grid">{benefits.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div><div className="affiliate-services"><span>Introduce your audience to</span>{[["Proxies", "/proxies"], ["VPS", "/vps"], ["RDP", "/rdp"], ["VPN", "/vpn"], ["eSIM", "/esim"]].map(([label, href]) => <Link key={href} to={href}>{label}<ArrowUpRight size={13} aria-hidden="true" /></Link>)}</div></section>
 
-        try {
-            const inquiryMessage = `
-Affiliate Partnership Inquiry:
------------------
-Name: ${formData.name}
-Email: ${formData.email}
-Details: ${formData.message}
-            `.trim();
+    <section className="affiliate-section" aria-labelledby="affiliate-process-title"><div className="proxy-section-heading"><div><p className="proxy-eyebrow">How it works</p><h2 id="affiliate-process-title">A conversation first.<br /><em>A partnership next.</em></h2></div></div><ol className="affiliate-three-grid affiliate-process">{steps.map(([title, description]) => <li key={title}><span className="affiliate-step-node" aria-hidden="true" /><h3>{title}</h3><p>{description}</p></li>)}</ol></section>
 
-            await api.post('/api/v1/guest_chats', {
-                guest_name: formData.name,
-                guest_email: formData.email,
-                subject: `New Affiliate Application: ${formData.name}`,
-                message: inquiryMessage
-            });
+    <section id="apply-form" className="affiliate-section affiliate-application" aria-labelledby="affiliate-application-title"><div><p className="proxy-eyebrow">Start the conversation</p><h2 id="affiliate-application-title">Tell us what<br /><em>you’re building.</em></h2><p className="affiliate-application-intro">A little context helps us understand the opportunity. Share your channels, audience and how you’d like to work together.</p><div className="affiliate-review-note"><h3>What happens next?</h3><p>Our team reviews your inquiry and follows up by email to discuss the fit and potential terms.</p></div><Link to="/contact" className="proxy-text-link">Have a question first? <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+      <form onSubmit={submit} className="affiliate-form" aria-label="Affiliate partnership application" aria-busy={status === "sending"}>
+        <fieldset disabled={status === "sending"}><legend className="sr-only">Your partnership details</legend><div className="affiliate-form-row"><div><label htmlFor="affiliate-name">Full name</label><input id="affiliate-name" name="name" autoComplete="name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div><div><label htmlFor="affiliate-email">Email address</label><input id="affiliate-email" name="email" type="email" autoComplete="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div></div><label htmlFor="affiliate-message">About your audience & project</label><p id="affiliate-message-hint">Include your website or social channels, who you reach, and your promotion plans.</p><textarea id="affiliate-message" name="message" rows={6} required aria-describedby="affiliate-message-hint" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} /><p className="affiliate-form-note">We’ll use these details to respond to your inquiry. Read our <Link to="/privacy">Privacy Policy</Link>.</p><button type="submit" className="proxy-button proxy-button-dark" disabled={!form.name.trim() || !form.email.trim() || !form.message.trim() || status === "sending"}>{status === "sending" ? "Sending inquiry…" : "Submit partnership inquiry"}<ArrowUpRight size={16} aria-hidden="true" /></button></fieldset>
+        {status === "success" && <div role="status" className="affiliate-feedback"><strong>Your inquiry is with us.</strong><p>Our team will review your details and follow up by email.</p></div>}
+        {status === "error" && <div role="alert" className="affiliate-feedback"><strong>We couldn’t send your inquiry.</strong><p>Your details are still here. Please try again, or <Link to="/contact">contact support</Link>.</p></div>}
+      </form>
+    </section>
 
-            toast.success("Application Received!", {
-                description: "Our partnership team will review your profile and contact you for negotiation.",
-            });
-
-            setFormData({
-                name: "",
-                email: "",
-                message: "",
-            });
-        } catch (error) {
-            console.error("Submission error:", error);
-            toast.error("Submission Failed", {
-                description: "Please try again later or contact support directly.",
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const steps = [
-        {
-            icon: MessageSquare,
-            title: "Submit Interest",
-            desc: "Tell us about your project through our simple application form below."
-        },
-        {
-            icon: TrendingUp,
-            title: "Negotiate Terms",
-            desc: "Our team will reach out to discuss custom commission rates tailored to your volume."
-        },
-        {
-            icon: Zap,
-            title: "Start Scaling",
-            desc: "Get your custom tracking links and start earning from day one."
-        }
-    ];
-
-    const benefits = [
-        {
-            icon: DollarSign,
-            title: "Negotiated Commissions",
-            desc: "We don't do flat rates. We negotiate custom deals based on your traffic quality and volume."
-        },
-        {
-            icon: PieChart,
-            title: "Real-Time Tracking",
-            desc: "Advanced dashboard to monitor every click, conversion, and payout in real-time."
-        },
-        {
-            icon: Clock,
-            title: "Lifetime Attribution",
-            desc: "Earn from your referrals for their entire lifecycle on our platform. No cut-offs."
-        },
-        {
-            icon: ShieldCheck,
-            title: "Premium Product",
-            desc: "Industry-leading infrastructure ensures high conversion and low churn for your traffic."
-        },
-        {
-            icon: Headphones,
-            title: "Dedicated Support",
-            desc: "Direct line to our partnership managers to help you optimize your campaigns."
-        },
-        {
-            icon: Globe,
-            title: "Global Infrastructure",
-            desc: "Servers and support in every major market to serve your worldwide audience."
-        }
-    ];
-
-    return (
-        <div className="min-h-screen bg-background">
-            <Helmet>
-                <title>Affiliate Program | Partner with ProxySock</title>
-                <meta name="description" content="Apply for the ProxySock affiliate program. Negotiated commission rates, lifetime attribution, and premium infrastructure." />
-            </Helmet>
-
-            {/* Hero Section */}
-            <section className="relative pt-32 pb-24 px-4 overflow-hidden">
-                <div
-                    className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none"
-                    style={{
-                        backgroundImage: `url(${dark ? backgroundNode : backgroundNodeRed})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                    }}
-                />
-                <div className="max-w-7xl mx-auto text-center relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8">
-                            <Rocket className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-semibold text-primary uppercase tracking-wider italic">Strategic Partnership Program</span>
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8">
-                            Custom Deals. <span className="text-primary italic">Unlimited Scale.</span>
-                        </h1>
-                        <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed">
-                            We don't believe in one-size-fits-all. Apply today for a custom affiliate 
-                            partnership with negotiated rates and dedicated support.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                            <Button size="lg" className="text-lg px-10 py-7 rounded-2xl shadow-xl shadow-primary/20" onClick={() => document.getElementById('apply-form')?.scrollIntoView({ behavior: 'smooth' })}>
-                                Apply for Partnership <ArrowRight className="ml-2 h-5 w-5" />
-                            </Button>
-                            <Button size="lg" variant="outline" className="text-lg px-10 py-7 rounded-2xl border-2" onClick={() => navigate('/contact')}>
-                                Talk to Support
-                            </Button>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
-
-            {/* How it Works */}
-            <section className="py-24 px-4 bg-muted/50">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-20">
-                        <h2 className="text-4xl font-bold mb-6">Our <span className="text-primary">Process</span></h2>
-                        <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-                            We manually review every application to ensure a perfect fit for both parties.
-                        </p>
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-12">
-                        {steps.map((step, idx) => (
-                            <motion.div
-                                key={step.title}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                                className="relative text-center group"
-                            >
-                                <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-8 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-500">
-                                    <step.icon className="h-10 w-10 text-primary" />
-                                </div>
-                                <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
-                                <p className="text-muted-foreground leading-relaxed">
-                                    {step.desc}
-                                </p>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Benefits Grid */}
-            <section className="py-24 px-4">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-20">
-                        <h2 className="text-4xl font-bold mb-6">Why Partner With <span className="text-primary">ProxySock?</span></h2>
-                        <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-                            Strategic advantages built for professional traffic partners.
-                        </p>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {benefits.map((benefit, idx) => (
-                            <motion.div
-                                key={benefit.title}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.5, delay: idx * 0.05 }}
-                            >
-                                <Card className="h-full border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
-                                    <CardContent className="p-8">
-                                        <div className="h-12 w-12 rounded-xl bg-primary/5 flex items-center justify-center mb-6">
-                                            <benefit.icon className="h-6 w-6 text-primary" />
-                                        </div>
-                                        <h3 className="text-xl font-bold mb-3">{benefit.title}</h3>
-                                        <p className="text-muted-foreground leading-relaxed">
-                                            {benefit.desc}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Interest Form Section */}
-            <section id="apply-form" className="py-24 px-4 relative">
-                <div className="absolute inset-0 bg-primary/5 -skew-y-3 z-0" />
-                <div className="max-w-4xl mx-auto relative z-10">
-                    <Card className="border-border shadow-2xl overflow-hidden glass-card">
-                        <CardContent className="p-8 md:p-16">
-                            <div className="flex flex-col md:flex-row gap-12">
-                                <div className="flex-1">
-                                    <h2 className="text-4xl font-bold mb-6">Affiliate <span className="text-primary">Inquiry</span></h2>
-                                    <div className="space-y-6">
-                                        <div className="flex gap-4">
-                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                <DollarSign className="h-5 w-5 text-primary" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold">Negotiated Rates</h4>
-                                                <p className="text-muted-foreground text-sm">We find a rate that works for your traffic volume.</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                <TrendingUp className="h-5 w-5 text-primary" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold">Growth Driven</h4>
-                                                <p className="text-muted-foreground text-sm">Our team helps you scale your referral income.</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                <Lock className="h-5 w-5 text-primary" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold">Secure Payouts</h4>
-                                                <p className="text-muted-foreground text-sm">Reliable monthly payments via multiple methods.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex-[1.5]">
-                                    <form onSubmit={handleSubmit} className="space-y-6">
-                                        <div className="grid sm:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="name">Full Name</Label>
-                                                <Input
-                                                    id="name"
-                                                    name="name"
-                                                    placeholder="John Doe"
-                                                    value={formData.name}
-                                                    onChange={handleInputChange}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="email">Work Email</Label>
-                                                <Input
-                                                    id="email"
-                                                    name="email"
-                                                    type="email"
-                                                    placeholder="john@company.com"
-                                                    value={formData.email}
-                                                    onChange={handleInputChange}
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="message">About Your Project</Label>
-                                            <Textarea
-                                                id="message"
-                                                name="message"
-                                                placeholder="Tell us about your audience and how you plan to promote us..."
-                                                className="min-h-[150px]"
-                                                value={formData.message}
-                                                onChange={handleInputChange}
-                                                required
-                                            />
-                                        </div>
-
-                                        <Button type="submit" className="w-full text-lg h-14 rounded-xl shadow-lg shadow-primary/20" disabled={isSubmitting}>
-                                            {isSubmitting ? "Processing..." : "Submit Inquiry"}
-                                        </Button>
-                                    </form>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </section>
-        </div>
-    );
+    <section className="proxy-faq" aria-labelledby="affiliate-faq-title"><div><p className="proxy-eyebrow">A little more clarity</p><h2 id="affiliate-faq-title">Before we<br /><em>get started.</em></h2><Link to="/reseller-program" className="proxy-text-link">Looking to resell services? <ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="proxy-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></section>
+    <section className="proxy-closing" aria-labelledby="affiliate-closing-title"><div><p className="proxy-eyebrow">Your next partnership</p><h2 id="affiliate-closing-title">Let’s make your<br /><span>connections count.</span></h2></div><div className="proxy-closing-actions"><a href="#apply-form" className="proxy-button proxy-button-dark">Apply for partnership <ArrowDown size={16} aria-hidden="true" /></a><Link to="/contact" className="proxy-button proxy-button-outline">Contact us <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
+  </div>;
 }
