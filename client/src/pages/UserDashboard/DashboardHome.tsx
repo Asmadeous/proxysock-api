@@ -1,588 +1,88 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-
-import {
-  ShoppingCart,
-  Smartphone,
-  Monitor,
-  Server,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Wifi,
-  Package,
-  Clock,
-  ArrowRight,
-  Activity,
-  AlertCircle,
-  Lock,
-} from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, ArrowUpRight, Network, Server, Monitor, Shield, Smartphone, Plus, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import api from '@/services/api';
+import './dashboard-home.css';
 
 interface DashboardStats {
-  totalOrders: number;
-  activeServices: number;
-  totalSpent: number;
-  dataUsage: number;
-  pendingOrders: number;
-  monthlySpending: number;
-  lastMonthSpending: number;
-  proxyCount: number;
-  vpsCount: number;
-  rdpCount: number;
-  esimCount: number;
-  vpnCount: number;
+  total_orders: number;
+  active_services: number;
+  pending_orders: number;
+  total_spent: number;
+  monthly_spending: number;
+  last_month_spending: number;
+  type_stats: Record<string, { active: number }>;
+  recent_orders: { id: number; status: string; total_amount: number | string; created_at: string; product_type: string; product_name: string }[];
 }
 
+const services = [
+  { key: 'proxy', name: 'Proxies', description: 'IPs for your workflows', icon: Network, buy: 'proxies', manage: 'proxy-management' },
+  { key: 'vps', name: 'VPS', description: 'Your own computing power', icon: Server, buy: 'vps', manage: 'VPS-management' },
+  { key: 'rdp', name: 'RDP', description: 'A desktop, anywhere', icon: Monitor, buy: 'rdp', manage: 'RDP-management' },
+  { key: 'vpn', name: 'VPN', description: 'Your private connection', icon: Shield, buy: 'vpn', manage: 'vpn-management' },
+  { key: 'esim', name: 'eSIM', description: 'Connectivity on the go', icon: Smartphone, buy: 'esim', manage: 'Esim-management' },
+];
+const money = (value: number | string) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
+const statusLabel = (value: string) => value.replace(/_/g, ' ');
 
-
-const DashboardLandingPage = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalOrders: 0,
-    activeServices: 0,
-    totalSpent: 0,
-    dataUsage: 0,
-    pendingOrders: 0,
-    monthlySpending: 0,
-    lastMonthSpending: 0,
-    proxyCount: 0,
-    vpsCount: 0,
-    rdpCount: 0,
-    esimCount: 0,
-    vpnCount: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [greeting, setGreeting] = useState("");
+export default function DashboardHome() {
   const { user, accessToken } = useAuth();
+  const dark = useThemeStore(state => state.dark);
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<DashboardStats>({
+    queryKey: ['dashboard-overview', user?.id],
+    queryFn: async () => (await api.get('/web/api/orders/stats')).data,
+    enabled: Boolean(accessToken && user?.id),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const loading = isLoading && Boolean(accessToken && user?.id);
+  const freshAccount = data?.total_orders === 0;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const counts = (key: string) => (data?.type_stats?.[key]?.active ?? 0) + (key === 'esim' ? data?.type_stats?.usa_esim?.active ?? 0 : 0);
 
-  useEffect(() => {
-    setGreeting(getGreeting());
-    if (accessToken && user?.id) {
-      fetchDashboardData();
-    } else {
-      setLoading(false);
-    }
-  }, [accessToken, user]);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
-
-  const fetchDashboardData = async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const statsResult = await api.get('/web/api/orders/stats');
-
-      let newStats: DashboardStats = {
-        totalOrders: 0,
-        activeServices: 0,
-        totalSpent: 0,
-        dataUsage: 0,
-        pendingOrders: 0,
-        monthlySpending: 0,
-        lastMonthSpending: 0,
-        proxyCount: 0,
-        vpsCount: 0,
-        rdpCount: 0,
-        esimCount: 0,
-        vpnCount: 0,
-      };
-
-      if (statsResult.status === 200 || statsResult.data) {
-        const d = statsResult.data;
-        newStats.totalOrders = d.total_orders;
-        newStats.activeServices = d.active_services;
-        newStats.pendingOrders = d.pending_orders;
-        newStats.totalSpent = d.total_spent;
-        newStats.monthlySpending = d.monthly_spending;
-        newStats.lastMonthSpending = d.last_month_spending;
-
-        // Use consolidated balance from stats
-        if (d.available_balance !== undefined) {
-          // You might want a separate state for balance, but here it seems totalSpent was being misused or balance was needed
-          // Let's just ensure we have the data
-        }
-
-        // Map counts by type from type_stats
-        if (d.type_stats) {
-          newStats.proxyCount = d.type_stats.proxy?.active || 0;
-          newStats.vpnCount = d.type_stats.vpn?.active || 0;
-          newStats.vpsCount = d.type_stats.vps?.active || 0;
-          newStats.rdpCount = d.type_stats.rdp?.active || 0;
-          newStats.esimCount = (d.type_stats.esim?.active || 0) + (d.type_stats.usa_esim?.active || 0);
-        }
-      }
-
-
-      setStats(newStats);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateChange = () => {
-    if (stats.lastMonthSpending === 0) {
-      return stats.monthlySpending > 0 ? 100 : 0;
-    }
-    return Math.round(
-      ((stats.monthlySpending - stats.lastMonthSpending) /
-        stats.lastMonthSpending) *
-      100,
-    );
-  };
-
-  const spendingChange = calculateChange();
-  const isSpendingUp = spendingChange >= 0;
-
-  if (!accessToken || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <div className="flex justify-center mb-4">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-            </div>
-            <CardTitle className="text-center">
-              Authentication Required
-            </CardTitle>
-            <CardDescription className="text-center">
-              Please log in to access your dashboard
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        {/* Welcome Section Skeleton */}
-        <div>
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-4 w-80" />
-        </div>
-
-        {/* Stats Grid Skeleton */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-card border-primary/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16 mb-1" />
-                <Skeleton className="h-3 w-20" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Recent Orders Section Skeleton */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <Skeleton className="h-6 w-32 mb-2" />
-                <Skeleton className="h-4 w-48" />
-              </div>
-              <Skeleton className="h-9 w-24" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <div>
-                      <Skeleton className="h-4 w-32 mb-2" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Skeleton className="h-5 w-16 mb-1" />
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (!accessToken || !user) return <div className="overview-auth"><h1>Sign in to your workspace</h1><Link to="/login">Back to login <ArrowRight size={16} /></Link></div>;
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground mb-1">
-          {greeting}, {user.username || user.first_name || "User"}
-        </h1>
-        <p className="text-muted-foreground">
-          Here's what's happening with your services today.
-        </p>
-      </div>
+    <div className={`dashboard-overview ${dark ? 'overview-dark' : ''}`}>
+      <header className="overview-heading">
+        <div><span className="overview-eyebrow">Your workspace</span><h1>Overview</h1><p>{greeting}, {user.first_name || user.username || 'there'}. Here’s your account at a glance.</p></div>
+        <div className="overview-heading-actions"><button className="overview-icon-button" onClick={() => refetch()} disabled={isFetching} aria-label="Refresh overview" title="Refresh overview"><RefreshCw size={16} /></button><Link className="overview-button" to="/dashboard/support">Get support <ArrowUpRight size={14} /></Link></div>
+      </header>
 
-      {/* Stats Grid */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        {/* Total Orders */}
-        <Card className="bg-card hover:bg-muted/50 transition-colors border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <Package className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.pendingOrders > 0 && `${stats.pendingOrders} pending`}
-            </p>
-          </CardContent>
-        </Card>
+      {isError && <div className="overview-error" role="alert"><div><strong>We couldn’t update your overview.</strong><p>{data ? 'The previous figures are shown below.' : 'Your account information is unavailable right now.'}</p></div><button onClick={() => refetch()} disabled={isFetching}>{isFetching ? 'Retrying…' : 'Try again'}</button></div>}
 
-        {/* Active Services */}
-        <Card className="bg-card hover:bg-muted/50 transition-colors border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Services
-            </CardTitle>
-            <Activity className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeServices}</div>
-            <p className="text-xs text-muted-foreground">Services currently running</p>
-          </CardContent>
-        </Card>
+      <section className="overview-welcome" aria-labelledby="welcome-title">
+        <div className="overview-welcome-copy"><span className="overview-eyebrow">One account. Every connection.</span><h2 id="welcome-title">{freshAccount ? 'Your next connection starts here.' : 'Everything you need. Connected.'}</h2><p>{freshAccount ? 'Choose a service to get started. Your orders and services will appear here as you build your setup.' : 'Manage your services, follow your orders, and find the right infrastructure for what comes next.'}</p><a className="overview-welcome-link" href="#overview-services">Explore services <ArrowRight size={15} /></a></div>
+        <svg className="overview-network" viewBox="0 0 350 210" fill="none" aria-hidden="true"><g stroke="currentColor" strokeOpacity=".2"><circle cx="180" cy="105" r="42" /><circle cx="180" cy="105" r="83" /><path d="M0 165 180 105 330 20M50 5 180 105 340 178M180 105 350 100" /></g><g fill="currentColor"><circle cx="180" cy="105" r="7" /><circle cx="68" cy="142" r="4" /><circle cx="114" cy="54" r="4" /><circle cx="250" cy="65" r="4" /><circle cx="260" cy="142" r="4" /><circle cx="305" cy="101" r="3" /></g><circle cx="180" cy="105" r="15" stroke="currentColor" strokeOpacity=".4" /></svg>
+      </section>
 
-        {/* Monthly Spending */}
-        <Card className="bg-card hover:bg-muted/50 transition-colors border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Monthly Spending
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold truncate" title={`$${stats.monthlySpending.toFixed(2)}`}>
-              ${stats.monthlySpending.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              {spendingChange !== 0 && (
-                <>
-                  {isSpendingUp ? (
-                    <TrendingUp className="h-3 w-3 text-red-500" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className="text-red-500">
-                    {Math.abs(spendingChange)}%
-                  </span>
-                  <span>from last month</span>
-                </>
-              )}
-            </p>
-          </CardContent>
-        </Card>
+      <section className="overview-metrics" aria-label="Account summary" aria-busy={loading}>
+        {[
+          { title: 'Active services', value: data?.active_services, note: 'Across your account', href: '/dashboard/products' },
+          { title: 'Total orders', value: data?.total_orders, note: 'Your complete order history', href: '/dashboard/orders' },
+          { title: 'Pending orders', value: data?.pending_orders, note: data?.pending_orders ? 'Check your order status' : 'Nothing awaiting completion', href: '/dashboard/orders' },
+          { title: 'Order value this month', value: data ? money(data.monthly_spending) : undefined, note: 'USD · All order statuses', href: '/dashboard/transactions' },
+        ].map(metric => <Link to={metric.href} className="overview-metric" key={metric.title}><span>{metric.title}<ArrowUpRight size={14} /></span><strong>{loading ? <span className="overview-skeleton" /> : metric.value ?? '—'}</strong><small>{data ? metric.note : loading ? 'Loading account data…' : 'Currently unavailable'}</small></Link>)}
+      </section>
 
-        {/* Data Usage */}
-        <Card className="bg-card hover:bg-muted/50 transition-colors border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Data Usage</CardTitle>
-            <Wifi className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.dataUsage} GB</div>
-            <p className="text-xs text-muted-foreground">Total data consumed</p>
-          </CardContent>
-        </Card>
-      </div>
+      <section className="overview-services" id="overview-services" aria-labelledby="services-title">
+        <div className="overview-section-heading"><div><h2 id="services-title">Your infrastructure</h2><p>A place for every part of your setup.</p></div><Link to="/dashboard/products">Manage services <ArrowUpRight size={14} /></Link></div>
+        <div className="overview-service-grid">{services.map(service => {
+          const count = counts(service.key);
+          return <article className="overview-service" key={service.key}><div className="overview-service-top"><service.icon size={21} strokeWidth={1.5} aria-hidden="true" /><span>{loading ? 'Loading…' : data ? `${count} active` : 'Unavailable'}</span></div><h3>{service.name}</h3><p>{service.description}</p><Link to={`/dashboard/${data && count ? service.manage : service.buy}`} aria-label={`${data && count ? 'Manage' : 'Explore'} ${service.name}`}>{data && count ? 'Manage' : 'Explore'} {data && count ? <ArrowRight size={15} /> : <Plus size={15} />}</Link></article>;
+        })}</div>
+      </section>
 
-      {/* Services Overview */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Your Services</h2>
-          <Link
-            to="/dashboard/products"
-            className="text-sm text-primary hover:underline flex items-center gap-1"
-          >
-            View all
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {/* VPN */}
-          <Link to="/dashboard/vpn-management">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-border hover:border-primary/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">VPN</CardTitle>
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Lock className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.vpnCount}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Secure connections
-                  </p>
-                  {stats.vpnCount > 0 && (
-                    <Badge variant="outline" className="border-primary text-primary">Active</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          {/* Proxies */}
-          <Link to="/dashboard/proxy-management">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-border hover:border-primary/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Proxies</CardTitle>
-                <div className="p-2 rounded-md bg-primary/10">
-                  <ShoppingCart className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.proxyCount}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Active subscriptions
-                  </p>
-                  {stats.proxyCount > 0 && (
-                    <Badge variant="outline" className="border-primary text-primary">Active</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {/* eSIMs */}
-          <Link to="/dashboard/esim-management">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-border hover:border-primary/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">eSIMs</CardTitle>
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Smartphone className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.esimCount}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Digital SIM profiles
-                  </p>
-                  {stats.esimCount > 0 && (
-                    <Badge variant="outline" className="border-primary text-primary">Active</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {/* RDP */}
-          <Link to="/dashboard/RDP-management">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-border hover:border-primary/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">RDP</CardTitle>
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Monitor className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.rdpCount}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Remote desktop instances
-                  </p>
-                  {stats.rdpCount > 0 && (
-                    <Badge variant="outline" className="border-primary text-primary">Active</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {/* VPS */}
-          <Link to="/dashboard/VPS-management">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-border hover:border-primary/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">VPS</CardTitle>
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Server className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.vpsCount}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Virtual private servers
-                  </p>
-                  {stats.vpsCount > 0 && (
-                    <Badge variant="outline" className="border-primary text-primary">Active</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Quick Actions</CardTitle>
-          <CardDescription>Get started with our services</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <Link
-              to="/dashboard/proxies"
-              className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/50 transition-colors group"
-            >
-              <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                <ShoppingCart className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Buy Proxies</p>
-                <p className="text-xs text-muted-foreground">Get started</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Link>
-
-            <Link
-              to="/dashboard/esim"
-              className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/50 transition-colors group"
-            >
-              <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                <Smartphone className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Get eSIM</p>
-                <p className="text-xs text-muted-foreground">Global coverage</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Link>
-
-            <Link
-              to="/dashboard/rdp"
-              className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/50 transition-colors group"
-            >
-              <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                <Monitor className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Order RDP</p>
-                <p className="text-xs text-muted-foreground">Remote access</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Link>
-
-            <Link
-              to="/dashboard/vps"
-              className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/50 transition-colors group"
-            >
-              <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                <Server className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Get VPS</p>
-                <p className="text-xs text-muted-foreground">Cloud servers</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Link>
-
-            <Link
-              to="/dashboard/vpn"
-              className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/50 transition-colors group"
-            >
-              <div className="p-2 rounded-md bg-primary/10 group-hover:bg-primary group-hover:text-white transition-colors">
-                <Lock className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Get VPN</p>
-                <p className="text-xs text-muted-foreground">Secure access</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bottom Stats */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-        <Link to="/dashboard/orders">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Orders
-              </CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalOrders}</div>
-              <p className="text-xs text-muted-foreground">
-                View order history
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/dashboard/transactions">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-              <DollarSign className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${stats.totalSpent.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Lifetime spending</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/contact">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Need Help?</CardTitle>
-              <Badge variant="secondary" className="bg-primary text-white">24/7</Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">Get Support</div>
-              <p className="text-xs text-muted-foreground">
-                We're here to help
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="overview-bottom-grid">
+        <section className="overview-orders" aria-labelledby="recent-orders-title" aria-busy={loading}>
+          <div className="overview-section-heading"><h2 id="recent-orders-title">Recent orders</h2><Link to="/dashboard/orders">View all <ArrowUpRight size={14} /></Link></div>
+          {loading ? <div className="overview-orders-loading" role="status">Loading recent orders…{[0,1,2].map(i => <span key={i} className="overview-skeleton" />)}</div> : !data ? <div className="overview-empty"><h3>Orders are unavailable</h3><p>Try refreshing your overview to load your order history.</p></div> : data.recent_orders.length === 0 ? <div className="overview-empty"><span className="overview-empty-mark" aria-hidden="true"><Network size={26} strokeWidth={1.3} /></span><h3>Your first order belongs here.</h3><p>Once you place an order, you can follow its status and find it again here.</p><Link className="overview-button" to="/dashboard/proxies">Explore proxies <ArrowRight size={14} /></Link></div> : <div className="overview-table-scroll"><table><caption className="sr-only">Your five most recent orders</caption><thead><tr><th>Order</th><th>Status</th><th>Amount</th></tr></thead><tbody>{data.recent_orders.slice(0,5).map(order => <tr key={order.id}><td><strong>{order.product_name || 'Service order'}</strong><span>#{order.id} · {new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(order.created_at))}</span></td><td><span className="overview-status" data-status={order.status}>{statusLabel(order.status)}</span></td><td>{money(order.total_amount)}</td></tr>)}</tbody></table></div>}
+        </section>
+        <aside className="overview-help" aria-labelledby="help-title"><span className="overview-eyebrow">Make yourself at home</span><h2 id="help-title">A little guidance.<br />A lot of possibilities.</h2><p>Find your way around, or talk to us when you need a hand.</p><Link to="/dashboard/products"><span><strong>Manage your connections</strong><small>Access your purchased services</small></span><ArrowUpRight size={16} /></Link><Link to="/dashboard/profile"><span><strong>Make it yours</strong><small>Keep your account details up to date</small></span><ArrowUpRight size={16} /></Link><Link to="/dashboard/support"><span><strong>Let’s work it out</strong><small>Get help from our support team</small></span><ArrowUpRight size={16} /></Link></aside>
       </div>
     </div>
   );
-};
-
-export default DashboardLandingPage;
+}

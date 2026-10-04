@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Menu } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { Sidebar } from "@/components/dashboard/layout/SideBar";
@@ -10,10 +10,9 @@ import { formatImageUrl } from "../../services/api";
 
 export default function Dashboard() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => globalThis.innerWidth < 1024);
   const navigate = useNavigate();
   const [cartCount, setCartCount] = useState(0);
-  // const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Collapsed state removed for sidebar-only layout
 
   const { user, logout } = useAuth();
   const userName = user?.username || user?.first_name || "User";
@@ -77,10 +76,10 @@ export default function Dashboard() {
       <div className="flex h-screen overflow-hidden">
         {/* Desktop Sidebar - Variable width */}
         <div
-          className={`hidden lg:block lg:flex-shrink-0 transition-all duration-300 ease-in-out ${isCollapsed ? "w-[80px]" : "w-64"
+          className={`hidden lg:block lg:flex-shrink-0 transition-[width] duration-200 motion-reduce:transition-none ease-in-out ${isCollapsed ? "w-[80px]" : "w-[260px]"
             }`}
         >
-          <Sidebar
+          {!isMobile && <Sidebar
             isMobile={isMobile}
             setSidebarOpen={setSidebarOpen}
             handleLogout={handleLogout}
@@ -89,50 +88,20 @@ export default function Dashboard() {
             profilePictureUrl={formatImageUrl(user?.profile_picture_url)}
             isCollapsed={isCollapsed}
             setIsCollapsed={setIsCollapsed}
-          />
+          />}
         </div>
 
-        {/* Mobile Sidebar Overlay */}
-        <AnimatePresence mode="wait">
-          {isMobile && isSidebarOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-                onClick={() => setSidebarOpen(false)}
-              />
-              <motion.div
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-                className="fixed inset-y-0 left-0 w-72 z-50 lg:hidden"
-              >
-                <div className="h-full relative">
-                  <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="absolute top-4 right-4 p-2 bg-background/80 rounded-full z-[60]"
-                  >
-                    <X className="w-5 h-5 text-foreground" />
-                  </button>
-                  <Sidebar
-                    isMobile={isMobile}
-                    setSidebarOpen={setSidebarOpen}
-                    handleLogout={handleLogout}
-                    cartCount={cartCount}
-                    userName={userName}
-                    profilePictureUrl={formatImageUrl(user?.profile_picture_url)}
-                    isCollapsed={isCollapsed}
-                    setIsCollapsed={setIsCollapsed}
-                    onLinkClick={() => setSidebarOpen(false)}
-                  />
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {isMobile && (
+          <Dialog.Root open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="workspace-mobile-overlay" />
+              <Dialog.Content className="workspace-mobile-drawer" aria-describedby={undefined} onCloseAutoFocus={event => { event.preventDefault(); document.getElementById("workspace-menu-toggle")?.focus(); }}>
+                <Dialog.Title className="sr-only">Workspace navigation</Dialog.Title>
+                <Sidebar isMobile setSidebarOpen={setSidebarOpen} handleLogout={handleLogout} cartCount={cartCount} userName={userName} profilePictureUrl={formatImageUrl(user?.profile_picture_url)} isCollapsed={false} setIsCollapsed={setIsCollapsed} onLinkClick={() => setSidebarOpen(false)} />
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+        )}
 
         {/* Main Content Area */}
         <div
@@ -147,6 +116,9 @@ export default function Dashboard() {
             {isMobile && (
               <div className="sticky top-0 z-30 px-4 py-3 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between lg:hidden">
                 <button
+                  id="workspace-menu-toggle"
+                  aria-label="Open navigation"
+                  aria-expanded={isSidebarOpen}
                   onClick={() => setSidebarOpen(true)}
                   className="p-2 -ml-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                 >

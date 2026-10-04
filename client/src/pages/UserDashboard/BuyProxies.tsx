@@ -16,10 +16,13 @@ import {
   ISP,
   ProxyPlan,
 } from "@/types/index";
-import { getCategoryIcon } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryIcon";
+import { Link } from "react-router-dom";
+import { useThemeStore } from "@/store/themeStore";
+import "./dashboard-home.css";
+import "./buy-proxies.css";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Info, ShoppingCart, X, Loader2, Zap } from "lucide-react";
-import { getCategoryColor } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryColor";
+import { Check, Info, ShoppingCart, X, Loader2, Zap, ArrowUpRight } from "lucide-react";
+
 import { renderProxyPlans } from "@/components/dashboard/Purchase-Products/buy-proxies/RenderProxyPlans";
 import { renderISPOptionsWithCountries } from "@/components/dashboard/Purchase-Products/buy-proxies/RenderISPOptionsWithCountries";
 import { conversionTracker } from "@/utils/redditPixel";
@@ -30,6 +33,8 @@ interface BuyProxiesProps {
 }
 
 export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps = {}) {
+  const dark = useThemeStore(state => state.dark);
+  const [retry, setRetry] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedCategoryData, setSelectedCategoryData] =
@@ -73,10 +78,13 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   const isEnterpriseReseller = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type === "infrastructure";
 
   useEffect(() => {
+    let cancelled = false;
     const loadCategories = async () => {
       try {
         setLoading(true);
+        setError(null);
         const categoriesData = await fetchProductCategories();
+        if (cancelled) return;
         if (!categoriesData || categoriesData.length === 0) {
           setError("No proxy categories available.");
           return;
@@ -84,21 +92,27 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         setCategories(categoriesData);
         setSelectedCategory(categoriesData[0].slug);
       } catch (err) {
+        if (cancelled) return;
         console.error("Error loading categories:", err);
         setError("Failed to load proxy categories. Please try again.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     loadCategories();
-  }, []);
+    return () => { cancelled = true; };
+  }, [retry]);
 
   useEffect(() => {
+    let cancelled = false;
     const loadCategoryData = async () => {
       if (!selectedCategory) return;
       try {
         setLoading(true);
+        setError(null);
+        setSelectedCategoryData(null);
         const categoryData = await fetchProxiesByCategorySlug(selectedCategory);
+        if (cancelled) return;
         if (!categoryData) {
           setError(`No data found for ${selectedCategory}.`);
           setSelectedCategoryData(null);
@@ -138,17 +152,19 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
           setRrCountries([]);
         }
       } catch (err) {
+        if (cancelled) return;
         console.error("Error loading category data:", err);
         setError(
           `Failed to load ${selectedCategory} proxies. Please try again.`,
         );
         setSelectedCategoryData(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     loadCategoryData();
-  }, [selectedCategory]);
+    return () => { cancelled = true; };
+  }, [selectedCategory, retry]);
 
   // RR geo: states load when a country is picked (and reset downstream selections).
   useEffect(() => {
@@ -175,13 +191,16 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   }, [rrCountry, rrIspQuery, selectedCategory]);
 
   useEffect(() => {
+    let cancelled = false;
     const loadMobileProxyPlans = async () => {
       if (!selectedLocationCategory || selectedCategory !== "mobile") return;
       try {
         setLoading(true);
+        setError(null);
         const plans = await fetchMobileProxiesByLocation(
           selectedLocationCategory as "usa" | "premium",
         );
+        if (cancelled) return;
         if (!plans || plans.length === 0) {
           setError(`No ${selectedLocationCategory} mobile proxies available.`);
           return;
@@ -193,15 +212,17 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         setSelectedCity(null);
         setTotalPrice(null);
       } catch (err) {
+        if (cancelled) return;
         console.error("Error loading mobile proxy plans:", err);
         setError(
           `Failed to load ${selectedLocationCategory} mobile proxies. Please try again.`,
         );
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     loadMobileProxyPlans();
+    return () => { cancelled = true; };
   }, [selectedLocationCategory, selectedCategory]);
 
   // Price calculation effect - $1 USA markup removed
@@ -722,31 +743,28 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   // Replace the existing methods with these updated versions
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground mb-1 break-words">
-          Buy Proxies
-        </h1>
-        <p className="text-muted-foreground">
-          Choose from our premium proxy services
-        </p>
-      </div>
+    <div className={`dashboard-overview proxy-purchase ${dark ? "overview-dark" : ""} ${isDirectBuy ? "proxy-purchase-direct" : ""}`}>
+      <header className="overview-heading">
+        <div><span className="overview-eyebrow">Explore services</span><h1>Proxies</h1><p>Find your connection. Choose a proxy type, select a plan, and make it yours.</p></div>
+        {!isDirectBuy && <Link className="overview-button" to="/dashboard/cart">View cart <ShoppingCart size={15} /></Link>}
+      </header>
+      <div className="proxy-purchase-intro"><div><h2>The right IPs for your next move.</h2><p>Compare the available plans below. Location, duration, and connection options depend on your selection.</p></div><Link to="/dashboard/proxy-management">My proxies <ArrowUpRight size={15} /></Link></div>
 
       {/* Success Alert */}
       {showSuccessAlert && (
-        <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
+        <Card role="status" className="proxy-success">
           <CardContent className="flex items-center gap-3 py-4">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
               <Check className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-emerald-600">Added to Cart!</h3>
+              <h3 className="font-semibold text-emerald-600">{isDirectBuy ? "Provisioning requested" : "Added to cart"}</h3>
               <p className="text-sm text-muted-foreground">
-                Your proxy plan has been added to cart.
+                {isDirectBuy ? "Your request was submitted successfully." : "Your proxy plan is ready in your cart."}
               </p>
             </div>
             <button
+              aria-label="Dismiss success message"
               onClick={() => setShowSuccessAlert(false)}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -756,49 +774,29 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         </Card>
       )}
 
-      {/* Category Selection */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Select Category</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => handleCategoryChange(category.slug)}
-              className={`p-6 rounded-lg border-2 transition-all duration-200 ${selectedCategory === category.slug
-                ? "border-primary bg-primary/5 shadow-lg"
-                : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
-                }`}
-            >
-              <div
-                className={`flex items-center justify-center w-12 h-12 rounded-lg mx-auto mb-3 ${getCategoryColor(category.slug)}`}
-              >
-                {getCategoryIcon(category.slug)}
-              </div>
-              <div className="font-semibold text-foreground mb-1">
-                {category.name}
-              </div>
-              <div className="text-sm text-muted-foreground capitalize">
-                {category.slug}
-              </div>
-            </button>
-          ))}
+      <section className="proxy-category-section" aria-labelledby="proxy-type-title">
+        <div className="overview-section-heading"><div><h2 id="proxy-type-title">Choose your proxy type</h2><p>Start with the kind of connection you need.</p></div></div>
+        <div className="proxy-category-grid" role="group" aria-label="Proxy types">
+          {categories.map(category => <button type="button" key={category.id} aria-label={category.name} onClick={() => handleCategoryChange(category.slug)} aria-pressed={selectedCategory === category.slug} className="proxy-category-choice"><span>{category.name}<span className="proxy-choice-indicator" aria-hidden="true" /></span><small>{({ datacenter: 'Dedicated datacenter IPs', isp: 'ISP connections for your workflows', 'premium-isp': 'Premium ISP connections', 'static-residential': 'A consistent residential IP', residential: 'Residential traffic by the GB', 'residential-rotating': 'Rotating IPs with targeting options', mobile: 'Connections over mobile networks', 'global-isp': 'ISP options across locations' } as Record<string,string>)[category.slug] || 'Explore available plans and locations'}</small></button>)}
         </div>
-      </div>
+        {loading && categories.length === 0 && <p role="status" className="proxy-loading">Loading proxy types…</p>}
+        {error && <div role="alert" className="overview-error"><span>{error}</span><button type="button" onClick={() => { setSelectedPlan(null); setTotalPrice(null); setRetry(value => value + 1); }}>Try again</button></div>}
+      </section>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="proxy-purchase-grid">
         {/* Plans Section */}
-        <div className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="proxy-plan-list">
+          <h2 className="proxy-panel-title">
             {selectedCategory === "mobile" && showMobileLocationCards
               ? "Choose Location"
               : selectedCategory === "mobile" && showMobilePlans
                 ? `${selectedLocationCategory.charAt(0).toUpperCase() + selectedLocationCategory.slice(1)} Mobile Proxies`
                 : "Available Plans"}
           </h2>
-          {renderProxyPlans({
+          {error ? <div className="proxy-unavailable">Plans are unavailable. Use the retry button above or choose another proxy type.</div> : renderProxyPlans({
             loading,
-            error,
+            error: null,
             selectedCategory,
             showMobileLocationCards,
             selectedCategoryData,
@@ -813,11 +811,11 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         </div>
 
         {/* Configuration Section */}
-        <div className="lg:col-span-1">
+        <div className="proxy-configuration">
           {selectedPlan &&
             (showMobilePlans || selectedCategory !== "mobile") ? (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Configuration</h2>
+              <h2 className="proxy-panel-title">Configure your plan</h2>
               {              renderISPOptionsWithCountries({
                 selectedCategory,
                 showMobilePlans,
@@ -864,9 +862,9 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
 
               {/* Add to Cart Card */}
               <Card>
-                <CardContent className="pt-6 space-y-4">
+                <CardContent className="proxy-order-summary pt-6 space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total Price:</span>
+                    <span className="text-muted-foreground">Order total</span>
                     <span className="text-2xl font-bold text-primary">
                       ${totalPrice !== null ? totalPrice.toFixed(2) : "..."}
                     </span>
@@ -899,7 +897,7 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
                         !selectedPlan || totalPrice === null || error !== null || isProvisioning ||
                         (selectedCategory === "residential-rotating" && (!rrRotation || !rrRegion))
                       }
-                      className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
+                      className="proxy-cart-button"
                     >
                       {isProvisioning ? <Loader2 className="w-5 h-5 animate-spin" /> : isDirectBuy ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
                       {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
@@ -948,7 +946,7 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
         !showMobileLocationCards && (
           <Card>
             <CardHeader>
-              <CardTitle>About {selectedCategoryData.name} Proxies</CardTitle>
+              <CardTitle>About {selectedCategoryData.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">

@@ -18,7 +18,7 @@ import api from '../services/api';
 
 interface BalanceProps {
   className?: string;
-  variant?: "default" | "sidebar";
+  variant?: "default" | "sidebar" | "sidebar-collapsed";
 }
 
 type PaymentMethodType = 'rexpay' | 'crypto_plisio' | 'crypto_hundredpay' | 'fastspring' | 'crypto_heleket';
@@ -176,9 +176,11 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
 
   return (
     <div className={className}>
-      {variant === "sidebar" ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm text-foreground/80 px-1">
+      {variant === "sidebar-collapsed" ? (
+        <button type="button" className="workspace-icon-button" onClick={handleOpenModal} aria-label="Add funds to wallet" title={balance !== null ? `Wallet: ${formatBalance(balance)} · Add funds` : "Add funds to wallet"}><Wallet aria-hidden="true" /></button>
+      ) : variant === "sidebar" ? (
+        <div className="workspace-wallet-content">
+          <div className="workspace-wallet-amount">
             <Wallet className="h-4 w-4" />
             <span className="font-medium">
               {balance !== null ? formatBalance(balance) : '...'}
@@ -188,7 +190,7 @@ const UserBalance: React.FC<BalanceProps> = ({ className, variant = "default" })
             onClick={handleOpenModal}
             size="sm"
             variant="secondary"
-            className="w-full h-8 text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
+            className="workspace-deposit-button"
           >
             Deposit Funds
           </Button>

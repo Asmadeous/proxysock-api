@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home } from "lucide-react";
+import { Home, PanelLeftClose, PanelLeftOpen, X, type LucideIcon } from "lucide-react";
+import logo from "@/assets/images/proxysock-wordmark.svg";
+import "./sidebar.css";
 import {
   LayoutDashboard,
   Network,
@@ -17,24 +19,18 @@ import {
   ShoppingCart,
   Sun,
   Moon,
-  Wallet,
-  ChevronLeft,
-  ChevronRight,
   Headphones,
   Bell,
 } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
 import UserBalance from "@/components/UserBalance";
 import { useNotificationStore } from "@/store/notificationStore";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
 
 interface NavigationItem {
   name: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
   description: string;
-  badge?: string;
   isCart?: boolean;
 }
 
@@ -47,7 +43,7 @@ interface NavigationSection {
 const navigationSections: NavigationSection[] = [
   {
     id: "main",
-    title: "MAIN",
+    title: "Workspace",
     items: [
       {
         name: "Dashboard",
@@ -59,10 +55,10 @@ const navigationSections: NavigationSection[] = [
   },
   {
     id: "products",
-    title: "PURCHASE PRODUCTS",
+    title: "Explore services",
     items: [
       {
-        name: "Premium Proxies",
+        name: "Proxies",
         href: "/dashboard/proxies",
         icon: Network,
         description: "Purchase residential & datacenter proxies",
@@ -74,7 +70,7 @@ const navigationSections: NavigationSection[] = [
         description: "Purchase residential vpn",
       },
       {
-        name: "eSIM Packages",
+        name: "eSIM",
         href: "/dashboard/esim",
         icon: Smartphone,
         description: "Phone-number and data-only eSIM plans",
@@ -84,14 +80,12 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard/vps",
         icon: HardDrive,
         description: "Virtual private servers",
-        badge: "Popular",
       },
       {
         name: "RDP Access",
         href: "/dashboard/rdp",
         icon: Monitor,
         description: "Remote desktop solutions",
-        badge: "New",
       },
       {
         name: "My Cart",
@@ -104,16 +98,16 @@ const navigationSections: NavigationSection[] = [
   },
   {
     id: "management",
-    title: "MANAGEMENT",
+    title: "Manage",
     items: [
       {
-        name: "View Products",
+        name: "My services",
         href: "/dashboard/products",
         icon: Package,
         description: "Manage active services",
       },
       {
-        name: "View Orders",
+        name: "Orders",
         href: "/dashboard/orders",
         icon: ClipboardList,
         description: "Complete order history",
@@ -135,7 +129,7 @@ const navigationSections: NavigationSection[] = [
   },
   {
     id: "account",
-    title: "ACCOUNT",
+    title: "Account",
     items: [
       {
         name: "Profile Settings",
@@ -165,39 +159,25 @@ interface SidebarProps {
   onLinkClick?: () => void;
 }
 
-// Simple Tooltip Component
-const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
-  if (!show) return <>{children}</>;
-
-  return (
-    <div className="group relative z-50">
-      {children}
-      <div className="invisible group-hover:visible absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md whitespace-nowrap border z-50">
-        {content}
-      </div>
-    </div>
-  );
-};
-
 export const Sidebar = ({
   isMobile,
-  // setSidebarOpen,
+  setSidebarOpen,
   handleLogout,
   cartCount,
   userName,
   profilePictureUrl,
-  isCollapsed,
+  isCollapsed: desktopCollapsed,
   setIsCollapsed,
   onLinkClick,
 }: SidebarProps) => {
+  const isCollapsed = !isMobile && desktopCollapsed;
+  const [failedAvatar, setFailedAvatar] = useState<string>();
+  const avatarUrl = profilePictureUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userName)}`;
   const location = useLocation();
   const { dark, toggleDark } = useThemeStore();
 
   // Dynamic badge counts
-  const [counts, setCounts] = useState<any>({ orders: 0, tickets: 0, notifications: 0 });
-  // Track which hrefs have been "seen" since their counts appeared
-  const [seenPaths, setSeenPaths] = useState<Record<string, boolean>>({});
-
+  const [counts, setCounts] = useState<{ orders?: number; tickets?: number; notifications?: number; support_chats?: number }>({});
   const unreadNotifications = useNotificationStore(state => state.unreadCount);
   const storeNotifications = useNotificationStore(state => state.notifications);
   const fetchStoreNotifications = useNotificationStore(state => state.fetchNotifications);
@@ -231,23 +211,6 @@ export const Sidebar = ({
     };
   }, [loadBadgeCounts, subscribeToRealtime, unsubscribeFromRealtime]);
 
-  // Mark current page as "seen" when navigating
-  useEffect(() => {
-    setSeenPaths(prev => ({ ...prev, [location.pathname]: true }));
-  }, [location.pathname]);
-
-  // When counts or realtime notifications change, reset seen state for tabs with activity (except currently active)
-  useEffect(() => {
-    setSeenPaths(prev => {
-      const next: Record<string, boolean> = {};
-      for (const key of Object.keys(prev)) {
-        next[key] = location.pathname === key || location.pathname.startsWith(key + "/");
-      }
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counts, storeNotifications, unreadNotifications]);
-
   // Map href -> badge count (only meaningful counts, not "active orders")
   const getBadgeCount = (href: string): number => {
     let baseCount = 0;
@@ -268,19 +231,10 @@ export const Sidebar = ({
     return baseCount;
   };
 
-  // Whether the red dot should show (unseen activity)
-  const isUnseen = (href: string): boolean => {
-    const count = getBadgeCount(href);
-    if (count <= 0) return false;
-    // If we're currently on this page, it's seen
-    if (location.pathname === href || location.pathname.startsWith(href + "/")) return false;
-    return !seenPaths[href];
-  };
-
   const isActive = (path: string) => {
     return (
       location.pathname === path ||
-      (path !== "/dashboard" && location.pathname.startsWith(path))
+      (path !== "/dashboard" && location.pathname.startsWith(path + "/"))
     );
   };
 
@@ -300,232 +254,56 @@ export const Sidebar = ({
   };
 
   return (
-    <div className="h-full bg-background border-r border-border flex flex-col overflow-hidden relative">
-      {/* Collapse Toggle (Desktop Only) */}
-      {!isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`absolute -right-3 top-6 rounded-full border bg-background shadow-md z-20 hover:bg-muted transition-all duration-300 ${isCollapsed ? "h-6 w-6 scale-90" : "h-8 w-8 scale-110"
-            }`}
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-5 w-5" />
-          )}
-        </Button>
-      )}
-
-      {/* 1. Header Section: Avatar & Name */}
-      <div className={`flex items-center gap-3 px-4 py-6 transition-all duration-300 ${isCollapsed ? "justify-center flex-col" : ""}`}>
-        <Link
-          to="/dashboard/profile"
-          onClickCapture={handleMobileClick}
-          className="flex-shrink-0 group"
-        >
-          <div className={`relative rounded-full overflow-hidden bg-primary/10 flex items-center justify-center ring-2 ring-primary/10 transition-all duration-300 ${isCollapsed ? "h-10 w-10" : "h-12 w-12"}`}>
-            <img
-              src={profilePictureUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
-              alt={userName}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-primary font-bold -z-10">
-              {getInitials(userName)}
-            </div>
-          </div>
+    <aside className={`workspace-sidebar ${dark ? "workspace-sidebar-dark" : ""} ${isCollapsed ? "is-collapsed" : ""}`} aria-label="Workspace sidebar">
+      <div className="workspace-brand">
+        <Link to="/" onClick={handleMobileClick} aria-label="ProxySock home" title={isCollapsed ? "ProxySock home" : undefined}>
+          {isCollapsed ? <Network aria-hidden="true" className="workspace-brand-symbol" /> : <img src={logo} alt="ProxySock" />}
         </Link>
-
-        {!isCollapsed && (
-          <div className="flex flex-col min-w-0 transition-opacity duration-300 flex-1">
-            <span className="font-semibold truncate text-sm">{userName}</span>
-            <span className="text-xs text-muted-foreground truncate">Welcome back</span>
-          </div>
-        )}
-        <div className={`flex-shrink-0 ${isCollapsed ? "" : ""}`}>
-          <SidebarTooltip content="Notifications" show={isCollapsed}>
-            <Link to="/dashboard/notifications" onClickCapture={handleMobileClick}>
-              <div className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <Bell className="h-5 w-5" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                  </span>
-                )}
-              </div>
-            </Link>
-          </SidebarTooltip>
-        </div>
+        <button type="button" className="workspace-icon-button" aria-label={isMobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} title={isMobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => isMobile ? setSidebarOpen(false) : setIsCollapsed(!isCollapsed)}>
+          {isMobile ? <X /> : isCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+        </button>
       </div>
 
-      <div className="h-px bg-border mx-4 mb-4" />
-
-      {/* 2. User Balance */}
-      <div className={`px-4 pb-4 transition-all duration-300 ${isCollapsed ? "flex justify-center" : ""}`}>
-        {isCollapsed ? (
-          <SidebarTooltip content="Wallet Balance" show={isCollapsed}>
-            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500/20 cursor-pointer transition-colors relative">
-              <Wallet className="h-5 w-5" />
-            </div>
-          </SidebarTooltip>
-        ) : (
-          <UserBalance className="w-full" variant="sidebar" />
-        )}
+      <div className="workspace-wallet">
+        {!isCollapsed && <span className="workspace-caption">Your wallet</span>}
+        <UserBalance variant={isCollapsed ? "sidebar-collapsed" : "sidebar"} />
       </div>
 
-      {/* 3. Navigation */}
-      <div className={`flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 custom-scrollbar ${isCollapsed ? "space-y-1" : "space-y-6"}`}>
-        {navigationSections.map((section) => (
-          <div key={section.id}>
-            {!isCollapsed && (
-              <div className="px-3 mb-3 mt-2 text-[10px] font-extrabold text-foreground/40 uppercase tracking-widest truncate">
-                {section.title}
-              </div>
-            )}
-            <nav className="space-y-1">
-              {section.items.map((item) => {
-                const active = isActive(item.href);
-                const badgeCount = getBadgeCount(item.href);
-                const unseen = isUnseen(item.href);
-
-                return (
-                  <SidebarTooltip key={item.name} content={item.name} show={isCollapsed}>
-                    <Link
-                      to={item.href}
-                      onClickCapture={handleMobileClick}
-                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-300 ${active
-                        ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold shadow-md shadow-primary/20"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        } ${isCollapsed ? "justify-center px-2" : ""}`}
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <item.icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${active ? "text-primary-foreground" : "group-hover:text-primary group-hover:scale-110"}`} />
-                        {item.isCart && cartCount > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 bg-destructive text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center border border-background">
-                            {cartCount > 9 ? "9+" : cartCount}
-                          </span>
-                        )}
-                        {/* Red dot on icon — only for unseen activity */}
-                        {!item.isCart && unseen && (
-                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
-                          </span>
-                        )}
-                      </div>
-
-                      {!isCollapsed && (
-                        <span className="flex-1 truncate">{item.name}</span>
-                      )}
-
-                      {/* Count badge — always shows when count > 0 */}
-                      {!isCollapsed && badgeCount > 0 && !active && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="bg-muted text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                            {badgeCount > 99 ? "99+" : badgeCount}
-                          </span>
-                          {unseen && (
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {!isCollapsed && item.badge && getBadgeCount(item.href) === 0 && (
-                        <span
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${item.badge === "New"
-                            ? "bg-primary text-white border border-white/20"
-                            : "bg-muted text-muted-foreground"
-                            }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  </SidebarTooltip>
-                );
-              })}
-            </nav>
+      <nav className="workspace-navigation" aria-label="Dashboard navigation">
+        {navigationSections.map(section => (
+          <div className="workspace-nav-group" key={section.id}>
+            <h2 className={isCollapsed ? "sr-only" : "workspace-caption"}>{section.title}</h2>
+            {section.items.map(item => {
+              const active = isActive(item.href);
+              const count = item.isCart ? cartCount : getBadgeCount(item.href);
+              return (
+                <Link key={item.href} to={item.href} onClick={handleMobileClick} className="workspace-nav-link" aria-label={item.name} aria-current={active ? "page" : undefined} title={isCollapsed ? item.name : undefined}>
+                  <item.icon aria-hidden="true" />
+                  {!isCollapsed && <span className="workspace-link-label">{item.name}</span>}
+                  {count > 0 && <span className="workspace-count" aria-label={`${count} ${item.isCart ? "items in cart" : "updates"}`}>{count > 99 ? "99+" : count}</span>}
+                </Link>
+              );
+            })}
           </div>
         ))}
-      </div>
+      </nav>
 
-      {/* 4. Bottom Actions: Theme & Logout */}
-      <div className="p-3 border-t border-border bg-muted/30 space-y-2">
-        {/* Theme Toggle */}
-        <SidebarTooltip content="Toggle Theme" show={isCollapsed}>
-          <button
-            onClick={toggleDark}
-            className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-foreground hover:bg-background border border-transparent hover:border-border transition-all ${isCollapsed ? "justify-center" : ""}`}
-          >
-            <div className={`relative h-4.5 w-4.5 ${isCollapsed ? "" : "shrink-0"}`}>
-              <AnimatePresence mode="wait">
-                {dark ? (
-                  <motion.div
-                    key="sun"
-                    initial={{ opacity: 0, rotate: -90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: 90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Sun className="h-4.5 w-4.5" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="moon"
-                    initial={{ opacity: 0, rotate: 90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: -90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Moon className="h-4.5 w-4.5" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 flex items-center justify-between">
-                <span className="font-medium">Dark Mode</span>
-                <div className={`w-8 h-4 rounded-full relative transition-colors ${dark ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                  <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${dark ? "translate-x-4" : "translate-x-0"}`} />
-                </div>
-              </div>
-            )}
-          </button>
-        </SidebarTooltip>
-
-        {/* Home Button */}
-        <SidebarTooltip content="Home" show={isCollapsed}>
-          <Link
-            to="/"
-            onClickCapture={handleMobileClick}
-            className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-foreground hover:bg-background border border-transparent hover:border-border transition-all ${isCollapsed ? "justify-center" : ""}`}
-          >
-            <Home className="h-4.5 w-4.5 shrink-0" />
-            {!isCollapsed && <span className="font-medium">Home</span>}
+      <div className="workspace-account">
+        <div className="workspace-utilities">
+          <Link to="/dashboard/notifications" className="workspace-icon-button" onClick={handleMobileClick} aria-label={`Notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ""}`} title="Notifications" aria-current={isActive("/dashboard/notifications") ? "page" : undefined}>
+            <Bell />{unreadNotifications > 0 && <span className="workspace-activity" />}
           </Link>
-        </SidebarTooltip>
-
-        {/* Logout */}
-        <SidebarTooltip content="Logout" show={isCollapsed}>
-          <button
-            onClick={() => {
-              handleLogout();
-              handleMobileClick();
-            }}
-            className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors ${isCollapsed ? "justify-center" : ""}`}
-          >
-            <LogOut className="h-4.5 w-4.5 shrink-0" />
-            {!isCollapsed && <span className="font-medium">Logout</span>}
-          </button>
-        </SidebarTooltip>
+          <button type="button" className="workspace-icon-button" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Switch to light mode" : "Switch to dark mode"}>{dark ? <Sun /> : <Moon />}</button>
+          <Link to="/" className="workspace-icon-button" onClick={handleMobileClick} aria-label="Back to website" title="Back to website"><Home /></Link>
+        </div>
+        <div className="workspace-profile-row">
+          <Link className="workspace-profile" to="/dashboard/profile" onClick={handleMobileClick} aria-label={`Profile settings for ${userName}`} title={isCollapsed ? userName : undefined}>
+            <span className="workspace-avatar">{failedAvatar !== avatarUrl ? <img src={avatarUrl} alt="" onError={() => setFailedAvatar(avatarUrl)} /> : getInitials(userName)}</span>
+            {!isCollapsed && <span className="workspace-profile-copy"><strong>{userName}</strong><span>Personal account</span></span>}
+          </Link>
+          <button type="button" className="workspace-icon-button workspace-logout" onClick={() => { handleLogout(); handleMobileClick(); }} aria-label="Log out" title="Log out"><LogOut /></button>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 };

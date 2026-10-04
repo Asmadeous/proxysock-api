@@ -1,4 +1,3 @@
-import { getCategoryIcon } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryIcon";
 import {
   Card,
   CardContent,
@@ -13,9 +12,7 @@ import {
   Package,
   Server,
   Sparkles,
-  Star,
 } from "lucide-react";
-import { getCategoryColor } from "@/components/dashboard/Purchase-Products/buy-proxies/getCategoryColor";
 import { Badge } from "@/components/ui/badge";
 import { renderMobileLocationCards } from "@/components/dashboard/Purchase-Products/buy-proxies/MobileLocationCards";
 import { renderMobileProxyPlans } from "@/components/dashboard/Purchase-Products/buy-proxies/MobileProxyPlans";
@@ -88,6 +85,16 @@ export const renderProxyPlans = ({
   selectedPlan,
   togglePlanSelection,
 }: RenderProxyPlansProps) => {
+  if (loading) {
+    return (
+      <div className="grid gap-4" role="status" aria-label="Loading proxy plans">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <ProxyPlanCardSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <Card className="border-l-4 border-l-destructive bg-destructive/5">
@@ -147,15 +154,6 @@ export const renderProxyPlans = ({
     );
   }
 
-  if (loading) {
-    return (
-      <div className="grid gap-4">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <ProxyPlanCardSkeleton key={index} />
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div className="grid gap-4">
@@ -173,25 +171,14 @@ export const renderProxyPlans = ({
               togglePlanSelection(plan.id);
             }
           }}
+          aria-pressed={String(selectedPlan) === String(plan.id)}
+          aria-label={`Select ${plan.display_name || plan.name}`}
           role="button"
           tabIndex={0}
         >
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  {plan.is_owned && (
-                    <Badge variant="default" className="gap-1">
-                      <Star className="w-3 h-3" />
-                      Premium
-                    </Badge>
-                  )}
-                  <div
-                    className={`p-2 rounded-lg ${getCategoryColor(selectedCategory)}`}
-                  >
-                    {getCategoryIcon(selectedCategory)}
-                  </div>
-                </div>
                 <CardTitle className="text-lg">
                   {plan.display_name || plan.name}
                 </CardTitle>
