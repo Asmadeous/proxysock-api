@@ -150,10 +150,6 @@ export default function AdminESIMManagement() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">eSIM Management (Admin)</h1>
-                        <p className="text-muted-foreground mt-1">Manage global travel eSIM profiles across all users.</p>
-                    </div>
                     <ManagementFilters entityType={userType} onEntityTypeChange={setUserType} />
                 </div>
                 <div className="flex items-center gap-3">

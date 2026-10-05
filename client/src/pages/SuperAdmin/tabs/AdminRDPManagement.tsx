@@ -84,10 +84,6 @@ export default function AdminRDPManagement() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">RDP Management (Admin)</h1>
-                    <p className="text-muted-foreground mt-1">Manage all Windows Remote Desktop instances across the platform.</p>
-                </div>
                 <ManagementFilters entityType={userType} onEntityTypeChange={setUserType} />
             </div>
 
