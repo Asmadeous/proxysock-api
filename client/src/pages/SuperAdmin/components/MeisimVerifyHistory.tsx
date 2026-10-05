@@ -44,8 +44,8 @@ const summary = (progress: Progress | null) => {
 const when = (iso: string) =>
     new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-// Recent bulk eSIM Verify checks on the MeiSIM card, so their results stay after the Verify
-// dialog closes. Refreshes every 15s while MeiSIM is still checking a batch.
+// Recent bulk eSIM Verify checks on the MeiSIM page, so their results stay after leaving
+// the page. Refreshes every 15s while MeiSIM is still checking a batch.
 export default function MeisimVerifyHistory({ refreshKey = 0 }: { refreshKey?: number }) {
     const { data, isLoading, isError, refetch } = useQuery({
         queryKey: adminQueryKeys.meisimVerify.history(),
@@ -75,7 +75,7 @@ export default function MeisimVerifyHistory({ refreshKey = 0 }: { refreshKey?: n
     if (isError) return <p className="text-xs text-destructive">Could not load recent eSIM checks</p>;
 
     const batches: Batch[] = data?.batches ?? [];
-    if (batches.length === 0) return null;
+    if (batches.length === 0) return <p className="text-xs text-muted-foreground">No eSIM checks yet.</p>;
 
     return (
         <div className="space-y-1.5">

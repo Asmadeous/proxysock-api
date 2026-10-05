@@ -102,6 +102,23 @@ class MeisimServiceTest < ActiveSupport::TestCase
     assert_not_includes log.string, 'SECRET'
   end
 
+  test 'top-up calls send one line by number or ICCID, and a listed network reply is accepted' do
+    HTTParty.expects(:get).with('https://api.meisimusa.com/api/v1/topup/networks', anything)
+            .returns(http_response(200, [{ 'NetworkName' => 'O2-UK' }]))
+    assert_equal [{ 'NetworkName' => 'O2-UK' }], @service.topup_networks
+
+    HTTParty.expects(:post).with('https://api.meisimusa.com/api/v1/topup/confirm',
+                                 has_entry(body: { networkName: 'O2-UK', simSerialNumber: '8944' }.to_json))
+            .returns(http_response(200, { 'TopUpList' => [10] }))
+    @service.topup_confirm(network: 'O2-UK', iccid: '8944')
+
+    HTTParty.expects(:post).with('https://api.meisimusa.com/api/v1/topup/recharge',
+                                 has_entry(body: { networkName: 'ATT-US', contactNumber: '+1305', topUpValue: 20,
+                                                   creditOnly: true }.to_json))
+            .returns(http_response(200, { 'Status' => 'Success' }))
+    @service.topup_recharge(network: 'ATT-US', number: '+1305', iccid: '8901', value: '20', credit_only: true)
+  end
+
   test 'verify_verdict reads a one-code batch' do
     assert_equal 'pending', MeisimService.verify_verdict('pending' => 1)
     assert_equal 'used', MeisimService.verify_verdict('pending' => 0, 'used' => 1)

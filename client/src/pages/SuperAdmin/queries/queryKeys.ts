@@ -58,6 +58,10 @@ export const adminQueryKeys = {
   meisimVerify: {
     history: () => ["admin", "meisim_verify", "history"] as const,
   },
+  meisimLineTopups: {
+    history: () => ["admin", "meisim_line_topups", "history"] as const,
+    networks: () => ["admin", "meisim_line_topups", "networks"] as const,
+  },
   products: {
     all: () => ["admin", "products"] as const,
     list: () => ["admin", "products", "list"] as const,
