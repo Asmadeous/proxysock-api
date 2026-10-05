@@ -99,13 +99,14 @@ export default function AdminPurchaseView({ onBack, initialTab }: AdminPurchaseV
                     </div>
                     <div className="h-6 w-px bg-blue-500/20" />
                     <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-blue-500" />
+                        <Mail className="w-4 h-4 text-blue-500" aria-hidden="true" />
                         <input
                             type="email"
-                            placeholder="Target Customer Email"
+                            aria-label="Target customer email"
+                            placeholder="Target customer email"
                             value={customerEmail}
                             onChange={(e) => setCustomerEmail(e.target.value)}
-                            className="bg-transparent border-none text-sm font-medium outline-none placeholder:text-blue-500/50 text-blue-700 min-w-[250px]"
+                            className="min-w-[260px] px-3 py-1.5 rounded-lg border border-border bg-background text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
                     </div>
                 </div>

@@ -69,10 +69,6 @@ export default function AdminVPNManagement() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">VPN Management (Admin)</h1>
-                        <p className="text-muted-foreground mt-1">Monitor all active VPN subscriptions across the platform.</p>
-                    </div>
                     <ManagementFilters entityType={userType} onEntityTypeChange={setUserType} />
                 </div>
                 <div className="relative">

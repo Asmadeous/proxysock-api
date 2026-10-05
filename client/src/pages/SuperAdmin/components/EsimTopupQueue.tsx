@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { ArrowPathIcon, CheckIcon, ClipboardDocumentIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ArrowPathIcon, BoltIcon, CheckIcon, ClipboardDocumentIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 
 import { cancelEsimTopup, completeEsimTopup, fetchEsimTopups } from "@/services/adminApi";
+import MeisimLineTopupDialog from "./MeisimLineTopupDialog";
 
-// Paid top-ups on MeiSIM phone-number lines. Staff apply the credit in the MeiSIM portal,
-// then mark it done here; cancelling refunds the customer's balance.
+// Paid top-ups on MeiSIM phone-number lines. Admins can recharge the line through MeiSIM's
+// top-up API, which marks the request done; otherwise staff apply the credit in the MeiSIM
+// portal and mark it done here. Cancelling refunds the customer's balance.
 
 interface EsimTopup {
     id: string;
@@ -33,12 +35,13 @@ const FILTERS = [
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
-export default function EsimTopupQueue() {
+export default function EsimTopupQueue({ onRecharged }: { onRecharged?: () => void } = {}) {
     const [status, setStatus] = useState("pending");
     const [topups, setTopups] = useState<EsimTopup[]>([]);
     const [pending, setPending] = useState(0);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [rechargeFor, setRechargeFor] = useState<EsimTopup | null>(null);
 
     const load = async () => {
         setLoading(true);
@@ -140,11 +143,20 @@ export default function EsimTopupQueue() {
                                 </p>
                             </div>
                             {t.status === "pending" ? (
-                                <div className="flex gap-2 shrink-0">
+                                <div className="flex flex-wrap gap-2 shrink-0">
+                                    {(t.phone_number || t.iccid) && (
+                                        <button
+                                            onClick={() => setRechargeFor(t)}
+                                            disabled={busyId === t.id}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                                        >
+                                            <BoltIcon className="w-4 h-4" /> Recharge via MeiSIM
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => act(t, "complete")}
                                         disabled={busyId === t.id}
-                                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-50"
                                     >
                                         <CheckIcon className="w-4 h-4" /> Mark done
                                     </button>
@@ -165,6 +177,15 @@ export default function EsimTopupQueue() {
                     ))}
                 </ul>
             )}
+            <MeisimLineTopupDialog
+                open={!!rechargeFor}
+                onOpenChange={(open) => { if (!open) setRechargeFor(null); }}
+                preset={rechargeFor ? {
+                    line: rechargeFor.phone_number || rechargeFor.iccid || "", topupId: rechargeFor.id,
+                    reference: rechargeFor.reference, creditUsd: rechargeFor.topup_value, lineName: rechargeFor.line,
+                } : undefined}
+                onDone={() => { load(); onRecharged?.(); }}
+            />
         </section>
     );
 }

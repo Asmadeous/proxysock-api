@@ -385,26 +385,25 @@ export default function ProductsTab({ category }: ProductsTabProps = {}) {
                         className="space-y-4"
                     >
                         <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-                            <div className="flex items-center gap-4">
-                                {!category && (
-                                    <>
-                                        <button
-                                            onClick={() => { setActiveCategory(null); setProviderFilter("all"); }}
-                                            className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
-                                        >
-                                            <ArrowLeftIcon className="h-5 w-5" />
-                                        </button>
-                                        <div className="h-8 w-px bg-border" />
-                                    </>
-                                )}
-                                <div className={`h-10 w-10 ${activeCatData ? COLOR_MAP[activeCatData.color]?.bg : ""} rounded-lg flex items-center justify-center`}>
-                                    {activeCatData && <activeCatData.icon className={`h-5 w-5 ${COLOR_MAP[activeCatData.color]?.text}`} />}
+                            {/* Inside Management the page heading already names the category. */}
+                            {!category && (
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => { setActiveCategory(null); setProviderFilter("all"); }}
+                                        className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors border border-transparent hover:border-border"
+                                    >
+                                        <ArrowLeftIcon className="h-5 w-5" />
+                                    </button>
+                                    <div className="h-8 w-px bg-border" />
+                                    <div className={`h-10 w-10 ${activeCatData ? COLOR_MAP[activeCatData.color]?.bg : ""} rounded-lg flex items-center justify-center`}>
+                                        {activeCatData && <activeCatData.icon className={`h-5 w-5 ${COLOR_MAP[activeCatData.color]?.text}`} />}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-foreground">{activeCatData?.name}</h2>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-foreground">{activeCatData?.name}</h2>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
+                            )}
+                            <div className="flex items-center gap-2 ml-auto">
                                 {categoryProviders.length > 1 && (
                                     <select
                                         aria-label="Filter by provider"

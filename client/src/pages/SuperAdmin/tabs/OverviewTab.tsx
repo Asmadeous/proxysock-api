@@ -20,7 +20,6 @@ import { StatsCardSkeleton } from "../components/TableSkeleton";
 import { useOverviewStats } from "../queries/overview.queries";
 import { fetchProviderBalances } from "../../../services/adminApi";
 import { adminQueryKeys } from "../queries/queryKeys";
-import MeisimWalletActions from "../components/MeisimWalletActions";
 
 // Lucide icons for provider cards
 import { Globe, Wifi, Smartphone } from "lucide-react";
@@ -197,8 +196,8 @@ export default function OverviewTab() {
                         )}
                     </div>
 
-                    {/* MeiSIM dealer wallet */}
-                    <div className="relative overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
+                    {/* MeiSIM dealer wallet: opens the MeiSIM page (wallet, eSIM Verify, line recharges, top-ups) */}
+                    <Link to="/admin/meisim" aria-label="Open MeiSIM" className="relative block overflow-hidden bg-card rounded-xl border border-border p-5 group hover:border-primary/30 transition-all duration-300">
                         <div className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] pointer-events-none">
                             <Smartphone className="w-full h-full" />
                         </div>
@@ -235,10 +234,12 @@ export default function OverviewTab() {
                                         <p className="text-sm font-medium text-foreground">{balances.meisim.markup_pct}%</p>
                                     </div>
                                 )}
-                                <MeisimWalletActions />
                             </>
                         )}
-                    </div>
+                        <p className="mt-3 pt-3 border-t border-border/50 text-xs font-medium text-primary group-hover:underline">
+                            Wallet, eSIM Verify &amp; line recharges →
+                        </p>
+                    </Link>
                 </div>
                 {balances?.fetched_at && (
                     <p className="text-[11px] text-muted-foreground/60 mt-2 text-right">

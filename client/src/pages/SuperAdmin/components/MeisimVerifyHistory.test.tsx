@@ -43,7 +43,7 @@ it("keeps each bulk check's results on the card, with its CSV", async () => {
   expect(downloadMeisimVerifyResults).toHaveBeenCalledWith("b-1");
 });
 
-it("says so when MeiSIM cannot answer for a batch, and shows nothing when there are no checks", async () => {
+it("says so when MeiSIM cannot answer for a batch, and when there are no checks yet", async () => {
   vi.mocked(fetchMeisimVerifyHistory).mockResolvedValueOnce({
     batches: [{ batch_id: "b-3", codes: 1, submitted_at: "2026-10-02T19:40:00Z", progress: null }],
   });
@@ -52,7 +52,6 @@ it("says so when MeiSIM cannot answer for a batch, and shows nothing when there 
   cleanup();
 
   vi.mocked(fetchMeisimVerifyHistory).mockResolvedValueOnce({ batches: [] });
-  const { container } = renderCard();
-  await vi.waitFor(() => expect(fetchMeisimVerifyHistory).toHaveBeenCalledTimes(2));
-  await vi.waitFor(() => expect(container).toBeEmptyDOMElement());
+  renderCard();
+  expect(await screen.findByText("No eSIM checks yet.")).toBeInTheDocument();
 });

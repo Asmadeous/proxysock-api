@@ -53,6 +53,8 @@ const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 // Consolidated Management Tab
 const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
 const ProfileTab = lazy(() => import("./tabs/ProfileTab"));
+// MeiSIM page: opened from the MeiSIM card on Overview, not listed in the sidebar.
+const MeisimTab = lazy(() => import("./tabs/MeisimTab"));
 
 const sidebarGroups: SidebarGroup[] = [
   {
@@ -124,6 +126,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   notifications: NotificationsPage,
   logs: SystemLogsTab,
   profile: ProfileTab,
+  meisim: MeisimTab,
 };
 
 // Tabs that can have "unseen" events
