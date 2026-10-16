@@ -8,17 +8,12 @@ import { getEffectiveBasePrice } from "@/utils/cart/getEffectiveBasePrice";
 import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
 
 import { RenderCartItemDetails } from "@/components/dashboard/Cart/RenderCartItemDetails";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useThemeStore } from "@/store/themeStore";
+import "./dashboard-home.css";
+import "./cart.css";
 
-import {
-  ShoppingCart,
-  Wallet,
-  AlertCircle,
-  ArrowRight,
-  Trash2,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ShoppingCart, ArrowRight, ArrowUpRight, Trash2 } from "lucide-react";
 import api from "../../services/api";
 
 
@@ -27,10 +22,11 @@ import { CartItem } from "../../types";
 export default function Cart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [userBalance, setUserBalance] = useState(0);
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [balanceError, setBalanceError] = useState(false);
+  const dark = useThemeStore(state => state.dark);
   const [isLoadingBalanceFetch, setIsLoadingBalanceFetch] = useState(true);
   const exchangeRate = null;
-  const navigate = useNavigate();
 
   const { calculateItemTotalSync } = useCalculateOrderItems({ cartItems, exchangeRate: null });
 
@@ -75,11 +71,15 @@ export default function Cart() {
 
   const fetchUserBalance = async () => {
     setIsLoadingBalanceFetch(true);
+    setBalanceError(false);
     try {
       const { data } = await api.get('/web/api/billing/balance');
-      setUserBalance(data.available_balance || 0);
+      const balance = Number(data.available_balance);
+      if (data.available_balance == null || !Number.isFinite(balance)) throw new Error('Balance unavailable');
+      setUserBalance(balance);
     } catch (err) {
-      console.error("Error fetching balance:", err);
+      setBalanceError(true);
+      setUserBalance(null);
     } finally {
       setIsLoadingBalanceFetch(false);
     }
@@ -90,8 +90,8 @@ export default function Cart() {
     if (storedCart) {
       try {
         const parsedCart = JSON.parse(storedCart);
-        const cartWithDefaults = Array.isArray(parsedCart)
-          ? parsedCart
+        if (!Array.isArray(parsedCart)) throw new Error('Invalid cart data');
+        const cartWithDefaults = parsedCart
             .filter((item: CartItem) => {
               const validTypes = ["proxy", "esim", "vps", "rdp", "usa-esim", "vpn", "residential", "global-isp"];
               if (!validTypes.includes(item.productType)) return false;
@@ -107,8 +107,7 @@ export default function Cart() {
                 (item.productType === "vpn" && item.vpnPlan)
               );
             })
-            .map(normalizeCartItem)
-          : [];
+            .map(normalizeCartItem);
         localStorage.setItem("cartItems", JSON.stringify(cartWithDefaults));
         setCartItems(cartWithDefaults);
         globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: cartWithDefaults.length } }));
@@ -123,6 +122,7 @@ export default function Cart() {
   const clearCart = () => {
     localStorage.removeItem("cartItems");
     setCartItems([]);
+    setError(null);
     globalThis.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: 0 } }));
   };
 
@@ -156,124 +156,43 @@ export default function Cart() {
     localStorage.setItem("cartItems", JSON.stringify(updatedCart));
   };
 
+  const money = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  const subtotal = cartItems.reduce((sum, item) => sum + Math.round(calculateItemTotalSync(item) * 100), 0) / 100;
+  const services = [
+    ['Proxies', '/dashboard/proxies'], ['VPN', '/dashboard/vpn'], ['eSIM', '/dashboard/esim'],
+    ['VPS hosting', '/dashboard/vps'], ['RDP Access', '/dashboard/rdp'],
+  ];
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <Helmet>
-        <title>Shopping Cart</title>
-      </Helmet>
+    <div className={`dashboard-overview cart-page ${dark ? 'overview-dark' : ''}`}>
+      <Helmet><title>My Cart | ProxySock</title></Helmet>
+      <header className="overview-heading">
+        <div><span className="overview-eyebrow">Your workspace</span><h1>My cart</h1><p>Review your services and configuration before checkout.</p></div>
+        <Link className="overview-button" to="/dashboard">Browse services <ArrowUpRight size={14} aria-hidden="true" /></Link>
+      </header>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <ShoppingCart className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Shopping Cart</h1>
-              <p className="text-muted-foreground mt-1">
-                {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
-              </p>
-            </div>
-          </div>
-        </div>
-        {!isLoadingBalanceFetch && (
-          <div className="hidden sm:block">
-            <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-full border border-primary/20">
-              <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                Balance: ${userBalance.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <Card className="border-l-4 border-l-destructive bg-destructive/5">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-destructive">{error}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {cartItems.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="text-center py-16 px-4">
-            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-              <ShoppingCart className="w-12 h-12 text-muted-foreground/50" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-            <p className="text-muted-foreground text-center max-w-md mx-auto mb-8">
-              Looks like you haven't added any proxies or services yet.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Button asChild variant="outline">
-                <a href="/dashboard/proxies">Browse Proxies</a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="/dashboard/vps">Browse VPS</a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="/dashboard/rdp">Browse RDP</a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="/dashboard/esim">Browse eSIMs</a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="/dashboard/vpn">Browse VPN</a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between border-b px-6 py-4 bg-muted/20">
-            <CardTitle className="text-lg font-medium">Items</CardTitle>
-            <Button
-              onClick={clearCart}
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear
-            </Button>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid gap-6">
-              {cartItems.map((item, index) => (
-                <div key={index} className="pb-6 border-b last:border-0 last:pb-0">
-                  <RenderCartItemDetails
-                    item={item}
-                    index={index}
-                    cartItems={cartItems}
-                    removeItem={removeItem}
-                    updateItemAutoRenew={updateItemAutoRenew}
-                    exchangeRate={exchangeRate}
-                    updateESIMQuantity={updateESIMQuantity}
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <div className="border-t p-6 bg-muted/10 flex flex-col sm:flex-row justify-end items-center gap-4">
-            <div className="text-sm text-muted-foreground hidden sm:block">
-              Subtotal is calculated at checkout
-            </div>
-            <Button
-              size="lg"
-              onClick={() => navigate("/dashboard/checkout")}
-              className="w-full sm:w-auto gap-2 shadow-lg"
-            >
-              Proceed to Checkout
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        </Card>
-      )}
+      {error ? <div className="overview-error" role="alert"><div><strong>We couldn’t load your saved cart.</strong><p>Clear the saved cart to start again.</p></div><button type="button" onClick={clearCart}>Clear saved cart</button></div>
+        : cartItems.length === 0 ? <section className="cart-empty" aria-labelledby="cart-empty-title">
+          <ShoppingCart size={28} strokeWidth={1.4} aria-hidden="true" /><h2 id="cart-empty-title">Your cart is empty</h2><p>Choose a service to get started.</p>
+          <nav aria-label="Browse services" className="cart-service-links">{services.map(([name, href]) => <Link key={href} to={href}>{name}<ArrowRight size={14} aria-hidden="true" /></Link>)}</nav>
+        </section> : <div className="cart-layout">
+          <section className="cart-items" aria-labelledby="cart-items-title">
+            <div className="overview-section-heading"><h2 id="cart-items-title">Items <span className="cart-item-count">{cartItems.length}</span></h2><button type="button" className="cart-clear" onClick={clearCart}><Trash2 size={14} aria-hidden="true" />Clear cart</button></div>
+            <div className="cart-item-list">{cartItems.map((item, index) => <div key={index} className="cart-item">
+              <RenderCartItemDetails item={item} index={index} cartItems={cartItems} removeItem={removeItem} updateItemAutoRenew={updateItemAutoRenew} exchangeRate={exchangeRate} updateESIMQuantity={updateESIMQuantity} />
+            </div>)}</div>
+          </section>
+          <aside className="cart-summary" aria-labelledby="cart-summary-title">
+            <h2 id="cart-summary-title">Order summary</h2>
+            <dl className="cart-summary-details"><div><dt>Items</dt><dd>{cartItems.length}</dd></div><div><dt>Subtotal</dt><dd>{money(subtotal)}</dd></div></dl>
+            <div className="cart-summary-total"><span>Estimated total</span><strong>{money(subtotal)}</strong></div>
+            <p className="cart-summary-note">USD · Final pricing is confirmed at checkout.</p>
+            <Link className="cart-checkout" to="/dashboard/checkout">Proceed to checkout <ArrowRight size={15} aria-hidden="true" /></Link>
+            <p className="cart-summary-note">Review your payment method on the next page.</p>
+            <div className="cart-wallet" aria-busy={isLoadingBalanceFetch}><span>Wallet balance</span>{isLoadingBalanceFetch ? <p role="status">Loading balance…</p> : balanceError ? <div role="alert"><p>Balance unavailable.</p><button type="button" onClick={fetchUserBalance}>Retry balance</button></div> : <strong>{money(userBalance ?? 0)}</strong>}</div>
+            <Link className="cart-support" to="/dashboard/support">Get support <ArrowUpRight size={14} aria-hidden="true" /></Link>
+          </aside>
+        </div>}
     </div>
   );
 }

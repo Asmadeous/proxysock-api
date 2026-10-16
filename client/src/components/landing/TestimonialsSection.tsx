@@ -146,7 +146,7 @@ export const TestimonialsSection = () => {
             {selected.demo && <p className="world-demo-label">Demo content · Not a customer review</p>}
             <blockquote key={selected.name}>{selected.content}</blockquote>
             <div className="world-review-author"><span className="world-avatar" aria-hidden="true">{selected.name.split(" ").map((part) => part[0]).join("")}</span><div><strong>{selected.name}</strong><span>{selected.role}</span></div></div>
-            <div className="world-review-bottom"><span>{selected.demo ? "Design preview" : "Customer story"}</span><span>{String(active + 1).padStart(2, "0")} / {String(testimonials.length).padStart(2, "0")}</span></div>
+            <div className="world-review-bottom"><span>{selected.demo ? "Design preview" : "Customer story"}</span></div>
           </div>
 
         </div>

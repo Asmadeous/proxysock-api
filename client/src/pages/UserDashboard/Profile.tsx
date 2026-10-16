@@ -1,386 +1,84 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
-import api, { formatImageUrl } from "../../services/api";
-import { toast } from "sonner";
-import {
-  User,
-  Calendar,
-  Globe,
-  MapPin,
-  Pencil,
-  Check,
-  X,
-  Mail,
-  AlertCircle,
-  Image as ImageIcon,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useRef, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Pencil, UserRound } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import api, { formatImageUrl } from '@/services/api';
+import './dashboard-home.css';
+import './profile.css';
+
+type ProfileFields = { username: string; first_name: string; last_name: string; country: string; city: string; country_code: string };
+const fieldsFrom = (user: Partial<ProfileFields> | null): ProfileFields => ({ username: user?.username || '', first_name: user?.first_name || '', last_name: user?.last_name || '', country: user?.country || '', city: user?.city || '', country_code: user?.country_code || '' });
+const fields: { key: keyof ProfileFields; label: string; autoComplete: string; hint?: string }[] = [
+  { key: 'first_name', label: 'First name', autoComplete: 'given-name' }, { key: 'last_name', label: 'Last name', autoComplete: 'family-name' },
+  { key: 'username', label: 'Username', autoComplete: 'username', hint: 'At least 3 characters.' },
+  { key: 'country', label: 'Country', autoComplete: 'country-name' }, { key: 'city', label: 'City', autoComplete: 'address-level2' },
+  { key: 'country_code', label: 'Country code', autoComplete: 'country', hint: 'Two-letter country code, for example US or GB.' },
+];
+const acceptedImages = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export default function Profile() {
   const { user, setUser } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    username: user?.username || "",
-    first_name: user?.first_name || "",
-    last_name: user?.last_name || "",
-    country: user?.country || "",
-    city: user?.city || "",
-    country_code: user?.country_code || "",
-  });
-  const [profilePicture, setProfilePicture] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(formatImageUrl(user?.profile_picture_url) || null);
-  const [errors, setErrors] = useState<{ username?: string; country?: string; city?: string; country_code?: string }>({});
-
+  const dark = useThemeStore(state => state.dark);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<ProfileFields>(() => fieldsFrom(user));
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{ username?: string; photo?: string }>({});
+  const [saveError, setSaveError] = useState('');
+  const [success, setSuccess] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (!editing) setForm(fieldsFrom(user)); }, [user, editing]);
   useEffect(() => {
-    if (user) {
-      setFormData({
-        username: user.username || "",
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        country: user.country || "",
-        city: user.city || "",
-        country_code: user.country_code || "",
-      });
-      setPreviewUrl(formatImageUrl(user.profile_picture_url) || null);
-    }
-  }, [user]);
-
-  const validateField = (name: string, value: string) => {
-    switch (name) {
-      case "username":
-        if (!value.trim()) return "Username is required";
-        if (value.length < 3) return "Username must be at least 3 characters";
-        break;
-      default:
-        return "";
-    }
-    return "";
-  };
-
-  const handleChange = (e: { target: { name: any; value: any } }) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
-  };
-
-  const handleSubmit = async (e: { preventDefault: () => void }) => {
-    e.preventDefault();
-
-    const validationErrors = Object.entries(formData).reduce(
-      (acc: { [key: string]: string }, [key, value]) => {
-        if (key !== "profile_picture_url") {
-          const error = validateField(key, value as string);
-          if (error) acc[key] = error;
-        }
-        return acc;
-      },
-      {}
-    );
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      toast.error("Please fix the errors before saving");
-      return;
-    }
-
-    setIsLoading(true);
+    if (!photo) { setPreview(null); return; }
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+  function resetPhoto() { setPhoto(null); if (fileRef.current) fileRef.current.value = ''; }
+  function cancel() { setForm(fieldsFrom(user)); resetPhoto(); setErrors({}); setSaveError(''); setEditing(false); }
+  function choosePhoto(file: File | undefined) {
+    setSaveError('');
+    if (!file) { resetPhoto(); setErrors(current => ({ ...current, photo: undefined })); return; }
+    const error = !acceptedImages.includes(file.type) ? 'Choose a JPEG, PNG, GIF, or WebP image.' : file.size > 5 * 1024 * 1024 ? 'Choose an image no larger than 5 MB.' : '';
+    if (error) { resetPhoto(); setErrors(current => ({ ...current, photo: error })); return; }
+    setPhoto(file); setErrors(current => ({ ...current, photo: undefined }));
+  }
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editing || saving) return;
+    const username = form.username.trim();
+    const usernameError = !username ? 'Username is required.' : username.length < 3 ? 'Username must be at least 3 characters.' : '';
+    setErrors(current => ({ ...current, username: usernameError }));
+    if (usernameError || errors.photo) return;
+    setSaving(true); setSaveError(''); setSuccess('');
     try {
-      let payload: any;
-      if (profilePicture) {
-        payload = new FormData();
-        payload.append("username", formData.username);
-        payload.append("first_name", formData.first_name);
-        payload.append("last_name", formData.last_name);
-        payload.append("country", formData.country);
-        payload.append("city", formData.city);
-        payload.append("country_code", formData.country_code);
-        payload.append("avatar", profilePicture);
-      } else {
-        payload = formData;
-      }
-
-      const { data } = await api.patch("/web/api/auth/update_profile", payload, {
-        headers: profilePicture ? { "Content-Type": "multipart/form-data" } : {}
-      });
-      if (data.user) {
-        setUser(data.user);
-        setFormData({
-          username: data.user.username || "",
-          first_name: data.user.first_name || "",
-          last_name: data.user.last_name || "",
-          country: data.user.country || "",
-          city: data.user.city || "",
-          country_code: data.user.country_code || "",
-        });
-        setPreviewUrl(formatImageUrl(data.user.profile_picture_url) || null);
-        setProfilePicture(null);
-      }
-      toast.success(data.message || "Profile updated successfully!");
-      setIsEditing(false);
-    } catch (error: any) {
-      const msg = error.response?.data?.error || error.response?.data?.errors?.join(", ") || "Failed to update profile.";
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="shrink-0">
-              <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-primary/20 bg-primary/10 flex items-center justify-center">
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt={formData.username}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User className="h-12 w-12 text-primary" />
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 text-center sm:text-left space-y-2">
-              <h1 className="text-3xl font-bold">{formData.username || "User"}</h1>
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span>{user?.email}</span>
-              </div>
-              {(formData.country || formData.city) && (
-                <div className="flex items-center justify-center sm:justify-start gap-3 text-sm">
-                  {formData.country && (
-                    <div className="flex items-center gap-1">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>{formData.country}</span>
-                    </div>
-                  )}
-                  {formData.city && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span>{formData.city}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="shrink-0">
-              <Button
-                onClick={() => setIsEditing(!isEditing)}
-                variant={isEditing ? "outline" : "default"}
-                className="gap-2"
-              >
-                {isEditing ? (
-                  <>
-                    <X className="h-4 w-4" />
-                    Cancel
-                  </>
-                ) : (
-                  <>
-                    <Pencil className="h-4 w-4" />
-                    Edit Profile
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle>Personal Information</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Name Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <Input
-                      id="first_name"
-                      name="first_name"
-                      value={formData.first_name}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      placeholder="Enter your first name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      name="last_name"
-                      value={formData.last_name}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      placeholder="Enter your last name"
-                    />
-                  </div>
-                </div>
-
-                {/* Username Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    placeholder="Enter your username"
-                    className={errors.username ? "border-destructive" : ""}
-                  />
-                  {errors.username && (
-                    <div className="flex items-center gap-1 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>{errors.username}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Location Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="country_code">ISO Code</Label>
-                    <Input
-                      id="country_code"
-                      name="country_code"
-                      value={formData.country_code}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      placeholder="US"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="country"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="Enter your country"
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="city"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="Enter your city"
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Profile Picture */}
-                <div className="space-y-2">
-                  <Label htmlFor="avatar">Profile Picture</Label>
-                  <div className="relative">
-                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="avatar"
-                      name="avatar"
-                      type="file"
-                      accept="image/jpeg, image/png, image/gif, image/webp"
-                      onChange={(e) => {
-                        const file = e.target.files ? e.target.files[0] : null;
-                        setProfilePicture(file);
-                        if (file) {
-                          setPreviewUrl(URL.createObjectURL(file));
-                        } else {
-                          setPreviewUrl(user?.profile_picture_url || null);
-                        }
-                      }}
-                      disabled={!isEditing}
-                      className="pl-9 file:mr-4 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 text-xs"
-                    />
-                  </div>
-                  {profilePicture && profilePicture.size > 5 * 1024 * 1024 && (
-                    <p className="text-xs text-destructive">
-                      File must be less than 5MB
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Upload a JPEG, PNG, or WEBP image maximum 5MB.
-                  </p>
-                </div>
-
-                {isEditing && (
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <Button type="button" onClick={() => setIsEditing(false)} variant="outline" className="gap-2">
-                      <X className="h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading} className="gap-2">
-                      <Check className="h-4 w-4" />
-                      {isLoading ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                )}
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Account Info</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{user?.email}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Account Status</p>
-                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  {user?.status || "Active"}
-                </Badge>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Balance</p>
-                <p className="font-medium text-lg">${(user?.balance || 0).toFixed(2)} {user?.currency || "USD"}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
+      const values = { ...form, username, country_code: form.country_code.trim().toUpperCase() };
+      let payload: ProfileFields | FormData = values;
+      if (photo) { payload = new FormData(); Object.entries(values).forEach(([key, value]) => (payload as FormData).append(key, value)); payload.append('avatar', photo); }
+      const { data } = await api.patch('/web/api/auth/update_profile', payload, { headers: photo ? { 'Content-Type': 'multipart/form-data' } : {} });
+      if (!data.user) throw new Error('Missing updated profile');
+      setUser(data.user); setForm(fieldsFrom(data.user)); resetPhoto(); setEditing(false); setErrors({}); setSuccess('Your profile has been updated.');
+    } catch (err) {
+      const data = (err as { response?: { data?: { error?: string; errors?: string[] | Record<string, string[]> } } }).response?.data;
+      const message = data?.error || (Array.isArray(data?.errors) ? data.errors.join(', ') : data?.errors ? Object.entries(data.errors).map(([key, value]) => `${key.replace(/_/g, ' ')} ${Array.isArray(value) ? value.join(', ') : value}`).join('. ') : 'Couldn’t save your profile. Please try again.');
+      setSaveError(message);
+    } finally { setSaving(false); }
+  }
+  const image = preview || formatImageUrl(user?.profile_picture_url);
+  return <div className={`dashboard-overview profile-page ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>Profile Settings | ProxySock</title></Helmet>
+    <header className="overview-heading"><div><span className="overview-eyebrow">Your workspace</span><h1>Profile settings</h1><p>Manage your personal details and profile photo.</p></div>{user && !editing && <button type="button" className="overview-button" onClick={() => { setEditing(true); setSuccess(''); }}><Pencil size={14} aria-hidden="true" />Edit profile</button>}</header>
+    {!user ? <section className="overview-auth"><h2>Sign in to view your profile</h2><Link to="/login">Back to login</Link></section> : <>
+      {success && <p className="profile-feedback" role="status">{success}</p>}
+      <div className="profile-layout"><form className="profile-form" onSubmit={save} noValidate aria-busy={saving}>
+        <section className="profile-panel" aria-labelledby="profile-photo-title"><div className="profile-photo-row"><div className="profile-avatar">{image ? <img src={image} alt="Your profile" /> : <UserRound size={28} strokeWidth={1.4} aria-hidden="true" />}</div><div><h2 id="profile-photo-title">Profile photo</h2><p>JPEG, PNG, GIF, or WebP. Maximum 5 MB.</p>{editing && <><label className="profile-upload" htmlFor="profile-photo">Choose photo</label><input ref={fileRef} id="profile-photo" className="profile-file" type="file" accept={acceptedImages.join(',')} disabled={saving} onChange={event => choosePhoto(event.target.files?.[0])} aria-invalid={Boolean(errors.photo)} aria-describedby={errors.photo ? 'photo-error' : undefined} />{photo && <div className="profile-selected-photo"><span>{photo.name}</span><button type="button" disabled={saving} onClick={resetPhoto}>Undo photo change</button></div>}{errors.photo && <><p id="photo-error" className="profile-field-error" role="alert">{errors.photo}</p><button className="profile-upload" type="button" disabled={saving} onClick={() => { resetPhoto(); setErrors(current => ({ ...current, photo: undefined })); }}>Keep current photo</button></>}</>}</div></div></section>
+        <section className="profile-panel" aria-labelledby="profile-details-title"><div className="overview-section-heading"><div><h2 id="profile-details-title">Personal details</h2><p>Your name and location information.</p></div></div><div className="profile-fields">{fields.map(field => <div key={field.key}><label htmlFor={`profile-${field.key}`}>{field.label}{field.key === 'username' && <span aria-hidden="true"> *</span>}</label><input id={`profile-${field.key}`} name={field.key} autoComplete={field.autoComplete} value={form[field.key]} readOnly={!editing} disabled={saving} required={field.key === 'username'} aria-invalid={field.key === 'username' && Boolean(errors.username)} aria-describedby={field.key === 'username' && errors.username ? 'username-error' : field.hint ? `${field.key}-hint` : undefined} onChange={event => { setForm(current => ({ ...current, [field.key]: event.target.value })); if (field.key === 'username') setErrors(current => ({ ...current, username: undefined })); }} />{field.hint && <p id={`${field.key}-hint`}>{field.hint}</p>}{field.key === 'username' && errors.username && <p id="username-error" className="profile-field-error" role="alert">{errors.username}</p>}</div>)}</div>
+          {saveError && <p className="profile-feedback profile-field-error" role="alert">{saveError}</p>}{editing && <div className="profile-actions"><button type="button" className="overview-button" disabled={saving} onClick={cancel}>Cancel</button><button type="submit" className="profile-save" disabled={saving || Boolean(errors.photo)}>{saving ? 'Saving…' : 'Save changes'}</button></div>}
+        </section>
+      </form><aside className="profile-panel profile-account" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account details</h2><dl><div><dt>Email address</dt><dd>{user.email || 'Not available'}</dd></div><div><dt>Account status</dt><dd className="profile-account-status">{user.status || 'Not available'}</dd></div></dl><Link to="/dashboard/change-password"><span>Change password</span><ArrowUpRight size={15} aria-hidden="true" /></Link><Link to="/dashboard/transactions"><span>View wallet activity</span><ArrowUpRight size={15} aria-hidden="true" /></Link><Link to="/dashboard/support"><span>Get account help</span><ArrowUpRight size={15} aria-hidden="true" /></Link></aside></div>
+    </>}
+  </div>;
 }

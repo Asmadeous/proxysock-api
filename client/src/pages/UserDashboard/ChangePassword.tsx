@@ -1,237 +1,80 @@
-import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
-import { toast } from "sonner";
-import {
-  Lock,
-  Key,
-  Check,
-  AlertCircle,
-  Calendar,
-  Shield,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useRef, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import api from '@/services/api';
+import './dashboard-home.css';
+import './profile.css';
+import './change-password.css';
+
+type PasswordFields = { currentPassword: string; newPassword: string; confirmPassword: string };
+type Errors = Partial<Record<keyof PasswordFields, string>>;
+const emptyFields: PasswordFields = { currentPassword: '', newPassword: '', confirmPassword: '' };
+const hiddenFields = { currentPassword: false, newPassword: false, confirmPassword: false };
+const fields: { key: keyof PasswordFields; label: string; autoComplete: string }[] = [
+  { key: 'currentPassword', label: 'Current password', autoComplete: 'current-password' },
+  { key: 'newPassword', label: 'New password', autoComplete: 'new-password' },
+  { key: 'confirmPassword', label: 'Confirm new password', autoComplete: 'new-password' },
+];
+function validate(values: PasswordFields): Errors {
+  const errors: Errors = {};
+  if (!values.currentPassword.trim()) errors.currentPassword = 'Enter your current password.';
+  if (!values.newPassword.trim()) errors.newPassword = 'Enter a new password.';
+  else if (values.newPassword.length < 8) errors.newPassword = 'Use at least 8 characters.';
+  if (!values.confirmPassword) errors.confirmPassword = 'Confirm your new password.';
+  else if (values.confirmPassword !== values.newPassword) errors.confirmPassword = 'Passwords do not match.';
+  return errors;
+}
 
 export default function ChangePassword() {
   const { user } = useAuth();
-  const [formData, setFormData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState<{ currentPassword?: string; newPassword?: string; confirmPassword?: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
-
-  const validateField = (name: string, value: string, data: typeof formData = formData) => {
-    switch (name) {
-      case "currentPassword":
-        if (!value.trim()) return "Current password is required";
-        break;
-      case "newPassword":
-        if (!value.trim()) return "New password is required";
-        if (value.length < 8) return "Password must be at least 8 characters";
-        break;
-      case "confirmPassword":
-        if (value !== data.newPassword) return "Passwords do not match";
-        break;
-      default:
-        return "";
-    }
-    return "";
-  };
-
-  const handleChange = (e: { target: { name: any; value: any } }) => {
-    const { name, value } = e.target;
-    setFormData((prev) => {
-      const newData = { ...prev, [name]: value };
-      setErrors({
-        ...errors,
-        [name]: validateField(name, value, newData),
-        ...(name === "newPassword" ? { confirmPassword: validateField("confirmPassword", prev.confirmPassword, newData) } : {}),
-      });
-      return newData;
-    });
-  };
-
-  const handleSubmit = async (e: { preventDefault: () => void }) => {
-    e.preventDefault();
-
-    const validationErrors = Object.entries(formData).reduce(
-      (acc: { [key: string]: string }, [key, value]) => {
-        const error = validateField(key, value, formData);
-        if (error) acc[key] = error;
-        return acc;
-      },
-      {}
-    );
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      toast.error("Please fix the errors before saving");
-      return;
-    }
-
-    setIsLoading(true);
-
+  const dark = useThemeStore(state => state.dark);
+  const [values, setValues] = useState(emptyFields);
+  const [visible, setVisible] = useState(hiddenFields);
+  const [errors, setErrors] = useState<Errors>({});
+  const [saving, setSaving] = useState(false);
+  const pending = useRef(false);
+  const [serverError, setServerError] = useState('');
+  const [success, setSuccess] = useState(false);
+  function change(key: keyof PasswordFields, value: string) {
+    const next = { ...values, [key]: value };
+    const nextErrors = validate(next);
+    setValues(next); setSuccess(false); setServerError('');
+    setErrors(current => ({ ...current, [key]: current[key] ? nextErrors[key] : undefined,
+      ...(key === 'newPassword' && (values.confirmPassword || current.confirmPassword) ? { confirmPassword: nextErrors.confirmPassword } : {}) }));
+  }
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (pending.current || !user) return;
+    const nextErrors = validate(values);
+    setErrors(nextErrors); setServerError(''); setSuccess(false);
+    const firstError = fields.find(field => nextErrors[field.key]);
+    if (firstError) { document.getElementById(firstError.key)?.focus(); return; }
+    pending.current = true; setSaving(true);
     try {
-      const { data } = await api.post("/web/api/auth/change_password", {
-        current_password: formData.currentPassword,
-        new_password: formData.newPassword,
-        password_confirmation: formData.confirmPassword,
-      });
-
-      toast.success(data.message || "Password updated successfully!");
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error: any) {
-      const msg = error.response?.data?.error || error.response?.data?.errors?.join(", ") || "Failed to update password.";
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="shrink-0">
-              <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center">
-                <Shield className="h-12 w-12 text-primary" />
-              </div>
-            </div>
-            <div className="flex-1 text-center sm:text-left space-y-2">
-              <h1 className="text-3xl font-bold">Change Password</h1>
-              <p className="text-muted-foreground">
-                Secure your account with a strong new password
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Password Form */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Key className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle>Password Settings</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      value={formData.currentPassword}
-                      onChange={handleChange}
-                      placeholder="Enter current password"
-                      className={`pl-9 ${errors.currentPassword ? "border-destructive" : ""}`}
-                    />
-                  </div>
-                  {errors.currentPassword && (
-                    <div className="flex items-center gap-1 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>{errors.currentPassword}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="newPassword"
-                      name="newPassword"
-                      type="password"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      placeholder="Enter new password"
-                      className={`pl-9 ${errors.newPassword ? "border-destructive" : ""}`}
-                    />
-                  </div>
-                  {errors.newPassword && (
-                    <div className="flex items-center gap-1 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>{errors.newPassword}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      placeholder="Confirm new password"
-                      className={`pl-9 ${errors.confirmPassword ? "border-destructive" : ""}`}
-                    />
-                  </div>
-                  {errors.confirmPassword && (
-                    <div className="flex items-center gap-1 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>{errors.confirmPassword}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end pt-4 border-t">
-                  <Button type="submit" disabled={isLoading} className="gap-2">
-                    <Check className="h-4 w-4" />
-                    {isLoading ? "Updating..." : "Change Password"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Account Info</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{user?.email}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Username</p>
-                <p className="font-medium">{user?.username || "—"}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
+      await api.post('/web/api/auth/change_password', { current_password: values.currentPassword, new_password: values.newPassword, password_confirmation: values.confirmPassword });
+      setValues(emptyFields); setVisible(hiddenFields); setErrors({}); setSuccess(true);
+    } catch (error) {
+      const data = (error as { response?: { data?: { error?: string; errors?: string[] | Record<string, string[]> } } }).response?.data;
+      const message = data?.error || (Array.isArray(data?.errors) ? data.errors.join(', ') : data?.errors ? Object.entries(data.errors).map(([key, messages]) => `${key.replace(/_/g, ' ')} ${Array.isArray(messages) ? messages.join(', ') : messages}`).join('. ') : 'Couldn’t change your password. Please try again.');
+      setServerError(message);
+    } finally { pending.current = false; setSaving(false); }
+  }
+  return <div className={`dashboard-overview password-page ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>Change Password | ProxySock</title></Helmet>
+    <header className="overview-heading"><div><span className="overview-eyebrow">Your workspace</span><h1>Change password</h1><p>Update the password you use to sign in.</p></div><Link className="overview-button" to="/dashboard/profile">Profile settings <ArrowUpRight size={14} aria-hidden="true" /></Link></header>
+    {!user ? <section className="overview-auth"><h2>Sign in to change your password</h2><Link to="/login">Back to login</Link></section> : <div className="profile-layout">
+      <section className="profile-panel" aria-labelledby="password-form-title"><div className="overview-section-heading"><div><h2 id="password-form-title">Password details</h2><p>Enter your current password, then choose a new one.</p></div></div>
+        {success && <p className="profile-feedback" role="status">Your password has been changed.</p>}
+        <form className="password-form" onSubmit={submit} noValidate aria-busy={saving}>
+          {fields.map(field => <div className="password-field" key={field.key}><label htmlFor={field.key}>{field.label}</label><div className="password-input"><input id={field.key} name={field.key} type={visible[field.key] ? 'text' : 'password'} autoComplete={field.autoComplete} required disabled={saving} spellCheck={false} autoCapitalize="none" value={values[field.key]} onChange={event => change(field.key, event.target.value)} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `${field.key}-error` : field.key === 'newPassword' ? 'password-requirement' : undefined} /><button type="button" disabled={saving} onClick={() => setVisible(current => ({ ...current, [field.key]: !current[field.key] }))} aria-label={`${visible[field.key] ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`} aria-controls={field.key}>{visible[field.key] ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button></div>{field.key === 'newPassword' && <p id="password-requirement">Use at least 8 characters.</p>}{errors[field.key] && <p className="password-error" id={`${field.key}-error`} role="alert">{errors[field.key]}</p>}</div>)}
+          {serverError && <p className="password-error profile-feedback" role="alert">{serverError}</p>}
+          <div className="profile-actions"><button type="submit" className="profile-save" disabled={saving}>{saving ? 'Updating password…' : 'Update password'}</button></div>
+        </form>
+      </section>
+      <aside className="profile-panel profile-account" aria-labelledby="password-account-title"><h2 id="password-account-title">Your account</h2><dl><div><dt>Email address</dt><dd>{user.email || 'Not available'}</dd></div><div><dt>Username</dt><dd>{user.username || 'Not available'}</dd></div></dl><Link to="/forgot-password"><span>Forgot your current password?</span><ArrowUpRight size={15} aria-hidden="true" /></Link><Link to="/dashboard/support"><span>Get account help</span><ArrowUpRight size={15} aria-hidden="true" /></Link></aside>
+    </div>}
+  </div>;
 }

@@ -19,9 +19,9 @@ export const WhyChooseUs = () => (
       <div className="trust-section-summary"><p>The services you need, with a simpler way to set up, stay connected, and keep your work moving.</p></div>
     </div>
     <div className="trust-benefit-grid">
-      {benefits.map((benefit, index) => (
+      {benefits.map((benefit) => (
         <article className="trust-benefit" key={benefit.title}>
-          <div className="trust-benefit-top"><benefit.icon size={26} strokeWidth={1.4} aria-hidden="true" /><span aria-hidden="true">0{index + 1}</span></div>
+          <div className="trust-benefit-top"><benefit.icon size={26} strokeWidth={1.4} aria-hidden="true" /></div>
           <h3>{benefit.title}</h3>
           <p>{benefit.description}</p>
           <div className="trust-benefit-label"><span aria-hidden="true" />{benefit.label}</div>

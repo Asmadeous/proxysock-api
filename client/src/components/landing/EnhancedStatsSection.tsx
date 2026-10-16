@@ -18,7 +18,6 @@ export const EnhancedStatsSection = () => {
 
   return (
     <section ref={ref} className="trust-section trust-scale" aria-labelledby="stats-heading">
-      <div className="trust-section-rail"><span>Our network, in numbers</span></div>
       <div className="trust-section-intro">
         <h2 id="stats-heading">Built for scale.<br /><span>Ready for you.</span></h2>
         <div className="trust-section-summary">
@@ -28,9 +27,9 @@ export const EnhancedStatsSection = () => {
         </div>
       </div>
       <dl className="trust-metrics">
-        {metrics.map((metric, index) => (
+        {metrics.map((metric) => (
           <div className="trust-metric" key={metric.label}>
-            <dt><span className="trust-metric-index" aria-hidden="true">0{index + 1}</span>{metric.label}</dt>
+            <dt>{metric.label}</dt>
             <dd className="trust-metric-value">
               <span className="sr-only">{metric.display}</span>
               <span aria-hidden="true">{inView && !reducedMotion && metric.value !== null

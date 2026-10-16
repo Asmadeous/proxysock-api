@@ -23,7 +23,6 @@
 .trust-metric:first-child { padding-left: 0; }
 .trust-metric:last-child { border-right: 0; }
 .trust-metric dt { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-.trust-metric-index { color: var(--trust-accent); font: 9px monospace; }
 .trust-metric-value { color: var(--trust-accent); font-size: clamp(36px, 4.2vw, 80px); font-weight: 500; line-height: 1; letter-spacing: -.065em; margin: 34px 0 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .trust-metric-detail { font-size: 11px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
 .trust-benefits { background: linear-gradient(var(--trust-wash), var(--trust-wash)), hsl(var(--background)); }
@@ -31,7 +30,6 @@
 .trust-benefit { padding: clamp(24px, 3vw, 48px); border-bottom: 1px solid var(--trust-line); border-right: 1px solid var(--trust-line); display: flex; flex-direction: column; transition: background-color .25s; }
 .trust-benefit:hover { background: var(--trust-wash); }
 .trust-benefit-top { display: flex; align-items: center; justify-content: space-between; color: var(--trust-accent); margin-bottom: 36px; }
-.trust-benefit-top > span { font: 10px monospace; color: hsl(var(--muted-foreground)); }
 .trust-benefit h3 { font-size: clamp(19px, 1.65vw, 28px); line-height: 1.2; font-weight: 500; letter-spacing: -.035em; margin-bottom: 14px; }
 .trust-benefit > p { font-size: 13px; line-height: 1.8; max-width: 370px; color: hsl(var(--muted-foreground)); }
 .trust-benefit-label { display: flex; align-items: center; gap: 8px; padding-top: 32px; margin-top: auto; font: 9px/1.5 monospace; color: var(--trust-accent); text-transform: uppercase; letter-spacing: .07em; }

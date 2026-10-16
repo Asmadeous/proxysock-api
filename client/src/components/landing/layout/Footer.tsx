@@ -37,10 +37,6 @@ export const Footer = () => {
             <div><h2><span>//</span> Infrastructure</h2><ul className="footer-network"><li>25+ Data Centers</li><li>150+ Countries</li><li>99.9% Uptime SLA</li><li>24/7 Monitoring</li></ul></div>
           </nav>
         </div>
-        <div className="footer-signature">
-          <div><span className="footer-signature-label">One account. Every connection.</span><p>Proxies · VPS · RDP · VPN · eSIM</p></div>
-          <Link to="/" aria-label="ProxySock home" className="footer-large-logo"><img src={wordmark} alt="" /></Link>
-        </div>
         <SecurePaymentsSection variant="footer" />
         <div className="footer-bottom"><p>© {new Date().getFullYear()} ProxySock. All rights reserved.</p><span>Built for a connected world.</span></div>
       </div>

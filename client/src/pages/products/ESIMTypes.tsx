@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Globe, Info, MessageSquare, Phone, Plane, Signal, Smartphone, type LucideIcon } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowRight, ArrowUpRight, Globe, Info, MessageSquare, Phone, Plane, Signal, Smartphone, type LucideIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import ESIMPurchaseLayout from "./ESIMPurchaseLayout";
 
 import { formatDataVolume, formatPrice, packageCountries, useESIMPackages, useEsimCatalog } from "@/hooks/useESIMPackages";
 
-import { CarrierLogo, CountryFlag, PHONE_LINES, carrierOf, toUsaEsimPlan } from "./phoneLines";
+import { CarrierLogo, PHONE_LINES, carrierOf, toUsaEsimPlan } from "./phoneLines";
 
 interface ESIMTypesProps {
   onNavigateUSA?: () => void;
@@ -20,9 +20,6 @@ interface Service {
   description: string;
   icon: LucideIcon;
   features: [LucideIcon, string][];
-  flags: string[];
-  // Shown after the flags when the service covers more countries than it lists.
-  moreFlags?: string;
   stats: Stat[];
   carriers?: string[];
   action: string;
@@ -32,7 +29,8 @@ interface Service {
 
 export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypesProps = {}) {
   // Live numbers from the catalog, so the page sells what we actually offer.
-  const { data: catalog = [], isLoading: catalogLoading } = useEsimCatalog();
+  const { data: catalog = [], isLoading: catalogLoading, isError, refetch, isFetching } = useEsimCatalog();
+  const { pathname } = useLocation();
   const { packages: dataPlans, loading: dataLoading } = useESIMPackages({});
   const loading = catalogLoading || dataLoading;
 
@@ -66,15 +64,14 @@ export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypes
 
   const services: Service[] = [
     {
-      title: "Voice, Data + Text eSIM",
-      description: "A real local phone number for everyday calls, texts and mobile data.",
+      title: "Phone-number eSIM",
+      description: "USA and UK phone numbers, with calls, texts and data depending on your plan.",
       icon: Phone,
       features: [
         [Smartphone, "USA or UK phone number"],
-        [MessageSquare, "Calls and texts included"],
+        [MessageSquare, "Compare call, text and data allowances"],
         [Signal, "Mobile data on major carriers"],
       ],
-      flags: ["US", "GB"],
       stats: [
         ["Countries", "USA & UK"],
         ["Plans", String(voice.count)],
@@ -86,17 +83,14 @@ export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypes
       onNavigate: onNavigateUSA,
     },
     {
-      title: "Data Only eSIM",
+      title: "Data-only eSIM",
       description: "Mobile internet for travel, browsing and staying in touch through apps.",
       icon: Globe,
       features: [
         [Signal, "Mobile data, no phone number"],
         [Globe, "Country, regional and global plans"],
-        [Plane, "Made for travel: use WhatsApp and apps over data"],
+        [Plane, "Use messaging and calling apps over data"],
       ],
-      // A few popular destinations; the Data Only page covers many more.
-      flags: ["FR", "GB", "JP", "AE", "TR", "TH"],
-      moreFlags: data.countries > 6 ? `+${data.countries - 6} more` : undefined,
       stats: [
         ["Countries", String(data.countries)],
         ["Data", dataRange],
@@ -109,94 +103,23 @@ export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypes
   ];
 
   return (
-    <div className="w-full space-y-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Find your eSIM plan</h1>
-        <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-          Choose a service to compare plans, check coverage, and add your selection to the cart.
-        </p>
+    <ESIMPurchaseLayout>
+      <header className="overview-heading">
+        <div><span className="overview-eyebrow">Your infrastructure</span><h1>eSIM</h1><p>Choose data only or a plan with a phone number.</p></div>
+        {pathname.startsWith('/dashboard') && <Link className="overview-button" to="/dashboard/Esim-management">My eSIMs <ArrowUpRight size={14} aria-hidden="true" /></Link>}
       </header>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        {services.map((service) => {
-          const Icon = service.icon;
-          const button = (
-            <>
-              {service.action}
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </>
-          );
-          return (
-            <section
-              key={service.title}
-              className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/50 sm:p-7"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
-                  <Icon aria-hidden="true" className="h-6 w-6 text-primary" />
-                </span>
-                <span className="flex flex-wrap items-center justify-end gap-1.5" aria-label={service.moreFlags ? "Popular destinations" : "Available countries"}>
-                  {service.flags.map((code) => <CountryFlag key={code} country={code} className="h-6 w-8" />)}
-                  {service.moreFlags && <span className="text-xs font-medium text-muted-foreground">{service.moreFlags}</span>}
-                </span>
-              </div>
-              <h2 className="mt-5 text-2xl font-bold tracking-tight">{service.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{service.description}</p>
-              <dl className="mt-6 grid grid-cols-3 gap-2">
-                {service.stats.map(([label, value]) => (
-                  <div key={label} className="min-w-0 rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
-                    <dd className="mt-0.5 text-sm font-bold leading-5">
-                      {loading ? <span aria-hidden="true" className="block h-5 w-16 animate-pulse rounded bg-muted" /> : value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              {service.carriers && service.carriers.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Carriers</p>
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {service.carriers.map((name) => (
-                      <li key={name} title={name}>
-                        <CarrierLogo carrier={name} className="h-9 w-20" />
-                        <span className="sr-only">{name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <ul className="my-6 space-y-3">
-                {service.features.map(([FeatureIcon, text]) => (
-                  <li key={text} className="flex items-start gap-3 text-sm font-medium">
-                    <FeatureIcon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              {service.onNavigate ? (
-                <Button onClick={service.onNavigate} className="mt-auto min-h-12 h-auto gap-2 whitespace-normal rounded-full font-semibold">
-                  {button}
-                </Button>
-              ) : (
-                <Button asChild className="mt-auto min-h-12 h-auto gap-2 whitespace-normal rounded-full font-semibold">
-                  <Link to={service.href}>{button}</Link>
-                </Button>
-              )}
-            </section>
-          );
-        })}
+      {isError && <div className="overview-error" role="alert"><div><strong>We couldn’t load eSIM availability.</strong><p>Try again for current plans and prices.</p></div><button type="button" disabled={isFetching} onClick={() => refetch()}>{isFetching ? 'Retrying…' : 'Try again'}</button></div>}
+      <div className="esim-service-grid" aria-busy={loading}>
+        {services.map(service => <section key={service.title} className="esim-service-card">
+          <service.icon size={23} strokeWidth={1.5} aria-hidden="true" />
+          <h2>{service.title}</h2><p>{service.description}</p>
+          <dl className="esim-service-stats">{service.stats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{loading ? 'Loading…' : isError ? 'Unavailable' : value || 'Not available'}</dd></div>)}</dl>
+          {service.carriers && service.carriers.length > 0 && !isError && <div className="esim-carriers" aria-label="Carriers">{service.carriers.map(name => <span key={name} title={name}><CarrierLogo carrier={name} className="h-8 w-16" /><span className="sr-only">{name}</span></span>)}</div>}
+          <ul className="esim-service-features">{service.features.map(([Icon, text]) => <li key={text}><Icon size={15} strokeWidth={1.5} aria-hidden="true" />{text}</li>)}</ul>
+          {service.onNavigate ? <button type="button" className="esim-service-action" onClick={service.onNavigate}>{service.action}<ArrowRight size={15} aria-hidden="true" /></button> : <Link className="esim-service-action" to={service.href}>{service.action}<ArrowRight size={15} aria-hidden="true" /></Link>}
+        </section>)}
       </div>
-
-      <aside className="flex gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-5">
-        <Info aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-        <div>
-          <h2 className="text-sm font-semibold">Before you choose</h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Check that your phone is unlocked and supports eSIM. Review the plan's coverage, validity and activation
-            instructions before purchasing. Available plans vary by country.
-          </p>
-        </div>
-      </aside>
-    </div>
+      <aside className="esim-compatibility"><Info size={17} aria-hidden="true" /><p>Your phone must be unlocked and support eSIM. Check the plan’s coverage, validity and device requirements before purchasing.</p></aside>
+    </ESIMPurchaseLayout>
   );
 }

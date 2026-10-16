@@ -1,662 +1,150 @@
-import { useEffect, useState } from "react";
-import {
-  Check,
-  ShoppingCart,
-  X,
-  Shield,
-  Globe,
-  Zap,
-  Info,
-  MapPin,
-  Package,
-  Loader2,
-} from "lucide-react";
-import {
-  fetchVPNCategory,
-  VPNCategory,
-  VPNPlan,
-} from "../../services/myProxyService";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-
-interface ISP {
-  id: number;
-  name: string;
-  slug: string;
-  locations?: Record<string, { name: string; cities?: City[] }>;
-}
-
-interface City {
-  id: number;
-  name: string;
-  state: string;
-  ips_available: number;
-}
-
-interface CartItem {
-  product: string;
-  productType: "proxy" | "vpn";
-  categorySlug: string;
-  categoryName?: string;
-  vpnPlan: VPNPlan | null;
-  locations: {
-    isp: ISP | null;
-    city: City | null;
-  };
-  locationsString: string;
-  locationId?: number;
-  period: number;
-  protocol: "http" | "socks5";
-  totalPrice?: number;
-}
-
-const VPNPlanCardSkeleton = () => (
-  <Card className="cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-md">
-    <CardHeader>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Skeleton className="w-10 h-10 rounded-lg" />
-          </div>
-          <Skeleton className="h-6 w-3/4" />
-        </div>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Skeleton className="h-6 w-24" />
-        <Skeleton className="h-6 w-20" />
-      </div>
-
-      <div className="mb-3">
-        <Skeleton className="h-4 w-20 mb-2" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-18" />
-        </div>
-      </div>
-
-      <div>
-        <Skeleton className="h-4 w-32 mb-2" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-8 w-14" />
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-8 w-12" />
-        </div>
-      </div>
-
-      <div className="mt-4 pt-4 border-t flex items-center justify-between">
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="h-8 w-16" />
-      </div>
-    </CardContent>
-  </Card>
-);
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowRight, ArrowUpRight, Check, Shield, X } from 'lucide-react';
+import { fetchVPNCategory, type VPNCategory, type VPNPlan } from '@/services/myProxyService';
+import type { City, ISP } from '@/types';
+import { useThemeStore } from '@/store/themeStore';
+import '../UserDashboard/dashboard-home.css';
+import './vpn-plans.css';
 
 interface VPNPlansProps {
   isDirectBuy?: boolean;
   onDirectBuy?: (productId: string | number, quantity: number, metadata: any) => Promise<void>;
 }
+interface VPNLocation { isp: ISP; country: string; city: City }
+const duration = (plan: VPNPlan) => Number(plan.name.match(/(\d+)\s*day/i)?.[1] || 30);
+const price = (plan: VPNPlan) => new Intl.NumberFormat('en-US', { style: 'currency', currency: plan.currency || 'USD' }).format(Number(plan.price));
+const bandwidth = (plan: VPNPlan) => plan.bandwidth_gb === 0 ? 'Unlimited bandwidth' : `${plan.bandwidth_gb} GB bandwidth`;
 
 export default function BuyVPN({ isDirectBuy, onDirectBuy }: VPNPlansProps = {}) {
-  const [vpnCategory, setVpnCategory] = useState<VPNCategory | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [selectedIsp, setSelectedIsp] = useState<ISP | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [selectedCity, setSelectedCity] = useState<City | null>(null);
-  const [showSuccessAlert, setShowSuccessAlert] = useState<boolean>(false);
-  const [isProvisioning, setIsProvisioning] = useState<boolean>(false);
+  const dark = useThemeStore(state => state.dark);
+  const { pathname } = useLocation();
+  const storefront = pathname.startsWith('/dashboard');
+  const [category, setCategory] = useState<VPNCategory | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [location, setLocation] = useState<VPNLocation | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const purchasePending = useRef(false);
+  const plan = category?.vpn_plans?.find(item => item.id === planId);
+  const locations = plan?.isp?.flatMap(isp => Object.entries(isp.locations || {}).flatMap(([code, country]) => {
+    const cities = (country.cities || []).filter(city => city.ips_available > 0).sort((a, b) => a.name.localeCompare(b.name));
+    return cities.length ? [{ isp, code, country: country.name, cities }] : [];
+  })) || [];
+  let infrastructureReseller = false;
+  try { infrastructureReseller = JSON.parse(localStorage.getItem('resellerUser') || '{}')?.reseller_type === 'infrastructure'; } catch { /* No saved reseller session. */ }
 
   useEffect(() => {
-    const loadVPNCategory = async () => {
-      try {
-        setLoading(true);
-        const categoryData = await fetchVPNCategory();
-        if (!categoryData) {
-          setError("VPN service is currently unavailable.");
-          return;
-        }
-        setVpnCategory(categoryData);
-      } catch (err) {
-        console.error("Error loading VPN category:", err);
-        setError("Failed to load VPN plans. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadVPNCategory();
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    fetchVPNCategory().then(data => {
+      if (!cancelled) setCategory(data);
+    }).catch(() => {
+      if (!cancelled) setLoadError(true);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [retry]);
 
-  const togglePlanSelection = (planId: string) => {
-    if (selectedPlan === planId) {
-      setSelectedPlan(null);
-      setSelectedIsp(null);
-      setSelectedCountry("");
-      setSelectedCity(null);
-      return;
-    }
-    setSelectedPlan(planId);
-    setSelectedIsp(null);
-    setSelectedCountry("");
-    setSelectedCity(null);
+  const choosePlan = (id: string) => {
+    if (id === planId) return;
+    setPlanId(id);
+    setLocation(null);
+    setPurchaseError(null);
+    setSuccess(false);
   };
 
-  const handleAddToCart = () => {
-    const plan = vpnCategory?.vpn_plans?.find((p) => p.id === selectedPlan);
-
-    if (!selectedPlan || !plan || !vpnCategory) {
-      setError("Please select a VPN plan.");
-      return;
-    }
-
-    if (!selectedCity) {
-      setError("Please select a city location.");
-      return;
-    }
-
-    const durationMatch = plan.name.match(/(\d+)\s*day/i);
-    const durationDays = durationMatch ? Number.parseInt(durationMatch[1]) : 30;
-
-    const locationsString = `${selectedIsp?.name || "Provider"} - ${selectedCity.name}, ${selectedCity.state} (${selectedCountry})`;
-
-    if (isDirectBuy && onDirectBuy) {
-        setIsProvisioning(true);
-        onDirectBuy(plan.plan_id, 1, {
-            period: durationDays,
-            locationId: selectedCity.id,
-            locationsString
-        }).then(() => {
-            setShowSuccessAlert(true);
-            setTimeout(() => setShowSuccessAlert(false), 3000);
-            setError(null);
-            setSelectedPlan(null);
-            setSelectedIsp(null);
-            setSelectedCountry("");
-            setSelectedCity(null);
-        }).catch((err) => {
-            setError(err.response?.data?.error || "Failed to provision item.");
-        }).finally(() => {
-            setIsProvisioning(false);
-        });
-        return;
-    }
-
-    const newCartItem: CartItem = {
-      product: String(plan.plan_id),
-      productType: "vpn",
-      categorySlug: vpnCategory.slug,
-      categoryName: vpnCategory.name,
-      vpnPlan: plan,
-      locations: {
-        isp: selectedIsp,
-        city: selectedCity,
-      },
-      locationsString,
-      locationId: selectedCity.id,
-      period: durationDays,
-      protocol: "http",
-      totalPrice: Number(plan.price),
-    };
-
+  const purchase = async () => {
+    if (!plan || !category || !location || purchasePending.current || infrastructureReseller) return;
+    purchasePending.current = true;
+    setPurchasing(true);
+    setPurchaseError(null);
+    const locationsString = `${location.isp.name} - ${location.city.name}, ${location.city.state} (${location.country})`;
+    const metadata = { period: duration(plan), locationId: location.city.id, locationsString };
     try {
-      const existingCart = JSON.parse(
-        localStorage.getItem("cartItems") || "[]",
-      );
-      const updatedCart = [...existingCart, newCartItem];
-      localStorage.setItem("cartItems", JSON.stringify(updatedCart));
-      globalThis.dispatchEvent(
-        new CustomEvent("cart-updated", {
-          detail: { count: updatedCart.length },
-        }),
-      );
-
-      setShowSuccessAlert(true);
-      setTimeout(() => setShowSuccessAlert(false), 3000);
-      setError(null);
-      setSelectedPlan(null);
-      setSelectedIsp(null);
-      setSelectedCountry("");
-      setSelectedCity(null);
-    } catch (err) {
-      setError("Failed to add item to cart. Please try again.");
+      if (isDirectBuy) {
+        if (!onDirectBuy) throw new Error('Direct purchase is unavailable. Please try again later.');
+        await onDirectBuy(plan.plan_id, 1, metadata);
+      } else {
+        const existing = JSON.parse(localStorage.getItem('cartItems') || '[]');
+        if (!Array.isArray(existing)) throw new Error('Your cart could not be read. Please check your cart and try again.');
+        const cart = [...existing, {
+          product: String(plan.plan_id), productType: 'vpn', categorySlug: category.slug,
+          categoryName: category.name, vpnPlan: plan,
+          locations: { isp: location.isp, city: location.city }, ...metadata,
+          protocol: 'http', totalPrice: Number(plan.price),
+        }];
+        localStorage.setItem('cartItems', JSON.stringify(cart));
+        globalThis.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: cart.length } }));
+      }
+      setSuccess(true);
+      setPlanId(null);
+      setLocation(null);
+    } catch (error) {
+      const failure = error as { response?: { data?: { error?: string } }; message?: string };
+      setPurchaseError(failure.response?.data?.error || failure.message || 'Your purchase could not be completed. Please try again.');
+    } finally {
+      purchasePending.current = false;
+      setPurchasing(false);
     }
   };
-
-  const renderVPNPlans = () => {
-    if (error && !vpnCategory) {
-      return (
-        <Card className="border-l-4 border-l-destructive bg-destructive/5">
-          <CardContent className="py-6 text-center">
-            <p className="text-destructive">{error}</p>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (!vpnCategory?.vpn_plans || vpnCategory.vpn_plans.length === 0) {
-      return (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="p-4 bg-muted rounded-full mb-4">
-              <Package className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold mb-2">No Plans Available</h3>
-            <p className="text-sm text-muted-foreground">
-              No VPN plans available at the moment
-            </p>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (loading) {
-      return (
-        <div className="grid gap-4">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <VPNPlanCardSkeleton key={index} />
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid gap-4">
-        {vpnCategory.vpn_plans.map((plan) => (
-          <Card
-            key={plan.plan_id}
-            className={`cursor-pointer transition-all duration-200 ${selectedPlan === plan.id
-                ? "border-primary shadow-lg bg-primary/5"
-                : "hover:border-primary/50 hover:shadow-md"
-              }`}
-            onClick={() => togglePlanSelection(plan.id)}
-          >
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-2 bg-amber-500/10 rounded-lg">
-                      <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                    </div>
-                  </div>
-                  <CardTitle className="text-lg">{plan.name}</CardTitle>
-                </div>
-                {selectedPlan === plan.id && (
-                  <div className="p-2 bg-primary rounded-full ml-4">
-                    <Check className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {plan.bandwidth_gb > 0 && (
-                  <Badge variant="warning" className="gap-1">
-                    <Zap className="w-3 h-3" />
-                    {plan.bandwidth_gb} GB Bandwidth
-                  </Badge>
-                )}
-                {plan.bandwidth_gb === 0 && (
-                  <Badge variant="success" className="gap-1">
-                    <Zap className="w-3 h-3" />
-                    Unlimited Bandwidth
-                  </Badge>
-                )}
-                {plan.locations && plan.locations.length > 0 && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Globe className="w-3 h-3" />
-                    {plan.locations.length}{" "}
-                    {plan.locations.length === 1 ? "Country" : "Countries"}
-                  </Badge>
-                )}
-              </div>
-
-              {plan.isp && plan.isp.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Providers:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {plan.isp.map((isp) => (
-                      <div
-                        key={isp.id}
-                        className="flex items-center gap-2 bg-muted rounded-md px-3 py-1.5 border"
-                      >
-                        <Globe className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs">{isp.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {plan.locations && plan.locations.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Available Countries:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {plan.locations.map((location, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 bg-blue-500/10 rounded-md px-3 py-1.5 border border-blue-500/20"
-                      >
-                        <Globe className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                        <span className="text-xs text-blue-600 dark:text-blue-400">
-                          {location}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Price</span>
-                <span className="text-2xl font-bold text-primary">
-                  ${Number(plan.price).toFixed(2)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  };
-
-  const selectedPlanData = vpnCategory?.vpn_plans?.find(
-    (p) => p.id === selectedPlan,
-  );
-
-  const hasAvailableLocations =
-    selectedPlanData?.isp?.some(
-      (isp: ISP) =>
-        isp.locations &&
-        Object.values(isp.locations).some(
-          (loc: any) =>
-            loc.cities && loc.cities.some((c: City) => c.ips_available > 0),
-        ),
-    ) ?? false;
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          {/* <div className="p-2 bg-amber-500/10 rounded-lg">
-            <Shield className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-          </div> */}
-          <h1 className="text-3xl font-semibold text-foreground">
-            VPN Services
-          </h1>
+    <div className={`dashboard-overview vpn-purchase ${dark ? 'overview-dark' : ''} ${!storefront ? 'vpn-purchase-embedded' : ''}`}>
+      <header className="overview-heading">
+        <div><span className="overview-eyebrow">Your infrastructure</span><h1>VPN</h1><p>Choose a plan and a location for your next connection.</p></div>
+        {storefront && <Link className="overview-button" to="/dashboard/vpn-management">My VPNs <ArrowUpRight size={14} aria-hidden="true" /></Link>}
+      </header>
+
+      {success && <div className="vpn-success" role="status"><Check size={18} aria-hidden="true" /><div><strong>{isDirectBuy ? 'VPN purchase completed.' : 'Added to cart.'}</strong><p>{isDirectBuy ? 'Your VPN purchase was submitted successfully.' : 'Your plan and location are saved. Continue to your cart when you’re ready.'}</p></div>{storefront && !isDirectBuy && <Link to="/dashboard/cart">View cart <ArrowRight size={14} aria-hidden="true" /></Link>}<button type="button" aria-label="Dismiss confirmation" onClick={() => setSuccess(false)}><X size={17} /></button></div>}
+
+      <div className="vpn-purchase-grid">
+        <div className="vpn-options">
+          <section aria-labelledby="vpn-plans-title" aria-busy={loading}>
+            <div className="overview-section-heading"><div><h2 id="vpn-plans-title">Choose your plan</h2><p>Find the duration and bandwidth you need.</p></div></div>
+            {loading ? <div className="vpn-loading" role="status">Loading VPN plans…{[0, 1, 2].map(item => <span key={item} className="overview-skeleton" />)}</div>
+              : loadError ? <div className="overview-error" role="alert"><div><strong>We couldn’t load VPN plans.</strong><p>Try again to see the latest availability.</p></div><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div>
+              : !category?.vpn_plans?.length ? <div className="vpn-panel vpn-empty"><Shield size={24} strokeWidth={1.4} aria-hidden="true" /><h3>No VPN plans available</h3><p>Check back soon for available plans.</p><button className="overview-button" type="button" onClick={() => setRetry(value => value + 1)}>Check availability</button></div>
+              : <div className="vpn-plan-list" role="group" aria-label="VPN plans">{category.vpn_plans.map(item => (
+                <button key={item.id} type="button" className="vpn-plan" aria-pressed={planId === item.id} aria-label={`Select ${item.name}`} disabled={purchasing} onClick={() => choosePlan(item.id)}>
+                  <span className="vpn-plan-heading"><strong>{item.name}</strong><span className="vpn-selection-mark" aria-hidden="true">{planId === item.id && <Check size={12} />}</span></span>
+                  <span className="vpn-plan-details">{duration(item)} days <span aria-hidden="true">·</span> {bandwidth(item)}</span>
+                  {item.locations?.length > 0 && <span className="vpn-plan-coverage">{item.locations.join(' · ')}</span>}
+                  <span className="vpn-plan-price"><strong>{price(item)}</strong><span>{item.currency || 'USD'} / {duration(item)} days</span></span>
+                </button>
+              ))}</div>}
+          </section>
+
+          {plan && <section className="vpn-location-section" aria-labelledby="vpn-location-title">
+            <div className="overview-section-heading"><div><h2 id="vpn-location-title">Choose your location</h2><p>Available cities, grouped by provider and country.</p></div></div>
+            {locations.length ? <div className="vpn-panel vpn-locations">{locations.map(group => <fieldset key={`${group.isp.id}-${group.code}`} disabled={purchasing}>
+              <legend>{group.isp.name}{' '}<span>{group.country}</span></legend>
+              <div className="vpn-city-grid">{group.cities.map(city => <label className="vpn-city" key={city.id}>
+                <input type="radio" name="vpn-location" checked={location?.isp.id === group.isp.id && location?.country === group.country && location?.city.id === city.id} onChange={() => { setLocation({ isp: group.isp, country: group.country, city }); setPurchaseError(null); }} />
+                <span><strong>{city.name}</strong>{' '}<small>{city.state}</small></span>
+              </label>)}</div>
+            </fieldset>)}</div> : <div className="vpn-panel vpn-empty"><h3>No locations available for this plan</h3><p>Choose another plan to check its available cities.</p></div>}
+          </section>}
         </div>
-        <p className="text-muted-foreground">
-          Secure, fast, and reliable VPN connections worldwide
-        </p>
+
+        <aside className="vpn-summary" aria-labelledby="vpn-summary-title">
+          <div className="vpn-panel vpn-summary-panel"><h2 id="vpn-summary-title">Your VPN plan</h2>
+            {plan ? <>
+              <dl><div><dt>Plan</dt><dd>{plan.name}</dd></div><div><dt>Duration</dt><dd>{duration(plan)} days</dd></div><div><dt>Bandwidth</dt><dd>{plan.bandwidth_gb === 0 ? 'Unlimited' : `${plan.bandwidth_gb} GB`}</dd></div><div><dt>Provider</dt><dd>{location?.isp.name || 'Choose a location'}</dd></div><div><dt>Location</dt><dd>{location ? `${location.city.name}, ${location.city.state} · ${location.country}` : 'Not selected'}</dd></div></dl>
+              <div className="vpn-total"><span>Total<strong>{price(plan)}</strong></span><small>{plan.currency || 'USD'} · {duration(plan)} days · One-time payment</small></div>
+              {infrastructureReseller ? <p className="vpn-summary-note">Purchasing is unavailable for this reseller account type.</p> : <><button type="button" className="vpn-purchase-button" onClick={purchase} disabled={!location || purchasing || (isDirectBuy && !onDirectBuy)}>{purchasing ? 'Processing…' : isDirectBuy ? 'Instantly provision' : 'Add to cart'}<ArrowRight size={15} aria-hidden="true" /></button>{!location && <p className="vpn-summary-note">{locations.length ? 'Choose a location to continue.' : 'Select a plan with available locations to continue.'}</p>}</>}
+              {purchaseError && <div role="alert" className="vpn-purchase-error">{purchaseError}</div>}
+            </> : <div className="vpn-summary-empty"><Shield size={28} strokeWidth={1.3} aria-hidden="true" /><h3>Your connection starts here.</h3><p>Select a plan to see its locations and review your total.</p></div>}
+          </div>
+          {storefront && <div className="vpn-help"><h3>A little help getting connected.</h3><p>Find setup instructions or talk to our support team.</p><Link to="/HowToConnect">Browse setup guides <ArrowUpRight size={14} aria-hidden="true" /></Link><Link to="/dashboard/support">Get support <ArrowUpRight size={14} aria-hidden="true" /></Link></div>}
+        </aside>
       </div>
-
-      {/* Success Alert */}
-      {showSuccessAlert && (
-        <Card className="border-l-4 border-l-emerald-500 bg-emerald-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Check className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-emerald-600">Added to Cart!</h3>
-              <p className="text-sm text-muted-foreground">
-                Your VPN plan has been added to cart.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowSuccessAlert(false)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Plans Section */}
-        <div className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Available VPN Plans</h2>
-          {renderVPNPlans()}
-        </div>
-
-        {/* Configuration Section */}
-        <div className="lg:col-span-1">
-          {selectedPlan && selectedPlanData ? (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Order Summary</h2>
-
-              {/* Selected Plan Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Selected Plan</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plan:</span>
-                    <span className="font-medium">{selectedPlanData.name}</span>
-                  </div>
-                  {(selectedPlanData.bandwidth_gb > 0 ||
-                    selectedPlanData.bandwidth_gb === 0) && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Bandwidth:</span>
-                        <span className="font-medium">
-                          {selectedPlanData.bandwidth_gb > 0
-                            ? `${selectedPlanData.bandwidth_gb} GB`
-                            : "Unlimited"}
-                        </span>
-                      </div>
-                    )}
-                </CardContent>
-              </Card>
-
-              {/* Location Selection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    Select City Location
-                  </CardTitle>
-                  <CardDescription>
-                    Choose your VPN server location
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {hasAvailableLocations ? (
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {selectedPlanData.isp!.map((isp: ISP) => (
-                        <div
-                          key={isp.id}
-                          className={`p-4 rounded-lg border-2 transition-all ${selectedIsp?.id === isp.id
-                              ? "border-primary bg-primary/5"
-                              : "border-border"
-                            }`}
-                        >
-                          <div className="flex items-center gap-2 mb-3">
-                            <Globe className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                            <span className="font-semibold">{isp.name}</span>
-                          </div>
-                          {isp.locations &&
-                            Object.entries(isp.locations).map(
-                              ([code, loc]: [string, any]) => {
-                                if (!loc.cities || loc.cities.length === 0)
-                                  return null;
-                                const availableCities = loc.cities
-                                  .filter((c: City) => c.ips_available > 0)
-                                  .sort((a: City, b: City) =>
-                                    a.name.localeCompare(b.name),
-                                  );
-                                if (availableCities.length === 0) return null;
-
-                                return (
-                                  <div key={code} className="mb-3 last:mb-0">
-                                    <div className="font-medium text-sm text-muted-foreground mb-2 flex items-center gap-2">
-                                      <MapPin className="w-4 h-4" />
-                                      {loc.name}
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                      {availableCities.map((city: City) => (
-                                        <button
-                                          key={city.id}
-                                          onClick={() => {
-                                            setSelectedIsp(isp);
-                                            setSelectedCountry(loc.name);
-                                            setSelectedCity(city);
-                                          }}
-                                          className={`p-3 rounded-lg text-left transition-all border-2 flex items-center justify-between ${selectedCity?.id === city.id &&
-                                              selectedIsp?.id === isp.id
-                                              ? "border-primary bg-primary text-primary-foreground"
-                                              : "border-border hover:border-primary/50 hover:bg-muted/50"
-                                            }`}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <MapPin className="w-4 h-4" />
-                                            <div>
-                                              <div className="font-medium text-sm">
-                                                {city.name}
-                                              </div>
-                                              <div className="text-xs opacity-70">
-                                                {city.state}
-                                              </div>
-                                            </div>
-                                          </div>
-                                          {selectedCity?.id === city.id &&
-                                            selectedIsp?.id === isp.id && (
-                                              <Check className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              },
-                            )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-8 text-center">
-                      <div className="p-4 bg-muted rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                        <Info className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <p className="font-medium mb-2">No Locations Available</p>
-                      <p className="text-sm text-muted-foreground">
-                        No city locations are currently available for this plan.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Selected Location Summary */}
-              {selectedCity && (
-                <Card className="border-primary/50">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      Selected Location
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Provider:</span>
-                      <span className="font-medium">{selectedIsp?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Country:</span>
-                      <span className="font-medium">{selectedCountry}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">City:</span>
-                      <span className="font-medium">
-                        {selectedCity.name}, {selectedCity.state}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Add to Cart */}
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total Price:</span>
-                    <span className="text-2xl font-bold text-primary">
-                      ${Number(selectedPlanData.price).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    One-time payment
-                  </div>
-                  {JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure" && (
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={!selectedCity || isProvisioning}
-                      className="w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold"
-                    >
-                      {isProvisioning ? <Loader2 className="h-5 w-5 animate-spin" /> : isDirectBuy ? <Zap className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-                      {isProvisioning ? "Provisioning..." : isDirectBuy ? "Instantly Provision" : "Add to Cart"}
-                    </button>
-                  )}
-                  {error && (
-                    <Card className="border-l-4 border-l-destructive bg-destructive/5">
-                      <CardContent className="py-3">
-                        <p className="text-sm text-destructive">{error}</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="p-4 bg-muted rounded-full mb-4">
-                  <Info className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold mb-2">Select a VPN Plan</h3>
-                <p className="text-sm text-muted-foreground text-center">
-                  Choose a VPN plan to view details and add to cart
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* Information Section */}
-      {vpnCategory?.information && vpnCategory.information.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>About Our VPN Service</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {vpnCategory.information.map((info, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-sm text-muted-foreground">{info}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

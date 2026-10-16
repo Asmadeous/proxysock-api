@@ -1,0 +1,45 @@
+.esim-surface { --background: 0 33% 98%; --card: 0 100% 99%; --foreground: 344 19% 14%; --card-foreground: 344 19% 14%; --muted: 350 25% 95%; --muted-foreground: 345 8% 44%; --border: 350 18% 88%; --input: 350 18% 88%; --primary: 356 73% 46%; --primary-foreground: 0 0% 100%; --ring: 356 73% 46%; --accent: 350 25% 95%; --accent-foreground: 344 19% 14%; }
+.esim-surface.overview-dark { --background: 343 19% 7%; --card: 345 17% 9%; --foreground: 340 29% 94%; --card-foreground: 340 29% 94%; --muted: 345 15% 14%; --muted-foreground: 344 13% 66%; --border: 345 13% 20%; --input: 345 13% 20%; --primary: 356 88% 69%; --ring: 356 88% 69%; --accent: 345 15% 14%; --accent-foreground: 340 29% 94%; }
+.esim-purchase-embedded { margin: 0; padding: 0; min-height: 0; background: transparent; }
+.esim-purchase > * + *, .esim-catalog-content > * + * { margin-top: 24px; }
+.esim-purchase > .overview-heading { margin-top: 0; margin-bottom: 28px; }
+.esim-page-heading { margin-bottom: 28px; }
+.esim-page-heading h1 { font-size: clamp(29px,3vw,38px); line-height: 1.15; font-weight: 500; letter-spacing: -.045em; }
+.esim-page-heading > p { font-size: 12px; line-height: 1.7; max-width: 760px; margin-top: 10px; color: var(--ov-muted); }
+.esim-page-heading > :is(a,button) { border: 0; padding: 0; min-height: 32px; height: auto; margin-bottom: 18px; background: transparent; font-size: 11px; color: var(--ov-muted); box-shadow: none; }
+.esim-service-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.esim-service-card, .esim-country-card { display: flex; flex-direction: column; min-width: 0; text-align: left; background: var(--ov-panel); border: 1px solid var(--ov-line); border-radius: 4px; padding: 26px; }
+.esim-service-card > svg { color: var(--ov-accent); margin-bottom: 24px; }
+.esim-service-card h2 { font-size: 23px; font-weight: 500; letter-spacing: -.035em; }
+.esim-service-card > p { color: var(--ov-muted); font-size: 12px; line-height: 1.7; margin-top: 9px; max-width: 450px; }
+.esim-service-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border-block: 1px solid var(--ov-line); margin-top: 24px; padding-block: 18px; gap: 16px; }
+.esim-service-stats dt { color: var(--ov-muted); font-size: 10px; }
+.esim-service-stats dd { font-size: 13px; line-height: 1.6; margin-top: 6px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.esim-carriers { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.esim-service-features { display: grid; gap: 12px; margin: 24px 0; padding: 0; list-style: none; }
+.esim-service-features li { display: flex; align-items: start; gap: 10px; font-size: 12px; line-height: 1.6; }
+.esim-service-features svg { flex-shrink: 0; color: var(--ov-accent); margin-top: 2px; }
+.esim-service-action { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--ov-line); font-size: 12px; font-weight: 500; width: 100%; color: var(--ov-accent); }
+.esim-service-action:hover { text-decoration: underline; text-underline-offset: 4px; }
+.esim-country-card:hover { border-color: var(--ov-accent); }
+.esim-compatibility { display: flex; align-items: start; gap: 12px; padding: 18px 0; border-top: 1px solid var(--ov-line); color: var(--ov-muted); }
+.esim-compatibility svg { flex-shrink: 0; margin-top: 2px; }.esim-compatibility p { font-size: 12px; line-height: 1.7; max-width: 760px; }
+.esim-surface :is(.rounded-xl,.rounded-2xl,.rounded-lg), .esim-surface :is(button,a,li).rounded-full { border-radius: 4px; }
+.esim-surface :is(.shadow,.shadow-sm,.shadow-md,.shadow-lg) { box-shadow: none; }
+.esim-surface :is(.font-bold,.font-extrabold,.font-semibold) { font-weight: 500; }
+.esim-surface .text-2xl { font-size: 25px; letter-spacing: -.035em; }.esim-surface .text-xl { font-size: 18px; letter-spacing: -.025em; }.esim-surface .text-sm { font-size: 12px; }.esim-surface .text-lg { font-size: 16px; }
+.esim-surface :is(button,a).bg-primary { background: #e52530; color: white; }.esim-surface :is(button,a).bg-primary:hover { background: #cc1f2a; }
+.esim-surface button[aria-pressed="true"] { background: var(--ov-wash); color: var(--ov-accent); border-color: var(--ov-accent); }
+.esim-surface button[aria-pressed="true"]:hover { background: var(--ov-wash); }
+.esim-purchase article { border-color: var(--ov-line); padding: 21px; }
+.esim-purchase article ul[aria-label="Plan includes"] { gap: 8px; }
+.esim-purchase article ul[aria-label="Plan includes"] li { background: var(--ov-wash); border-color: var(--ov-line); font-weight: 400; }
+.esim-purchase article ul[aria-label="Plan includes"] svg { display: none; }
+.esim-purchase article h3 { font-size: 16px; font-weight: 500; letter-spacing: -.02em; }
+.esim-purchase article .text-2xl { font-size: 27px; font-variant-numeric: tabular-nums; }
+.esim-purchase article button { white-space: normal; }
+.esim-phone-dialog { width: calc(100% - 32px); border-radius: 4px; }
+.esim-phone-dialog :is(input,select,button) { border-radius: 4px; }
+.esim-phone-dialog :is(a,button,input,select):focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+@media(max-width:767px) { .esim-service-grid { grid-template-columns: 1fr; }.esim-service-card, .esim-country-card { padding: 21px; }.esim-service-card h2 { font-size: 21px; }.esim-service-stats { gap: 12px; }.esim-country-card > span:first-child { flex-wrap: wrap; }.esim-country-card > span:first-child > .ml-auto { width: 100%; margin-left: 0; text-align: left; }.esim-purchase article { padding: 18px; } }
+@media(prefers-reduced-motion:reduce) { .esim-surface *, .esim-phone-dialog { animation: none !important; transition: none !important; } }

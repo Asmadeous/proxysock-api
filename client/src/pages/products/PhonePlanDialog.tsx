@@ -1,3 +1,5 @@
+import { useThemeStore } from '@/store/themeStore';
+import './esim-purchase.css';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Cpu, Globe, Loader2, MapPin, Phone, QrCode, Signal, Smartphone } from 'lucide-react';
 
@@ -32,6 +34,7 @@ interface PhonePlanDialogProps {
 // details, the notices MeiSIM shows for its carrier, and exactly the device details
 // MeiSIM asks for. Name, email, gift and payment are left to our cart and checkout.
 export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClose, onSubmit }: PhonePlanDialogProps) {
+  const dark = useThemeStore(state => state.dark);
   const [imei, setImei] = useState('');
   const [eid, setEid] = useState('');
   const [useDefaultAddress, setUseDefaultAddress] = useState(true);
@@ -130,7 +133,7 @@ export default function PhonePlanDialog({ plan, submitLabel, isSubmitting, onClo
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className={`esim-surface esim-phone-dialog ${dark ? "overview-dark" : ""} max-h-[90vh] overflow-y-auto sm:max-w-lg`}>
         <DialogHeader>
           <DialogTitle>Plan details</DialogTitle>
           <DialogDescription className="sr-only">Details and device requirements for {plan.name}</DialogDescription>

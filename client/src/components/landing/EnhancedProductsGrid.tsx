@@ -120,7 +120,7 @@ export const EnhancedProductsGrid = ({ trackConversion, trackViewContent }: Enha
               articles.current[index]?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
               setActive(index);
             }}>
-            <span>0{index + 1}</span>{service.name}
+            {service.name}
           </a>
         ))}
       </nav>
@@ -129,7 +129,7 @@ export const EnhancedProductsGrid = ({ trackConversion, trackViewContent }: Enha
           {services.map((service, index) => (
             <article key={service.id} id={`infrastructure-${service.id}`} className="infrastructure-story"
               ref={(element) => { articles.current[index] = element; }} aria-labelledby={`title-${service.id}`}>
-              <div className="infrastructure-eyebrow"><service.icon size={16} aria-hidden="true" />{service.name}<span>0{index + 1} / 05</span></div>
+              <div className="infrastructure-eyebrow"><service.icon size={16} aria-hidden="true" />{service.name}</div>
               <h3 id={`title-${service.id}`}>{service.title}<br /><em>{service.accent}</em></h3>
               <p className="infrastructure-description">{service.description}</p>
               <div className="infrastructure-steps" aria-label={`${service.name} preview steps`}>
@@ -139,7 +139,6 @@ export const EnhancedProductsGrid = ({ trackConversion, trackViewContent }: Enha
                       setActive(index);
                       setSteps((previous) => previous.map((value, i) => i === index ? stepIndex : value));
                     }}>
-                    <span className="infrastructure-step-number">0{stepIndex + 1}</span>
                     <span><strong>{step.title}</strong><span>{step.description}</span></span>
                   </button>
                 ))}

@@ -5,21 +5,18 @@
 .infrastructure-nav { display: flex; padding: 0 var(--public-page-gutter); border-bottom: 1px solid var(--infra-line); gap: clamp(20px, 3vw, 48px); overflow-x: auto; }
 .infrastructure-nav a { display: flex; align-items: center; gap: 10px; padding: 22px 0; white-space: nowrap; font-size: 12px; border-bottom: 2px solid transparent; color: hsl(var(--muted-foreground)); }
 .infrastructure-nav a[aria-current] { color: var(--infra-accent); border-color: var(--infra-accent); }
-.infrastructure-nav a > span { font: 10px monospace; opacity: .6; }
 .infrastructure-grid { display: grid; grid-template-columns: 1fr 1fr; }
 .infrastructure-stories { min-width: 0; border-right: 1px solid var(--infra-line); }
 .infrastructure-story { position: relative; min-height: max(740px, calc(100svh - 100px)); display: flex; flex-direction: column; justify-content: center; padding: 64px clamp(28px, 4vw, 80px) 64px var(--public-page-gutter); scroll-margin-top: 90px; border-bottom: 1px solid var(--infra-line); }
 .infrastructure-story:last-child { border-bottom: 0; }
 .infrastructure-story::after { content: '+'; position: absolute; right: -5px; bottom: -8px; color: var(--infra-accent); font: 12px monospace; }
 .infrastructure-eyebrow { display: flex; align-items: center; gap: 10px; font: 11px monospace; text-transform: uppercase; letter-spacing: .1em; color: var(--infra-accent); margin-bottom: 28px; }
-.infrastructure-eyebrow > span { margin-left: auto; font-size: 10px; color: hsl(var(--muted-foreground)); }
 .infrastructure-story h3 { font-size: clamp(36px, 3.5vw, 66px); line-height: 1.06; letter-spacing: -.055em; font-weight: 500; max-width: 650px; }
 .infrastructure-story h3 em { font-style: normal; color: var(--infra-accent); }
 .infrastructure-description { max-width: 490px; margin-top: 24px; font-size: 14px; line-height: 1.75; color: hsl(var(--muted-foreground)); }
 .infrastructure-steps { margin-top: 36px; max-width: 480px; }
 .infrastructure-steps button { display: flex; gap: 16px; text-align: left; width: 100%; border-left: 1px solid var(--infra-line); padding: 15px 0 15px 20px; color: hsl(var(--muted-foreground)); transition: color .2s, border-color .2s; }
 .infrastructure-steps button[aria-pressed="true"] { border-left: 2px solid var(--infra-accent); padding-left: 19px; color: var(--infra-accent); }
-.infrastructure-step-number { font: 10px monospace; padding-top: 3px; }
 .infrastructure-steps strong { font-weight: 500; font-size: 13px; display: block; }
 .infrastructure-steps button > span > span { display: block; font-size: 12px; line-height: 1.6; margin-top: 6px; color: hsl(var(--muted-foreground)); max-width: 350px; }
 .infrastructure-link { display: inline-flex; align-items: center; gap: 24px; width: fit-content; font-size: 13px; font-weight: 600; margin-top: 28px; padding: 12px 0; border-bottom: 1px solid var(--infra-accent); }

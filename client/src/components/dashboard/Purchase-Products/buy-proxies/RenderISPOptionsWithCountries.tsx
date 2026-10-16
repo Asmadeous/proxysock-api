@@ -1,3 +1,4 @@
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -348,55 +349,23 @@ export const renderISPOptionsWithCountries = ({
           <CardContent className="space-y-4">
             {/* Country */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Country</label>
-              <select
-                value={rrCountry}
-                onChange={e => {
-                  setRrCountry(e.target.value);
-                  setRrState('');
-                  setRrCity('');
-                  setRrISP('');
-                }}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">Any country</option>
-                {rrCountries.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <label htmlFor="rr-country" className="text-xs font-medium text-muted-foreground">Country</label>
+              <PurchaseSelect id="rr-country" value={rrCountry} onValueChange={value => { setRrCountry(value); setRrState(''); setRrCity(''); setRrISP(''); }} emptyLabel="Any country" options={rrCountries.map(c => ({ value: String(c.id), label: c.name }))} />
             </div>
 
             {/* State — loaded from the DB when a country is picked */}
             {rrStates.length > 0 && (
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">State (Optional)</label>
-                <select
-                  value={rrState}
-                  onChange={e => { setRrState(e.target.value); setRrCity(''); }}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="">Any state</option>
-                  {rrStates.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                <label htmlFor="rr-state" className="text-xs font-medium text-muted-foreground">State (Optional)</label>
+                <PurchaseSelect id="rr-state" value={rrState} onValueChange={value => { setRrState(value); setRrCity(''); }} emptyLabel="Any state" options={rrStates.map(s => ({ value: String(s.id), label: s.name }))} />
               </div>
             )}
 
             {/* City — loaded from the DB when a state is picked */}
             {rrCities.length > 0 && (
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">City (Optional)</label>
-                <select
-                  value={rrCity}
-                  onChange={e => setRrCity(e.target.value)}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="">Any city</option>
-                  {rrCities.map(city => (
-                    <option key={city.id} value={city.id}>{city.name}</option>
-                  ))}
-                </select>
+                <label htmlFor="rr-city" className="text-xs font-medium text-muted-foreground">City (Optional)</label>
+                <PurchaseSelect id="rr-city" value={rrCity} onValueChange={setRrCity} emptyLabel="Any city" options={rrCities.map(city => ({ value: String(city.id), label: city.name }))} />
               </div>
             )}
 

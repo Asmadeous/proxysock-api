@@ -19,11 +19,6 @@
 .site-footer a:hover { color: #ffb5bd; }
 .footer-socials a:hover { background: #ffffff12; }
 .site-footer a:focus-visible { outline: 2px solid #ffb5bd; outline-offset: 5px; }
-.footer-signature { display: flex; justify-content: space-between; align-items: end; gap: 40px; padding-block: 32px 40px; border-top: 1px solid #ffffff20; }
-.footer-signature-label { font-size: 18px; letter-spacing: -.035em; }
-.footer-signature p { font: 9px/1.8 monospace; letter-spacing: .04em; color: #ffffff80; margin: 14px 0 12px; }
-.footer-large-logo { display: block; width: min(55%, 700px); }
-.footer-large-logo img { display: block; width: 100%; height: auto; }
 .footer-payments { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding-block: 26px; border-block: 1px solid #ffffff20; }
 .footer-payments h2 { font-size: 12px; font-weight: 500; flex-shrink: 0; }
 .footer-payments h2 > span { display: block; font: 9px monospace; color: #ffffff70; margin-top: 7px; }
@@ -41,8 +36,6 @@
 @media (max-width: 639px) {
  .footer-links { grid-template-columns: 1fr 1fr; gap: 32px 20px; }
  .footer-links ul { font-size: 11px; }
- .footer-signature { flex-direction: column; align-items: flex-start; gap: 24px; }
- .footer-large-logo { align-self: flex-end; width: 90%; max-width: 460px; }
  .footer-payments { flex-direction: column; gap: 20px; }
  .footer-payments ul { justify-content: flex-start; gap: 16px 20px; }
  .footer-bottom { flex-direction: column; align-items: flex-start; gap: 6px; }

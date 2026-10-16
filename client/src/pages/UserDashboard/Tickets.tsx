@@ -1,3 +1,4 @@
+import CustomerTickets from "./CustomerTickets";
 import { useState, useEffect, useCallback } from "react";
 
 import { useLocation } from "react-router-dom";
@@ -22,9 +23,14 @@ interface TicketRow {
 
 interface TicketsProps {
     role?: "User" | "Reseller";
+    embedded?: boolean;
 }
 
-export default function Tickets({ role = "User" }: TicketsProps) {
+export default function Tickets({ role = "User", embedded = false }: TicketsProps) {
+    return role === "User" ? <CustomerTickets embedded={embedded} /> : <LegacyTickets role={role} />;
+}
+
+function LegacyTickets({ role = "Reseller" }: TicketsProps) {
     const [tickets, setTickets] = useState<TicketRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
