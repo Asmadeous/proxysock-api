@@ -1,0 +1,16 @@
+.dashboard-shell.landing-theme,
+.dashboard-shell .landing-theme {
+  --background: 350 67% 96%;
+  --foreground: 344 19% 14%;
+  --muted: 345 45% 92%;
+  --muted-foreground: var(--light-secondary-foreground);
+  --border: 345 30% 85%;
+}
+.dashboard-shell.dark.landing-theme,
+.dashboard-shell.dark .landing-theme {
+  --background: 332 29% 12%;
+  --foreground: 340 29% 94%;
+  --muted: 330 26% 21%;
+  --muted-foreground: 336 22% 76%;
+  --border: 338 25% 28%;
+}

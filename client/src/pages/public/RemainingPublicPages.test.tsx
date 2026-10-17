@@ -70,6 +70,24 @@ it('keeps deposit history separate from order history', () => {
   expect(screen.getByText('$25.00 USD')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'View transaction history' })).toHaveAttribute('href', '/dashboard/transactions');
 });
+it('preserves the cart and pending order when returning from a wallet deposit', async () => {
+  vi.useFakeTimers();
+  const pendingOrder = JSON.stringify({ orderId: 'pending-order', totalValue: 99, currency: 'USD', paymentMethod: 'Card', items: [{ id: 'vpn', name: 'Pending VPN', category: 'vpn', price: 99 }] });
+  localStorage.setItem('lastOrder', pendingOrder);
+  localStorage.setItem('cartItems', '[{"productType":"vpn"}]');
+  const clearCart = vi.fn(() => localStorage.removeItem('cartItems'));
+  show(<PaymentSuccess clearCart={clearCart} />, '/payments/success?type=deposit&amount=25&payment=Heleket&order_id=deposit-1');
+  expect(screen.getByRole('heading', { name: 'Deposit successful.' })).toBeInTheDocument();
+  expect(screen.getByText('$25.00 USD')).toBeInTheDocument();
+  expect(screen.getByText('Heleket')).toBeInTheDocument();
+  expect(screen.queryByText('Pending VPN')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'View transaction history' })).toHaveAttribute('href', '/dashboard/transactions');
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  expect(clearCart).not.toHaveBeenCalled();
+  expect(conversionTracker.trackPurchase).not.toHaveBeenCalled();
+  expect(localStorage.getItem('lastOrder')).toBe(pendingOrder);
+  expect(localStorage.getItem('cartItems')).toBe('[{"productType":"vpn"}]');
+});
 it('retains reseller terms acceptance, password reveal, login storage and destination', async () => {
   vi.mocked(resellerLogin).mockResolvedValue({ data: { token: 'test-token', reseller: { id: 'partner-1' } } } as never);
   show(<ResellerLoginPage />, '/reseller/login');

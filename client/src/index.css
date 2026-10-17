@@ -24,6 +24,8 @@ body {
 
 @layer base {
   :root {
+    /* Shared readable secondary text on light surfaces. */
+    --light-secondary-foreground: 345 8% 30%;
     /* Base colors */
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
@@ -46,7 +48,7 @@ body {
 
     /* Muted colors */
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: var(--light-secondary-foreground);
 
     /* Accent (for hover states, etc) */
     --accent: 0 0% 96%;
@@ -160,7 +162,7 @@ body {
 
     /* Muted colors */
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: var(--light-secondary-foreground);
 
     /* Accent (for hover states, etc) */
     --accent: 0 0% 96%;

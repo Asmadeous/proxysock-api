@@ -1,4 +1,4 @@
-.login-page { --login-bg: #faf4f4; --login-ink: #21191b; --login-muted: #76676b; --login-line: #e4d7da; --login-field: #fffafa; --login-accent: #bd202e; display: grid; grid-template-columns: 48% 52%; min-height: 100svh; background: var(--login-bg); color: var(--login-ink); font-family: 'Manrope', sans-serif; }
+.login-page { --login-bg: #faf4f4; --login-ink: #21191b; --login-muted: hsl(var(--light-secondary-foreground)); --login-line: #e4d7da; --login-field: #fffafa; --login-accent: #bd202e; display: grid; grid-template-columns: 48% 52%; min-height: 100svh; background: var(--login-bg); color: var(--login-ink); font-family: 'Manrope', sans-serif; }
 .dark .login-page { --login-bg: #1d1316; --login-ink: #faf2f3; --login-muted: #b5a1a7; --login-line: #463138; --login-field: #261b1f; --login-accent: #ff7b84; }
 .login-page a, .login-page button, .login-page input { -webkit-tap-highlight-color: transparent; }
 .login-page :is(a, button, input):focus-visible { outline: 2px solid var(--login-accent); outline-offset: 4px; }

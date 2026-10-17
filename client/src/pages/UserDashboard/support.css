@@ -1,5 +1,5 @@
-.support-chat,.support-dialog { --ov-bg:#faf5f5; --ov-panel:#fffafa; --ov-text:#291c1e; --ov-muted:#78686b; --ov-line:#38202417; --ov-accent:#c9212d; --ov-wash:#ed242b08; color:var(--ov-text); }
-.support-dark { --ov-bg:#160f11; --ov-panel:#1c1416; --ov-text:#f4ebed; --ov-muted:#b39da3; --ov-line:#f1b8c019; --ov-accent:#ff727b; --ov-wash:#ffadb507; }
+.support-chat,.support-dialog { --ov-bg:#fcf0f2; --ov-panel:#fff7f8; --ov-text:#291c1e; --ov-muted:hsl(var(--light-secondary-foreground)); --ov-line:#8f304029; --ov-accent:#c9212d; --ov-wash:#ed242b08; color:var(--ov-text); }
+.support-dark { --ov-bg:#26151d; --ov-panel:#321e28; --ov-text:#f4ebed; --ov-muted:#d0b5c0; --ov-line:#e7a6b32e; --ov-accent:#ff727b; --ov-wash:#ffadb50c; }
 .support-tabs { display:flex; gap:24px; border-bottom:1px solid var(--ov-line); margin-bottom:26px; }
 .support-tabs button { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:2px solid transparent; font-size:12px; color:var(--ov-muted); }
 .support-tabs button[aria-pressed="true"] { color:var(--ov-accent); border-color:var(--ov-accent); }

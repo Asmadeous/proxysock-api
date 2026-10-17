@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, PanelLeftClose, PanelLeftOpen, X, type LucideIcon } from "lucide-react";
 import logo from "@/assets/images/proxysock-wordmark.svg";
+import lightLogo from "@/assets/images/proxysock-wordmark-light.svg";
+import nodeLogo from "@/assets/images/favicon.svg";
 import "./sidebar.css";
 import {
   LayoutDashboard,
@@ -257,7 +259,7 @@ export const Sidebar = ({
     <aside className={`workspace-sidebar ${dark ? "workspace-sidebar-dark" : ""} ${isCollapsed ? "is-collapsed" : ""}`} aria-label="Workspace sidebar">
       <div className="workspace-brand">
         <Link to="/" onClick={handleMobileClick} aria-label="ProxySock home" title={isCollapsed ? "ProxySock home" : undefined}>
-          {isCollapsed ? <Network aria-hidden="true" className="workspace-brand-symbol" /> : <img src={logo} alt="ProxySock" />}
+          {isCollapsed ? <img src={nodeLogo} alt="ProxySock" className="workspace-brand-symbol" /> : <img src={dark ? logo : lightLogo} alt="ProxySock" />}
         </Link>
         <button type="button" className="workspace-icon-button" aria-label={isMobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} title={isMobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => isMobile ? setSidebarOpen(false) : setIsCollapsed(!isCollapsed)}>
           {isMobile ? <X /> : isCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}

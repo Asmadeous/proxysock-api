@@ -1,17 +1,17 @@
 .guide-terminal { min-width: 0; overflow: hidden; color: #f2dfe3; background: #150f12; border: 1px solid #69454c; border-radius: 5px; box-shadow: 0 20px 55px #2609141a; }
 .guide-terminal-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #21161a; border-bottom: 1px solid #ffffff14; }
-.guide-terminal-title { min-width: 0; display: flex; align-items: center; gap: 14px; font: 11px/1.5 monospace; color: #dbbac2; }
+.guide-terminal-title { min-width: 0; display: flex; align-items: center; gap: 14px; font: 0.875rem/1.5 monospace; color: #dbbac2; }
 .guide-terminal-title > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .guide-terminal-lights { display: flex; gap: 5px; flex-shrink: 0; }.guide-terminal-lights i { width: 6px; height: 6px; border-radius: 50%; background: #ad4859; }.guide-terminal-lights i:nth-child(2) { background: #82616b; }.guide-terminal-lights i:nth-child(3) { background: #53404a; }
 .guide-terminal-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-.guide-terminal-controls button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 5px 9px; border: 1px solid #ffffff1a; border-radius: 3px; font: 10px/1.4 monospace; color: #e9cdd4; transition: background .2s; }
+.guide-terminal-controls button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 5px 9px; border: 1px solid #ffffff1a; border-radius: 3px; font: 0.875rem/1.4 monospace; color: #e9cdd4; transition: background .2s; }
 .guide-terminal-controls button:hover, .guide-terminal-controls button[aria-pressed=true] { background: #ffffff12; color: #fff; }
 .guide-terminal :is(button, pre):focus-visible { outline: 2px solid #ff8193; outline-offset: -2px; }
-.guide-terminal pre { overflow: auto; padding: 25px 0; font: 12px/1.95 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; tab-size: 2; text-align: left; }
+.guide-terminal pre { overflow: auto; padding: 25px 0; font: 0.875rem/1.95 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; tab-size: 2; text-align: left; }
 .guide-terminal code { display: block; min-width: 100%; width: max-content; }
 .guide-code-line { display: flex; padding-inline: 22px; min-height: 1.95em; }
 .guide-code-text { white-space: pre; }.guide-code-number { flex: 0 0 30px; padding-right: 15px; user-select: none; color: #795b65; text-align: right; }.guide-code-comment { color: #b58c97; }
 .guide-terminal-wrap code { width: 100%; }.guide-terminal-wrap .guide-code-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
-.guide-terminal-foot { display: flex; justify-content: space-between; gap: 12px; padding: 13px 20px; border-top: 1px solid #ffffff14; color: #b18a95; font: 9px/1.5 monospace; }.guide-terminal-foot > span:first-child { color: #ff9aab; text-transform: uppercase; letter-spacing: .06em; }
-.guide-copy-error { margin: 0; padding: 12px 20px; color: #ffc0cc; font-size: 12px; border-top: 1px solid #ffffff14; }
-@media (max-width: 600px) { .guide-terminal-bar { padding: 11px; gap: 6px; }.guide-terminal-title { gap: 8px; font-size: 10px; }.guide-code-line { padding-inline: 12px; }.guide-terminal pre { font-size: 11px; }.guide-terminal-foot { padding-inline: 12px; font-size: 8px; }.guide-terminal-lights { display: none; } }
+.guide-terminal-foot { display: flex; justify-content: space-between; gap: 12px; padding: 13px 20px; border-top: 1px solid #ffffff14; color: #b18a95; font: 0.875rem/1.5 monospace; }.guide-terminal-foot > span:first-child { color: #ff9aab; text-transform: uppercase; letter-spacing: .06em; }
+.guide-copy-error { margin: 0; padding: 12px 20px; color: #ffc0cc; font-size: 0.875rem; border-top: 1px solid #ffffff14; }
+@media (max-width: 600px) { .guide-terminal-bar { padding: 11px; gap: 6px; }.guide-terminal-title { gap: 8px; font-size: 0.875rem; }.guide-code-line { padding-inline: 12px; }.guide-terminal pre { font-size: 0.875rem; }.guide-terminal-foot { padding-inline: 12px; font-size: 0.875rem; }.guide-terminal-lights { display: none; } }

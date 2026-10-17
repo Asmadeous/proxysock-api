@@ -53,6 +53,10 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
   });
 
   useEffect(() => {
+    if (isDeposit) {
+      setOrderData(null);
+      return;
+    }
     // Load order data from localStorage
     const storedOrderData = localStorage.getItem('lastOrder');
     if (storedOrderData) {
@@ -64,9 +68,12 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
         console.error('❌ Failed to parse order data:', error);
       }
     }
-  }, []);
+  }, [isDeposit]);
 
   useEffect(() => {
+    // A wallet deposit is not an order and must preserve the shopping cart.
+    if (isDeposit) return;
+
     // Track Reddit Ads purchase conversion
     const trackPurchaseConversion = async () => {
       const finalAmount = orderData?.totalValue || amountFromQuery;
@@ -123,16 +130,15 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [clearCart, orderData, amountFromQuery, orderIdFromQuery, currencyFromQuery]);
+  }, [clearCart, orderData, amountFromQuery, orderIdFromQuery, currencyFromQuery, isDeposit]);
 
   // Use order data if available, otherwise fall back to query params
-  const displayOrderId = orderData?.orderId || orderIdFromQuery;
-  const displayAmount = orderData?.totalValue || amountFromQuery;
-  const displayCurrency = orderData?.currency || currencyFromQuery;
-  const displayPaymentMethod = orderData?.paymentMethod || paymentMethodFromQuery;
-  const orderItems = orderData?.items || [];
-
-  const isActuallyDeposit = isDeposit && orderItems.length === 0;
+  const paymentOrder = isDeposit ? null : orderData;
+  const displayOrderId = paymentOrder?.orderId || orderIdFromQuery;
+  const displayAmount = paymentOrder?.totalValue || amountFromQuery;
+  const displayCurrency = paymentOrder?.currency || currencyFromQuery;
+  const displayPaymentMethod = paymentOrder?.paymentMethod || paymentMethodFromQuery;
+  const orderItems = paymentOrder?.items || [];
 
   // Determine product type display
   const getProductTypeDisplay = () => {
@@ -151,23 +157,23 @@ export default function PaymentSuccess({ clearCart }: PaymentSuccessProps) {
     if (productTypeFromQuery) return productTypeFromQuery.toUpperCase();
 
     // Last resort fallback based on transaction type
-    if (isActuallyDeposit) return 'WALLET DEPOSIT';
+    if (isDeposit) return 'WALLET DEPOSIT';
     return typeFromQuery.toUpperCase();
   };
 
   return <StatusLayout label="Payment update" mark="✓">
     <Helmet><title>Payment Successful | ProxySock</title><meta name="robots" content="noindex" /></Helmet>
-    <p className="proxy-eyebrow">Your next step is ready</p><h1>{isActuallyDeposit ? 'Deposit successful.' : 'Payment successful.'}</h1>
-    <p>{isActuallyDeposit ? 'Thank you. Review your balance and deposit details in your account.' : 'Thank you for your payment. Your order is being processed; follow its progress in your account.'}</p>
+    <p className="proxy-eyebrow">Your next step is ready</p><h1>{isDeposit ? 'Deposit successful.' : 'Payment successful.'}</h1>
+    <p>{isDeposit ? 'Thank you. Review your balance and deposit details in your account.' : 'Thank you for your payment. Your order is being processed; follow its progress in your account.'}</p>
     <dl className="status-details">
-      {!isActuallyDeposit && <div><dt>Order ID</dt><dd>{displayOrderId}</dd></div>}
-      <div><dt>{isActuallyDeposit ? 'Amount deposited' : 'Amount paid'}</dt><dd>${displayAmount.toFixed(2)} {displayCurrency}</dd></div>
+      {!isDeposit && <div><dt>Order ID</dt><dd>{displayOrderId}</dd></div>}
+      <div><dt>{isDeposit ? 'Amount deposited' : 'Amount paid'}</dt><dd>${displayAmount.toFixed(2)} {displayCurrency}</dd></div>
       <div><dt>Payment method</dt><dd>{displayPaymentMethod}</dd></div>
-      {!isActuallyDeposit && <div><dt>Service type</dt><dd>{getProductTypeDisplay()}</dd></div>}
+      {!isDeposit && <div><dt>Service type</dt><dd>{getProductTypeDisplay()}</dd></div>}
       <div><dt>Date & time</dt><dd>{formattedDate}</dd></div>
     </dl>
     {orderItems.length > 0 && <div className="status-items"><h2>Order items</h2><ul>{orderItems.map((item,index) => <li key={index}><span>{item.name}{item.quantity && item.quantity > 1 ? ` (×${item.quantity})` : ''}</span><span>${item.price.toFixed(2)}</span></li>)}</ul></div>}
-    <div className="status-actions"><Link to="/dashboard" className="proxy-button proxy-button-dark">Go to dashboard <ArrowUpRight size={16} aria-hidden="true" /></Link><Link to={isActuallyDeposit ? '/dashboard/transactions' : '/dashboard/orders'} className="proxy-button">{isActuallyDeposit ? 'View transaction history' : 'View order history'}</Link></div>
+    <div className="status-actions"><Link to="/dashboard" className="proxy-button proxy-button-dark">Go to dashboard <ArrowUpRight size={16} aria-hidden="true" /></Link><Link to={isDeposit ? '/dashboard/transactions' : '/dashboard/orders'} className="proxy-button">{isDeposit ? 'View transaction history' : 'View order history'}</Link></div>
     <Link to="/contact" className="status-support">Questions about this payment? Contact support</Link>
   </StatusLayout>;
 }

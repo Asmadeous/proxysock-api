@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Menu } from "lucide-react";
+import "./dashboard-theme.css";
 
 import { useAuth } from "../../context/AuthContext";
 import { Sidebar } from "@/components/dashboard/layout/SideBar";
@@ -70,7 +71,7 @@ export default function Dashboard() {
 
   return (
     <div
-      className={`landing-theme min-h-screen bg-background text-foreground ${dark ? "dark" : ""
+      className={`dashboard-shell landing-theme min-h-screen bg-background text-foreground ${dark ? "dark" : ""
         }`}
     >
       <div className="flex h-screen overflow-hidden">

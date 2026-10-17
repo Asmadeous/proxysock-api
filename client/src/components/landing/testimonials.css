@@ -1,10 +1,10 @@
 .world-testimonials { --world-accent: #c92332; --world-line: hsl(350 35% 50% / .18); position: relative; padding: 0 var(--public-page-gutter); overflow: hidden; color: hsl(var(--foreground)); border-top: 1px solid var(--world-line); background: radial-gradient(ellipse at 25% 85%, #dc262616, transparent 55%), hsl(var(--background)); }
 .dark .world-testimonials { --world-accent: #ff737b; --world-line: hsl(350 40% 75% / .16); background: radial-gradient(ellipse at 25% 85%, #b9113038, transparent 55%), hsl(var(--background)); }
-.world-rail { display: flex; align-items: center; justify-content: space-between; gap: 24px; color: hsl(var(--muted-foreground)); font: 10px/1.5 monospace; letter-spacing: .09em; text-transform: uppercase; padding-block: 28px; }
+.world-rail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; color: hsl(var(--muted-foreground)); font: 0.875rem/1.5 monospace; letter-spacing: .09em; text-transform: uppercase; padding-block: 28px; }
 .world-heading { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding-block: 32px 0; }
 .world-heading h2 { font-size: clamp(36px, 4.2vw, 72px); font-weight: 500; line-height: 1.06; letter-spacing: -.055em; }
 .world-heading h2 > span { color: var(--world-accent); }
-.world-heading > p { font-size: 13px; line-height: 1.8; color: hsl(var(--muted-foreground)); max-width: 350px; }
+.world-heading > p { font-size: 1rem; line-height: 1.8; color: hsl(var(--muted-foreground)); max-width: 350px; }
 .world-layout { display: grid; grid-template-columns: 1.3fr 1fr; align-items: center; gap: clamp(24px, 4vw, 80px); padding-bottom: 48px; }
 .world-explorer { min-width: 0; }
 .world-globe { position: relative; width: 100%; max-width: 760px; aspect-ratio: 640 / 600; margin: auto; touch-action: pan-y; cursor: grab; user-select: none; }
@@ -19,14 +19,14 @@
 .world-node.is-active, .world-node:hover { color: #fff; background: #c92332; }
 .world-stories { max-width: 490px; padding-block: 40px; width: 100%; }
 .world-review { border: 1px solid var(--world-line); border-radius: 5px; padding: clamp(24px, 3vw, 42px); background: linear-gradient(150deg, #dc262608, #dc262600), hsl(var(--background)); box-shadow: 0 22px 80px #650d1710; }
-.world-review-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--world-accent); font: 10px monospace; text-transform: uppercase; letter-spacing: .08em; }
+.world-review-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--world-accent); font: 0.875rem monospace; text-transform: uppercase; letter-spacing: .08em; }
 .world-stars { display: flex; gap: 4px; margin-top: 26px; color: var(--world-accent); }
 .world-review blockquote { font-size: clamp(18px, 1.6vw, 25px); line-height: 1.6; font-weight: 400; letter-spacing: -.02em; margin: 20px 0 28px; min-height: 8em; animation: world-quote-in .25s ease-out; }
 .world-review-author { display: flex; align-items: center; gap: 12px; }
 .world-avatar { display: grid; place-items: center; width: 40px; height: 40px; background: #dc262610; border: 1px solid var(--world-line); color: var(--world-accent); border-radius: 3px; font: 11px monospace; }
-.world-review-author strong { display: block; font-size: 12px; font-weight: 600; }
-.world-review-author div > span { display: block; margin-top: 5px; font-size: 10px; color: hsl(var(--muted-foreground)); }
-.world-review-bottom { display: flex; justify-content: space-between; gap: 16px; padding-top: 25px; margin-top: 28px; border-top: 1px solid var(--world-line); font: 9px monospace; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: .08em; }
+.world-review-author strong { display: block; font-size: 0.875rem; font-weight: 600; }
+.world-review-author div > span { display: block; margin-top: 5px; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
+.world-review-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; padding-top: 25px; margin-top: 28px; border-top: 1px solid var(--world-line); font: 0.875rem monospace; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: .08em; }
 .world-testimonials button:focus-visible, .world-globe:focus-visible { outline: 2px solid var(--world-accent); outline-offset: 5px; }
 .world-testimonials.is-paused .world-packet, .world-testimonials.is-paused .world-node::before { animation-play-state: paused; }
 @keyframes world-flow { to { stroke-dashoffset: -194; } }
@@ -39,7 +39,7 @@
   .world-review blockquote { font-size: 18px; }
 }
 @media (max-width: 767px) {
-  .world-rail { font-size: 8px; letter-spacing: .04em; gap: 16px; }
+  .world-rail { font-size: 0.875rem; letter-spacing: .04em; gap: 16px; }
   .world-heading { padding-top: 16px; }
   .world-layout { grid-template-columns: 1fr; gap: 10px; padding-top: 12px; }
   .world-globe { max-width: 540px; }
@@ -53,4 +53,4 @@
 .world-network-halo { fill: var(--world-accent); opacity: .15; }
 .world-network-point { fill: var(--world-accent); filter: drop-shadow(0 0 4px var(--world-accent)); }
 
-.world-demo-label { margin-top: 24px; color: var(--world-accent); font: 10px/1.5 monospace; }
+.world-demo-label { margin-top: 24px; color: var(--world-accent); font: 0.875rem/1.5 monospace; }

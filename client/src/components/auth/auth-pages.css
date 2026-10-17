@@ -1,4 +1,4 @@
-.auth-page { --background: 355 38% 96%; --foreground: 340 14% 11%; --muted-foreground: 342 7% 43%; --input: 342 19% 86%; }
+.auth-page { --background: 355 38% 96%; --foreground: 340 14% 11%; --muted-foreground: var(--light-secondary-foreground); --input: 342 19% 86%; }
 .dark .auth-page { --background: 342 21% 9%; --foreground: 345 44% 96%; --muted-foreground: 342 12% 67%; --input: 340 18% 23%; }
 .auth-page .login-brand { position: sticky; top: 0; height: 100svh; align-self: start; }
 .auth-page-register .login-form-content { max-width: 460px; }

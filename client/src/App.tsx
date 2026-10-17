@@ -223,7 +223,6 @@ export default function App() {
                   <Route path="proxy-management" element={<ProxyManagement />} />
                   <Route path="Esim-management" element={<ESIMManagement />} />
                   <Route path="VPS-management" element={<VPSManagement />} />
-                  <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="RDP-management" element={<RDPPManagement />} />
                   <Route path="vpn-management" element={<VPNManagement />} />
                   <Route path="transactions" element={<Transactions />} />

@@ -26,8 +26,8 @@
 .transactions-pagination button { padding:9px 12px; border:1px solid var(--ov-line); border-radius:4px; color:var(--ov-text); }
 .transactions-pagination button:disabled { opacity:.4; cursor:default; }
 .transactions-page .overview-status[data-status="pending"], .transactions-page .overview-status[data-status="processing"] { color:var(--ov-accent); background:var(--ov-wash); }
-.transaction-dialog { --tx-panel:#fffafa; --tx-text:#291c1e; --tx-muted:#78686b; --tx-line:#38202417; --tx-accent:#c9212d; background:var(--tx-panel); color:var(--tx-text); border:1px solid var(--tx-line); border-radius:4px; width:calc(100% - 32px); max-height:calc(100dvh - 40px); overflow-y:auto; }
-.transaction-dialog-dark { --tx-panel:#1c1416; --tx-text:#f4ebed; --tx-muted:#b39da3; --tx-line:#f1b8c019; --tx-accent:#ff727b; }
+.transaction-dialog { --tx-panel:#fff7f8; --tx-text:#291c1e; --tx-muted:hsl(var(--light-secondary-foreground)); --tx-line:#8f304029; --tx-accent:#c9212d; background:var(--tx-panel); color:var(--tx-text); border:1px solid var(--tx-line); border-radius:4px; width:calc(100% - 32px); max-height:calc(100dvh - 40px); overflow-y:auto; }
+.transaction-dialog-dark { --tx-panel:#321e28; --tx-text:#f4ebed; --tx-muted:#d0b5c0; --tx-line:#e7a6b32e; --tx-accent:#ff727b; }
 .transaction-dialog h2 { font-weight:500; letter-spacing:-.025em; padding-right:20px; }
 .transaction-dialog > p { color:var(--tx-muted); font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
 .transaction-dialog dl { display:grid; gap:16px; padding:20px 0; border-block:1px solid var(--tx-line); font-size:12px; }

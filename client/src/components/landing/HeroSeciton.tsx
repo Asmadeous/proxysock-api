@@ -28,7 +28,7 @@ export const HeroSection = ({ trackConversion }: HeroSectionProps) => {
               and global<br />
               connectivity.
             </h1>
-            <p className="mt-7 max-w-[410px] font-inter text-sm leading-[1.65] text-white/80 sm:mt-8 sm:text-[15px]">
+            <p className="mt-7 max-w-[410px] font-inter text-lg leading-[1.7] text-white/80 sm:mt-8">
               Buy proxies, virtual servers (VPS), remote desktops (RDP), residential VPNs, and global eSIM plans. Choose your service and manage it all from one account.
             </p>
             <div className="mt-8 flex flex-wrap gap-3 sm:mt-9">
