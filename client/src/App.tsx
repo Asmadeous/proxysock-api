@@ -64,7 +64,8 @@ const VPNBuy = lazy(() => import("./pages/products/VPNPlans"));
 
 // ─── Misc pages ──────────────────────────────────────────────
 const NotFound = lazy(() => import("./pages/misc/NotFound"));
-const NotificationsPage = lazy(() => import("./pages/misc/NotificationsPage"));
+const AddFunds = lazy(() => import("./pages/UserDashboard/AddFunds"));
+const NotificationsPage = lazy(() => import("./pages/UserDashboard/Notifications"));
 
 // ─── User Dashboard ──────────────────────────────────────────
 const Dashboard = lazy(() => import("./pages/UserDashboard/Dashboard"));
@@ -210,7 +211,6 @@ export default function App() {
                   <Route path="proxy-orders" element={<ProxyOrders />} />
                   <Route path="esim-orders" element={<EsimOrders />} />
                   <Route path="rdp-orders" element={<RDPOrders />} />
-                  <Route path="rdp-orders" element={<RDPOrders />} />
                   <Route path="vps-orders" element={<VPSOrders />} />
                   <Route path="vpn-orders" element={<VPNOrders />} />
 
@@ -237,6 +237,7 @@ export default function App() {
                   <Route path="change-password" element={<ChangePassword />} />
                   <Route path="affiliate" element={<AffiliateDashboard />} />
                   <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="add-funds" element={<AddFunds />} />
                 </Route>
               </Route>
 

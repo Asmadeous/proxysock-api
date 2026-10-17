@@ -73,7 +73,7 @@ class Affiliate < ApplicationRecord
 
   # Full referral link
   def referral_url
-    "#{Rails.application.config.frontend_url}/register?ref=#{referral_code}"
+    "#{ENV.fetch('FRONTEND_URL', 'https://proxysock.com').delete_suffix('/')}/register?ref=#{ERB::Util.url_encode(referral_code)}"
   end
 
   private
