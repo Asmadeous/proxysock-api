@@ -39,7 +39,7 @@ export default function ProductManagementPage() {
   return <div className={`dashboard-overview my-services ${dark ? 'overview-dark' : ''}`}>
     <Helmet><title>My Services | ProxySock</title></Helmet>
     <header className="overview-heading">
-      <div><span className="overview-eyebrow">Your workspace</span><h1>My services</h1><p>Access your services, connection details, and management tools.</p></div>
+      <div><h1>My services</h1><p>Access your services, connection details, and management tools.</p></div>
       {accessToken && user && <div className="overview-heading-actions">
         <Link className="overview-button" to="/dashboard/orders">Order history <ArrowUpRight size={14} aria-hidden="true" /></Link>
         <button className="overview-icon-button" type="button" onClick={() => refetch()} disabled={isFetching} aria-label="Refresh services"><RefreshCw size={15} aria-hidden="true" /></button>

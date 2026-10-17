@@ -70,7 +70,7 @@ export default function Profile() {
   const image = preview || formatImageUrl(user?.profile_picture_url);
   return <div className={`dashboard-overview profile-page ${dark ? 'overview-dark' : ''}`}>
     <Helmet><title>Profile Settings | ProxySock</title></Helmet>
-    <header className="overview-heading"><div><span className="overview-eyebrow">Your workspace</span><h1>Profile settings</h1><p>Manage your personal details and profile photo.</p></div>{user && !editing && <button type="button" className="overview-button" onClick={() => { setEditing(true); setSuccess(''); }}><Pencil size={14} aria-hidden="true" />Edit profile</button>}</header>
+    <header className="overview-heading"><div><h1>Profile settings</h1><p>Manage your personal details and profile photo.</p></div>{user && !editing && <button type="button" className="overview-button" onClick={() => { setEditing(true); setSuccess(''); }}><Pencil size={14} aria-hidden="true" />Edit profile</button>}</header>
     {!user ? <section className="overview-auth"><h2>Sign in to view your profile</h2><Link to="/login">Back to login</Link></section> : <>
       {success && <p className="profile-feedback" role="status">{success}</p>}
       <div className="profile-layout"><form className="profile-form" onSubmit={save} noValidate aria-busy={saving}>

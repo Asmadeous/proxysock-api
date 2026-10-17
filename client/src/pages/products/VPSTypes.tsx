@@ -15,7 +15,7 @@ export default function VPSTypes({ onNavigate }: VPSTypesProps = {}) {
   const countries = VPS_COUNTRIES.filter(country => plans.some(plan => supportsVPSCountry(plan, country.code)));
 
   return <div className={`dashboard-overview server-purchase ${dark ? 'overview-dark' : ''} ${storefront ? '' : 'server-purchase-embedded'}`}>
-    <header className="overview-heading"><div><span className="overview-eyebrow">Your infrastructure</span><h1>VPS hosting</h1><p>Choose a server location to compare plans and configure your VPS.</p></div>{storefront && <Link className="overview-button" to="/dashboard/VPS-management">My servers <ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
+    <header className="overview-heading"><div><h1>VPS hosting</h1><p>Choose a server location to compare plans and configure your VPS.</p></div>{storefront && <Link className="overview-button" to="/dashboard/VPS-management">My servers <ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
     <section aria-labelledby="vps-locations-title" aria-busy={isLoading}>
       <div className="overview-section-heading"><h2 id="vps-locations-title">Choose your location</h2></div>
       {isLoading ? <div className="server-loading" role="status">Loading VPS locations…{[0, 1, 2].map(item => <span className="overview-skeleton" key={item} />)}</div>

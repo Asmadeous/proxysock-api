@@ -167,7 +167,7 @@ export default function Cart() {
     <div className={`dashboard-overview cart-page ${dark ? 'overview-dark' : ''}`}>
       <Helmet><title>My Cart | ProxySock</title></Helmet>
       <header className="overview-heading">
-        <div><span className="overview-eyebrow">Your workspace</span><h1>My cart</h1><p>Review your services and configuration before checkout.</p></div>
+        <div><h1>My cart</h1><p>Review your services and configuration before checkout.</p></div>
         <Link className="overview-button" to="/dashboard">Browse services <ArrowUpRight size={14} aria-hidden="true" /></Link>
       </header>
 

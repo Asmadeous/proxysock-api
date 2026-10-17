@@ -1,800 +1,146 @@
-"use client";
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Copy, Eye, EyeOff, RefreshCw, Search, ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import api from '@/services/api';
+import './dashboard-home.css';
+import './proxy-management.css';
+import './orders.css';
+import './proxy-orders.css';
 
-import { useState, useEffect, FC } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-    ShoppingCart,
-    CheckCircle,
-    Clock,
-    XCircle,
-    Download,
-    Search,
-    Calendar,
-    DollarSign,
-    BarChart3,
-    FileText,
-    AlertTriangle,
-    Sparkles,
-    MapPin,
-    ArrowLeft,
-    Lock,
-    MessageSquare,
-} from "lucide-react";
+interface VPNOrder {
+  id: string | number;
+  order_number: string;
+  product_name: string;
+  status: string;
+  total_amount?: number | string | null;
+  amount?: number | string | null;
+  currency?: string;
+  payment_method?: string;
+  created_at: string;
+  expires_at?: string;
+  country?: string;
+  bandwidth_gb?: number;
+  has_invoice?: boolean;
+  has_ovpn_config?: boolean;
+  credentials?: { username?: string; password?: string; server?: string; endpoints?: string[] };
+  vpn_details?: { protocol?: string; locations?: string[] };
+}
+const date = (value?: string) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not available';
+const label = (value?: string) => value ? value.replace(/[-_]/g, ' ').replace(/\bisp\b/gi, 'ISP') : 'Not specified';
+function amount(order: VPNOrder) {
+  const value = order.total_amount ?? order.amount;
+  if (value == null || value === '' || !Number.isFinite(Number(value))) return 'Not available';
+  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currency || 'USD' }).format(Number(value)); }
+  catch { return `${order.currency || 'USD'} ${Number(value).toFixed(2)}`; }
+}
+const active = (order: VPNOrder) => ['active', 'completed'].includes(order.status);
+const hasCredentials = (order: VPNOrder) => Boolean(order.credentials?.username || order.credentials?.password || order.credentials?.server || order.credentials?.endpoints?.length);
+const canAccess = (order: VPNOrder) => active(order) && hasCredentials(order);
+const managePath = (order: VPNOrder) => `/dashboard/vpn-management?search=${encodeURIComponent(order.order_number)}`;
 
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
-
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-
-interface ProxyOrder {
-    id: string;
-    order_number: string;
-    proxy_plan_id: number;
-    plan_name: string;
-    amount: number;
-    currency: string;
-    status: "completed" | "pending" | "failed" | "cancelled";
-    payment_method: string;
-    proxy_details: any;
-    credentials: any;
-    created_at: string;
-    expires_at?: string;
-    country?: string;
-    proxy_type?: string;
-    bandwidth_gb?: number;
-    ips_included?: number;
+function saveFile(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  try { anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); }
+  finally { anchor.remove(); URL.revokeObjectURL(url); }
 }
 
-const VPNOrdersPage: FC = () => {
-    const navigate = useNavigate();
-    const [orders, setOrders] = useState<ProxyOrder[]>([]);
-    const [filteredOrders, setFilteredOrders] = useState<ProxyOrder[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [activeTab, setActiveTab] = useState<"all" | "active" | "pending" | "failed">("all");
-    const [searchTerm, setSearchTerm] = useState<string>("");
-    const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
-    const { user, accessToken } = useAuth();
+export default function VPNOrders() {
+  const dark = useThemeStore(state => state.dark);
+  const { user, accessToken } = useAuth();
+  const location = useLocation();
+  const [search, setSearch] = useState('');
+  const [country, setCountry] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [downloadError, setDownloadError] = useState('');
+  const query = useQuery<VPNOrder[]>({
+    queryKey: ['vpn-order-history', user?.id],
+    enabled: Boolean(accessToken && user?.id), retry: false, cacheTime: 0,
+    queryFn: async ({ signal }) => {
+      const orders: VPNOrder[] = [];
+      let nextPage = 1;
+      let totalPages = 1;
+      do {
+        const { data } = await api.get('/web/api/orders', { params: { product_type: 'vpn', page: nextPage, per_page: 100 }, signal });
+        orders.push(...data.orders);
+        totalPages = data.meta?.total_pages ?? 1;
+        nextPage += 1;
+      } while (nextPage <= totalPages);
+      return orders;
+    },
+  });
+  useEffect(() => { setSearch(new URLSearchParams(location.search).get('search') || ''); setPage(1); }, [location.search]);
+  const orders = query.data || [];
+  const selected = orders.find(order => order.id === selectedId);
+  const filtered = orders.filter(order => (!country || order.country === country) && (!status || order.status === status)
+    && [order.order_number, order.product_name, order.country].some(value => value?.toLowerCase().includes(search.trim().toLowerCase())));
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 10));
+  const currentPage = Math.min(page, pageCount);
+  const shown = filtered.slice((currentPage - 1) * 10, currentPage * 10);
+  function open(order: VPNOrder) { setSelectedId(order.id); setShowPassword(false); setDownloadError(''); }
+  async function copy(value: string) {
+    try { await navigator.clipboard.writeText(value); toast.success('Copied to clipboard'); }
+    catch { toast.error('Couldn’t copy. Select the text and copy it manually.'); }
+  }
+  async function download(order: VPNOrder, kind: 'invoice' | 'config') {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setDownloadError('');
+    try {
+      if (kind === 'invoice') {
+        const { data } = await api.get(`/web/api/orders/${order.id}/download_invoice`, { responseType: 'blob' });
+        saveFile(data, `invoice-${order.order_number}.pdf`);
+      } else {
+        const { data } = await api.get(`/web/api/orders/${order.id}/download_ovpn`, { responseType: 'blob' });
+        saveFile(data, `vpn-order-${order.order_number}.ovpn`);
+      }
+      toast.success(`${kind === 'invoice' ? 'Invoice' : 'OpenVPN config'} downloaded`);
+    } catch { setDownloadError(`Couldn’t download ${kind === 'invoice' ? 'the invoice' : 'the OpenVPN config'}. Please try again.`); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
 
-    // Stats
-    const [stats, setStats] = useState({
-        total: 0,
-        active: 0,
-        pending: 0,
-        failed: 0,
-        totalSpent: 0,
-        totalBandwidth: 0,
-        totalIPs: 0,
-    });
+  return <div className={`dashboard-overview proxy-management proxy-orders ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>VPN Orders | ProxySock</title></Helmet>
+    <Link className="proxy-back" to="/dashboard/orders"><ArrowLeft size={14} /> All orders</Link>
+    <header className="overview-heading"><div><h1>VPN orders</h1><p>Review purchases, order details, and invoices.</p></div><div className="overview-heading-actions"><Link className="overview-button" to="/dashboard/vpn">Browse VPN plans <ArrowUpRight size={14} /></Link><button className="overview-icon-button" aria-label="Refresh VPN orders" disabled={query.isFetching || busy} onClick={() => query.refetch()}><RefreshCw size={15} /></button></div></header>
+    {!user || !accessToken ? <div className="overview-auth"><h2>Sign in to view your orders</h2><Link to="/login">Back to login</Link></div> : <>
+      {query.isError && <div className="overview-error" role="alert"><div><strong>We couldn’t update your VPN orders.</strong><p>{query.data ? 'Showing the last loaded orders.' : 'Try again to load your order history.'}</p></div><button onClick={() => query.refetch()} disabled={query.isFetching}>Try again</button></div>}
+      <div className="proxy-summary"><span><strong>{query.data ? orders.length : '—'}</strong> Orders</span><span><strong>{query.data ? orders.filter(active).length : '—'}</strong> Active / completed</span><span><strong>{query.data ? orders.filter(order => ['pending', 'processing', 'provisioning', 'awaiting_payment'].includes(order.status)).length : '—'}</strong> Pending / processing</span></div>
+      <div className="proxy-filters"><label className="proxy-search"><Search size={16} /><span className="sr-only">Search VPN orders</span><input placeholder="Search order, plan, or location" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></label><div><label htmlFor="vpn-order-location">Location</label><PurchaseSelect id="vpn-order-location" value={country} onValueChange={value => { setCountry(value); setPage(1); }} emptyLabel="All locations" options={[...new Set(orders.map(order => order.country).filter((value): value is string => Boolean(value)))].map(value => ({ value, label: value }))} /></div><div><label htmlFor="vpn-order-status">Order status</label><PurchaseSelect id="vpn-order-status" value={status} onValueChange={value => { setStatus(value); setPage(1); }} emptyLabel="All statuses" options={[...new Set(orders.map(order => order.status))].map(value => ({ value, label: label(value) }))} /></div></div>
+      {query.isFetching && <p className="proxy-note" role="status">{query.isLoading ? 'Loading orders…' : 'Updating orders…'}</p>}
+      {query.data && <><div className="proxy-results"><p>{filtered.length} {filtered.length === 1 ? 'order' : 'orders'}</p>{(search || country || status) && <button onClick={() => { setSearch(''); setCountry(''); setStatus(''); setPage(1); }}>Clear filters</button>}</div>
+        {shown.length ? <section className="orders-history"><div className="orders-table-scroll" tabIndex={0} role="region" aria-label="VPN order history"><table><caption className="sr-only">VPN purchases, newest first</caption><thead><tr>{['Order', 'Plan', 'Date', 'Status', 'Order amount', ''].map((heading, index) => <th key={index} scope="col">{heading || <span className="sr-only">Actions</span>}</th>)}</tr></thead><tbody>{shown.map(order => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><strong>{order.product_name}</strong><span>{order.country || 'Location not specified'}</span></td><td>{date(order.created_at)}</td><td><span className="overview-status" data-status={order.status}>{label(order.status)}</span></td><td>{amount(order)}</td><td><button className="history-details" aria-label={`View order ${order.order_number}`} onClick={() => open(order)}>View details <ArrowUpRight size={13} /></button></td></tr>)}</tbody></table></div></section> : <div className="proxy-empty"><ClipboardList size={25} /><h2>{orders.length ? 'No matching orders' : 'No VPN orders yet'}</h2><p>{orders.length ? 'Try a different search or clear your filters.' : 'Your VPN purchases will appear here.'}</p>{!orders.length && <Link className="overview-button" to="/dashboard/vpn">Browse VPN plans</Link>}</div>}
+        {pageCount > 1 && <nav className="proxy-pagination" aria-label="Order pages"><button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></nav>}
+      </>}
+    </>}
+    <Dialog open={Boolean(selected)} onOpenChange={value => { if (!value && !busy) setSelectedId(null); }}>
+      <DialogContent className={`proxy-dialog ${dark ? 'proxy-dialog-dark' : ''}`}>
+        <DialogTitle>VPN order details</DialogTitle><DialogDescription>{selected?.order_number} · {selected?.product_name}</DialogDescription>
+        {selected && <>
+          {downloadError && <p className="proxy-action-error" role="alert">{downloadError}</p>}
+          <dl className="proxy-facts"><div><dt>Order status</dt><dd>{label(selected.status)}</dd></div><div><dt>Order amount</dt><dd>{amount(selected)}</dd></div><div><dt>Payment method</dt><dd>{label(selected.payment_method)}</dd></div><div><dt>Purchased</dt><dd>{date(selected.created_at)}</dd></div><div><dt>Service expiry</dt><dd>{date(selected.expires_at)}</dd></div><div><dt>Location</dt><dd>{selected.vpn_details?.locations?.join(', ') || selected.country || 'Not specified'}</dd></div><div><dt>Protocol</dt><dd>{selected.vpn_details?.protocol?.toUpperCase() || 'Not available'}</dd></div><div><dt>Data allowance</dt><dd>{Number(selected.bandwidth_gb) > 0 ? `${selected.bandwidth_gb} GB` : 'Not specified'}</dd></div></dl>
+          {canAccess(selected) && <div className="proxy-panel"><h3>Connection details</h3>{selected.credentials?.username && <CopyField label="Username" value={selected.credentials.username} copy={copy} />}{selected.credentials?.password && <div className="proxy-secret"><span>Password</span><div><code>{showPassword ? selected.credentials.password : '••••••••••••'}</code><button aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={15} /> : <Eye size={15} />}</button><button aria-label="Copy password" onClick={() => copy(selected.credentials!.password!)}><Copy size={15} /></button></div></div>}{selected.credentials?.server && <CopyField label="Server" value={selected.credentials.server} copy={copy} />}{selected.credentials?.endpoints?.map((endpoint, index) => <CopyField key={`${endpoint}-${index}`} label={`Endpoint ${index + 1}`} value={endpoint} copy={copy} />)}</div>}
+          {active(selected) && !hasCredentials(selected) && <p className="proxy-note">Connection details are not available yet. Check service management or contact support.</p>}
+          <div className="history-dialog-actions">{selected.has_invoice && <button className="proxy-secondary" disabled={busy} onClick={() => download(selected, 'invoice')}>Download invoice</button>}{active(selected) && selected.has_ovpn_config && <button className="proxy-primary" disabled={busy} onClick={() => download(selected, 'config')}>Download OpenVPN config</button>}</div>
+          {busy && <p className="proxy-note" role="status">Preparing download…</p>}
+          <div className="proxy-card-actions"><Link to={managePath(selected)}>Manage service <ArrowUpRight size={13} /></Link><Link to={`/dashboard/support?tab=tickets&order_id=${encodeURIComponent(selected.order_number)}`}>Get order support <ArrowUpRight size={13} /></Link></div>
+        </>}
+      </DialogContent>
+    </Dialog>
+  </div>;
+}
 
-    useEffect(() => {
-        if (accessToken && user?.id) {
-            fetchVPNOrders();
-        }
-    }, [accessToken, user]);
-
-    useEffect(() => {
-        filterOrders();
-        calculateStats();
-    }, [orders, activeTab, searchTerm]);
-
-    const fetchVPNOrders = async () => {
-        try {
-            setLoading(true);
-            const response = await api.get('/web/api/orders?product_type=vpn');
-
-            if (response.data && response.data.orders) {
-                const transformedOrders: ProxyOrder[] = response.data.orders
-                    .map((order: any) => ({
-                        id: String(order.id),
-                        order_number: order.order_number,
-                        proxy_plan_id: order.product_id,
-                        plan_name: order.product_name || "Unknown VPN Plan",
-                        amount: Number(order.amount) || 0,
-                        currency: order.currency || "USD",
-                        status: order.status as any,
-                        payment_method: order.payment_method || "N/A",
-                        proxy_details: order.vpn_details || {}, // Using vpn_details map
-                        credentials: order.credentials || {},
-                        created_at: order.created_at,
-                        expires_at: order.expires_at,
-                        country: order.country,
-                        proxy_type: order.proxy_type,
-                        bandwidth_gb: Number(order.bandwidth_gb) || 0,
-                        ips_included: Number(order.ips_included) || 0,
-                    }));
-                setOrders(transformedOrders);
-            } else {
-                console.error("Failed to fetch VPN orders");
-            }
-        } catch (error) {
-            console.error("Failed to fetch VPN orders:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const filterOrders = () => {
-        let filtered = [...orders];
-
-        // Filter by tab
-        if (activeTab !== "all") {
-            if (activeTab === "active") {
-                filtered = filtered.filter((o) => o.status === "completed");
-            } else if (activeTab === "pending") {
-                filtered = filtered.filter((o) => o.status === "pending");
-            } else if (activeTab === "failed") {
-                filtered = filtered.filter((o) => o.status === "failed" || o.status === "cancelled");
-            }
-        }
-
-        // Filter by search
-        if (searchTerm) {
-            filtered = filtered.filter(
-                (o) =>
-                    o.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    o.plan_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    o.country?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        setFilteredOrders(filtered);
-    };
-
-    const calculateStats = () => {
-        const active = orders.filter((o) => o.status === "completed").length;
-        const pending = orders.filter((o) => o.status === "pending").length;
-        const failed = orders.filter((o) => o.status === "failed" || o.status === "cancelled").length;
-        const totalSpent = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
-        const totalBandwidth = orders.reduce((sum, o) => sum + (o.bandwidth_gb || 0), 0);
-        const totalIPs = orders.reduce((sum, o) => sum + (o.ips_included || 0), 0);
-
-        setStats({
-            total: orders.length,
-            active,
-            pending,
-            failed,
-            totalSpent,
-            totalBandwidth,
-            totalIPs,
-        });
-    };
-
-    const getStatusBadgeVariant = (
-        status: string,
-    ): "default" | "success" | "warning" | "destructive" | "secondary" => {
-        switch (status) {
-            case "completed":
-                return "default";
-            case "pending":
-                return "secondary";
-            case "failed":
-            case "cancelled":
-                return "destructive";
-            default:
-                return "secondary";
-        }
-    };
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case "completed":
-                return CheckCircle;
-            case "pending":
-                return Clock;
-            case "failed":
-            case "cancelled":
-                return XCircle;
-            default:
-                return Clock;
-        }
-    };
-
-    const downloadCredentials = async (order: ProxyOrder) => {
-        try {
-            const response = await api.get(`/web/api/orders/${order.id}/download_ovpn`, {
-                responseType: 'blob'
-            });
-            const blob = new Blob([response.data], { type: 'application/x-openvpn-profile' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `vpn-order-${order.order_number}.ovpn`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Failed to download OVPN:', error);
-            // Fallback to text download
-            const credentials = order.credentials || {};
-            const content = `
-VPN Order Details
-==================
-Order ID: ${order.order_number}
-Plan: ${order.plan_name}
-Status: ${order.status}
-Purchase Date: ${new Date(order.created_at).toLocaleDateString()}
-${order.expires_at ? `Expires: ${new Date(order.expires_at).toLocaleDateString()}` : ""}
-
-VPN Credentials
-================
-${JSON.stringify(credentials, null, 2)}
-
-Details
-============
-Country: ${order.country || "Global"}
-    `.trim();
-
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `vpn-order-${order.order_number}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        }
-    };
-
-    if (!accessToken || !user) {
-        return (
-            <Card>
-                <CardContent className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="p-4 bg-primary/10 rounded-lg mb-4 inline-block">
-                            <AlertTriangle className="h-16 w-16 text-primary" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">
-                            Authentication Required
-                        </h3>
-                        <p className="text-muted-foreground">
-                            Please log in to view your VPN orders
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                {/* Back Button Skeleton */}
-                <Skeleton className="h-10 w-40" />
-
-                {/* Header Skeleton */}
-                <Card className="bg-primary/5 border-primary/20">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Skeleton className="h-12 w-12 rounded-lg" />
-                                <div>
-                                    <Skeleton className="h-8 w-32 mb-2" />
-                                    <Skeleton className="h-4 w-56" />
-                                </div>
-                            </div>
-                            <Skeleton className="h-10 w-32" />
-                        </div>
-
-                        {/* Stats Skeleton */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-6">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="bg-card border rounded-lg p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <Skeleton className="h-4 w-20 mb-2" />
-                                            <Skeleton className="h-8 w-12" />
-                                        </div>
-                                        <Skeleton className="h-12 w-12 rounded-lg" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardHeader>
-                </Card>
-
-                {/* Filter Tabs Skeleton */}
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="flex gap-2">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <Skeleton key={i} className="h-9 w-20" />
-                                ))}
-                            </div>
-                            <Skeleton className="h-10 w-64 ml-auto" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Orders Grid Skeleton */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                        <Card key={i}>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Skeleton className="h-10 w-10 rounded-lg" />
-                                        <div>
-                                            <Skeleton className="h-5 w-28 mb-1" />
-                                            <Skeleton className="h-3 w-20" />
-                                        </div>
-                                    </div>
-                                    <Skeleton className="h-6 w-20 rounded-full" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {[1, 2, 3, 4].map((j) => (
-                                    <div key={j} className="flex justify-between">
-                                        <Skeleton className="h-4 w-24" />
-                                        <Skeleton className="h-4 w-20" />
-                                    </div>
-                                ))}
-                                <div className="flex gap-2 pt-4 border-t">
-                                    <Skeleton className="h-9 flex-1" />
-                                    <Skeleton className="h-9 flex-1" />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            {/* Back Button */}
-            <Button
-                variant="outline"
-                onClick={() => navigate("/dashboard/orders")}
-                className="gap-2"
-            >
-                <ArrowLeft className="w-4 h-4" /> Back to All Orders
-            </Button>
-
-            {/* Header */}
-            <Card className="bg-primary/5 border-primary/20">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="p-3 bg-primary/10 rounded-lg">
-                                    <Lock className="h-6 w-6 text-primary" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-3xl">VPN Orders</CardTitle>
-                                    <CardDescription className="text-base mt-1">
-                                        Manage and track your VPN subscriptions
-                                    </CardDescription>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Buy New Proxy Button */}
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            <Button
-                                onClick={() => navigate("/dashboard/vpn")}
-                                className="gap-2"
-                            >
-                                <Sparkles className="h-4 w-4" />
-                                Buy New VPN
-                            </Button>
-                        </motion.div>
-                    </div>
-
-                    {/* Overall Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-6">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="bg-card border rounded-lg p-4"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-muted-foreground text-sm">Total Orders</p>
-                                    <p className="text-3xl font-bold mt-1">{stats.total}</p>
-                                </div>
-                                <div className="p-3 bg-primary/10 rounded-lg">
-                                    <BarChart3 className="h-6 w-6 text-primary" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="bg-card border rounded-lg p-4"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-muted-foreground text-sm">Active VPNs</p>
-                                    <p className="text-3xl font-bold text-primary mt-1">
-                                        {stats.active}
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-primary/10 rounded-lg">
-                                    <CheckCircle className="h-6 w-6 text-primary" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="bg-card border rounded-lg p-4"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-muted-foreground text-sm">Total Spent</p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        ${stats.totalSpent.toFixed(2)}
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-primary/10 rounded-lg">
-                                    <DollarSign className="h-6 w-6 text-primary" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                </CardHeader>
-            </Card>
-
-            {/* Filters and Search */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-col lg:flex-row gap-4">
-                        {/* Tabs */}
-                        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                            {[
-                                { id: "all", label: "All", count: stats.total },
-                                { id: "active", label: "Active", count: stats.active },
-                                { id: "pending", label: "Pending", count: stats.pending },
-                                { id: "failed", label: "Failed", count: stats.failed },
-                            ].map((tab) => (
-                                <Button
-                                    key={tab.id}
-                                    onClick={() =>
-                                        setActiveTab(tab.id as "all" | "active" | "pending" | "failed")
-                                    }
-                                    variant={activeTab === tab.id ? "default" : "ghost"}
-                                    size="sm"
-                                    className="gap-2"
-                                >
-                                    {tab.label}
-                                    {tab.count > 0 && (
-                                        <Badge variant="secondary" className="text-xs">
-                                            {tab.count}
-                                        </Badge>
-                                    )}
-                                </Button>
-                            ))}
-                        </div>
-
-                        {/* Search */}
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search by order ID, plan name, or country..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Orders Grid */}
-            {filteredOrders.length === 0 ? (
-                <Card>
-                    <CardContent className="text-center py-12">
-                        <div className="p-4 bg-muted rounded-lg mb-4 inline-block">
-                            <ShoppingCart className="h-16 w-16 text-muted-foreground" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">No Orders Found</h3>
-                        <p className="text-muted-foreground">
-                            {searchTerm
-                                ? "Try adjusting your search criteria"
-                                : "You haven't placed any VPN orders yet"}
-                        </p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredOrders.map((order, index) => {
-                        const StatusIcon = getStatusIcon(order.status);
-                        const isExpired =
-                            order.expires_at && new Date(order.expires_at) < new Date();
-
-                        return (
-                            <motion.div
-                                key={order.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 * (index % 6) }}
-                                whileHover={{ y: -5, scale: 1.02 }}
-                            >
-                                <Card className="transition-all hover:shadow-lg hover:border-primary/50">
-                                    {/* Header */}
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-primary/10 rounded-lg">
-                                                    <Lock className="h-6 w-6 text-primary" />
-                                                </div>
-                                                <div>
-                                                    <CardTitle className="text-lg">
-                                                        {order.plan_name}
-                                                    </CardTitle>
-                                                    <CardDescription>#{order.order_number}</CardDescription>
-                                                </div>
-                                            </div>
-                                            <Badge
-                                                variant={
-                                                    isExpired ? "destructive" : getStatusBadgeVariant(order.status)
-                                                }
-                                                className="gap-1"
-                                            >
-                                                <StatusIcon className="h-3 w-3" />
-                                                {isExpired ? "Expired" : order.status}
-                                            </Badge>
-                                        </div>
-                                    </CardHeader>
-
-                                    {/* Details */}
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-muted-foreground flex items-center gap-1">
-                                                    <MapPin className="h-4 w-4" />
-                                                    Country
-                                                </span>
-                                                <span className="font-medium">
-                                                    {order.country || "Global"}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-muted-foreground flex items-center gap-1">
-                                                    <Calendar className="h-4 w-4" />
-                                                    Purchased
-                                                </span>
-                                                <span className="font-medium">
-                                                    {new Date(order.created_at).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            {order.expires_at && (
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1">
-                                                        <Clock className="h-4 w-4" />
-                                                        Expires
-                                                    </span>
-                                                    <span
-                                                        className={
-                                                            isExpired
-                                                                ? "font-medium text-destructive"
-                                                                : "font-medium"
-                                                        }
-                                                    >
-                                                        {new Date(order.expires_at).toLocaleDateString()}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Price */}
-                                        <div className="flex items-center justify-between pt-4 border-t">
-                                            <span className="text-muted-foreground">Total Paid</span>
-                                            <span className="text-xl font-bold">
-                                                {order.currency === "USD" ? "$" : order.currency}{" "}
-                                                {order.amount.toFixed(2)}
-                                            </span>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex gap-2 pt-2">
-                                            {order.status === "completed" && (
-                                                <>
-                                                    <Button
-                                                        variant="outline"
-                                                        onClick={() => setSelectedOrder(order)}
-                                                        className="flex-1 gap-2"
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                        Details
-                                                    </Button>
-                                                    {order.credentials && (
-                                                        <Button
-                                                            onClick={() => downloadCredentials(order)}
-                                                            className="flex-1 gap-2"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                            OVPN
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        variant="outline"
-                                                        onClick={async () => {
-                                                            try {
-                                                                const response = await api.get(`/web/api/orders/${order.id}/download_invoice`, {
-                                                                    responseType: 'blob'
-                                                                });
-                                                                const blob = new Blob([response.data], { type: 'application/pdf' });
-                                                                const url = URL.createObjectURL(blob);
-                                                                const a = document.createElement("a");
-                                                                a.href = url;
-                                                                a.download = `invoice-${order.order_number}.pdf`;
-                                                                document.body.appendChild(a);
-                                                                a.click();
-                                                                a.remove();
-                                                                URL.revokeObjectURL(url);
-                                                            } catch (error) {
-                                                                console.error('Failed to download invoice:', error);
-                                                            }
-                                                        }}
-                                                        className="gap-2"
-                                                        title="Download Invoice"
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                    </Button>
-                                                </>
-                                            )}
-
-                                            {order.status === "pending" && (
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => setSelectedOrder(order)}
-                                                    className="flex-1 gap-2"
-                                                >
-                                                    <FileText className="h-4 w-4" />
-                                                    Details
-                                                </Button>
-                                            )}
-
-                                            {(order.status === "failed" || order.status === "cancelled") && (
-                                                <>
-                                                    <Button
-                                                        variant="outline"
-                                                        onClick={() => navigate(`/dashboard/support?tab=tickets&order_id=${order.order_number}`)}
-                                                        className="flex-1 gap-2"
-                                                    >
-                                                        <MessageSquare className="h-4 w-4" />
-                                                        Open Ticket
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Order Details Modal */}
-            <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl">VPN Order Details</DialogTitle>
-                        <DialogDescription>
-                            Detailed information about your VPN order
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedOrder && (
-                        <div className="space-y-6 py-4">
-                            {/* Order Info */}
-                            <Card className="bg-muted/50">
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Order Information</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">
-                                                Order ID
-                                            </span>
-                                            <p className="font-medium mt-1">
-                                                {selectedOrder.order_number}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">Status</span>
-                                            <div className="mt-1">
-                                                <Badge variant={getStatusBadgeVariant(selectedOrder.status)}>
-                                                    {selectedOrder.status}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">Plan</span>
-                                            <p className="font-medium mt-1">
-                                                {selectedOrder.plan_name}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">
-                                                Payment Method
-                                            </span>
-                                            <p className="font-medium mt-1">
-                                                {selectedOrder.payment_method || "N/A"}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">Amount</span>
-                                            <p className="font-medium mt-1">
-                                                {selectedOrder.currency === "USD" ? "$" : selectedOrder.currency}{" "}
-                                                {selectedOrder.amount.toFixed(2)}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground text-sm">
-                                                Purchase Date
-                                            </span>
-                                            <p className="font-medium mt-1">
-                                                {new Date(selectedOrder.created_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Credentials */}
-                            {selectedOrder.credentials &&
-                                Object.keys(selectedOrder.credentials).length > 0 && (
-                                    <Card className="bg-muted/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg">
-                                                Access Credentials
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <pre className="text-sm overflow-x-auto bg-card p-4 rounded-lg border">
-                                                {JSON.stringify(selectedOrder.credentials, null, 2)}
-                                            </pre>
-                                            <div className="mt-4">
-                                                <Button
-                                                    onClick={() => downloadCredentials(selectedOrder)}
-                                                    className="w-full gap-2"
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                    Download Credentials
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-        </div>
-    );
-};
-
-export default VPNOrdersPage;
+function CopyField({ label, value, copy }: { label: string; value: string; copy: (value: string) => Promise<void> }) {
+  return <div className="proxy-secret"><span>{label}</span><div><code>{value}</code><button aria-label={`Copy ${label}`} onClick={() => copy(value)}><Copy size={15} /></button></div></div>;
+}

@@ -63,6 +63,7 @@ export default function EsimTopupDialog({
   onOpenChange,
   client = api,
   ordersPath = "/web/api/orders",
+  contentClassName,
 }: {
   orderId: string;
   lineName: string;
@@ -71,6 +72,7 @@ export default function EsimTopupDialog({
   // Resellers use their own API client and order routes.
   client?: AxiosInstance;
   ordersPath?: string;
+  contentClassName?: string;
 }) {
   const base = `${ordersPath}/${orderId}`;
   const [state, setState] = useState<TopupState | null>(null);
@@ -115,7 +117,7 @@ export default function EsimTopupDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className={`max-h-[90vh] max-w-lg overflow-y-auto ${contentClassName || ""}`}>
         <DialogHeader>
           <DialogTitle className="text-xl">Top up your line</DialogTitle>
           <DialogDescription>{lineName}</DialogDescription>

@@ -54,7 +54,7 @@ export default function Orders() {
 
   return <div className={`dashboard-overview orders-page ${dark ? 'overview-dark' : ''}`}>
     <Helmet><title>Orders | ProxySock</title></Helmet>
-    <header className="overview-heading"><div><span className="overview-eyebrow">Your workspace</span><h1>Orders</h1><p>Review your purchases and follow their progress.</p></div>
+    <header className="overview-heading"><div><h1>Orders</h1><p>Review your purchases and follow their progress.</p></div>
       {accessToken && user && <div className="overview-heading-actions"><Link className="overview-button" to="/dashboard/products">My services <ArrowUpRight size={14} aria-hidden="true" /></Link><button type="button" className="overview-icon-button" disabled={isFetching} onClick={() => refetch()} aria-label="Refresh orders"><RefreshCw size={15} aria-hidden="true" /></button></div>}
     </header>
     {!accessToken || !user ? <section className="overview-auth"><h2>Sign in to view your orders</h2><Link to="/login">Back to login <ArrowRight size={14} aria-hidden="true" /></Link></section> : <>

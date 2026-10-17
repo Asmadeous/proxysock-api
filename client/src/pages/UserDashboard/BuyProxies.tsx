@@ -745,7 +745,7 @@ export default function BuyProxies({ isDirectBuy, onDirectBuy }: BuyProxiesProps
   return (
     <div className={`dashboard-overview proxy-purchase ${dark ? "overview-dark" : ""} ${isDirectBuy ? "proxy-purchase-direct" : ""}`}>
       <header className="overview-heading">
-        <div><span className="overview-eyebrow">Explore services</span><h1>Proxies</h1><p>Find your connection. Choose a proxy type, select a plan, and make it yours.</p></div>
+        <div><h1>Proxies</h1><p>Find your connection. Choose a proxy type, select a plan, and make it yours.</p></div>
         {!isDirectBuy && <div className="overview-heading-actions"><Link className="overview-button" to="/dashboard/proxy-management">My proxies <ArrowUpRight size={15} /></Link><Link className="overview-button" to="/dashboard/cart">View cart <ShoppingCart size={15} /></Link></div>}
       </header>
 

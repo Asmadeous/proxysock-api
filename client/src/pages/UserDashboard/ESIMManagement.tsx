@@ -1,713 +1,203 @@
-import { useState, useEffect, useMemo } from "react";
-import { useLocation, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  DevicePhoneMobileIcon,
-  GlobeAltIcon,
-  QrCodeIcon,
-  ClipboardDocumentIcon,
-  ArrowPathIcon,
-  DocumentArrowDownIcon,
-  ExclamationTriangleIcon,
-  XCircleIcon,
-  ClockIcon,
-  ChartBarIcon,
-  ArrowLeftIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
-import ESIMCard, { ESIMProfile } from "@/components/dashboard/products/ESIMCard";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Copy, Smartphone, RefreshCw, Search } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import EsimTopupDialog from './EsimTopupDialog';
+import './esim-management.css';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import api from '@/services/api';
+import './dashboard-home.css';
+// Shared service cards and dialogs match Proxy Management.
+import './proxy-management.css';
 
+interface EsimProfile {
+  id?: string | number;
+  iccid?: string;
+  qr_code_data?: string;
+  qr_code_url?: string;
+  qr_code?: string;
+  activation_code?: string;
+  qr_activation_code?: string;
+  phone_number?: string;
+  pin1?: string;
+  puk1?: string;
+  pin2?: string;
+  puk2?: string;
+  zip_code?: string;
+  total_volume?: number;
+  used_volume?: number;
+  data_label?: string;
+  location_name?: string;
+  validity_days?: number;
+  expired_time?: string;
+  status?: string;
+}
+interface EsimOrder {
+  id: string | number;
+  order_number: string;
+  product_name: string;
+  product_type: string;
+  status: string;
+  country?: string;
+  created_at: string;
+  reorderable?: boolean;
+  topup_eligible?: boolean;
+  review_pending?: boolean;
+  auto_renew?: boolean;
+  profiles?: EsimProfile[];
+  credentials_list?: EsimProfile[];
+  credentials?: EsimProfile;
+}
+interface Service extends Omit<EsimOrder, 'id'> {
+  id: string;
+  orderId: string | number;
+  profile: EsimProfile;
+}
+const profileRows = (orders: EsimOrder[]): Service[] => orders.flatMap(order => {
+  const profiles = order.profiles?.length ? order.profiles : order.credentials_list?.length ? order.credentials_list : [order.credentials || {}];
+  return profiles.map((profile, index) => ({ ...order, id: `${order.id}-${profile.id ?? index}`, orderId: order.id, profile }));
+});
+const allowance = (profile: EsimProfile) => profile.data_label || (Number(profile.total_volume) > 0 ? `${(Number(profile.total_volume) / 1024).toFixed(2)} GB` : 'Not specified');
+const activationCode = (profile: EsimProfile) => profile.activation_code || profile.qr_activation_code || (profile.qr_code_data?.startsWith('LPA:') ? profile.qr_code_data : '') || '';
+const qrValue = (profile: EsimProfile) => [activationCode(profile), profile.qr_code_data].find(value => value?.startsWith('LPA:'));
+type Panel = 'details' | 'activation' | 'subscription' | 'reorder';
+const titles: Record<Panel, string> = { details: 'eSIM details', activation: 'Install eSIM', subscription: 'Renewal settings', reorder: 'Reorder eSIM' };
+const active = (order: EsimOrder) => ['active', 'completed'].includes(order.status);
+const closed = (order: EsimOrder) => ['refunded', 'cancelled', 'failed', 'expired', 'suspended'].includes(order.status);
+const date = (value?: string) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not available';
+const errorMessage = (error: unknown) => (error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'The change couldn’t be completed. Please try again.';
 
-
-const ESIMManagement = () => {
-  const [esimProfiles, setEsimProfiles] = useState<ESIMProfile[]>([]);
-  const [productTypeFilter, setProductTypeFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [selectedProfile, setSelectedProfile] = useState<ESIMProfile | null>(null);
-  // NOTE: In-house eSIM credentials (e.g., SM-DP+ address and activation code) 
-  // cannot be changed programmatically. These are fixed per profile by the provider.
-  const [showQRModal, setShowQRModal] = useState<ESIMProfile | null>(null);
-  const [subscriptionModalProfile, setSubscriptionModalProfile] = useState<ESIMProfile | null>(null);
-
-  const { accessToken } = useAuth();
+export default function ESIMManagement() {
+  const dark = useThemeStore(state => state.dark);
+  const { user, accessToken } = useAuth();
   const location = useLocation();
-
-  // Handle auto-search from URL params
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const search = params.get("search");
-    if (search) {
-      // For eSIM, we search ICCID, Order No, or Package Name
-      // We'll set the productTypeFilter to 'all' to ensure the search is effective
-      setProductTypeFilter('all');
-      setSearchTerm(search);
-    }
-  }, [location.search]);
-
-  useEffect(() => {
-    fetchESIMProfiles();
-  }, []);
-
-  const fetchESIMProfiles = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/web/api/orders?product_type=esim,usa_esim');
-      if (response.data && response.data.orders) {
-        const transformedProfiles = response.data.orders
-          .flatMap((order: any) => {
-            const credentials = order.credentials_list || [order.credentials];
-            return credentials.filter(Boolean).map((cred: any, index: number) => ({
-              id: `${order.id}-${cred.id || index}`,
-              esim_order_id: String(order.id),
-              product_type: order.product_type || 'esim',
-              order_no: order.order_number, // Keep order_no
-              plan_name: order.product_name,
-              package_name: order.product_name, // Keep package_name for compatibility
-              location_name: order.country || 'Global', // Keep location_name
-              location_code: order.proxy_type || 'US', // Keep location_code
-              data_limit_gb: order.esim_details?.data_amount_gb || 0,
-              duration_days: order.esim_details?.duration_days || 30,
-              iccid: cred.iccid || '',
-              qr_code_url: cred.qr_code || '',
-              activation_code: cred.activation_code || cred.qr_activation_code || '',
-              esim_status: (order.status === 'completed' || order.status === 'active') ? 'active' : order.status,
-              created_at: order.created_at,
-              expires_at: order.expires_at || new Date(new Date(order.created_at).getTime() + (order.esim_details?.duration_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
-              expired_time: order.expires_at, // Keep expired_time for compatibility
-              total_volume: order.esim_details?.data_amount_gb ? order.esim_details.data_amount_gb * 1024 : 0, // in MB
-              order_usage: 0, // Placeholder
-              usage_percent: 0, // Placeholder
-              remaining_data: order.esim_details?.data_amount_gb ? order.esim_details.data_amount_gb * 1024 : 0, // Placeholder
-              usage: {
-                data_used_gb: 0,
-                data_total_gb: order.esim_details?.data_amount_gb || 0,
-                days_left: order.esim_details?.duration_days || 30
-              },
-              pin1: cred.pin1 || '',
-              puk1: cred.puk1 || '',
-              pin2: cred.pin2 || '',
-              puk2: cred.puk2 || '',
-              zip_code: cred.zip_code || '',
-              is_expired: order.status === 'expired',
-              order_total: Number(order.amount || order.total_amount || 0),
-              order_status: order.status,
-              days_remaining: order.expires_at ? Math.max(0, Math.ceil((new Date(order.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null,
-              auto_renew: order.auto_renew,
-              renewal_method: order.renewal_method,
-            }));
-          });
-        setEsimProfiles(transformedProfiles);
-      }
-    } catch (error) {
-      console.error('Failed to fetch eSIM profiles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredProfiles = useMemo(() => esimProfiles.filter(profile => {
-    const matchesProductType = productTypeFilter === 'all' || profile.product_type === productTypeFilter;
-    const matchesSearch = !searchTerm || 
-      profile.iccid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      profile.order_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      profile.package_name?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    return matchesProductType && matchesSearch;
-  }), [esimProfiles, productTypeFilter, searchTerm]);
-
-  const copyToClipboard = (text?: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
-  };
-
-  const handleReorder = async (orderId: string) => {
-    try {
-      setLoading(true);
-      await api.post(`/web/api/orders/${orderId}/reorder`);
-      toast.success("Reorder successful! A new order has been created.");
-      fetchESIMProfiles(); // Refresh data
-    } catch (error: any) {
-      console.error("Failed to reorder:", error);
-      const message = error.response?.data?.error || "Failed to reorder";
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDataSize = (mb: number) => {
-    if (mb >= 1024) {
-      return `${(mb / 1024).toFixed(2)} GB`;
-    }
-    return `${mb} MB`;
-  };
-
-
-
-
-
-  const getUsageColor = (percent: number) => {
-    if (percent >= 90) return 'from-destructive to-destructive';
-    if (percent >= 70) return 'from-secondary to-secondary';
-    return 'from-primary to-primary';
-  };
-
-  if (!accessToken) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <ExclamationTriangleIcon className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">Authentication Required</h3>
-          <p className="text-muted-foreground">Please log in to view your eSIM profiles</p>
-        </div>
-      </div>
-    );
+  const queryClient = useQueryClient();
+  const queryKey = ['esim-management', user?.id];
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState('');
+  const [topup, setTopup] = useState<Service | null>(null);
+  const [qrFailed, setQrFailed] = useState(false);
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panel, setPanel] = useState<Panel>('details');
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [actionError, setActionError] = useState('');
+  const query = useQuery<EsimOrder[]>({
+    queryKey,
+    enabled: Boolean(user?.id && accessToken),
+    retry: false,
+    cacheTime: 0,
+    queryFn: async ({ signal }) => {
+      const orders: EsimOrder[] = [];
+      let nextPage = 1;
+      let totalPages = 1;
+      do {
+        const { data } = await api.get('/web/api/orders', { params: { product_type: 'esim,usa_esim', page: nextPage, per_page: 100 }, signal });
+        orders.push(...data.orders);
+        totalPages = data.meta?.total_pages ?? 1;
+        nextPage += 1;
+      } while (nextPage <= totalPages);
+      return orders;
+    },
+  });
+  useEffect(() => { setSearch(new URLSearchParams(location.search).get('search') || ''); setPage(1); }, [location.search]);
+  const orders = profileRows(query.data || []);
+  const selected = orders.find(order => order.id === selectedId);
+  const filtered = orders.filter(order => (!type || order.product_type === type)
+    && (!status || (status === 'active' ? active(order) : status === 'inactive' ? closed(order) : !active(order) && !closed(order)))
+    && [order.order_number, order.product_name, order.profile.iccid, order.profile.phone_number, order.profile.location_name, order.country].some(value => value?.toLowerCase().includes(search.toLowerCase().trim())));
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 9));
+  const currentPage = Math.min(page, pageCount);
+  const shown = filtered.slice((currentPage - 1) * 9, currentPage * 9);
+  function open(order: Service, next: Panel) {
+    setSelectedId(order.id); setPanel(next); setActionError(''); setQrFailed(false);
   }
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-8 w-48 bg-muted animate-pulse rounded-lg"></div>
-            <div className="h-4 w-64 bg-muted animate-pulse rounded mt-2"></div>
-          </div>
-          <div className="h-10 w-28 bg-muted animate-pulse rounded-lg"></div>
-        </div>
-
-        {/* Cards Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-card rounded-xl p-6 border">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 bg-muted animate-pulse rounded-lg"></div>
-                  <div>
-                    <div className="h-5 w-32 bg-muted animate-pulse rounded mb-2"></div>
-                    <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
-                  </div>
-                </div>
-                <div className="h-6 w-16 bg-muted animate-pulse rounded-full"></div>
-              </div>
-
-              {/* Data Plan Info */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="flex items-center space-x-2">
-                    <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
-                    <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Usage Stats */}
-              <div className="space-y-3 mb-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <div className="h-3 w-16 bg-muted animate-pulse rounded"></div>
-                    <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
-                  </div>
-                  <div className="h-2 w-full bg-muted animate-pulse rounded-full"></div>
-                  <div className="flex justify-between mt-1">
-                    <div className="h-3 w-12 bg-muted animate-pulse rounded"></div>
-                    <div className="h-3 w-20 bg-muted animate-pulse rounded"></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection Details */}
-              <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-2">
-                {[1, 2, 3].map((j) => (
-                  <div key={j} className="flex items-center justify-between">
-                    <div className="h-3 w-16 bg-muted animate-pulse rounded"></div>
-                    <div className="h-4 w-28 bg-muted animate-pulse rounded"></div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
-                <div className="h-10 flex-1 bg-muted animate-pulse rounded-lg"></div>
-                <div className="h-10 flex-1 bg-muted animate-pulse rounded-lg"></div>
-                <div className="h-10 w-10 bg-muted animate-pulse rounded-lg"></div>
-              </div>
-
-              {/* Validity Info */}
-              <div className="mt-3 flex items-center justify-between">
-                <div className="h-3 w-16 bg-muted animate-pulse rounded"></div>
-                <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  async function copy(value: string) {
+    try { await navigator.clipboard.writeText(value); toast.success('Copied to clipboard'); }
+    catch { toast.error('Couldn’t copy. Select the text and copy it manually.'); }
   }
+  async function change(operation: () => Promise<unknown>, message: string, close = false) {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setActionError('');
+    try {
+      await operation();
+      toast.success(message);
+      if (close) setSelectedId(null);
+      await query.refetch();
+      queryClient.invalidateQueries(['my-services']);
+    } catch (error) { setActionError(errorMessage(error)); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  return <div className={`dashboard-overview proxy-management ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>eSIM Management | ProxySock</title></Helmet>
+    <Link className="proxy-back" to="/dashboard/products"><ArrowLeft size={14} /> My services</Link>
+    <header className="overview-heading"><div><h1>eSIM management</h1><p>View your profiles, installation details, and data plans.</p></div><div className="overview-heading-actions"><Link className="overview-button" to="/dashboard/esim">Browse eSIM plans <ArrowUpRight size={14} /></Link><button className="overview-icon-button" aria-label="Refresh eSIM services" disabled={query.isFetching || busy} onClick={() => query.refetch()}><RefreshCw size={15} /></button></div></header>
+    {!user || !accessToken ? <div className="overview-auth"><h2>Sign in to view your eSIM services</h2><Link to="/login">Back to login</Link></div> : <>
+      {query.isError && <div className="overview-error" role="alert"><div><strong>We couldn’t update your eSIM services.</strong><p>{query.data ? 'Showing the last loaded details. Refresh before making changes.' : 'Try again to load your services.'}</p></div><button onClick={() => query.refetch()} disabled={query.isFetching}>Try again</button></div>}
+      <div className="proxy-summary"><span><strong>{query.data ? query.data.length : '—'}</strong> Orders</span><span><strong>{query.data ? (query.data || []).filter(active).length : '—'}</strong> Active orders</span><span><strong>{query.data ? (query.data || []).filter(order => active(order) && order.auto_renew).length : '—'}</strong> Auto-renew on</span></div>
+      <div className="proxy-filters"><label className="proxy-search"><Search size={16} /><span className="sr-only">Search eSIM services</span><input value={search} placeholder="Search plan, order, ICCID, or phone" onChange={event => { setSearch(event.target.value); setPage(1); }} /></label><div><label htmlFor="esim-type">Service type</label><PurchaseSelect id="esim-type" value={type} onValueChange={value => { setType(value); setPage(1); }} emptyLabel="All eSIMs" options={[{ value: 'esim', label: 'eSIM' }, { value: 'usa_esim', label: 'USA eSIM' }]} /></div><div><label htmlFor="esim-status">Order status</label><PurchaseSelect id="esim-status" value={status} onValueChange={value => { setStatus(value); setPage(1); }} emptyLabel="All statuses" options={[{ value: 'active', label: 'Active' }, { value: 'pending', label: 'Pending / processing' }, { value: 'inactive', label: 'Inactive' }]} /></div></div>
+      {query.isFetching && <p className="proxy-note" role="status">{query.isLoading ? 'Loading eSIM services…' : 'Updating eSIM details…'}</p>}
+      {!query.isLoading && query.data && <><div className="proxy-results"><p>{filtered.length} {filtered.length === 1 ? 'service' : 'services'}</p>{(search || type || status) && <button onClick={() => { setSearch(''); setType(''); setStatus(''); setPage(1); }}>Clear filters</button>}</div>
+        {shown.length ? <div className="proxy-grid">{shown.map(order => <article className="proxy-service" key={order.id}>
+          <div className="proxy-service-top"><span><Smartphone size={16} />eSIM</span><span className="overview-status" data-status={active(order) ? 'active' : order.status}>{active(order) ? 'Order active' : order.status.replace(/_/g, ' ')}</span></div>
+          <h2>{order.product_name}</h2><p className="proxy-order">{order.order_number}</p>
+          <dl className="proxy-facts"><div><dt>Location</dt><dd>{order.profile.location_name || order.country || 'Not available'}</dd></div><div><dt>Expires</dt><dd>{date(order.profile.expired_time)}</dd></div><div><dt>Data allowance</dt><dd>{allowance(order.profile)}</dd></div><div><dt>Profile status</dt><dd>{order.profile.status || 'Awaiting profile'}</dd></div></dl>
+          {order.profile.iccid && <p className="proxy-usage">ICCID {order.profile.iccid}</p>}
+          {order.review_pending && <p className="proxy-note">Your order is being reviewed. Installation details will appear when ready.</p>}
+          <div className="proxy-card-actions">{order.topup_eligible && <button onClick={() => setTopup(order)}>Top up line</button>}<button onClick={() => open(order, 'details')}>View details <ArrowUpRight size={13} /></button>{!closed(order) && <button onClick={() => open(order, 'activation')}>Install eSIM</button>}{order.status === 'expired' && order.reorderable && !order.topup_eligible && <button onClick={() => open(order, 'reorder')}>Reorder</button>}</div>
+        </article>)}</div> : <div className="proxy-empty"><Smartphone size={25} /><h2>{orders.length ? 'No matching eSIM services' : 'No eSIM services yet'}</h2><p>{orders.length ? 'Try a different search or clear your filters.' : 'Your eSIM subscriptions and connection details will appear here.'}</p>{!orders.length && <Link className="overview-button" to="/dashboard/esim">Browse eSIM plans <ArrowUpRight size={14} /></Link>}</div>}
+        {pageCount > 1 && <nav className="proxy-pagination" aria-label="eSIM pages"><button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></nav>}
+      </>}
+    </>}
+    <Dialog open={Boolean(selected)} onOpenChange={value => { if (!value && !busy) setSelectedId(null); }}>
+      <DialogContent className={`proxy-dialog ${dark ? 'proxy-dialog-dark' : ''}`} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onInteractOutside={event => { if (busy) event.preventDefault(); }}>
+        <DialogTitle>{titles[panel]}</DialogTitle><DialogDescription>{selected?.product_name} · {selected?.order_number}</DialogDescription>
+        {selected && <><div className="proxy-dialog-nav">{(['details', ...(!closed(selected) ? ['activation'] : []), ...(active(selected) && !selected.topup_eligible ? ['subscription'] : [])] as Panel[]).map(next => <button disabled={busy} aria-pressed={panel === next} key={next} onClick={() => { setPanel(next); setActionError(''); }}>{next === 'activation' ? 'Install eSIM' : next === 'subscription' ? 'Renewal' : 'Details'}</button>)}</div>
+          {query.isError && <p className="proxy-action-error" role="alert">Refresh the service list to load current details before making changes.</p>}
+          {actionError && <p className="proxy-action-error" role="alert">{actionError}</p>}
+          <fieldset disabled={busy || query.isError} className="proxy-panel">
+            {panel === 'details' && <>
+              <dl className="proxy-facts">
+                <div><dt>Order status</dt><dd>{active(selected) ? 'Active' : selected.status}</dd></div>
+                <div><dt>Profile status</dt><dd>{selected.profile.status || 'Awaiting profile'}</dd></div>
+                <div><dt>Data allowance</dt><dd>{allowance(selected.profile)}</dd></div>
+                <div><dt>Recorded usage</dt><dd>{selected.profile.used_volume != null ? `${(selected.profile.used_volume / 1024).toFixed(2)} GB` : 'Not available'}</dd></div>
+                <div><dt>Purchased</dt><dd>{date(selected.created_at)}</dd></div>
+                <div><dt>Profile expiry</dt><dd>{date(selected.profile.expired_time)}</dd></div>
+                <div><dt>Plan validity</dt><dd>{selected.profile.validity_days ? `${selected.profile.validity_days} days` : 'Not specified'}</dd></div>
+                <div><dt>Location</dt><dd>{selected.profile.location_name || selected.country || 'Not available'}</dd></div>
+              </dl>
+              {!selected.profile.expired_time && selected.profile.validity_days && <p className="proxy-note">Validity begins when the eSIM is activated. An expiry date has not been reported yet.</p>}
+              {selected.profile.iccid && <CopyField label="ICCID" value={selected.profile.iccid} copy={copy} />}
+              {selected.profile.phone_number && <CopyField label="Phone number" value={selected.profile.phone_number} copy={copy} />}
+              <Link className="proxy-help" to="/dashboard/support">Need help with this service? <ArrowUpRight size={13} /></Link>
+            </>}
+            {panel === 'activation' && <>
+              {qrValue(selected.profile) ? <div className="esim-install-qr"><QRCodeSVG value={qrValue(selected.profile)!} size={220} marginSize={4} aria-label="eSIM installation QR code" /></div> : (selected.profile.qr_code_url || selected.profile.qr_code) && !qrFailed ? <div className="esim-install-qr"><img src={selected.profile.qr_code_url || selected.profile.qr_code} alt="eSIM installation QR code" onError={() => setQrFailed(true)} /></div> : <p className="proxy-note">{qrFailed ? 'The QR image could not be loaded. Use the activation details below or contact support.' : 'An installation QR code is not available yet.'}</p>}
+              {activationCode(selected.profile) && <CopyField label="Activation code" value={activationCode(selected.profile)} copy={copy} />}
+              {selected.profile.iccid && <CopyField label="ICCID" value={selected.profile.iccid} copy={copy} />}
+              {(['pin1', 'puk1', 'pin2', 'puk2', 'zip_code'] as const).map(key => selected.profile[key] ? <CopyField key={key} label={key === 'zip_code' ? 'ZIP code' : key.toUpperCase()} value={selected.profile[key]!} copy={copy} /> : null)}
+              <p className="proxy-note">On your device, open cellular or mobile settings, choose Add eSIM, and scan the QR code. Follow the device’s prompts to finish installation.</p>
+            </>}
+            {panel === 'subscription' && <><div className="proxy-renewal"><div><h3>Automatic renewal</h3><p className="proxy-note">{selected.auto_renew ? 'On' : 'Off'} · Paid from your wallet</p></div><span className="overview-status">{selected.auto_renew ? 'Enabled' : 'Disabled'}</span></div><p className="proxy-note">This setting applies to the whole order, including any other profiles in it. When enabled, renewal charges are taken from your wallet at the end of the service term. Keep enough balance available to avoid interruption.</p><p className="proxy-note">Profile expiry: {date(selected.profile.expired_time)}</p><button className={selected.auto_renew ? 'proxy-secondary' : 'proxy-primary'} onClick={() => change(() => api.post(`/web/api/orders/${selected.orderId}/update_subscription`, { auto_renew: !selected.auto_renew, renewal_method: 'wallet' }), 'Renewal settings updated')}>{selected.auto_renew ? 'Turn off auto-renew' : 'Enable wallet auto-renew'}</button></>}
+            {panel === 'reorder' && <><p className="proxy-note">This creates a new order for the same product using its current price. If your wallet has enough balance, payment and provisioning start automatically.</p><p className="proxy-note">To review available plans and prices first, <Link to="/dashboard/esim">browse eSIM plans</Link>.</p><button className="proxy-primary" onClick={() => change(async () => { const response = await api.post(`/web/api/orders/${selected.orderId}/reorder`); if (response.status === 202) toast.info('Order created. Top up your wallet to complete payment.'); }, 'New order created', true)}>Confirm reorder</button></>}
+          </fieldset>
+          {busy && <p className="proxy-note" role="status">Please wait…</p>}
+        </>}
+      </DialogContent>
+    </Dialog>
+    {topup && <EsimTopupDialog key={topup.orderId} orderId={String(topup.orderId)} lineName={topup.product_name} contentClassName={`proxy-dialog esim-topup ${dark ? 'proxy-dialog-dark' : ''}`} open onOpenChange={value => { if (!value) setTopup(null); }} />}
+  </div>;
+}
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            to="/dashboard/products"
-            className="p-2 hover:bg-muted rounded-full transition-colors group"
-            title="Back to Product Management"
-          >
-            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">eSIM Management</h1>
-            <p className="text-muted-foreground mt-2">Manage your eSIM profiles and data plans</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={fetchESIMProfiles}
-            disabled={loading || !accessToken}
-            className="flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
-          >
-            <ArrowPathIcon className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            placeholder="Search by ICCID, Order #, or Plan..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <GlobeAltIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        </div>
-        <select
-          value={productTypeFilter}
-          onChange={(e) => setProductTypeFilter(e.target.value)}
-          className="px-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-        >
-          <option value="all">All eSIMs</option>
-          <option value="esim">eSIM</option>
-          <option value="usa_esim">USA eSIM</option>
-        </select>
-        {searchTerm && (
-          <button 
-            onClick={() => setSearchTerm('')}
-            className="text-sm text-primary hover:underline"
-          >
-            Clear Search
-          </button>
-        )}
-      </div>
-
-      {/* eSIM Profiles Grid */}
-      {filteredProfiles.length === 0 ? (
-        <div className="text-center py-12">
-          <DevicePhoneMobileIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No eSIM Profiles</h3>
-          <p className="text-muted-foreground">You don't have any eSIM profiles yet.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredProfiles.map((profile) => (
-            <ESIMCard
-              key={profile.id}
-              profile={profile}
-              onShowQR={(p) => setShowQRModal(p)}
-              onShowDetails={(p) => setSelectedProfile(p)}
-              onShowSubscription={(p) => setSubscriptionModalProfile(p)}
-              onReorder={handleReorder}
-              onCopy={copyToClipboard}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* QR Code Modal */}
-      <AnimatePresence>
-        {showQRModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowQRModal(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card rounded-xl p-6 max-w-md w-full border"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">eSIM QR Code</h2>
-                <button
-                  onClick={() => setShowQRModal(null)}
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <XCircleIcon className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="bg-white p-4 rounded-lg mb-4">
-                <img
-                  src={showQRModal.qr_code_url}
-                  alt="eSIM QR Code"
-                  className="w-full h-auto"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-2">Activation Code:</p>
-                  <div className="flex items-center justify-between">
-                    <code className="text-sm font-mono break-all">
-                      {showQRModal.activation_code}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(showQRModal.activation_code)}
-                      className="p-1 text-muted-foreground hover:text-foreground transition-colors ml-2 flex-shrink-0"
-                    >
-                      <ClipboardDocumentIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  <p className="mb-1">📱 To activate your eSIM:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground/80">
-                    <li>Go to Settings → Cellular/Mobile</li>
-                    <li>Add Cellular/Mobile Plan</li>
-                    <li>Scan this QR code</li>
-                    <li>Follow the on-screen instructions</li>
-                  </ol>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Profile Details Modal */}
-      <AnimatePresence>
-        {selectedProfile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedProfile(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto border"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-primary/10 rounded-lg">
-                    <DevicePhoneMobileIcon className="h-8 w-8 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedProfile.package_name}</h2>
-                    <p className="text-muted-foreground">{selectedProfile.location_name}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedProfile(null)}
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <XCircleIcon className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {/* Package Details */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Package Details</h3>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-muted-foreground text-sm">Data Allowance</span>
-                        <p className="font-medium">{formatDataSize(selectedProfile.total_volume)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-sm">Validity</span>
-                        <p className="font-medium">
-                          {selectedProfile.total_duration} {selectedProfile.duration_unit}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-sm">Location</span>
-                        <p className="font-medium">
-                          {selectedProfile.location_name} ({selectedProfile.location_code.toUpperCase()})
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-sm">Package Code</span>
-                        <p className="font-medium">{selectedProfile.package_code}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Usage Statistics */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Usage Statistics</h3>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Data Usage</span>
-                        <span>
-                          {formatDataSize(selectedProfile.order_usage)} / {formatDataSize(selectedProfile.total_volume)}
-                        </span>
-                      </div>
-                      <div className="w-full bg-secondary rounded-full h-3">
-                        <div
-                          className={`bg-gradient-to-r ${getUsageColor(selectedProfile.usage_percent)} h-3 rounded-full transition-all`}
-                          style={{ width: `${selectedProfile.usage_percent}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>{selectedProfile.usage_percent}% used</span>
-                        <span>{formatDataSize(selectedProfile.remaining_data)} remaining</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Technical Details */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Technical Details</h3>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">ICCID</span>
-                      <span className="font-mono text-sm">{selectedProfile.iccid}</span>
-                    </div>
-                    {selectedProfile.imsi && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">IMSI</span>
-                        <span className="font-mono text-sm">{selectedProfile.imsi}</span>
-                      </div>
-                    )}
-                    {selectedProfile.msisdn && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">MSISDN</span>
-                        <span className="font-mono text-sm">{selectedProfile.msisdn}</span>
-                      </div>
-                    )}
-                    {selectedProfile.eid && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">EID</span>
-                        <span className="font-mono text-sm truncate max-w-[200px]">
-                          {selectedProfile.eid}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">eSIM Status</span>
-                      <span className={`text-sm ${selectedProfile.is_expired ? 'text-destructive' : 'text-primary'}`}>
-                        {selectedProfile.is_expired ? 'Expired' : selectedProfile.esim_status}
-                      </span>
-                    </div>
-                    {selectedProfile.smdp_status && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">SM-DP+ Status</span>
-                        <span className="text-sm">{selectedProfile.smdp_status}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Order Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Order Information</h3>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Order Number</span>
-                      <span className="text-sm">{selectedProfile.order_no}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Transaction</span>
-                      <span className="font-mono text-sm">{selectedProfile.esim_tran_no}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Total Cost</span>
-                      <span className="text-primary font-semibold">${selectedProfile.order_total?.toFixed(2) || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Purchase Date</span>
-                      <span className="text-sm">
-                        {selectedProfile.created_at ? new Date(selectedProfile.created_at).toLocaleDateString() : 'N/A'}
-                      </span>
-                    </div>
-                    {selectedProfile.expired_time && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Expiry Date</span>
-                        <span className={`text-sm ${selectedProfile.is_expired ? 'text-destructive' : ''}`}>
-                          {selectedProfile.expired_time ? new Date(selectedProfile.expired_time).toLocaleDateString() : 'N/A'}
-                          {selectedProfile.days_remaining && !selectedProfile.is_expired &&
-                            ` (${selectedProfile.days_remaining} days remaining)`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex space-x-3">
-                  {selectedProfile.qr_code_url && (
-                    <button
-                      onClick={() => {
-                        setShowQRModal(selectedProfile);
-                        setSelectedProfile(null);
-                      }}
-                      className="flex-1 flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    >
-                      <QrCodeIcon className="h-5 w-5 mr-2" />
-                      View QR Code
-                    </button>
-                  )}
-                  {selectedProfile.pdf_url && (
-                    <a
-                      href={selectedProfile.pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-                    >
-                      <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-                      Download PDF
-                    </a>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Subscription Management Modal */}
-      <AnimatePresence>
-        {subscriptionModalProfile && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card rounded-2xl border w-full max-w-md shadow-2xl"
-            >
-              <div className="p-6 border-b flex items-center justify-between">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <ArrowPathIcon className="h-6 w-6 text-primary" />
-                  Auto-Renewal Settings
-                </h3>
-                <button
-                  onClick={() => setSubscriptionModalProfile(null)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <XCircleIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="font-semibold">Enable Auto-Renewal</h4>
-                      <p className="text-sm text-muted-foreground">Automatically renew this eSIM data plan</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const newState = !subscriptionModalProfile.auto_renew;
-                        try {
-                          await api.post(`/web/api/orders/${subscriptionModalProfile.esim_order_id}/update_subscription`, { auto_renew: newState });
-                          toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
-                          setSubscriptionModalProfile({ ...subscriptionModalProfile, auto_renew: newState });
-                          fetchESIMProfiles();
-                        } catch (e) {
-                          toast.error('Failed to update settings');
-                        }
-                      }}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${subscriptionModalProfile.auto_renew ? 'bg-primary' : 'bg-muted'
-                        }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscriptionModalProfile.auto_renew ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t">
-                    <h4 className="font-semibold text-sm">Preferred Payment Method</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
-                        // { id: 'fastspring', name: 'FastSpring Subscription', icon: GlobeAltIcon }
-                      ].map((method) => (
-                        <button
-                          key={method.id}
-                          onClick={async () => {
-                            try {
-                              await api.post(`/web/api/orders/${subscriptionModalProfile.esim_order_id}/update_subscription`, { renewal_method: method.id });
-                              toast.success(`Payment method updated`);
-                              setSubscriptionModalProfile({ ...subscriptionModalProfile, renewal_method: method.id });
-                              fetchESIMProfiles();
-                            } catch (e) {
-                              toast.error('Failed to update method');
-                            }
-                          }}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${subscriptionModalProfile.renewal_method === method.id
-                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                            : 'border-border hover:bg-muted'
-                            }`}
-                        >
-                          <method.icon className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left text-sm">
-                            <p className="font-medium">{method.name}</p>
-                          </div>
-                          {subscriptionModalProfile.renewal_method === method.id && (
-                            <CheckCircleIcon className="h-4 w-4 text-primary ml-auto" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3 text-sm text-yellow-500/90">
-                  <ClockIcon className="h-5 w-5 shrink-0" />
-                  <p>
-                    Ensure your balance is sufficient before <strong>{new Date(subscriptionModalProfile.expired_time).toLocaleDateString()}</strong>.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setSubscriptionModalProfile(null)}
-                  className="w-full py-3 px-4 rounded-xl bg-muted hover:bg-muted/80 font-medium transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-export default ESIMManagement;
+function CopyField({ label, value, copy }: { label: string; value: string; copy: (value: string) => Promise<void> }) {
+  return <div className="proxy-secret"><span>{label}</span><div><code>{value}</code><button aria-label={`Copy ${label}`} onClick={() => copy(value)}><Copy size={15} /></button></div></div>;
+}

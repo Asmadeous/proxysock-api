@@ -1055,11 +1055,15 @@ module Web
           base[:vm_id] = resource&.proxmox_vm_id&.to_i
           base[:hostname] = resource&.hostname || "vm-#{resource&.id}"
           base[:node] = resource&.proxmox_node || 'N/A'
-          base[:os_template] = order.product.metadata&.dig('os_template') || 'ubuntu-22.04'
+          base[:os_template] = order.vm_order&.os_type.presence || order.product.metadata&.dig('os_template')
+          base[:cpu_cores] = order.vm_order&.cpu_cores
+          base[:ram_gb] = order.vm_order&.ram_gb
+          base[:storage_gb] = order.vm_order&.disk_gb
           base[:service_type] = order.product.metadata&.dig('vm_type') || 'residential'
           base[:management_type] = 'unmanaged'
           base[:ip_address] = resource&.ip_address
           base[:dns_name] = resource&.dns_name
+          base[:connection_host] = resource&.connection_host
           # A VM reached over RDP has no SSH port; don't advertise a default one.
           base[:ssh_port] = resource&.ssh_port || (resource&.rdp_port ? nil : 22)
           base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)

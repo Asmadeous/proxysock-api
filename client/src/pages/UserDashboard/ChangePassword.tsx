@@ -64,7 +64,7 @@ export default function ChangePassword() {
   }
   return <div className={`dashboard-overview password-page ${dark ? 'overview-dark' : ''}`}>
     <Helmet><title>Change Password | ProxySock</title></Helmet>
-    <header className="overview-heading"><div><span className="overview-eyebrow">Your workspace</span><h1>Change password</h1><p>Update the password you use to sign in.</p></div><Link className="overview-button" to="/dashboard/profile">Profile settings <ArrowUpRight size={14} aria-hidden="true" /></Link></header>
+    <header className="overview-heading"><div><h1>Change password</h1><p>Update the password you use to sign in.</p></div><Link className="overview-button" to="/dashboard/profile">Profile settings <ArrowUpRight size={14} aria-hidden="true" /></Link></header>
     {!user ? <section className="overview-auth"><h2>Sign in to change your password</h2><Link to="/login">Back to login</Link></section> : <div className="profile-layout">
       <section className="profile-panel" aria-labelledby="password-form-title"><div className="overview-section-heading"><div><h2 id="password-form-title">Password details</h2><p>Enter your current password, then choose a new one.</p></div></div>
         {success && <p className="profile-feedback" role="status">Your password has been changed.</p>}

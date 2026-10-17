@@ -1,1188 +1,159 @@
-
-
-import { useState, useEffect } from "react";
-import { useLocation, Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  GlobeAltIcon,
-  ShoppingCartIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  DocumentDuplicateIcon,
-  PlusIcon,
-  UserIcon,
-  ServerIcon,
-  DevicePhoneMobileIcon,
-  WifiIcon,
-  ChartBarIcon,
-  CalendarIcon,
-  TrashIcon,
-  PencilIcon,
-  ArrowPathIcon as RotateIcon,
-  ArrowLeftIcon
-} from "@heroicons/react/24/outline";
-import ProxyCard from "@/components/dashboard/products/ProxyCard";
-import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete, changeProxyProtocol } from "../../services/api";
-import { subscribeToNotifications, unsubscribe } from "../../lib/actionCable";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Copy, Eye, EyeOff, Network, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import api, { updateProxyCredentials, rotateProxyIp, whitelistAdd, whitelistDelete } from '@/services/api';
+import { subscribeToNotifications, unsubscribe } from '@/lib/actionCable';
+import './dashboard-home.css';
+import './proxy-management.css';
 
 interface ProxyOrder {
-  id: string;
-  order_id: string;
+  id: number;
+  order_number: string;
   product_name: string;
-  product_type: 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp';
-  status: 'active' | 'expired' | 'pending' | 'cancelled';
-  period: number;
-  protocol: 'http' | 'socks5';
-  locations: string[];
-  credentials: {
-    username: string;
-    password: string;
-    endpoints: string[];
-  };
-  whitelist_ips: string[];
-  expires_at: string;
+  proxy_type: string;
+  status: string;
+  country?: string;
+  expires_at?: string;
   created_at: string;
-  traffic_used?: number;
-  traffic_limit?: number;
-  subscription_active?: boolean;
+  bandwidth_gb?: number;
+  provider_order_id?: string | number;
+  reorderable?: boolean;
   auto_renew?: boolean;
-  renewal_method?: string;
+  credentials?: { username?: string; password?: string; endpoints?: string[] };
+  proxy_details?: { protocol?: string; whitelist_ips?: string[]; locations?: string[]; traffic_used?: number };
 }
-
-interface ResidentialProxyAccount {
-  id: string;
-  proxy_username: string;
-  proxy_password: string;
-  traffic_limit: number;
-  traffic_used: number;
-  status: 'active' | 'inactive';
-  order_id: string;
-}
+type Panel = 'details' | 'credentials' | 'whitelist' | 'subscription' | 'reorder' | 'rotate';
+const titles: Record<Panel, string> = { details: 'Proxy details', credentials: 'Connection details', whitelist: 'Allowed IP addresses', subscription: 'Renewal settings', reorder: 'Reorder proxy', rotate: 'Rotate IP address' };
+const active = (order: ProxyOrder) => ['active', 'completed'].includes(order.status);
+const closed = (order: ProxyOrder) => ['refunded', 'cancelled', 'failed', 'expired', 'suspended'].includes(order.status);
+const date = (value?: string) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not available';
+const typeLabel = (value: string) => (value || 'proxy').split(/[-_]/).map(word => ['isp'].includes(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+const errorMessage = (error: unknown) => (error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'The change couldn’t be completed. Please try again.';
 
 export default function ProxyManagement() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'residential' | 'mobile' | 'analytics'>('orders');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [proxyOrders, setProxyOrders] = useState<ProxyOrder[]>([]);
-  const [residentialAccounts, setResidentialAccounts] = useState<ResidentialProxyAccount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<ProxyOrder | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'details' | 'credentials' | 'whitelist' | 'extend' | 'subscription' | 'residential-account'>('details');
-  const [formData, setFormData] = useState<any>({});
-
-  // Filters
-  const [statusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [typeFilter] = useState<'all' | 'datacenter' | 'isp' | 'premium-isp' | 'static-residential' | 'residential-rotating' | 'mobile' | 'global-isp'>('all');
-
-
+  const dark = useThemeStore(state => state.dark);
+  const { user, accessToken } = useAuth();
   const location = useLocation();
-
-  // Handle auto-search from URL params
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const search = params.get("search");
-    if (search) {
-      setSearchTerm(search);
-    }
-  }, [location.search]);
-
-  useEffect(() => {
-    fetchProxyData();
-  }, [activeTab]);
-
-  useEffect(() => {
-    const sub = subscribeToNotifications((data: any) => {
-      if (data && data.type === 'bandwidth_update') {
-        setProxyOrders((prevOrders) => 
-          prevOrders.map(order => {
-            if (order.order_id === data.order_id) {
-              return {
-                ...order,
-                traffic_used: data.bandwidth_used_bytes,
-                traffic_limit: data.bandwidth_limit_gb || order.traffic_limit
-              };
-            }
-            return order;
-          })
-        );
-      }
-    });
-
-    return () => {
-      unsubscribe(sub);
-    };
-  }, []);
-
-  const fetchProxyData = async () => {
-    setLoading(true);
-    try {
-      let url = '/web/api/orders?product_type=proxy';
-
-      if (activeTab === 'residential') {
-        url += '&category_slug=static-residential,residential-rotating,residential';
-      } else if (activeTab === 'mobile') {
-        url += '&category_slug=mobile';
-      }
-
-      const response = await api.get(url);
-      if (response.data && response.data.orders) {
-        const transformedOrders = response.data.orders.map((order: any) => ({
-          id: String(order.id),
-          order_id: order.order_number,
-          product_name: order.product_name,
-          product_type: order.proxy_type || 'datacenter',
-          status: (order.status === 'completed' || order.status === 'active') ? 'active' : order.status,
-          period: Number(order.metadata?.period) || order.duration || 1,
-          protocol: order.proxy_details?.protocol || 'http',
-          locations: order.country ? [order.country] : [],
-          credentials: order.credentials || {},
-          whitelist_ips: order.proxy_details?.whitelist_ips || [],
-          expires_at: order.expires_at || order.created_at,
-          created_at: order.created_at,
-          traffic_used: order.proxy_details?.traffic_used,
-          traffic_limit: order.bandwidth_gb,
-          subscription_active: order.status === 'completed',
-          auto_renew: order.auto_renew,
-          renewal_method: order.renewal_method
-        }));
-
-        setProxyOrders(transformedOrders);
-      }
-      // Note: residential accounts are fetched separately if applicable, or we stub it empty.
-      setResidentialAccounts([]);
-    } catch (error) {
-      console.error('Failed to fetch proxy data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-
-
-
-
-  const filteredOrders = proxyOrders.filter(order => {
-    const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-    const typeMatch = typeFilter === 'all' || order.product_type === typeFilter;
-    const searchMatch = !searchTerm || 
-      order.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.credentials.username?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    return statusMatch && typeMatch && searchMatch;
+  const queryClient = useQueryClient();
+  const queryKey = ['proxy-management', user?.id];
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [panel, setPanel] = useState<Panel>('details');
+  const [visiblePassword, setVisiblePassword] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [ip, setIp] = useState('');
+  const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [actionError, setActionError] = useState('');
+  const query = useQuery<ProxyOrder[]>({
+    queryKey,
+    enabled: Boolean(user?.id && accessToken),
+    retry: false,
+    cacheTime: 0,
+    queryFn: async ({ signal }) => {
+      const orders: ProxyOrder[] = [];
+      let nextPage = 1;
+      let totalPages = 1;
+      do {
+        const { data } = await api.get('/web/api/orders', { params: { product_type: 'proxy', page: nextPage, per_page: 100 }, signal });
+        orders.push(...data.orders);
+        totalPages = data.meta?.total_pages ?? 1;
+        nextPage += 1;
+      } while (nextPage <= totalPages);
+      return orders;
+    },
   });
-
-  const handleReorderLocal = async (orderId: string) => {
-    await handleReorder(orderId);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      active: { color: 'bg-primary/10 text-primary', icon: CheckCircleIcon },
-      'almost-expired': { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
-      expired: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon },
-      pending: { color: 'bg-yellow-500/10 text-yellow-500', icon: ClockIcon },
-      cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
-      refunded: { color: 'bg-muted text-muted-foreground', icon: XCircleIcon },
-      failed: { color: 'bg-destructive/10 text-destructive', icon: XCircleIcon }
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    const IconComponent = config.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border border-transparent ${config.color}`}>
-        <IconComponent className="h-3 w-3" />
-        <span className="capitalize">{status}</span>
-      </span>
-    );
-  };
-
-
-
-
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  useEffect(() => { setSearch(new URLSearchParams(location.search).get('search') || ''); setPage(1); }, [location.search]);
+  useEffect(() => {
+    if (!accessToken || !user?.id) return;
+    const subscription = subscribeToNotifications((event: unknown) => {
+      if ((event as { type?: string })?.type === 'bandwidth_update') queryClient.invalidateQueries(['proxy-management', user.id]);
     });
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
-  };
-
-  const handleProxyAction = async (action: string, orderId: string, data?: any) => {
-    try {
-      setLoading(true);
-      switch (action) {
-        case 'whitelist-add':
-          await whitelistAdd(orderId, data.ip, data.description);
-          toast.success('IP added to whitelist');
-          break;
-        case 'whitelist-remove':
-          await whitelistDelete(orderId, data.ip);
-          toast.success('IP removed from whitelist');
-          break;
-        case 'protocol-change':
-          await changeProxyProtocol(orderId, data.protocol);
-          toast.success('Protocol updated successfully');
-          break;
-        case 'extend-order':
-          await api.post(`/web/api/orders/${orderId}/renew`, { period: data.period });
-          toast.success('Extension requested successfully');
-          break;
-        default:
-          alert(`${action} is not yet implemented`);
-          return;
-      }
-      setShowModal(false);
-      fetchProxyData(); // Refresh data
-    } catch (error: any) {
-      console.error(`Failed to ${action}:`, error);
-      const msg = error.response?.data?.error || `Failed to ${action}`;
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReorder = async (orderId: string) => {
-    try {
-      setLoading(true);
-      const { data: _data } = await api.post(`/web/api/orders/${orderId}/reorder`);
-      alert('Reorder successful! A new order has been created.');
-      fetchProxyData(); // Refresh list to see new order
-    } catch (error: any) {
-      console.error('Failed to reorder:', error);
-      const errorMsg = error.response?.data?.error || 'Failed to reorder';
-      alert(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openModal = (type: typeof modalType, order?: ProxyOrder) => {
-    setModalType(type);
-    setSelectedOrder(order || null);
-    setFormData({});
-    setShowModal(true);
-  };
-
-  const renderModal = () => {
-    if (!showModal || !selectedOrder) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-card rounded-2xl border w-full max-w-2xl shadow-2xl max-h-[80vh] overflow-y-auto"
-        >
-          <div className="p-6 border-b">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">
-                {modalType === 'details' && 'Proxy Details'}
-                {modalType === 'credentials' && 'Connection Credentials'}
-                {modalType === 'whitelist' && 'IP Whitelist Management'}
-                {modalType === 'extend' && 'Extend Subscription'}
-                {modalType === 'subscription' && 'Manage Auto-Renewal'}
-                {modalType === 'residential-account' && 'Residential Proxy Account'}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {modalType === 'details' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Product Name</p>
-                    <p>{selectedOrder.product_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Order ID</p>
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono">{selectedOrder.order_id}</p>
-                      <button
-                        onClick={() => copyToClipboard(selectedOrder.order_id)}
-                        className="text-primary hover:text-primary/80"
-                      >
-                        <DocumentDuplicateIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <div>{getStatusBadge(selectedOrder.status)}</div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Protocol</p>
-                    <p>{selectedOrder.protocol.toUpperCase()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Period</p>
-                    <p>{selectedOrder.period} month{selectedOrder.period > 1 ? 's' : ''}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Expires At</p>
-                    <p>{formatDate(selectedOrder.expires_at)}</p>
-                  </div>
-                </div>
-
-                {/* Refunded, cancelled, failed and expired proxies have no usable credentials. */}
-                {!['refunded', 'cancelled', 'failed', 'expired'].includes(String(selectedOrder.status)) && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setModalType('credentials');
-                    }}
-                    className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    View Credentials
-                  </button>
-                  <button
-                    onClick={() => {
-                      setModalType('whitelist');
-                    }}
-                    className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Manage Whitelist
-                  </button>
-                </div>
-                )}
-              </div>
-            )}
-
-            {modalType === 'credentials' && (
-              <div className="space-y-6">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold mb-4">Connection Details</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Username:</span>
-                      <div className="flex items-center gap-2">
-                        <code className="bg-muted px-2 py-1 rounded font-mono">{selectedOrder.credentials.username}</code>
-                        <button
-                          onClick={() => copyToClipboard(selectedOrder.credentials.username)}
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <DocumentDuplicateIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Password:</span>
-                      <div className="flex items-center gap-2">
-                        <code className="bg-muted px-2 py-1 rounded font-mono">{selectedOrder.credentials.password}</code>
-                        <button
-                          onClick={() => copyToClipboard(selectedOrder.credentials.password)}
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <DocumentDuplicateIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedOrder.credentials.endpoints && selectedOrder.credentials.endpoints.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold">Proxy Endpoints</h4>
-                      {selectedOrder.product_type === 'mobile' && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await rotateProxyIp(selectedOrder.id);
-                              toast.success('IP rotation initiated');
-                            } catch (e) { }
-                          }}
-                          className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
-                        >
-                          <RotateIcon className="h-4 w-4" />
-                          Rotate IP
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {selectedOrder.credentials.endpoints.map((endpoint) => (
-                        <div key={endpoint} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
-                          <code className="text-primary text-sm">{endpoint}</code>
-                          <button
-                            onClick={() => copyToClipboard(endpoint)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            <DocumentDuplicateIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Username"
-                      value={formData.username || ''}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-background border rounded-lg text-sm"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={formData.password || ''}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-background border rounded-lg text-sm"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setFormData({
-                        username: selectedOrder.credentials.username,
-                        password: selectedOrder.credentials.password
-                      });
-                      // This just populates the fields, the user clicks "Save Changes" below
-                    }}
-                    className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Reset Fields
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await updateProxyCredentials(selectedOrder.id, {
-                          username: formData.username,
-                          password: formData.password
-                        });
-                        toast.success('Credentials update requested');
-                        setShowModal(false);
-                        fetchProxyData();
-                      } catch (e) { }
-                    }}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {modalType === 'whitelist' && (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-lg font-semibold mb-3">Current Whitelisted IPs</h4>
-                  {selectedOrder.whitelist_ips.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedOrder.whitelist_ips.map((ip) => (
-                        <div key={ip} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
-                          <code>{ip}</code>
-                          <button
-                            onClick={() => handleProxyAction('whitelist-remove', selectedOrder.id, { ip })}
-                            className="text-destructive hover:text-destructive/80"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No IPs whitelisted yet</p>
-                  )}
-                </div>
-
-                <div>
-                  <h4 className="text-lg font-semibold mb-3">Add New IP</h4>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="192.168.1.1"
-                      value={formData.newIp || ''}
-                      onChange={(e) => setFormData({ ...formData, newIp: e.target.value })}
-                      className="flex-1 bg-background border rounded-lg px-3 py-2"
-                    />
-                    <button
-                      onClick={() => {
-                        if (formData.newIp) {
-                          handleProxyAction('whitelist-add', selectedOrder.id, {
-                            ip: formData.newIp,
-                            description: formData.description || 'Added via dashboard'
-                          });
-                        }
-                      }}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Add IP
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="mt-2 w-full bg-background border rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === 'extend' && (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-lg font-semibold mb-3">Extend Subscription</h4>
-                  <p className="text-muted-foreground mb-4">
-                    Current expiry: {formatDate(selectedOrder.expires_at)}
-                  </p>
-                </div>
-
-                <div>
-                  <label htmlFor="extension-period" className="block text-sm font-medium text-muted-foreground mb-2">
-                    Extension Period
-                  </label>
-                  <select
-                    id="extension-period"
-                    value={formData.period || 1}
-                    onChange={(e) => setFormData({ ...formData, period: Number.parseInt(e.target.value) })}
-                    className="w-full bg-background border rounded-lg px-3 py-2"
-                  >
-                    <option value={1}>1 Month</option>
-                    <option value={3}>3 Months</option>
-                    <option value={6}>6 Months</option>
-                    <option value={12}>12 Months</option>
-                  </select>
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Extension Cost:</span>
-                    <span className="text-xl font-bold text-primary">
-                      ${((formData.period || 1) * 15.99).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 bg-muted hover:bg-muted/80 text-muted-foreground py-3 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleProxyAction('extend-order', selectedOrder.id, { period: formData.period || 1 })}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Extend Subscription
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {modalType === 'subscription' && (
-              <div className="space-y-6">
-                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="font-semibold text-lg">Auto-Renew Status</h4>
-                      <p className="text-sm text-muted-foreground">Automatically renew this service using your preferred method</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const newState = !selectedOrder.auto_renew;
-                        try {
-                          await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { auto_renew: newState });
-                          toast.success(`Auto-renewal ${newState ? 'enabled' : 'disabled'}`);
-                          setSelectedOrder({ ...selectedOrder, auto_renew: newState });
-                          fetchProxyData();
-                        } catch (e) {
-                          toast.error('Failed to update auto-renewal');
-                        }
-                      }}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${selectedOrder.auto_renew ? 'bg-primary' : 'bg-muted'
-                        }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${selectedOrder.auto_renew ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t">
-                    <h4 className="font-semibold">Renewal Payment Method</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      {[
-                        { id: 'wallet', name: 'Wallet Balance', icon: ChartBarIcon },
-                        // { id: 'fastspring', name: 'FastSpring Subscription', icon: ShoppingCartIcon }
-                      ].map((method) => (
-                        <button
-                          key={method.id}
-                          onClick={async () => {
-                            try {
-                              await api.post(`/web/api/orders/${selectedOrder.id}/update_subscription`, { renewal_method: method.id });
-                              toast.success(`Payment method updated to ${method.name}`);
-                              setSelectedOrder({ ...selectedOrder, renewal_method: method.id });
-                              fetchProxyData();
-                            } catch (e) {
-                              toast.error('Failed to update payment method');
-                            }
-                          }}
-                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${selectedOrder.renewal_method === method.id
-                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                            : 'border-border hover:bg-muted'
-                            }`}
-                        >
-                          <method.icon className="h-5 w-5 text-muted-foreground" />
-                          <div className="text-left">
-                            <p className="font-medium">{method.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {method.id === 'wallet' ? 'Debits your USD balance every month' : 'Uses securely saved payment token'}
-                            </p>
-                          </div>
-                          {selectedOrder.renewal_method === method.id && (
-                            <CheckCircleIcon className="h-5 w-5 text-primary ml-auto" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-3">
-                  <ClockIcon className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-yellow-500/90">
-                    Next renewal attempt will be on <strong>{formatDate(selectedOrder.expires_at)}</strong>. 
-                    Ensure you have sufficient funds or a valid payment method.
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="w-full py-3 px-4 rounded-xl bg-muted hover:bg-muted/80 font-medium transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    );
-  };
-
-  const renderResidentialTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Residential Proxy Accounts</h2>
-          <p className="text-muted-foreground">Manage your residential rotating proxy accounts and traffic</p>
-        </div>
-        <button
-          onClick={() => openModal('residential-account')}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <PlusIcon className="h-5 w-5" />
-          Create Account
-        </button>
-      </div>
-
-      {/* Residential Orders */}
-      <div className="bg-card rounded-xl border p-6">
-        <h3 className="text-lg font-semibold mb-4">Active Residential Orders</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredOrders
-            .filter(order => order.product_type === 'residential-rotating')
-            .map(order => (
-              <div key={order.id} className="bg-muted/50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">{order.product_name}</h4>
-                  {getStatusBadge(order.status)}
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Traffic Used:</span>
-                    <span>{(order.traffic_used! / 1024 / 1024 / 1024).toFixed(2)} GB</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Traffic Limit:</span>
-                    <span>{order.traffic_limit} GB</span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min((order.traffic_used! / (order.traffic_limit! * 1024 * 1024 * 1024)) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-
-      {/* Proxy Accounts */}
-      <div className="bg-card rounded-xl border p-6">
-        <h3 className="text-lg font-semibold mb-4">Proxy Accounts</h3>
-        {residentialAccounts.length > 0 ? (
-          <div className="space-y-4">
-            {residentialAccounts.map(account => (
-              <div key={account.id} className="bg-muted/50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="font-medium">{account.proxy_username}</h4>
-                    <p className="text-sm text-muted-foreground">Traffic: {account.traffic_used.toFixed(2)} / {account.traffic_limit} GB</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${account.status === 'active' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
-                      }`}>
-                      {account.status}
-                    </span>
-                    <button
-                      onClick={() => {
-                        // Handle account edit
-                      }}
-                      className="text-primary hover:text-primary/80"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Username:</span>
-                    <p className="font-mono">{account.proxy_username}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Password:</span>
-                    <p className="font-mono">••••••••</p>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <div className="w-full bg-secondary rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min((account.traffic_used / account.traffic_limit) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <UserIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Proxy Accounts</h3>
-            <p className="text-muted-foreground mb-4">Create your first residential proxy account to get started</p>
-            <button
-              onClick={() => openModal('residential-account')}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              Create Account
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderMobileTab = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Mobile Proxy Management</h2>
-        <p className="text-muted-foreground">Manage your mobile proxy orders and rotation settings</p>
-      </div>
-
-      {/* Mobile Orders */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredOrders
-          .filter(order => order.product_type === 'mobile')
-          .map(order => (
-            <div key={order.id} className="bg-card rounded-xl border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <DevicePhoneMobileIcon className="h-6 w-6 text-primary" />
-                  <div>
-                    <h3 className="font-semibold">{order.product_name}</h3>
-                    <p className="text-muted-foreground text-sm">{order.order_id}</p>
-                  </div>
-                </div>
-                {getStatusBadge(order.status)}
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Expires:</span>
-                  <span>{formatDate(order.expires_at)}</span>
-                </div>
-                {order.traffic_limit && order.traffic_limit > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Bandwidth:</span>
-                      <span>
-                        {((order.traffic_used || 0) / 1024 / 1024 / 1024).toFixed(2)} GB / {order.traffic_limit} GB
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div
-                        className="bg-primary h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(((order.traffic_used || 0) / (order.traffic_limit * 1024 * 1024 * 1024)) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                {/* 
-                <button
-                  onClick={async () => {
-                    try {
-                      await rotateProxyIp(order.id);
-                      toast.success('IP rotation initiated (Airplane Mode toggled)');
-                    } catch (e) {
-                      toast.error('Failed to initiate IP rotation');
-                    }
-                  }}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
-                >
-                  <RotateIcon className="h-4 w-4" />
-                  Rotate IP
-                </button> 
-                */}
-                <button
-                  onClick={() => openModal('credentials', order)}
-                  className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Credentials
-                </button>
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {filteredOrders.filter(order => order.product_type === 'mobile').length === 0 && (
-        <div className="text-center py-12">
-          <DevicePhoneMobileIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Mobile Proxies</h3>
-          <p className="text-muted-foreground">You don't have any mobile proxy orders yet</p>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderAnalyticsTab = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Proxy Analytics</h2>
-        <p className="text-muted-foreground">Monitor your proxy usage and performance</p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-card rounded-xl border p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ServerIcon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
-              <p className="text-2xl font-bold">{proxyOrders.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <CheckCircleIcon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Active Orders</p>
-              <p className="text-2xl font-bold">
-                {proxyOrders.filter(o => o.status === 'active').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-secondary/10">
-              <WifiIcon className="h-6 w-6 text-secondary-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Traffic</p>
-              <p className="text-2xl font-bold">
-                {proxyOrders.reduce((sum, o) => sum + (o.traffic_used || 0), 0) / 1024 / 1024 / 1024 < 1
-                  ? `${(proxyOrders.reduce((sum, o) => sum + (o.traffic_used || 0), 0) / 1024 / 1024).toFixed(0)} MB`
-                  : `${(proxyOrders.reduce((sum, o) => sum + (o.traffic_used || 0), 0) / 1024 / 1024 / 1024).toFixed(1)} GB`
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-destructive/10">
-              <CalendarIcon className="h-6 w-6 text-destructive" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Expiring Soon</p>
-              <p className="text-2xl font-bold">
-                {proxyOrders.filter(o => {
-                  const daysUntilExpiry = Math.ceil((new Date(o.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
-                }).length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Usage Chart Placeholder */}
-      <div className="bg-card rounded-xl border p-6">
-        <h3 className="text-lg font-semibold mb-4">Traffic Usage Over Time</h3>
-        <div className="h-64 flex items-center justify-center">
-          <div className="text-center">
-            <ChartBarIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Chart implementation would go here</p>
-            <p className="text-sm text-muted-foreground">Connect your analytics data to see usage trends</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-card rounded-xl border p-6">
-        <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-        <div className="space-y-3">
-          {proxyOrders.slice(0, 5).map(order => (
-            <div key={order.id} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <span>{order.product_name}</span>
-                <span className="text-muted-foreground text-sm">({order.order_id})</span>
-              </div>
-              <span className="text-muted-foreground text-sm">{formatDate(order.created_at)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const tabs = [
-    { id: 'orders', name: 'All Orders', icon: ShoppingCartIcon, count: proxyOrders.length },
-    { id: 'residential', name: 'Residential', icon: GlobeAltIcon, count: proxyOrders.filter(o => o.product_type === 'residential-rotating').length },
-    { id: 'mobile', name: 'Mobile', icon: DevicePhoneMobileIcon, count: proxyOrders.filter(o => o.product_type === 'mobile').length },
-    { id: 'analytics', name: 'Analytics', icon: ChartBarIcon, count: 0 }
-  ];
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-8 w-48 bg-muted animate-pulse rounded-lg"></div>
-            <div className="h-4 w-64 bg-muted animate-pulse rounded mt-2"></div>
-          </div>
-          <div className="h-10 w-32 bg-muted animate-pulse rounded-lg"></div>
-        </div>
-
-        {/* Tabs Skeleton */}
-        <div className="flex gap-2 p-1 bg-muted/50 rounded-lg w-fit">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-10 w-28 bg-muted animate-pulse rounded-lg"></div>
-          ))}
-        </div>
-
-        {/* Filters Skeleton */}
-        <div className="flex gap-4">
-          <div className="h-10 w-32 bg-muted animate-pulse rounded-lg"></div>
-          <div className="h-10 w-32 bg-muted animate-pulse rounded-lg"></div>
-          <div className="h-10 flex-1 bg-muted animate-pulse rounded-lg"></div>
-        </div>
-
-        {/* Cards Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-card border rounded-xl p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-muted animate-pulse rounded-lg"></div>
-                  <div>
-                    <div className="h-5 w-32 bg-muted animate-pulse rounded mb-2"></div>
-                    <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="h-6 w-16 bg-muted animate-pulse rounded-full"></div>
-                  <div className="h-6 w-16 bg-muted animate-pulse rounded-full"></div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="flex items-center gap-2">
-                    <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
-                    <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
-                  </div>
-                ))}
-              </div>
-              <div className="bg-muted/50 rounded-lg p-3 mb-4">
-                <div className="h-3 w-24 bg-muted animate-pulse rounded mb-2"></div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
-                  <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="h-10 flex-1 bg-muted animate-pulse rounded-lg"></div>
-                <div className="h-10 w-10 bg-muted animate-pulse rounded-lg"></div>
-                <div className="h-10 w-10 bg-muted animate-pulse rounded-lg"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return () => unsubscribe(subscription);
+  }, [accessToken, user?.id, queryClient]);
+  const orders = query.data || [];
+  const selected = orders.find(order => order.id === selectedId);
+  const filtered = orders.filter(order => (!type || order.proxy_type === type)
+    && (!status || (status === 'active' ? active(order) : status === 'inactive' ? closed(order) : !active(order) && !closed(order)))
+    && [order.order_number, order.product_name, order.credentials?.username, order.country].some(value => value?.toLowerCase().includes(search.toLowerCase().trim())));
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 9));
+  const currentPage = Math.min(page, pageCount);
+  const shown = filtered.slice((currentPage - 1) * 9, currentPage * 9);
+  const canManage = selected && active(selected) && Boolean(selected.provider_order_id);
+  function open(order: ProxyOrder, next: Panel) {
+    setSelectedId(order.id); setPanel(next); setActionError(''); setVisiblePassword(false);
+    setUsername(order.credentials?.username || ''); setPassword(''); setIp(''); setDescription('');
   }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link
-            to="/dashboard/products"
-            className="p-2 hover:bg-muted rounded-full transition-colors group"
-            title="Back to Product Management"
-          >
-            <ArrowLeftIcon className="h-6 w-6 text-muted-foreground group-hover:text-foreground" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Proxy Management</h1>
-            <p className="text-muted-foreground">Manage all your proxy services and configurations</p>
-          </div>
-        </div>
-        <GlobeAltIcon className="h-8 w-8 text-primary" />
-      </div>
-
-      {/* Status Legend */}
-      <div className="flex items-center gap-4 bg-muted/50 rounded-lg p-3">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-primary rounded-full"></div>
-          <span className="text-sm text-muted-foreground">Active</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-secondary rounded-full"></div>
-          <span className="text-sm text-muted-foreground">Almost Expired</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-destructive rounded-full"></div>
-          <span className="text-sm text-muted-foreground">Expired</span>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-muted p-1 rounded-xl flex flex-wrap gap-1">
-        {tabs.map((tab) => {
-          const IconComponent = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all flex-1 min-w-0 ${activeTab === tab.id
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                }`}
-            >
-              <IconComponent className="h-5 w-5 flex-shrink-0" />
-              <span className="truncate">{tab.name}</span>
-              {tab.count > 0 && (
-                <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Content */}
-      {activeTab === 'orders' && (
-        <div className="space-y-6">
-          {/* Search Bar for Orders */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by Order ID, Product Name, or Username..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <GlobeAltIcon className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-3 text-sm text-primary hover:underline"
-              >
-                Clear
-              </button>
-            )}
-            {filteredOrders.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredOrders.map(order => (
-                  <ProxyCard 
-                    key={order.id} 
-                    order={order} 
-                    onOpenModal={openModal} 
-                    onReorder={handleReorderLocal}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-card rounded-2xl border">
-                <GlobeAltIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-bold mb-2">No Proxy Services Found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {searchTerm ? 'Try adjusting your search filters' : "You don't have any proxy subscriptions yet"}
-                </p>
-                <button
-                  onClick={() => globalThis.location.href = '/dashboard/proxies'}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Purchase Proxy
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'residential' && renderResidentialTab()}
-      {activeTab === 'mobile' && renderMobileTab()}
-      {activeTab === 'analytics' && renderAnalyticsTab()}
-
-      {/* Modal */}
-      {renderModal()}
-    </div>
-  );
+  async function copy(value: string) {
+    try { await navigator.clipboard.writeText(value); toast.success('Copied to clipboard'); }
+    catch { toast.error('Couldn’t copy. Select the text and copy it manually.'); }
+  }
+  async function change(operation: () => Promise<unknown>, message: string, close = false) {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setActionError('');
+    try {
+      await operation();
+      toast.success(message);
+      setPassword(''); setIp(''); setDescription('');
+      if (close) setSelectedId(null);
+      await query.refetch();
+      queryClient.invalidateQueries(['my-services']);
+    } catch (error) { setActionError(errorMessage(error)); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  return <div className={`dashboard-overview proxy-management ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>Proxy Management | ProxySock</title></Helmet>
+    <Link className="proxy-back" to="/dashboard/products"><ArrowLeft size={14} /> My services</Link>
+    <header className="overview-heading"><div><h1>Proxy management</h1><p>Manage your connections, credentials, and renewals.</p></div><div className="overview-heading-actions"><Link className="overview-button" to="/dashboard/proxies">Browse proxies <ArrowUpRight size={14} /></Link><button className="overview-icon-button" aria-label="Refresh proxies" disabled={query.isFetching || busy} onClick={() => query.refetch()}><RefreshCw size={15} /></button></div></header>
+    {!user || !accessToken ? <div className="overview-auth"><h2>Sign in to view your proxies</h2><Link to="/login">Back to login</Link></div> : <>
+      {query.isError && <div className="overview-error" role="alert"><div><strong>We couldn’t update your proxies.</strong><p>{query.data ? 'Showing the last loaded details. Refresh before making changes.' : 'Try again to load your services.'}</p></div><button onClick={() => query.refetch()} disabled={query.isFetching}>Try again</button></div>}
+      <div className="proxy-summary"><span><strong>{query.data ? orders.length : '—'}</strong> Total services</span><span><strong>{query.data ? orders.filter(active).length : '—'}</strong> Active</span><span><strong>{query.data ? orders.filter(order => active(order) && order.auto_renew).length : '—'}</strong> Auto-renew on</span></div>
+      <div className="proxy-filters"><label className="proxy-search"><Search size={16} /><span className="sr-only">Search proxies</span><input value={search} placeholder="Search name, order, or username" onChange={event => { setSearch(event.target.value); setPage(1); }} /></label><div><label htmlFor="proxy-type">Proxy type</label><PurchaseSelect id="proxy-type" value={type} onValueChange={value => { setType(value); setPage(1); }} emptyLabel="All types" options={[...new Set(orders.map(order => order.proxy_type).filter(Boolean))].map(value => ({ value, label: typeLabel(value) }))} /></div><div><label htmlFor="proxy-status">Status</label><PurchaseSelect id="proxy-status" value={status} onValueChange={value => { setStatus(value); setPage(1); }} emptyLabel="All statuses" options={[{ value: 'active', label: 'Active' }, { value: 'pending', label: 'Pending / processing' }, { value: 'inactive', label: 'Inactive' }]} /></div></div>
+      {query.isFetching && <p className="proxy-note" role="status">{query.isLoading ? 'Loading proxies…' : 'Updating proxy details…'}</p>}
+      {!query.isLoading && query.data && <><div className="proxy-results"><p>{filtered.length} {filtered.length === 1 ? 'service' : 'services'}</p>{(search || type || status) && <button onClick={() => { setSearch(''); setType(''); setStatus(''); setPage(1); }}>Clear filters</button>}</div>
+        {shown.length ? <div className="proxy-grid">{shown.map(order => <article className="proxy-service" key={order.id}>
+          <div className="proxy-service-top"><span><Network size={16} />{typeLabel(order.proxy_type)}</span><span className="overview-status" data-status={active(order) ? 'active' : order.status}>{active(order) ? 'Active' : order.status.replace(/_/g, ' ')}</span></div>
+          <h2>{order.product_name}</h2><p className="proxy-order">{order.order_number}</p>
+          <dl className="proxy-facts"><div><dt>Location</dt><dd>{order.proxy_details?.locations?.join(', ') || order.country || 'Not available'}</dd></div><div><dt>Expires</dt><dd>{date(order.expires_at)}</dd></div><div><dt>Protocol</dt><dd>{order.proxy_details?.protocol?.toUpperCase() || 'Not available'}</dd></div><div><dt>Auto-renew</dt><dd>{order.auto_renew ? 'On' : 'Off'}</dd></div></dl>
+          {order.proxy_details?.traffic_used != null && <p className="proxy-usage">{(order.proxy_details.traffic_used / 1024 ** 3).toFixed(2)} GB used{Number(order.bandwidth_gb) > 0 ? ` of ${order.bandwidth_gb} GB` : ''}</p>}
+          <div className="proxy-card-actions"><button onClick={() => open(order, 'details')}>View details <ArrowUpRight size={13} /></button>{!closed(order) && <button onClick={() => open(order, 'credentials')}>Connection details</button>}{order.status === 'expired' && order.reorderable && <button onClick={() => open(order, 'reorder')}>Reorder</button>}</div>
+        </article>)}</div> : <div className="proxy-empty"><Network size={25} /><h2>{orders.length ? 'No matching proxies' : 'No proxies yet'}</h2><p>{orders.length ? 'Try a different search or clear your filters.' : 'Your purchased proxies and connection details will appear here.'}</p>{!orders.length && <Link className="overview-button" to="/dashboard/proxies">Browse proxies <ArrowUpRight size={14} /></Link>}</div>}
+        {pageCount > 1 && <nav className="proxy-pagination" aria-label="Proxy pages"><button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></nav>}
+      </>}
+    </>}
+    <Dialog open={Boolean(selected)} onOpenChange={value => { if (!value && !busy) setSelectedId(null); }}>
+      <DialogContent className={`proxy-dialog ${dark ? 'proxy-dialog-dark' : ''}`} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onInteractOutside={event => { if (busy) event.preventDefault(); }}>
+        <DialogTitle>{titles[panel]}</DialogTitle><DialogDescription>{selected?.product_name} · {selected?.order_number}</DialogDescription>
+        {selected && <><div className="proxy-dialog-nav">{(['details', ...(!closed(selected) ? ['credentials'] : []), ...(canManage ? ['whitelist'] : []), ...(active(selected) ? ['subscription'] : [])] as Panel[]).map(next => <button disabled={busy} aria-pressed={panel === next} key={next} onClick={() => { setPanel(next); setActionError(''); }}>{next === 'credentials' ? 'Connection' : next === 'whitelist' ? 'Allowed IPs' : next === 'subscription' ? 'Renewal' : 'Details'}</button>)}</div>
+          {query.isError && <p className="proxy-action-error" role="alert">Refresh the service list to load current details before making changes.</p>}
+          {actionError && <p className="proxy-action-error" role="alert">{actionError}</p>}
+          <fieldset disabled={busy || query.isError} className="proxy-panel">
+            {panel === 'details' && <><dl className="proxy-facts"><div><dt>Status</dt><dd>{active(selected) ? 'Active' : selected.status}</dd></div><div><dt>Proxy type</dt><dd>{typeLabel(selected.proxy_type)}</dd></div><div><dt>Created</dt><dd>{date(selected.created_at)}</dd></div><div><dt>Expires</dt><dd>{date(selected.expires_at)}</dd></div><div><dt>Location</dt><dd>{selected.proxy_details?.locations?.join(', ') || selected.country || 'Not available'}</dd></div><div><dt>Protocol</dt><dd>{selected.proxy_details?.protocol?.toUpperCase() || 'Not available'}</dd></div></dl><Link className="proxy-help" to="/dashboard/support">Need help with this service? <ArrowUpRight size={13} /></Link></>}
+            {panel === 'credentials' && <><div className="proxy-secret"><span>Username</span><div><code>{selected.credentials?.username || 'Not available yet'}</code>{selected.credentials?.username && <button aria-label="Copy username" onClick={() => copy(selected.credentials!.username!)}><Copy size={15} /></button>}</div></div><div className="proxy-secret"><span>Password</span><div><code>{selected.credentials?.password ? visiblePassword ? selected.credentials.password : '••••••••••••' : 'Not available yet'}</code>{selected.credentials?.password && <><button aria-label={visiblePassword ? 'Hide password' : 'Show password'} onClick={() => setVisiblePassword(!visiblePassword)}>{visiblePassword ? <EyeOff size={15} /> : <Eye size={15} />}</button><button aria-label="Copy password" onClick={() => copy(selected.credentials!.password!)}><Copy size={15} /></button></>}</div></div>
+              <div className="proxy-endpoints"><h3>Connection endpoints</h3>{selected.credentials?.endpoints?.length ? selected.credentials.endpoints.map((endpoint, index) => <div className="proxy-endpoint" key={`${endpoint}-${index}`}><code>{endpoint}</code><button aria-label={`Copy endpoint ${index + 1}`} onClick={() => copy(endpoint)}><Copy size={15} /></button></div>) : <p className="proxy-note">{active(selected) ? 'Connection details are not available yet. Refresh or contact support if this continues.' : 'Connection details will appear when provisioning is complete.'}</p>}</div>
+              {canManage && <form onSubmit={event => { event.preventDefault(); change(() => updateProxyCredentials(selected.id, { username: username.trim(), password }), 'Credentials updated'); }}><h3>Update credentials</h3><p className="proxy-note">Update your applications after changing these details.</p><label htmlFor="proxy-username">Username</label><input id="proxy-username" required value={username} onChange={event => setUsername(event.target.value)} autoComplete="off" /><label htmlFor="proxy-password">New password</label><input id="proxy-password" type="password" required value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" /><button className="proxy-primary" disabled={!username.trim() || !password} type="submit">Save credentials</button></form>}
+              {canManage && selected.proxy_type === 'mobile' && <button className="proxy-secondary" onClick={() => { setPanel('rotate'); setActionError(''); }}>Rotate IP address</button>}
+            </>}
+            {panel === 'whitelist' && <><p className="proxy-note">Manage the IP addresses allowed to connect to this proxy.</p><div className="proxy-ip-list">{selected.proxy_details?.whitelist_ips?.length ? selected.proxy_details.whitelist_ips.map(value => <div className="proxy-endpoint" key={value}><code>{value}</code><button aria-label={`Remove ${value}`} onClick={() => change(() => whitelistDelete(selected.id, value), 'IP address removed')}><Trash2 size={15} /></button></div>) : <p className="proxy-note">No allowed IP addresses saved.</p>}</div><form onSubmit={event => { event.preventDefault(); change(() => whitelistAdd(selected.id, ip.trim(), description.trim() || undefined), 'IP address added'); }}><label htmlFor="proxy-ip">IP address</label><input id="proxy-ip" placeholder="e.g. 203.0.113.10" required value={ip} onChange={event => setIp(event.target.value)} /><label htmlFor="proxy-ip-description">Description (optional)</label><input id="proxy-ip-description" value={description} onChange={event => setDescription(event.target.value)} /><button className="proxy-primary" disabled={!ip.trim()} type="submit">Add IP address</button></form></>}
+            {panel === 'subscription' && <><div className="proxy-renewal"><div><h3>Automatic renewal</h3><p className="proxy-note">{selected.auto_renew ? 'On' : 'Off'} · Paid from your wallet</p></div><span className="overview-status">{selected.auto_renew ? 'Enabled' : 'Disabled'}</span></div><p className="proxy-note">When enabled, renewal charges are taken from your wallet at the end of the service term. Keep enough balance available to avoid interruption.</p><p className="proxy-note">Current expiry: {date(selected.expires_at)}</p><button className={selected.auto_renew ? 'proxy-secondary' : 'proxy-primary'} onClick={() => change(() => api.post(`/web/api/orders/${selected.id}/update_subscription`, { auto_renew: !selected.auto_renew, renewal_method: 'wallet' }), 'Renewal settings updated')}>{selected.auto_renew ? 'Turn off auto-renew' : 'Enable wallet auto-renew'}</button></>}
+            {panel === 'rotate' && <><p className="proxy-note">Rotating replaces your mobile proxy’s IP address and may interrupt active connections.</p><button className="proxy-primary" onClick={() => change(() => rotateProxyIp(selected.id), 'IP rotation requested', true)}>Confirm IP rotation</button></>}
+            {panel === 'reorder' && <><p className="proxy-note">This creates a new order for the same product using its current price. If your wallet has enough balance, payment and provisioning start automatically.</p><p className="proxy-note">To review available plans and prices first, <Link to="/dashboard/proxies">browse proxies</Link>.</p><button className="proxy-primary" onClick={() => change(async () => { const response = await api.post(`/web/api/orders/${selected.id}/reorder`); if (response.status === 202) toast.info('Order created. Top up your wallet to complete payment.'); }, 'New order created', true)}>Confirm reorder</button></>}
+          </fieldset>
+          {busy && <p className="proxy-note" role="status">Saving changes…</p>}
+        </>}
+      </DialogContent>
+    </Dialog>
+  </div>;
 }

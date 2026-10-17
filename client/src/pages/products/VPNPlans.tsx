@@ -98,7 +98,7 @@ export default function BuyVPN({ isDirectBuy, onDirectBuy }: VPNPlansProps = {})
   return (
     <div className={`dashboard-overview vpn-purchase ${dark ? 'overview-dark' : ''} ${!storefront ? 'vpn-purchase-embedded' : ''}`}>
       <header className="overview-heading">
-        <div><span className="overview-eyebrow">Your infrastructure</span><h1>VPN</h1><p>Choose a plan and a location for your next connection.</p></div>
+        <div><h1>VPN</h1><p>Choose a plan and a location for your next connection.</p></div>
         {storefront && <Link className="overview-button" to="/dashboard/vpn-management">My VPNs <ArrowUpRight size={14} aria-hidden="true" /></Link>}
       </header>
 

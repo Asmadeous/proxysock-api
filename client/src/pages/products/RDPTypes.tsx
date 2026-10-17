@@ -15,7 +15,7 @@ export default function RDPTypes({ onNavigate }: RDPTypesProps = {}) {
   const countries = RDP_COUNTRIES.filter(country => plans.some(plan => supportsRDPCountry(plan, country.code)));
 
   return <div className={`dashboard-overview server-purchase ${dark ? 'overview-dark' : ''} ${storefront ? '' : 'server-purchase-embedded'}`}>
-    <header className="overview-heading"><div><span className="overview-eyebrow">Your infrastructure</span><h1>RDP Access</h1><p>Choose a location to compare remote desktop plans.</p></div>{storefront && <Link className="overview-button" to="/dashboard/RDP-management">My desktops <ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
+    <header className="overview-heading"><div><h1>RDP Access</h1><p>Choose a location to compare remote desktop plans.</p></div>{storefront && <Link className="overview-button" to="/dashboard/RDP-management">My desktops <ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
     <section aria-labelledby="rdp-locations-title" aria-busy={isLoading}>
       <div className="overview-section-heading"><h2 id="rdp-locations-title">Choose your location</h2></div>
       {isLoading ? <div className="server-loading" role="status">Loading RDP locations…{[0, 1, 2].map(item => <span className="overview-skeleton" key={item} />)}</div>

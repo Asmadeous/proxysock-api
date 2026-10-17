@@ -105,7 +105,7 @@ export default function ESIMTypes({ onNavigateUSA, onNavigateGlobal }: ESIMTypes
   return (
     <ESIMPurchaseLayout>
       <header className="overview-heading">
-        <div><span className="overview-eyebrow">Your infrastructure</span><h1>eSIM</h1><p>Choose data only or a plan with a phone number.</p></div>
+        <div><h1>eSIM</h1><p>Choose data only or a plan with a phone number.</p></div>
         {pathname.startsWith('/dashboard') && <Link className="overview-button" to="/dashboard/Esim-management">My eSIMs <ArrowUpRight size={14} aria-hidden="true" /></Link>}
       </header>
       {isError && <div className="overview-error" role="alert"><div><strong>We couldn’t load eSIM availability.</strong><p>Try again for current plans and prices.</p></div><button type="button" disabled={isFetching} onClick={() => refetch()}>{isFetching ? 'Retrying…' : 'Try again'}</button></div>}
