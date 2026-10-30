@@ -83,13 +83,6 @@
 .proxy-faq { display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; }
 .proxy-faq > div > p:not(.proxy-eyebrow) { font-size: 1rem; line-height: 1.8; color: hsl(var(--muted-foreground)); margin-top: 24px; }
 .proxy-faq .proxy-text-link { margin-top: 23px; }
-.proxy-faq-list { border-top: 1px solid var(--proxy-line); }
-.proxy-faq-list details { border-bottom: 1px solid var(--proxy-line); }
-.proxy-faq-list summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; cursor: pointer; padding: 24px 0; font-size: 1rem; list-style: none; }
-.proxy-faq-list summary::-webkit-details-marker { display: none; }
-.proxy-faq-list summary svg { color: var(--proxy-accent); flex-shrink: 0; transition: transform .2s; }
-.proxy-faq-list details[open] summary svg { transform: rotate(45deg); }
-.proxy-faq-list details > p { color: hsl(var(--muted-foreground)); font-size: 1rem; line-height: 1.9; padding: 0 30px 24px 0; }
 .proxy-closing { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 46px var(--public-page-gutter); background: linear-gradient(110deg, transparent 45%, #830e2380), #dc2626; color: #fff; }
 .proxy-closing .proxy-eyebrow { color: #ffd1d1; }
 .proxy-closing h2 { font-size: clamp(35px, 3.8vw, 60px); font-weight: 500; letter-spacing: -.06em; line-height: 1.05; margin-top: 17px; }

@@ -3,12 +3,12 @@ import { Link } from "react-router-dom";
 import "./trust-sections.css";
 
 const benefits = [
-  { icon: Zap, title: "Get going sooner.", description: "Automated provisioning gets your order moving after payment. Find your service details in your account when it’s ready.", label: "Simple setup" },
-  { icon: ShieldCheck, title: "Keep access in your hands.", description: "Manage your service credentials and connection details from your account, with the tools to configure your own environment.", label: "Your access, your control" },
-  { icon: Gauge, title: "Find your fit.", description: "Choose the connection type, server resources, or data plan that suits the way you work. Build around what your project needs.", label: "Flexible options" },
-  { icon: Headphones, title: "A little help goes a long way.", description: "Get help with setup, connection questions, and your services through our support team and step-by-step guides.", label: "Expert support" },
-  { icon: Globe2, title: "Work beyond borders.", description: "Explore proxy locations and travel data plans to find the coverage you need, wherever your next project takes you.", label: "Global connectivity" },
-  { icon: Layers3, title: "Bring it all together.", description: "Keep your proxies, servers, VPNs, and eSIMs in one account. Manage your orders, services, and billing in one place.", label: "One place to manage it" },
+  { icon: Zap, title: "Get going sooner.", description: "Automated provisioning gets your order moving after payment. Find your service details in your account when it’s ready." },
+  { icon: ShieldCheck, title: "Keep access in your hands.", description: "Manage your service credentials and connection details from your account, with the tools to configure your own environment." },
+  { icon: Gauge, title: "Find your fit.", description: "Choose the connection type, server resources, or data plan that suits the way you work. Build around what your project needs." },
+  { icon: Headphones, title: "A little help goes a long way.", description: "Get help with setup, connection questions, and your services through our support team and step-by-step guides." },
+  { icon: Globe2, title: "Work beyond borders.", description: "Explore proxy locations and travel data plans to find the coverage you need, wherever your next project takes you." },
+  { icon: Layers3, title: "Bring it all together.", description: "Keep your proxies, servers, VPNs, and eSIMs in one account. Manage your orders, services, and billing in one place." },
 ];
 
 export const WhyChooseUs = () => (
@@ -24,7 +24,6 @@ export const WhyChooseUs = () => (
           <div className="trust-benefit-top"><benefit.icon size={26} strokeWidth={1.4} aria-hidden="true" /></div>
           <h3>{benefit.title}</h3>
           <p>{benefit.description}</p>
-          <div className="trust-benefit-label"><span aria-hidden="true" />{benefit.label}</div>
         </article>
       ))}
     </div>

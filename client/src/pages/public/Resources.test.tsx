@@ -78,7 +78,7 @@ describe("Resource tools", () => {
     await user.click(screen.getByRole("button", { name: "VPN" }));
     expect(screen.getByRole("heading", { name: "VPN questions" })).toBeInTheDocument();
     await user.click(screen.getByText("How do I set up my VPN?"));
-    expect(screen.getByText("How do I set up my VPN?").closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "How do I set up my VPN?" })).toHaveAttribute("aria-expanded", "true");
     await user.type(screen.getByRole("searchbox", { name: "Search questions" }), "payment methods");
     expect(screen.getByText("What payment methods do you accept?")).toBeInTheDocument();
     expect(screen.queryByText("How do I set up my VPN?")).not.toBeInTheDocument();

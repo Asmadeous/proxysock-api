@@ -1,5 +1,6 @@
+import { FAQList } from "@/components/landing/FAQList";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 const issues = [
   ["My connection is timing out.", "Check that your service is active and that the host, port and protocol match your dashboard. Confirm that your network allows that connection and inspect the relevant firewall rule. For a server, check its running state before trying again."],
@@ -12,7 +13,7 @@ export const HowToConnectTroubleshooting = () => (
   <>
     <section className="tutorial-troubleshooting" aria-labelledby="troubleshooting-title">
       <div><p className="proxy-eyebrow">When something doesn't connect</p><h2 id="troubleshooting-title">A few checks.<br /><em>A clearer answer.</em></h2></div>
-      <div className="proxy-faq-list">{issues.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={17} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div>
+      <FAQList items={issues.map(([question, answer]) => ({ question, answer }))} />
     </section>
     <section className="proxy-closing tutorial-closing" aria-labelledby="tutorial-support-title"><div><p className="proxy-eyebrow">You're not on your own</p><h2 id="tutorial-support-title">Let's get you<br /><span>connected.</span></h2></div><div className="proxy-closing-actions"><Link to="/contact" className="proxy-button proxy-button-dark">Contact support <ArrowUpRight size={16} aria-hidden="true" /></Link><Link to="/dashboard" className="proxy-button proxy-button-outline">Open dashboard <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
   </>

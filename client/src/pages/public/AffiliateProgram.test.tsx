@@ -55,5 +55,5 @@ it('keeps application anchors, account access and program explanations available
   expect(screen.getByRole('link', { name: 'Affiliate dashboard' })).toHaveAttribute('href', '/dashboard/affiliate');
   expect(screen.getByRole('button', { name: 'Submit partnership inquiry' })).toBeDisabled();
   fireEvent.click(screen.getByText('What commission will I earn?'));
-  expect(screen.getByText('What commission will I earn?').closest('details')).toHaveAttribute('open');
+  expect(screen.getByRole('button', { name: 'What commission will I earn?' })).toHaveAttribute('aria-expanded', 'true');
 });

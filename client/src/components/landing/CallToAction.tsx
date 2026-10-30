@@ -14,7 +14,6 @@ export const CallToAction = ({ isAuthenticated, trackConversion }: CallToActionP
 
   return (
     <section className="join-section" aria-labelledby="join-heading">
-      <div className="join-rail"><span>Your next chapter</span></div>
       <div className="join-main">
         <div className="join-copy">
           <h2 id="join-heading">Your next move.<br /><span>Starts here.</span></h2>
@@ -59,7 +58,6 @@ export const CallToAction = ({ isAuthenticated, trackConversion }: CallToActionP
             <path d="M75 328h14m-7-7v14m478-98h14m-7-7v14M272 592h12m-6-6v12" stroke="#fff" strokeOpacity=".35" />
             <circle cx="641" cy="400" r="3" fill="#fff" fillOpacity=".5" />
           </svg>
-          <span className="join-art-caption">One account. Every connection.</span>
         </div>
       </div>
     </section>

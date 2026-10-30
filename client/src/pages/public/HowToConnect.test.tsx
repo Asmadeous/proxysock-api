@@ -61,8 +61,8 @@ describe("Tutorial workspace", () => {
     expect(screen.getByLabelText("android-checklist.txt example")).toHaveTextContent("Wi-Fi");
     const summary = screen.getByText("My eSIM is installed but has no data.");
     await user.click(summary);
-    expect(summary.closest("details")).toHaveAttribute("open");
-    expect(summary.closest("details")).toHaveTextContent("Contact support before deleting");
+    expect(screen.getByRole("button", { name: "My eSIM is installed but has no data." })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: "My eSIM is installed but has no data." })).toHaveTextContent("Contact support before deleting");
   });
 });
 

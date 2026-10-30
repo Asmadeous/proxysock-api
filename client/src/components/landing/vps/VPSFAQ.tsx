@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { FAQList } from "../FAQList";
 
 export const VPSFAQ = () => {
   const faqs = [
@@ -27,25 +27,7 @@ export const VPSFAQ = () => {
           Residential VPS FAQ
         </h2>
 
-        <div className="space-y-6">
-          {faqs.map((faq, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-card/50 rounded-lg p-6 border border-border/50"
-            >
-              <h3 className="text-lg font-manrope-semibold font-semibold text-foreground mb-2">
-                {faq.q}
-              </h3>
-              <p className="text-muted-foreground font-inter-regular text-sm">
-                {faq.a}
-              </p>
-            </motion.div>
-          ))}
-        </div>
+        <FAQList items={faqs.map((faq) => ({ question: faq.q, answer: faq.a }))} />
       </div>
     </div>
   );

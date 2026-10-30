@@ -1,7 +1,8 @@
+import { FAQList } from "@/components/landing/FAQList";
 import { useRef, useState, type FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUpRight, Plus } from "lucide-react";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/services/api";
 import wordmark from "@/assets/images/proxysock-wordmark.svg";
@@ -82,7 +83,7 @@ export default function AffiliateProgram() {
       </form>
     </section>
 
-    <section className="proxy-faq" aria-labelledby="affiliate-faq-title"><div><p className="proxy-eyebrow">A little more clarity</p><h2 id="affiliate-faq-title">Before we<br /><em>get started.</em></h2><Link to="/reseller-program" className="proxy-text-link">Looking to resell services? <ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="proxy-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></section>
+    <section className="proxy-faq" aria-labelledby="affiliate-faq-title"><div><p className="proxy-eyebrow">A little more clarity</p><h2 id="affiliate-faq-title">Before we<br /><em>get started.</em></h2><Link to="/reseller-program" className="proxy-text-link">Looking to resell services? <ArrowUpRight size={16} aria-hidden="true" /></Link></div><FAQList items={faqs.map(([question, answer]) => ({ question, answer }))} /></section>
     <section className="proxy-closing" aria-labelledby="affiliate-closing-title"><div><p className="proxy-eyebrow">Your next partnership</p><h2 id="affiliate-closing-title">Let’s make your<br /><span>connections count.</span></h2></div><div className="proxy-closing-actions"><a href="#apply-form" className="proxy-button proxy-button-dark">Apply for partnership <ArrowDown size={16} aria-hidden="true" /></a><Link to="/contact" className="proxy-button proxy-button-outline">Contact us <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
   </div>;
 }

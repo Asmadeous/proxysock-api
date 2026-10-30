@@ -42,7 +42,7 @@ describe("Service pages", () => {
     show("rdp");
     const summary = screen.getByText(servicePages.rdp.faqs[0][0]);
     await user.click(summary);
-    expect(summary.closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: servicePages.rdp.faqs[0][0] })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("link", { name: "Choose Standard" })).toHaveAttribute("href", "/dashboard/rdp");
   });
 

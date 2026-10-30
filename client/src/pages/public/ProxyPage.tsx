@@ -1,6 +1,7 @@
+import { FAQList } from "@/components/landing/FAQList";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ArrowRight, ArrowUpRight, Plus } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { ProxyPageHeroSection } from "@/components/landing/services/proxies/ProxyPageHeroSection";
 import { ProxyType } from "@/components/landing/services/proxies/ProxyType";
 import "./proxies.css";
@@ -39,7 +40,7 @@ export default function ProxyPage() {
       </section>
       <section id="proxy-faq" className="proxy-faq" aria-labelledby="proxy-faq-title">
         <div><p className="proxy-eyebrow">A little more clarity</p><h2 id="proxy-faq-title">Before you<br /><em>connect.</em></h2><Link className="proxy-text-link" to="/contact">Contact us <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
-        <div className="proxy-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div>
+        <FAQList items={faqs.map(([question, answer]) => ({ question, answer }))} />
       </section>
       <section className="proxy-closing" aria-labelledby="proxy-closing-title"><div><p className="proxy-eyebrow">Your next connection</p><h2 id="proxy-closing-title">Find your proxy.<br /><span>Make your next move.</span></h2><p>Explore the available plans and choose a connection that works for you.</p></div><div className="proxy-closing-actions"><Link to="/dashboard/proxies" className="proxy-button proxy-button-dark">Explore proxy plans <ArrowRight size={18} aria-hidden="true" /></Link><Link to="/contact" className="proxy-button proxy-button-outline">Contact sales <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
     </div>

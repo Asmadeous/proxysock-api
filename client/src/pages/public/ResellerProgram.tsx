@@ -1,7 +1,8 @@
+import { FAQList } from "@/components/landing/FAQList";
 import { useRef, useState, type FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUpRight, Plus } from "lucide-react";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/services/api";
 import wordmark from "@/assets/images/proxysock-wordmark.svg";
@@ -91,7 +92,7 @@ export default function ResellerProgram() {
       {status === "success" && <div className="affiliate-feedback" role="status"><strong>Your application is with us.</strong><p>Our team will review your details and follow up by email.</p></div>}{status === "error" && <div className="affiliate-feedback" role="alert"><strong>We couldn’t send your application.</strong><p>Your details are still here. Please try again or <Link to="/contact">contact support</Link>.</p></div>}</form>
     </section>
 
-    <section className="proxy-faq" aria-labelledby="reseller-faq-title"><div><p className="proxy-eyebrow">Before we partner</p><h2 id="reseller-faq-title">A clearer path<br /><em>to getting started.</em></h2><Link to="/affiliate-program" className="proxy-text-link">Prefer to refer customers? <ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="proxy-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></section>
+    <section className="proxy-faq" aria-labelledby="reseller-faq-title"><div><p className="proxy-eyebrow">Before we partner</p><h2 id="reseller-faq-title">A clearer path<br /><em>to getting started.</em></h2><Link to="/affiliate-program" className="proxy-text-link">Prefer to refer customers? <ArrowUpRight size={16} aria-hidden="true" /></Link></div><FAQList items={faqs.map(([question, answer]) => ({ question, answer }))} /></section>
     <section className="proxy-closing" aria-labelledby="reseller-closing-title"><div><p className="proxy-eyebrow">Build with ProxySock</p><h2 id="reseller-closing-title">Your next chapter.<br /><span>Our shared opportunity.</span></h2></div><div className="proxy-closing-actions"><a href="#apply-form" className="proxy-button proxy-button-dark">Apply for partnership <ArrowDown size={16} aria-hidden="true" /></a><Link to="/contact" className="proxy-button proxy-button-outline">Contact Sales <ArrowUpRight size={16} aria-hidden="true" /></Link></div></section>
   </div>;
 }

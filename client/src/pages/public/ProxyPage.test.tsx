@@ -37,10 +37,10 @@ describe("Proxy services page", () => {
     const user = userEvent.setup();
     showPage();
     const question = screen.getByText("Do all plans include unlimited bandwidth?");
-    const details = question.closest("details");
-    expect(details).not.toHaveAttribute("open");
+    const trigger = screen.getByRole("button", { name: "Do all plans include unlimited bandwidth?" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
     await user.click(question);
-    expect(details).toHaveAttribute("open");
-    expect(details).toHaveTextContent("Bandwidth allowances depend on the proxy type and plan.");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: "Do all plans include unlimited bandwidth?" })).toHaveTextContent("Bandwidth allowances depend on the proxy type and plan.");
   });
 });
