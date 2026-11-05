@@ -49,3 +49,14 @@ it("hands the chosen country to reseller and admin views", async () => {
   await user.click(screen.getByRole("button", { name: "Back to eSIM services" }));
   expect(onBack).toHaveBeenCalled();
 });
+
+it("allows retrying failed availability without showing zero plans as real inventory", async () => {
+  vi.mocked(api.get).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ data: { products } });
+  const user = userEvent.setup();
+  render(<MemoryRouter><PhoneESIMCountries /></MemoryRouter>);
+  expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t load the plans');
+  expect(screen.getAllByText('Unavailable')).toHaveLength(2);
+  await user.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByText('from $9.84')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});

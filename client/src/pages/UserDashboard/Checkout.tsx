@@ -1,36 +1,36 @@
 "use client";
-import { useState, useEffect } from "react";
-
-import { Helmet } from "react-helmet-async";
-import { useNavigate } from "react-router-dom";
-import {
-    Wallet,
-    AlertCircle,
-    Loader2,
-    Lock,
-    Tag,
-    Check,
-    X,
-    Coins,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { usePaymentCheckoutHandlers } from "@/components/dashboard/Cart/hook/usePaymentCheckoutHandlers";
-import { useCalculateOrderItems } from "@/components/dashboard/Cart/hook/useCalculateOrderTotalSync";
-import { CartItem } from "@/types";
-import { useRedditTracking } from "@/utils/redditPixel";
-import { Input } from "@/components/ui/input";
-
-import api from "@/services/api";
-
+import { useState, useEffect, useRef } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Wallet, CreditCard, X } from 'lucide-react';
+import { usePaymentCheckoutHandlers } from '@/components/dashboard/Cart/hook/usePaymentCheckoutHandlers';
+import { useCalculateOrderItems } from '@/components/dashboard/Cart/hook/useCalculateOrderTotalSync';
+import { CartItem } from '@/types';
+import { useRedditTracking } from '@/utils/redditPixel';
+import { useThemeStore } from '@/store/themeStore';
+import api from '@/services/api';
+import './dashboard-home.css';
+import './checkout.css';
 
 export default function Checkout() {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [userBalance, setUserBalance] = useState(0);
-    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+    const exchangeRate = null;
+    const dark = useThemeStore(state => state.dark);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState(false);
+    const paymentPending = useRef(false);
+    const promoPending = useRef(false);
+    const fetchBalance = async () => {
+        setBalanceLoading(true); setBalanceError(false);
+        try {
+            const { data } = await api.get('/web/api/billing/balance');
+            const amount = Number(data.available_balance);
+            if (data.available_balance == null || !Number.isFinite(amount)) throw new Error('Balance unavailable');
+            setUserBalance(amount);
+        } catch { setBalanceError(true); }
+        finally { setBalanceLoading(false); }
+    };
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("balance");
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
@@ -73,19 +73,7 @@ export default function Checkout() {
             navigate("/dashboard/cart");
         }
 
-        // 3. Fetch Balance & Exchange Rate
-        const fetchData = async () => {
-            try {
-                const { data } = await api.get("/web/api/billing/balance");
-                if (data && data.available_balance !== undefined) {
-                    setUserBalance(data.available_balance);
-                }
-                setExchangeRate(1500); // 1 USD = 1500 NGN default
-            } catch (err) {
-                console.error("Error fetching checkout data:", err);
-            }
-        };
-        fetchData();
+        void fetchBalance();
     }, [navigate]);
 
     const { trackPurchase } = useRedditTracking();
@@ -106,7 +94,7 @@ export default function Checkout() {
 
             return {
                 id: `item_${Math.random().toString(36).substr(2, 9)}`,
-                name: item.product || item.plan?.name || item.esimPackage?.name || item.vpsPlan?.name || item.rdpPlan?.name || item.vpnPlan?.name || 'Service',
+                name: item.product || item.plan?.name || item.esimPackage?.name || item.vpsPlan?.name || item.rdpPlan?.name || item.vpnPlan?.name || item.usaEsimPlan?.name || 'Service',
                 price: item.totalPrice || 0,
                 category: category || 'proxy',
                 quantity: item.quantity || 1
@@ -135,14 +123,12 @@ export default function Checkout() {
     };
 
     const {
-        calculateOrderTotalSync,
+        calculateOrderTotalSync, calculateItemTotalSync,
     } = useCalculateOrderItems({ cartItems, exchangeRate });
 
     const {
         handleBalancePayment,
         handleRexpayCheckout,
-        handleHundredpayCheckout,
-        handleFastSpringCheckout,
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
@@ -166,11 +152,13 @@ export default function Checkout() {
         promoCode: promoApplied?.code,
     });
 
-    const handleCheckout = () => {
-        if (selectedPaymentMethod === "balance") handleBalancePayment();
-        else if (selectedPaymentMethod === "rexpay") handleRexpayCheckout();
-        else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
-        else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
+    const handleCheckout = async () => {
+        if (paymentPending.current || isProcessing || promoValidating || !cartItems.length || (selectedPaymentMethod === 'balance' && (balanceLoading || balanceError || userBalance < finalTotal))) return;
+        paymentPending.current = true;
+        try {
+            if (selectedPaymentMethod === 'balance') await handleBalancePayment();
+            else if (selectedPaymentMethod === 'rexpay') await handleRexpayCheckout();
+        } finally { paymentPending.current = false; }
     };
 
     const orderTotal = calculateOrderTotalSync();
@@ -184,7 +172,8 @@ export default function Checkout() {
     const finalTotal = Math.max(orderTotal - promoDiscount, 0);
 
     const handleApplyPromo = async () => {
-        if (!promoInput.trim()) return;
+        if (!promoInput.trim() || promoPending.current || paymentPending.current) return;
+        promoPending.current = true;
         setPromoValidating(true);
         setPromoError(null);
         try {
@@ -205,6 +194,7 @@ export default function Checkout() {
             setPromoError('Failed to validate promo code');
             setPromoApplied(null);
         } finally {
+            promoPending.current = false;
             setPromoValidating(false);
         }
     };
@@ -219,228 +209,30 @@ export default function Checkout() {
     const isProcessing =
         isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingHeleket || isAnyPaymentProcessing;
 
-    return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <Helmet>
-                <title>Checkout | ProxySock</title>
-            </Helmet>
+    const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    const walletUnavailable = balanceLoading || balanceError || userBalance < finalTotal;
+    const nameFor = (item: CartItem) => item.product || item.plan?.name || item.esimPackage?.name || item.vpsPlan?.name || item.rdpPlan?.name || item.vpnPlan?.name || item.usaEsimPlan?.name || 'Service';
 
-            <div>
-                <h1 className="text-3xl font-bold">Checkout</h1>
-                <p className="text-muted-foreground mt-1">Select payment method and complete your order</p>
-            </div>
-
-            <div className="grid lg:grid-cols-3 gap-8">
-                {/* Left Column: Payment Methods */}
-                <div className="lg:col-span-2 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Payment Method</CardTitle>
-                            <CardDescription>Select how you want to pay</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {error && (
-                                <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3 text-destructive">
-                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                    <span className="text-sm font-medium">{error}</span>
-                                </div>
-                            )}
-
-                            {/* Crypto-at-checkout discontinued notice */}
-                            <div className="mb-6 p-4 bg-primary/5 border border-primary/30 rounded-lg flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    <Coins className="w-5 h-5 text-primary" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-semibold">Paying with crypto?</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Crypto payments at checkout have been discontinued. To pay with crypto,
-                                        use the <span className="font-medium text-foreground">Deposit Funds</span> button
-                                        to top up your wallet with crypto (BTC, ETH, USDT), then pay using your{" "}
-                                        <span className="font-medium text-foreground">Wallet Balance</span> below.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <RadioGroup
-                                value={selectedPaymentMethod}
-                                onValueChange={setSelectedPaymentMethod}
-                                className="grid gap-4"
-                            >
-                                {/* Balance Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "balance" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="balance" id="balance" className="sr-only" />
-                                    <Label htmlFor="balance" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                                            <Wallet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-semibold">Wallet Balance</div>
-                                            <div className="text-sm text-muted-foreground">Available: ${userBalance.toFixed(2)}</div>
-                                        </div>
-                                        {userBalance >= orderTotal ? (
-                                            <Badge className="bg-emerald-500 hover:bg-emerald-600">Sufficient</Badge>
-                                        ) : (
-                                            <Badge variant="destructive">Insufficient</Badge>
-                                        )}
-                                    </Label>
-                                </div>
-
-                                {/* RexPay Option */}
-                                <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "rexpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="rexpay" id="rexpay" className="sr-only" />
-                                    <Label htmlFor="rexpay" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
-                                            <img src="/rexpay.svg" alt="RexPay" className="w-full h-full object-contain" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-semibold">RexPay (Card)</div>
-                                            <div className="text-sm text-muted-foreground">Pay with card (NGN, fees included)</div>
-                                        </div>
-                                    </Label>
-                                </div>
-
-                                {/* FastSpring Option */}
-                                {/* <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "fastspring" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="fastspring" id="fastspring" className="sr-only" />
-                                    <Label htmlFor="fastspring" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                                            <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-semibold">FastSpring (Global)</div>
-                                            <div className="text-sm text-muted-foreground">Cards, PayPal (USD)</div>
-                                        </div>
-                                    </Label>
-                                </div> */}
-
-                                {/* 100Pay Option */}
-                                {/* <div className={`relative px-4 py-3 border rounded-lg cursor-pointer transition-all ${selectedPaymentMethod === "hundredpay" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50"}`}>
-                                    <RadioGroupItem value="hundredpay" id="hundredpay" className="sr-only" />
-                                    <Label htmlFor="hundredpay" className="flex items-center gap-4 w-full cursor-pointer">
-                                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center shrink-0 shadow-sm p-1">
-                                            <img src="/100pay.png" alt="100Pay" className="w-full h-full object-contain" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-semibold">100Pay (Card & Crypto)</div>
-                                            <div className="text-sm text-muted-foreground">Universal Payment Gateway</div>
-                                        </div>
-                                    </Label>
-                                </div> */}
-
-                            </RadioGroup>
-                        </CardContent>
-                    </Card>
-
-                    {/* Promo / Affiliate Code */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Tag className="w-5 h-5" />
-                                Promo Code
-                            </CardTitle>
-                            <CardDescription>Have a promo or affiliate code? Apply it for a discount</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {promoApplied ? (
-                                <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                        <Check className="w-4 h-4 text-emerald-500" />
-                                        <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{promoApplied.code}</span>
-                                        <span className="text-sm text-muted-foreground">
-                                            ({promoApplied.discount_type === 'percentage' ? `${promoApplied.discount_value}% off` : `$${promoApplied.discount_value} off`})  
-                                        </span>
-                                    </div>
-                                    <Button variant="ghost" size="sm" onClick={handleRemovePromo} className="text-destructive hover:text-destructive">
-                                        <X className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Enter promo or affiliate code"
-                                            value={promoInput}
-                                            onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null); }}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
-                                            disabled={promoValidating}
-                                            className="font-mono"
-                                        />
-                                        <Button onClick={handleApplyPromo} disabled={promoValidating || !promoInput.trim()} variant="outline">
-                                            {promoValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
-                                        </Button>
-                                    </div>
-                                    {promoError && (
-                                        <p className="text-xs text-destructive flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3" /> {promoError}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Right Column: Order Summary */}
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Order Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Subtotal ({cartItems.length} items)</span>
-                                    <span>${orderTotal.toFixed(2)}</span>
-                                </div>
-                                {promoDiscount > 0 && (
-                                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                                        <span className="flex items-center gap-1">
-                                            <Tag className="w-3 h-3" /> Promo ({promoApplied?.code})
-                                        </span>
-                                        <span>-${promoDiscount.toFixed(2)}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="pt-4 border-t">
-                                <div className="flex justify-between items-center text-lg font-bold">
-                                    <span>Total</span>
-                                    <span>${finalTotal.toFixed(2)}</span>
-                                </div>
-                                {promoDiscount > 0 && (
-                                    <p className="text-xs text-emerald-600 dark:text-emerald-400 text-right mt-1">
-                                        You save ${promoDiscount.toFixed(2)}!
-                                    </p>
-                                )}
-                            </div>
-
-                            <Button
-                                className="w-full gap-2"
-                                size="lg"
-                                onClick={handleCheckout}
-                                disabled={isProcessing || (selectedPaymentMethod === "balance" && userBalance < finalTotal)}
-                            >
-                                {isProcessing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Lock className="w-4 h-4" />
-                                        Pay with {selectedPaymentMethod === "balance" ? "Balance" : selectedPaymentMethod.charAt(0).toUpperCase() + selectedPaymentMethod.slice(1)}
-                                    </>
-                                )}
-                            </Button>
-
-                            <div className="text-xs text-center text-muted-foreground">
-                                By purchasing you agree to our Terms of Service.
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        </div>
-    );
+    return <div className={`dashboard-overview checkout-page ${dark ? 'overview-dark' : ''}`}>
+      <Helmet><title>Checkout | ProxySock</title></Helmet>
+      <header className="overview-heading"><div><h1>Checkout</h1><p>Review your order and choose how to pay.</p></div><Link className="overview-button" to="/dashboard/cart"><ArrowLeft size={14} aria-hidden="true" />Back to cart</Link></header>
+      {error && <div className="overview-error" role="alert">{error}</div>}
+      <div className="checkout-layout"><div className="checkout-main">
+        <section className="checkout-panel" aria-labelledby="payment-title"><div className="overview-section-heading"><div><h2 id="payment-title">Payment method</h2><p>Your order is priced in USD.</p></div></div>
+          <fieldset className="checkout-methods" disabled={isProcessing}><legend className="sr-only">Choose payment method</legend>
+            <label className="checkout-method" data-selected={selectedPaymentMethod === 'balance'}><input type="radio" name="payment-method" value="balance" checked={selectedPaymentMethod === 'balance'} onChange={() => { setSelectedPaymentMethod('balance'); setError(null); }} /><Wallet size={20} aria-hidden="true" /><span><strong>Wallet balance</strong><small>{balanceLoading ? 'Loading balance…' : balanceError ? 'Balance unavailable' : `Available: ${money(userBalance)}`}</small></span></label>
+            <label className="checkout-method" data-selected={selectedPaymentMethod === 'rexpay'}><input type="radio" name="payment-method" value="rexpay" checked={selectedPaymentMethod === 'rexpay'} onChange={() => { setSelectedPaymentMethod('rexpay'); setError(null); }} /><CreditCard size={20} aria-hidden="true" /><span><strong>Card · RexPay</strong><small>Continue to RexPay to review the NGN charge and pay.</small></span></label>
+          </fieldset>
+          {balanceError && <div className="checkout-balance-message" role="alert">Couldn’t load your wallet balance. <button type="button" onClick={fetchBalance} disabled={balanceLoading || isProcessing}>Retry balance</button></div>}
+          {!balanceLoading && !balanceError && selectedPaymentMethod === 'balance' && userBalance < finalTotal && <p className="checkout-balance-message" role="status">Your wallet needs {money(finalTotal - userBalance)} more. Add funds using the wallet button in the sidebar, then <button type="button" onClick={fetchBalance} disabled={isProcessing}>refresh your balance</button>, or choose card payment.</p>}
+          <p className="checkout-payment-note">To pay with crypto, add funds to your wallet first using the wallet button in the sidebar.</p>
+        </section>
+        <section className="checkout-panel" aria-labelledby="checkout-items-title"><div className="overview-section-heading"><h2 id="checkout-items-title">Your order <span className="checkout-count">{cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}</span></h2><Link to="/dashboard/cart">Edit cart <ArrowRight size={14} aria-hidden="true" /></Link></div><ul className="checkout-items">{cartItems.map((item, index) => <li key={index}><div><strong>{nameFor(item)}</strong><small>{['usa-esim', 'esim'].includes(item.productType) ? `Quantity: ${item.quantity || 1}` : item.productType.toUpperCase()}{item.auto_renew ? ' · Auto-renew enabled' : ''}</small></div><span>{money(calculateItemTotalSync(item))}</span></li>)}</ul></section>
+      </div><aside className="checkout-panel checkout-summary" aria-labelledby="checkout-summary-title"><h2 id="checkout-summary-title">Order summary</h2><dl><div><dt>Subtotal</dt><dd>{money(orderTotal)}</dd></div>{promoApplied && <div className="checkout-discount"><dt>Discount ({promoApplied.code})</dt><dd>−{money(promoDiscount)}</dd></div>}</dl>
+        <div className="checkout-promo"><label htmlFor="checkout-promo">Promo or affiliate code</label>{promoApplied ? <div className="checkout-applied" role="status"><span>{promoApplied.code} applied</span><button type="button" aria-label="Remove promo code" disabled={isProcessing} onClick={handleRemovePromo}><X size={15} aria-hidden="true" /></button></div> : <form onSubmit={event => { event.preventDefault(); void handleApplyPromo(); }}><div><input id="checkout-promo" value={promoInput} onChange={event => { setPromoInput(event.target.value.toUpperCase()); setPromoError(null); }} disabled={promoValidating || isProcessing} autoComplete="off" aria-invalid={Boolean(promoError)} aria-describedby={promoError ? 'checkout-promo-error' : undefined} /><button type="submit" disabled={!promoInput.trim() || promoValidating || isProcessing}>{promoValidating ? 'Applying…' : 'Apply'}</button></div>{promoError && <p id="checkout-promo-error" role="alert">{promoError}</p>}</form>}</div>
+        <div className="checkout-total"><span>Total</span><strong>{money(finalTotal)}</strong></div><p className="checkout-note">USD · Final pricing and discounts are confirmed when your order is submitted.</p>
+        <button className="checkout-pay" type="button" onClick={handleCheckout} disabled={!cartItems.length || isProcessing || promoValidating || (selectedPaymentMethod === 'balance' && walletUnavailable)}>{isProcessing ? 'Processing payment…' : selectedPaymentMethod === 'balance' ? 'Pay with wallet' : 'Continue to RexPay'}<ArrowRight size={15} aria-hidden="true" /></button>
+        <p className="checkout-terms">By purchasing, you agree to our <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.</p>
+      </aside></div>
+    </div>;
 }

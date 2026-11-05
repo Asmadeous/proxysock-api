@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Copy, WrapText } from "lucide-react";
+import "./terminal.css";
 
 interface CodeBlockProps {
   code: string;
@@ -8,63 +9,41 @@ interface CodeBlockProps {
   showLineNumbers?: boolean;
 }
 
-export const CodeBlock = ({
-  code,
-  language = "bash",
-  title,
-  showLineNumbers = false,
-}: CodeBlockProps) => {
-  const [copied, setCopied] = useState(false);
+export const CodeBlock = ({ code, language = "bash", title = "Terminal", showLineNumbers = true }: CodeBlockProps) => {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [wrap, setWrap] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(resetTimer.current), []);
+  useEffect(() => { setCopyState("idle"); }, [code]);
 
-  const copyToClipboard = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const lines = code.split('\n');
+  async function copyToClipboard() {
+    clearTimeout(resetTimer.current);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyState("copied");
+      resetTimer.current = setTimeout(() => setCopyState("idle"), 2200);
+    } catch {
+      setCopyState("error");
+    }
+  }
 
   return (
-    <div className="group relative bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
-      {title && (
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
-          <span className="text-sm text-slate-400 font-medium">{title}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 uppercase tracking-wide">
-              {language}
-            </span>
-          </div>
+    <div className={`guide-terminal ${wrap ? "guide-terminal-wrap" : ""}`}>
+      <div className="guide-terminal-bar">
+        <div className="guide-terminal-title"><span className="guide-terminal-lights" aria-hidden="true"><i /><i /><i /></span><span>{title}</span></div>
+        <div className="guide-terminal-controls">
+          <button type="button" onClick={() => setWrap(!wrap)} aria-pressed={wrap} aria-label="Wrap lines" title="Wrap lines"><WrapText size={15} aria-hidden="true" /></button>
+          <button type="button" onClick={copyToClipboard} aria-label={`Copy ${title}`}><span aria-hidden="true">{copyState === "copied" ? <Check size={14} /> : <Copy size={14} />}</span>{copyState === "copied" ? "Copied" : "Copy"}</button>
         </div>
-      )}
-      <div className="relative">
-        <button
-          onClick={copyToClipboard}
-          className="absolute right-2 top-2 z-10 p-2 rounded-md bg-slate-800 text-slate-400 hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label="Copy code"
-        >
-          {copied ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </button>
-        <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
-          <code className="text-slate-50">
-            {showLineNumbers ? (
-              lines.map((line, index) => (
-                <div key={index} className="table-row">
-                  <span className="table-cell text-slate-600 pr-4 select-none w-8 text-right">
-                    {index + 1}
-                  </span>
-                  <span className="table-cell">{line}</span>
-                </div>
-              ))
-            ) : (
-              code
-            )}
-          </code>
-        </pre>
       </div>
+      <pre tabIndex={0} aria-label={`${title} example`}><code>{code.split("\n").map((line, i) => (
+        <span className={`guide-code-line ${line.trimStart().startsWith("#") ? "guide-code-comment" : ""}`} key={i}>
+          {showLineNumbers && <span className="guide-code-number" aria-hidden="true">{i + 1}</span>}
+          <span className="guide-code-text">{line || " "}</span>
+        </span>
+      ))}</code></pre>
+      <div className="guide-terminal-foot"><span>{language === "text" ? "Configuration reference" : language}</span><span>Example · replace placeholders</span></div>
+      <p className={copyState === "error" ? "guide-copy-error" : "sr-only"} role="status">{copyState === "copied" ? "Code copied to clipboard." : copyState === "error" ? "Couldn't copy automatically. Select the example above and copy it manually." : ""}</p>
     </div>
   );
 };

@@ -1,25 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-    EnvelopeIcon,
-    LockClosedIcon,
-    EyeIcon,
-    EyeSlashIcon,
-    ArrowRightIcon,
-    BuildingStorefrontIcon,
-} from "@heroicons/react/24/outline";
-import { resellerLogin } from "../../services/resellerApi";
-import { getApiError } from "../../utils/apiError";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, ArrowUpRight, Eye, EyeOff } from "lucide-react";
 import { Helmet } from "react-helmet-async";
-import AuthLogo from "../../components/auth/AuthLogo";
-import AuroraBackground from "../../components/auth/carousel/AuroraBackground";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { resellerLogin } from "@/services/resellerApi";
+import { getApiError } from "@/utils/apiError";
+import { useThemeStore } from "@/store/themeStore";
+import LoginBrandPanel from "@/components/auth/login/LoginBrandPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import "@/pages/auth/login.css";
+import "./reseller-login.css";
 
 const TERMS_SECTIONS = [
     {
@@ -95,9 +84,11 @@ export default function ResellerLoginPage() {
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [termsOpen, setTermsOpen] = useState(false);
     const navigate = useNavigate();
+    const dark = useThemeStore(state => state.dark);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (loading) return;
         if (!termsAccepted) {
             setError("You must accept the Terms of Service to proceed.");
             return;
@@ -116,213 +107,17 @@ export default function ResellerLoginPage() {
         }
     };
 
-    return (
-        <div className="flex h-screen bg-background">
-            <Helmet>
-                <title>Reseller Login | ProxySock</title>
-            </Helmet>
-
-            {/* Left Panel */}
-            <div className="hidden lg:flex w-[45%] xl:w-[40%] relative">
-                <AuroraBackground />
-
-                <div className="absolute top-8 left-8 z-10">
-                    <AuthLogo variant="dark" />
-                </div>
-
-                <div className="absolute bottom-8 left-8 right-8 z-10">
-                    <div className="bg-white/[0.08] backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-white/10 rounded-xl">
-                                <BuildingStorefrontIcon className="w-5 h-5 text-white/90" />
-                            </div>
-                            <h3 className="text-white/90 text-lg font-medium">Reseller Portal</h3>
-                        </div>
-                        <p className="text-white/60 text-sm leading-relaxed">
-                            Partner access only. Sign in to manage orders, credits, and your reseller dashboard.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right Panel */}
-            <div className="flex-1 flex flex-col bg-background">
-                {/* Mobile header */}
-                <div className="lg:hidden flex items-center justify-center py-8 px-6">
-                    <AuthLogo variant="auto" size="sm" />
-                </div>
-
-                <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                        className="w-full max-w-md"
-                    >
-                        {/* Header */}
-                        <div className="mb-8">
-                            <h1 className="text-3xl font-bold text-foreground tracking-tight">Reseller Portal</h1>
-                            <p className="text-muted-foreground mt-2 text-sm">
-                                Sign in with your partner credentials to access the dashboard.
-                            </p>
-                        </div>
-
-                        {/* Form card */}
-                        <div className="bg-card/50 backdrop-blur-xl rounded-2xl border border-border shadow-xl p-6 space-y-4">
-                            {error && (
-                                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-                                    <div className="flex items-center gap-2">
-                                        <svg className="h-5 w-5 text-destructive shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                        </svg>
-                                        <p className="text-destructive text-sm font-medium">{error}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Email */}
-                                <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                                        Email Address
-                                    </label>
-                                    <div className="relative">
-                                        <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                        <input
-                                            id="email"
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                            autoFocus
-                                            disabled={loading}
-                                            placeholder="partner@company.com"
-                                            className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Password */}
-                                <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                                        Password
-                                    </label>
-                                    <div className="relative">
-                                        <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                        <input
-                                            id="password"
-                                            type={showPassword ? "text" : "password"}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            required
-                                            disabled={loading}
-                                            placeholder="Enter your password"
-                                            className="pl-10 pr-10 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            disabled={loading}
-                                            aria-label={showPassword ? "Hide password" : "Show password"}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                        >
-                                            {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Terms acceptance */}
-                                <div className="flex items-start gap-3 pt-1">
-                                    <input
-                                        id="terms"
-                                        type="checkbox"
-                                        checked={termsAccepted}
-                                        onChange={(e) => {
-                                            setTermsAccepted(e.target.checked);
-                                            if (e.target.checked) setError("");
-                                        }}
-                                        className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer"
-                                    />
-                                    <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer select-none">
-                                        I have read and agree to the{" "}
-                                        <button
-                                            type="button"
-                                            onClick={() => setTermsOpen(true)}
-                                            className="text-primary font-medium hover:underline focus:outline-none"
-                                        >
-                                            Reseller Terms of Service
-                                        </button>
-                                    </label>
-                                </div>
-
-                                {/* Submit */}
-                                <button
-                                    type="submit"
-                                    disabled={loading || !termsAccepted}
-                                    className="w-full bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mt-2"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
-                                            <span>Signing in...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Sign In</span>
-                                            <ArrowRightIcon className="h-4 w-4" />
-                                        </>
-                                    )}
-                                </button>
-                            </form>
-                        </div>
-
-                        <p className="text-center text-xs text-muted-foreground mt-6">
-                            Partner access only. Unauthorized access is logged and prosecuted.
-                        </p>
-                    </motion.div>
-                </div>
-            </div>
-
-            {/* Terms of Service Dialog */}
-            <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-bold">Reseller Terms of Service</DialogTitle>
-                        <p className="text-xs text-muted-foreground">Last Updated: March 21, 2026</p>
-                    </DialogHeader>
-
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar mt-2">
-                        {TERMS_SECTIONS.map((section, i) => (
-                            <div key={i} className="space-y-2">
-                                <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
-                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{section.content}</p>
-                            </div>
-                        ))}
-                        <div className="border-t border-border pt-4">
-                            <p className="text-xs text-muted-foreground">
-                                By accepting, you acknowledge that you have read, understood, and agree to be bound by these terms.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setTermsOpen(false)}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        >
-                            Close
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setTermsAccepted(true); setTermsOpen(false); setError(""); }}
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                            Accept & Close
-                        </button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-        </div>
-    );
+    return <div className={`landing-theme ${dark ? 'dark' : ''}`}>
+      <Helmet><title>Reseller Sign In | ProxySock</title><meta name="robots" content="noindex" /></Helmet>
+      <div className="login-page reseller-login"><LoginBrandPanel variant="reseller" /><main className="login-main"><header className="login-topbar"><Link to="/" className="login-back"><ArrowLeft size={15} aria-hidden="true" />Back to website</Link></header><div className="login-form-area"><div className="login-form-content"><div className="login-form-heading"><p className="login-eyebrow">ProxySock / Reseller access</p><h1>Welcome back.<br /><span>Let’s get to work.</span></h1><p>Sign in to manage your reseller business.</p></div>
+        <form className="login-form" onSubmit={handleSubmit} aria-label="Reseller sign in" aria-busy={loading}>
+          {error && <div className="login-error" role="alert">{error}</div>}
+          <div className="login-field"><label htmlFor="reseller-email">Email address</label><input id="reseller-email" name="email" type="email" autoComplete="username" required disabled={loading} value={email} onChange={event => setEmail(event.target.value)} /></div>
+          <div className="login-field"><label htmlFor="reseller-password">Password</label><div className="login-password"><input id="reseller-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required disabled={loading} value={password} onChange={event => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} disabled={loading} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>
+          <div className="reseller-terms-choice"><input id="reseller-terms" type="checkbox" checked={termsAccepted} disabled={loading} onChange={event => { setTermsAccepted(event.target.checked); if(event.target.checked) setError(''); }} /><div><label htmlFor="reseller-terms">I agree to the reseller terms.</label><button type="button" onClick={() => setTermsOpen(true)}>Read Reseller Terms of Service</button></div></div>
+          <button type="submit" className="login-submit" disabled={loading || !termsAccepted}>{loading ? 'Signing in…' : 'Sign in'}<ArrowUpRight size={17} aria-hidden="true" /></button>
+        </form><p className="login-register">Interested in becoming a reseller? <Link to="/reseller-program">Explore partnerships ↗</Link></p><p className="reseller-login-help"><Link to="/contact">Need help accessing your account?</Link></p>
+      </div></div></main></div>
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}><DialogContent className={`reseller-terms-dialog landing-theme ${dark ? 'dark' : ''}`}><DialogHeader><DialogTitle>Reseller Terms of Service</DialogTitle><DialogDescription>Last Updated: March 21, 2026</DialogDescription></DialogHeader><div className="reseller-terms-content">{TERMS_SECTIONS.map(section => <section key={section.title}><h3>{section.title}</h3><p>{section.content}</p></section>)}<p>By accepting, you acknowledge that you have read, understood, and agree to be bound by these terms.</p></div><div className="reseller-terms-actions"><button type="button" onClick={() => setTermsOpen(false)}>Close</button><button type="button" onClick={() => { setTermsAccepted(true); setTermsOpen(false); setError(''); }}>Accept & Close</button></div></DialogContent></Dialog>
+    </div>;
 }

@@ -1,3 +1,5 @@
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
+import ESIMPurchaseLayout from "./ESIMPurchaseLayout";
 import { useState, useEffect, useMemo } from 'react';
 import { CalendarDays, Globe, MessageSquare, Phone, Signal, Smartphone, type LucideIcon } from 'lucide-react';
 import { conversionTracker } from '@/utils/redditPixel';
@@ -178,8 +180,8 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
   const canBuy = JSON.parse(localStorage.getItem("resellerUser") || "{}").reseller_type !== "infrastructure";
 
   return (
-    <div className="w-full space-y-7">
-      <header>
+    <ESIMPurchaseLayout>
+      <header className="esim-page-heading">
         <BackButton label="Back to countries" to="/dashboard/phone-esim" onBack={onBack} />
         <div className="flex items-center gap-3">
           <CountryFlag country={country} />
@@ -226,15 +228,7 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
           ))}
           <div className="flex flex-wrap items-center gap-2">
             <Label htmlFor="phone-plan-sort" className="mr-1 w-full text-sm font-medium sm:w-36">Sort</Label>
-            <select
-              id="phone-plan-sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as 'asc' | 'desc')}
-              className="min-h-9 rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="asc">Price: low to high</option>
-              <option value="desc">Price: high to low</option>
-            </select>
+            <div className="w-full sm:w-48"><PurchaseSelect id="phone-plan-sort" value={sort} onValueChange={value => setSort(value as 'asc' | 'desc')} options={[{ value: 'asc', label: 'Price: low to high' }, { value: 'desc', label: 'Price: high to low' }]} /></div>
           </div>
         </div>
       )}
@@ -321,6 +315,6 @@ export default function USAESIMPlansPage({ country = 'US', onBack, isDirectBuy, 
         onClose={() => setOpenPlan(null)}
         onSubmit={(plan, details) => addLine(plan, details)}
       />
-    </div>
+    </ESIMPurchaseLayout>
   );
 }

@@ -1,3 +1,4 @@
+import brandMark from "@/assets/images/favicon.svg";
 import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
 import { Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "../../../components/NotificationBell";
@@ -142,7 +143,7 @@ export default function AdminSidebar({
             {/* Header */}
             <div className={`px-4 py-4 border-b border-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto flex-shrink-0" />
+                    <img src={isCollapsed ? brandMark : dark ? logoDark : logoLight} alt="ProxySock" className={isCollapsed ? "h-9 w-9 flex-shrink-0" : "h-7 w-auto flex-shrink-0"} />
                     {!isCollapsed && (
                         <span className="text-sm font-semibold text-muted-foreground truncate">{title}</span>
                     )}

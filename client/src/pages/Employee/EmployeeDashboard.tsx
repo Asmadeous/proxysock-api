@@ -102,7 +102,7 @@ export default function EmployeeDashboard() {
                 markNotificationsAsRead={markAdminNotificationsAsRead}
             />
             <main className="flex-1 overflow-hidden">
-                <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
+                <div data-page-scroll className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
                     {activeTab === "overview" && <EmpOverview />}
                     {activeTab === "tickets" && <EmpTickets />}
                     {activeTab === "support_chats" && <SupportChatsTab />}

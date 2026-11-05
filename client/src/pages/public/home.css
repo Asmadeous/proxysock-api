@@ -1,0 +1,7 @@
+.home-landing {
+  --background: 355 38% 96%;
+}
+
+.landing-theme.dark .home-landing {
+  --background: 350 30% 9%;
+}

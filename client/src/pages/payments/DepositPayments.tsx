@@ -1,37 +1,23 @@
-"use client"
-
-import React from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight } from 'lucide-react';
+import { walletMoney } from '@/hooks/useWalletBalance';
 
 interface DepositPaymentProps {
-  clientSecret?: string;
-  paymentUrl?: string;
-  onCancel: () => void;
+  paymentUrl: string;
+  depositAmount: number;
+  paymentAmount?: number;
+  paymentCurrency?: string;
+  reference?: string;
+  gateway: string;
+  onBack: () => void;
 }
-
-const DepositPayment: React.FC<DepositPaymentProps> = ({ paymentUrl, onCancel }) => {
-  if (paymentUrl) {
-    return (
-      <div className="p-4">
-        <p className="text-gray-300 mb-4">You will be redirected to complete your payment.</p>
-        <div className="flex justify-end space-x-2">
-          <button
-            onClick={onCancel}
-            className="bg-[#444] hover:bg-[#555] text-gray-300 font-semibold py-2 px-4 rounded-lg"
-          >
-            Cancel
-          </button>
-          <a
-            href={paymentUrl}
-            className="bg-[#22C55E] hover:bg-[#16a34a] text-white font-semibold py-2 px-4 rounded-lg"
-          >
-            Proceed to Payment
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  return <p className="text-[#FF3D77] p-4">Payment method not supported or initialization failed.</p>;
-};
-
-export default DepositPayment;
+export default function DepositPayment({ paymentUrl, depositAmount, paymentAmount, paymentCurrency, reference, gateway, onBack }: DepositPaymentProps) {
+  return <section className="checkout-panel deposit-session">
+    <h2>Continue to payment</h2><p className="proxy-note">Your payment session is ready. Your wallet will be credited after payment is confirmed.</p>
+    <dl className="proxy-facts"><div><dt>Wallet deposit</dt><dd>{walletMoney(depositAmount)}</dd></div><div><dt>Payment method</dt><dd>{gateway}</dd></div><div><dt>Gateway amount</dt><dd>{paymentAmount != null && paymentCurrency ? walletMoney(paymentAmount, paymentCurrency) : 'Shown at checkout'}</dd></div>{reference && <div><dt>Reference</dt><dd>{reference}</dd></div>}</dl>
+    <p className="proxy-note">Review the final payment details with the provider before paying.</p>
+    <div className="deposit-actions"><a className="proxy-primary" href={paymentUrl}>Continue to {gateway}<ArrowUpRight size={14} /></a><Link className="proxy-secondary" to="/dashboard/transactions">View deposit history</Link></div>
+    <button type="button" className="deposit-back" onClick={onBack}>Start a different deposit</button>
+    <p className="proxy-note">Starting another deposit does not cancel this payment session.</p>
+  </section>;
+}

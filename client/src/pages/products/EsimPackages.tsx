@@ -1,10 +1,11 @@
+import ESIMPurchaseLayout from "./ESIMPurchaseLayout";
+import { BackButton } from "./phoneLines";
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   X,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft,
   CalendarDays,
   Globe,
   Loader2,
@@ -490,18 +491,10 @@ function ESIMPackagesPageContent({
   }
 
   return (
-    <div className="w-full space-y-7">
+    <div className="esim-catalog-content">
       {/* Page Header */}
-      <div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onBack ? onBack() : globalThis.history.back()}
-          className="mb-5 gap-2 rounded-full"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Back to eSIM services
-        </Button>
+      <div className="esim-page-heading">
+        <BackButton label="Back to eSIM services" to="/dashboard/esim" onBack={onBack} />
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-semibold text-foreground">
             Data Only eSIM
@@ -877,8 +870,8 @@ interface ESIMPackagesProps {
 
 export default function ESIMPackages({ onBack, isDirectBuy, onDirectBuy }: ESIMPackagesProps = {}) {
   return (
-    <ErrorBoundary FallbackComponent={FallbackComponent}>
+    <ESIMPurchaseLayout><ErrorBoundary FallbackComponent={FallbackComponent}>
       <ESIMPackagesPageContent onBack={onBack} isDirectBuy={isDirectBuy} onDirectBuy={onDirectBuy} />
-    </ErrorBoundary>
+    </ErrorBoundary></ESIMPurchaseLayout>
   );
 }

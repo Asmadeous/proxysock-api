@@ -1,0 +1,123 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { HelmetProvider } from 'react-helmet-async';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import EsimOrders from './EsimOrders';
+import api from '@/services/api';
+vi.mock('@/services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 }, accessToken: 'token' }) }));
+vi.mock('./EsimTopupDialog', () => ({ default: ({ orderId }: { orderId: string }) => <div role="dialog">Top up order {orderId}</div> }));
+const profile = { id: 10, iccid: '89001', activation_code: 'LPA:1$server$activation', data_label: 'Unlimited', location_name: 'US', validity_days: 30, phone_number: '+12025550100', install_links: { ios: 'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=test' } };
+const order = { id: 1, order_number: 'ES-100', product_name: 'Travel plan', product_type: 'esim', status: 'completed', total_amount: '12.50', currency: 'EUR', created_at: '2026-10-01', has_invoice: true, profiles: [profile] };
+function show(path = '/dashboard/esim-orders') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } });
+  render(<QueryClientProvider client={client}><HelmetProvider><MemoryRouter initialEntries={[path]}><EsimOrders /></MemoryRouter></HelmetProvider></QueryClientProvider>);
+}
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(api.get).mockResolvedValue({ data: { orders: [order], meta: { total_pages: 1 } } }); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+it('loads both eSIM types across all pages and searches profiles with local pagination', async () => {
+  const firstPage = Array.from({ length: 10 }, (_, i) => ({ ...order, id: i + 1, order_number: `ES-${i + 1}`, profiles: [] }));
+  vi.mocked(api.get).mockResolvedValueOnce({ data: { orders: firstPage, meta: { total_pages: 2 } } }).mockResolvedValueOnce({ data: { orders: [{ ...order, id: 11, order_number: 'ES-11', product_type: 'usa_esim' }], meta: { total_pages: 2 } } });
+  show('/dashboard/esim-orders?search=89001');
+  expect(await screen.findByText('ES-11')).toBeInTheDocument();
+  expect(screen.queryByText('ES-1')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Clear filters'));
+  expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  expect(screen.getByText('ES-11')).toBeInTheDocument();
+  expect(api.get).toHaveBeenLastCalledWith('/web/api/orders', expect.objectContaining({ params: { product_type: 'esim,usa_esim', page: 2, per_page: 100 } }));
+});
+it('shows every profile with its allowance, activation QR, and individual expiry', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [{ ...order, profiles: [profile, { ...profile, id: 11, iccid: '89002', data_label: '1000 MB', expired_time: '2026-11-01' }] }] } });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  expect(screen.getByText('ICCID 89001')).toBeInTheDocument();
+  expect(screen.getByText('ICCID 89002')).toBeInTheDocument();
+  expect(screen.getByText('Unlimited')).toBeInTheDocument();
+  expect(screen.getByText('1000 MB')).toBeInTheDocument();
+  expect(screen.getByText('Valid 30 days from activation')).toBeInTheDocument();
+  expect(screen.getAllByLabelText('eSIM installation QR code')).toHaveLength(2);
+  expect(screen.getAllByRole('link', { name: 'Install on iPhone' })[0]).toHaveAttribute('href', profile.install_links.ios);
+  expect(screen.getByRole('link', { name: 'Manage service' })).toHaveAttribute('href', '/dashboard/Esim-management?search=ES-100');
+});
+it('shows failed orders and actual currency without exposing installation actions', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [{ ...order, status: 'failed' }] } });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByText('failed')).toBeInTheDocument();
+  expect(dialog.getByText('€12.50')).toBeInTheDocument();
+  expect(dialog.queryByText('Total Paid')).not.toBeInTheDocument();
+  expect(dialog.queryByLabelText('eSIM installation QR code')).not.toBeInTheDocument();
+  expect(dialog.queryByRole('button', { name: 'Download installation details' })).not.toBeInTheDocument();
+});
+it('keeps carrier review visible and disables installation and purchases until confirmed', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [{ ...order, review_pending: true, topup_eligible: true, reorderable: true }] } });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  expect(screen.getByRole('status')).toHaveTextContent("We're confirming your eSIM");
+  expect(screen.queryByLabelText('eSIM installation QR code')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Top up line' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Reorder' })).not.toBeInTheDocument();
+});
+it('groups UK phone lines correctly and opens the existing top-up flow for that order', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [order, { ...order, id: 2, order_number: 'ES-200', metadata: { meisim_line: 'uk_prepaid' }, topup_eligible: true, reorderable: true }] } });
+  show();
+  await screen.findByText('ES-100');
+  fireEvent.click(screen.getByRole('combobox', { name: 'Service type' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Phone-number eSIM' }));
+  expect(screen.queryByText('ES-100')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'View order ES-200' }));
+  expect(screen.queryByRole('button', { name: 'Reorder' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Top up line' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('Top up order 2');
+});
+it('requires confirmation for reorder and keeps failures retryable', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [{ ...order, reorderable: true }] } });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reorder' }));
+  expect(api.post).not.toHaveBeenCalled();
+  expect(screen.getByText(/payment and provisioning start automatically/)).toBeInTheDocument();
+  vi.mocked(api.post).mockRejectedValueOnce(new Error('offline'));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm reorder' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t reorder');
+  vi.mocked(api.post).mockResolvedValueOnce({ status: 202, data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm reorder' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(api.post).toHaveBeenLastCalledWith('/web/api/orders/1/reorder');
+});
+it('reports invoice failures and retries the real file download', async () => {
+  const createObjectURL = vi.fn(() => 'blob:invoice');
+  const revokeObjectURL = vi.fn();
+  vi.stubGlobal('URL', class extends URL { static createObjectURL = createObjectURL; static revokeObjectURL = revokeObjectURL; });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));
+  fireEvent.click(screen.getByRole('button', { name: 'Download invoice' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t download the invoice');
+  const blob = new Blob(['pdf']);
+  vi.mocked(api.get).mockResolvedValueOnce({ data: blob });
+  fireEvent.click(screen.getByRole('button', { name: 'Download invoice' }));
+  await waitFor(() => expect(click).toHaveBeenCalledOnce());
+  expect(createObjectURL).toHaveBeenCalledWith(blob);
+  expect(revokeObjectURL).toHaveBeenCalledWith('blob:invoice');
+});
+it('reports loading failures separately from an empty history and retries', async () => {
+  vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));
+  show();
+  expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t update your eSIM orders.');
+  expect(screen.queryByText('No eSIM orders yet')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByText('ES-100')).toBeInTheDocument();
+});
+it('handles QR image failures and absent expiry without claiming no expiry', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { orders: [{ ...order, profiles: [], credentials_list: [{ iccid: '89001', qr_code_url: 'https://example.com/qr.png' }] }] } });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'View order ES-100' }));
+  fireEvent.error(screen.getByAltText('eSIM installation QR code'));
+  expect(screen.getByText(/QR image could not be loaded/)).toBeInTheDocument();
+  expect(screen.queryByText('No expiry')).not.toBeInTheDocument();
+});

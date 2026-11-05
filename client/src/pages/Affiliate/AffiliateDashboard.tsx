@@ -1,288 +1,147 @@
-import { useState, useEffect } from "react";
-import { LinkIcon, ClipboardDocumentIcon, ArrowTrendingUpIcon, BanknotesIcon, ClockIcon } from "@heroicons/react/24/outline";
-import StatsCard from "../SuperAdmin/components/StatsCard";
-import DataTable from "../SuperAdmin/components/DataTable";
-import StatusBadge from "../SuperAdmin/components/StatusBadge";
-import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
-import { enrollAffiliate, fetchAffiliateProfile, fetchReferrals, fetchPayouts, requestPayout } from "../../services/affiliateApi";
-import { toast } from "sonner";
+import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
+import { Copy, RefreshCw, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { useThemeStore } from '@/store/themeStore';
+import PurchaseSelect from '@/components/dashboard/PurchaseSelect';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { enrollAffiliate, fetchAffiliateProfile, fetchReferrals, fetchPayouts, requestPayout } from '@/services/affiliateApi';
+import '../UserDashboard/dashboard-home.css';
+import '../UserDashboard/proxy-management.css';
+import '../UserDashboard/orders.css';
+import './affiliate-dashboard.css';
 
-const CRYPTO_CURRENCIES = [
-    { id: "BTC", name: "Bitcoin (BTC)", color: "text-orange-400" },
-    { id: "USDC", name: "USD Coin (USDC)", color: "text-blue-400" },
-    { id: "ETH", name: "Ethereum (ETH)", color: "text-purple-400" },
-    { id: "USDT", name: "Tether USDT (ERC20)", color: "text-green-400" },
-];
-
-type PayoutMethod = "wallet" | "crypto" | "manual";
+interface Profile {
+  enrolled?: boolean;
+  referral_code?: string;
+  referral_url?: string;
+  status?: string;
+  commission_rate?: string | number;
+  discount_rate?: string | number;
+  total_earned?: string | number;
+  total_paid_out?: string | number;
+  pending_balance?: string | number;
+  total_referrals?: number;
+  converted?: number;
+}
+interface HistoryRow {
+  id: string;
+  status: string;
+  created_at: string;
+  commission?: string | number;
+  discount?: string | number;
+  amount?: string | number;
+  payment_method?: string;
+  paid_at?: string;
+}
+type Method = 'wallet' | 'crypto' | 'manual';
+const methods = [{ value: 'wallet', label: 'Wallet balance' }, { value: 'crypto', label: 'Crypto withdrawal' }, { value: 'manual', label: 'Bank / other' }];
+const money = (value?: string | number) => value != null && Number.isFinite(Number(value)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value)) : 'Not available';
+const rate = (value?: string | number) => value != null ? `${value}%` : 'Not specified';
+const date = (value?: string) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const errorMessage = (error: unknown, fallback: string) => (error as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
 
 export default function AffiliateDashboard() {
-    const [affiliate, setAffiliate] = useState<Record<string, unknown> | null>(null);
-    const [referrals, setReferrals] = useState<Record<string, unknown>[]>([]);
-    const [payouts, setPayouts] = useState<Record<string, unknown>[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [activeSubTab, setActiveSubTab] = useState<"overview" | "referrals" | "payouts">("overview");
-    const [showPayout, setShowPayout] = useState(false);
-    const [payoutAmount, setPayoutAmount] = useState("");
-    const [payoutLoading, setPayoutLoading] = useState(false);
-    const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("wallet");
-    const [cryptoCurrency, setCryptoCurrency] = useState("USDT");
-    const [cryptoAddress, setCryptoAddress] = useState("");
-    const [cryptoGateway, setCryptoGateway] = useState("plisio");
-    const [manualDetails, setManualDetails] = useState({ account_name: "", account_number: "", bank_name: "", country: "" });
-
-    useEffect(() => {
-        fetchAffiliateProfile()
-            .then((r) => setAffiliate(r.data))
-            .catch(() => setAffiliate(null))
-            .finally(() => setLoading(false));
-    }, []);
-
-    useEffect(() => {
-        if (!affiliate) return;
-        if (activeSubTab === "referrals") fetchReferrals().then((r) => setReferrals(r.data.referrals || r.data || [])).catch(() => { });
-        if (activeSubTab === "payouts") fetchPayouts().then((r) => setPayouts(r.data.payouts || r.data || [])).catch(() => { });
-    }, [activeSubTab, affiliate]);
-
-    const handleEnroll = async () => {
-        try { const r = await enrollAffiliate(); setAffiliate(r.data); toast.success("Enrolled!"); }
-        catch { toast.error("Failed to enroll"); }
-    };
-
-    const handlePayout = async () => {
-        const amount = Number(payoutAmount);
-        if (!amount || amount <= 0) return toast.error("Enter a valid amount");
-
-        if (payoutMethod === "crypto" && !cryptoAddress.trim()) {
-            return toast.error("Enter your crypto wallet address");
-        }
-
-        setPayoutLoading(true);
-        try {
-            let details: Record<string, string> = {};
-            if (payoutMethod === "crypto") {
-                details = { crypto_currency: cryptoCurrency, crypto_address: cryptoAddress.trim(), crypto_gateway: cryptoGateway };
-            } else if (payoutMethod === "manual") {
-                details = { ...manualDetails };
-            }
-
-            await requestPayout(amount, payoutMethod, details);
-
-            if (payoutMethod === "crypto") {
-                toast.success("Crypto payout processed!");
-            } else if (payoutMethod === "manual") {
-                toast.success("Payout request submitted — admin will process it shortly");
-            } else {
-                toast.success("Transferred to your wallet balance");
-            }
-
-            setShowPayout(false);
-            setPayoutAmount("");
-            setCryptoAddress("");
-            fetchAffiliateProfile().then((r) => setAffiliate(r.data)).catch(() => { });
-        } catch {
-            toast.error("Payout failed");
-        } finally {
-            setPayoutLoading(false);
-        }
-    };
-
-    const copyLink = () => {
-        const code = affiliate?.referral_code;
-        if (!code) return;
-        navigator.clipboard.writeText(`${window.location.origin}?ref=${code}`);
-        toast.success("Referral link copied!");
-    };
-
-    if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-red-500" /></div>;
-
-    if (!affiliate) {
-        return (
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-white">Affiliate Program</h2>
-                <div className="bg-gray-800 rounded-xl border border-gray-700/50 p-8 text-center max-w-md mx-auto">
-                    <LinkIcon className="h-14 w-14 text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">Join Our Affiliate Program</h3>
-                    <p className="text-gray-400 text-sm mb-6">Earn commissions on every purchase made by users you refer. Get a unique link and start earning today.</p>
-                    <button onClick={handleEnroll} className="px-6 py-2.5 bg-red-500 text-white rounded-xl font-medium text-sm hover:bg-red-600">Enroll Now</button>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-2xl font-bold text-white">Affiliate Dashboard</h2>
-                <button onClick={() => setShowPayout(true)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600">Request Payout</button>
-            </div>
-
-            {/* Referral Link */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700/50 p-4 flex items-center gap-3 flex-wrap">
-                <LinkIcon className="h-5 w-5 text-red-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-400 mb-0.5">Your referral link</p>
-                    <p className="text-sm text-white font-mono truncate">{window.location.origin}?ref={String(affiliate.referral_code)}</p>
-                </div>
-                <button onClick={copyLink} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700/50 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors">
-                    <ClipboardDocumentIcon className="h-4 w-4" /> Copy
-                </button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatsCard title="Total Referrals" value={Number(affiliate.total_referrals || 0)} icon={ArrowTrendingUpIcon} />
-                <StatsCard title="Converted" value={Number(affiliate.converted_referrals || 0)} icon={LinkIcon} />
-                <StatsCard title="Earnings" value={`$${Number(affiliate.total_earnings || 0).toFixed(2)}`} icon={BanknotesIcon} />
-                <StatsCard title="Pending" value={`$${Number(affiliate.pending_balance || 0).toFixed(2)}`} icon={ClockIcon} />
-            </div>
-
-            {/* Sub-tabs */}
-            <div className="flex gap-2">
-                {(["overview", "referrals", "payouts"] as const).map((tab) => (
-                    <button key={tab} onClick={() => setActiveSubTab(tab)} className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${activeSubTab === tab ? "bg-red-500 text-white" : "bg-gray-800 text-gray-400 hover:text-white border border-gray-700/50"}`}>
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {activeSubTab === "overview" && (
-                <div className="bg-gray-800 rounded-xl border border-gray-700/50 p-6 space-y-3">
-                    <div className="flex justify-between text-sm"><span className="text-gray-400">Referral Code</span><span className="text-white font-mono">{String(affiliate.referral_code)}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-400">Commission Rate</span><span className="text-white">{Number(affiliate.commission_rate || 10)}%</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-400">Discount Rate</span><span className="text-white">{Number(affiliate.discount_rate || 5)}%</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-400">Status</span><StatusBadge status={String(affiliate.status || "active")} /></div>
-                </div>
-            )}
-
-            {activeSubTab === "referrals" && (
-                <DataTable
-                    columns={[
-                        { key: "referred_email", label: "Referred User", render: (r: Record<string, unknown>) => <span className="text-sm">{String(r.referred_email || r.referred_user_email || "—")}</span> },
-                        { key: "status", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={String(r.status || "pending")} /> },
-                        { key: "commission_amount", label: "Commission", render: (r: Record<string, unknown>) => <span className="text-sm">${Number(r.commission_amount || 0).toFixed(2)}</span> },
-                        { key: "created_at", label: "Date", render: (r: Record<string, unknown>) => <span className="text-xs text-gray-400">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
-                    ]}
-                    data={referrals}
-                    emptyMessage="No referrals yet. Share your link!"
-                />
-            )}
-
-            {activeSubTab === "payouts" && (
-                <DataTable
-                    columns={[
-                        { key: "amount", label: "Amount", render: (r: Record<string, unknown>) => <span className="font-medium">${Number(r.amount).toFixed(2)}</span> },
-                        { key: "payment_method", label: "Method", render: (r: Record<string, unknown>) => <span className="text-xs uppercase font-medium">{String(r.payment_method || "—")}</span> },
-                        { key: "status", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={String(r.status)} /> },
-                        { key: "created_at", label: "Requested", render: (r: Record<string, unknown>) => <span className="text-xs text-gray-400">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
-                    ]}
-                    data={payouts}
-                    emptyMessage="No payouts yet"
-                />
-            )}
-
-            {/* Payout Modal */}
-            <FormModal open={showPayout} onClose={() => setShowPayout(false)} title="Request Payout" onSubmit={handlePayout} submitLabel={payoutMethod === "crypto" ? "Send Crypto Payout" : payoutMethod === "manual" ? "Submit for Review" : "Transfer to Wallet"} loading={payoutLoading}>
-                <p className="text-sm text-gray-400">Available: <span className="text-white font-medium">${Number(affiliate.pending_balance || 0).toFixed(2)}</span></p>
-
-                <Field label="Amount ($)">
-                    <input className={inputClasses} type="number" step="0.01" min="1" max={Number(affiliate.pending_balance || 0)} value={payoutAmount} onChange={(e) => setPayoutAmount(e.target.value)} />
-                </Field>
-
-                <Field label="Payout Method">
-                    <div className="grid grid-cols-1 gap-2">
-                        {([
-                            { id: "wallet" as const, name: "Wallet Balance", desc: "Instant transfer to your main wallet" },
-                            { id: "crypto" as const, name: "Crypto Withdrawal", desc: "BTC, USDC, ETH, USDT (ERC20)" },
-                            { id: "manual" as const, name: "Bank / Other", desc: "Admin will process manually" },
-                        ]).map((m) => (
-                            <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => setPayoutMethod(m.id)}
-                                className={`text-left p-3 rounded-xl border transition-all ${payoutMethod === m.id
-                                    ? "border-red-500 bg-red-500/10 ring-1 ring-red-500"
-                                    : "border-gray-700 hover:border-gray-600"
-                                }`}
-                            >
-                                <p className="text-sm font-medium text-white">{m.name}</p>
-                                <p className="text-xs text-gray-400">{m.desc}</p>
-                            </button>
-                        ))}
-                    </div>
-                </Field>
-
-                {payoutMethod === "crypto" && (
-                    <>
-                        <Field label="Crypto Gateway">
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { id: "plisio", name: "Plisio", color: "text-orange-400", logo: "/plisio.webp" },
-                                    { id: "heleket", name: "Heleket", color: "text-green-400", logo: "/heleket.webp" }
-                                ].map((g) => (
-                                    <button
-                                        key={g.id}
-                                        type="button"
-                                        onClick={() => setCryptoGateway(g.id)}
-                                        className={`p-2 rounded-lg border text-sm font-medium transition-all flex items-center justify-center gap-2 ${cryptoGateway === g.id
-                                            ? "border-red-500 bg-red-500/10 text-white"
-                                            : "border-gray-700 text-gray-400 hover:border-gray-600"
-                                        }`}
-                                    >
-                                        {g.logo && <img src={g.logo} alt={g.name} className="h-4 w-auto object-contain" />}
-                                        <span className={g.color}>{g.name}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </Field>
-                        <Field label="Crypto Currency">
-                            <div className="grid grid-cols-2 gap-2">
-                                {CRYPTO_CURRENCIES.map((c) => (
-                                    <button
-                                        key={c.id}
-                                        type="button"
-                                        onClick={() => setCryptoCurrency(c.id)}
-                                        className={`p-2 rounded-lg border text-sm font-medium transition-all ${cryptoCurrency === c.id
-                                            ? "border-red-500 bg-red-500/10 text-white"
-                                            : "border-gray-700 text-gray-400 hover:border-gray-600"
-                                        }`}
-                                    >
-                                        <span className={c.color}>{c.id}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </Field>
-                        <Field label={`${cryptoCurrency} Wallet Address`}>
-                            <input
-                                className={inputClasses}
-                                type="text"
-                                placeholder={`Enter your ${cryptoCurrency} address${cryptoCurrency === "USDT" ? " (ERC20)" : ""}`}
-                                value={cryptoAddress}
-                                onChange={(e) => setCryptoAddress(e.target.value)}
-                            />
-                        </Field>
-                        <p className="text-xs text-amber-400/80">⚠️ Double-check your wallet address. Crypto payouts are processed automatically and cannot be reversed.</p>
-                    </>
-                )}
-
-                {payoutMethod === "manual" && (
-                    <>
-                        <Field label="Account Holder Name">
-                            <input className={inputClasses} type="text" placeholder="Full name" value={manualDetails.account_name} onChange={(e) => setManualDetails({ ...manualDetails, account_name: e.target.value })} />
-                        </Field>
-                        <Field label="Account Number / IBAN">
-                            <input className={inputClasses} type="text" placeholder="Account number" value={manualDetails.account_number} onChange={(e) => setManualDetails({ ...manualDetails, account_number: e.target.value })} />
-                        </Field>
-                        <Field label="Bank Name">
-                            <input className={inputClasses} type="text" placeholder="Bank name" value={manualDetails.bank_name} onChange={(e) => setManualDetails({ ...manualDetails, bank_name: e.target.value })} />
-                        </Field>
-                        <Field label="Country">
-                            <input className={inputClasses} type="text" placeholder="Country" value={manualDetails.country} onChange={(e) => setManualDetails({ ...manualDetails, country: e.target.value })} />
-                        </Field>
-                        <p className="text-xs text-blue-400/80">ℹ️ Manual payouts are reviewed by our team and typically processed within 1-3 business days.</p>
-                    </>
-                )}
-            </FormModal>
-        </div>
-    );
+  const { user, accessToken } = useAuth();
+  const dark = useThemeStore(state => state.dark);
+  const client = useQueryClient();
+  const [tab, setTab] = useState<'referrals' | 'payouts'>('referrals');
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState(false);
+  const [review, setReview] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<Method>('wallet');
+  const [currency, setCurrency] = useState('USDT');
+  const [gateway, setGateway] = useState('plisio');
+  const [address, setAddress] = useState('');
+  const [bank, setBank] = useState({ account_name: '', account_number: '', bank_name: '', country: '' });
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [actionError, setActionError] = useState('');
+  const profileKey = ['affiliate-profile', user?.id];
+  const profile = useQuery<Profile>({ queryKey: profileKey, enabled: Boolean(user?.id && accessToken), retry: false, cacheTime: 0, queryFn: async () => (await fetchAffiliateProfile()).data });
+  const affiliate = profile.data;
+  const enrolled = Boolean(affiliate && affiliate.enrolled !== false && affiliate.referral_code);
+  const history = useQuery<{ rows: HistoryRow[]; total: number }>({
+    queryKey: ['affiliate-history', user?.id, tab, page], enabled: enrolled, retry: false, cacheTime: 0,
+    queryFn: async () => {
+      const { data } = await (tab === 'referrals' ? fetchReferrals(page) : fetchPayouts(page));
+      return { rows: data[tab] || [], total: data.total ?? 0 };
+    },
+  });
+  const balance = Number(affiliate?.pending_balance ?? 0);
+  const canPayout = enrolled && affiliate?.status !== 'suspended' && Number.isFinite(balance) && balance > 0 && !profile.isError;
+  const referralLink = affiliate?.referral_url || (affiliate?.referral_code ? `${window.location.origin}/register?ref=${encodeURIComponent(affiliate.referral_code)}` : '');
+  const pages = Math.max(1, Math.ceil((history.data?.total || 0) / 20));
+  async function enroll() {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setActionError('');
+    try { const { data } = await enrollAffiliate(); client.setQueryData(profileKey, data); toast.success('Affiliate account created'); }
+    catch (error) { setActionError(errorMessage(error, 'Couldn’t enroll. Please try again.')); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(referralLink); toast.success('Referral link copied'); }
+    catch { toast.error('Couldn’t copy. Select the link and copy it manually.'); }
+  }
+  function validate() {
+    if (!/^\d+(\.\d{1,2})?$/.test(amount.trim()) || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return 'Enter an amount greater than zero with no more than two decimal places.';
+    if (!canPayout || Number(amount) > balance) return 'The amount exceeds your available balance, or payouts are unavailable. Refresh your account and try again.';
+    if (method === 'crypto' && !address.trim()) return 'Enter your crypto wallet address.';
+    if (method === 'manual' && Object.values(bank).some(value => !value.trim())) return 'Complete all bank account details.';
+    return '';
+  }
+  async function submit() {
+    if (busyRef.current) return;
+    const error = validate();
+    if (error) { setActionError(error); setReview(false); return; }
+    if (!review) { setActionError(''); setReview(true); return; }
+    busyRef.current = true; setBusy(true); setActionError('');
+    try {
+      const details = method === 'crypto' ? { crypto_currency: currency, crypto_address: address.trim(), crypto_gateway: gateway } : method === 'manual' ? Object.fromEntries(Object.entries(bank).map(([key, value]) => [key, value.trim()])) : {};
+      const { data } = await requestPayout(Number(amount), method, details);
+      toast.success(data.status === 'paid' ? 'Payout completed' : 'Payout request submitted');
+      setOpen(false); setAmount(''); setAddress(''); setBank({ account_name: '', account_number: '', bank_name: '', country: '' }); setReview(false); setTab('payouts'); setPage(1);
+      await client.invalidateQueries(profileKey);
+      await client.invalidateQueries(['affiliate-history', user?.id]);
+    } catch (error) { setActionError(errorMessage(error, 'Couldn’t complete the payout request. Check payout history before retrying.')); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  function openPayout() { setOpen(true); setReview(false); setActionError(''); }
+  return <div className={`dashboard-overview proxy-management affiliate-dashboard ${dark ? 'overview-dark' : ''}`}>
+    <Helmet><title>Affiliate Dashboard | ProxySock</title></Helmet>
+    <header className="overview-heading"><div><h1>Affiliate dashboard</h1><p>Track referrals, earnings, and payouts.</p></div><div className="overview-heading-actions">{enrolled && <button className="overview-button" disabled={!canPayout || busy} onClick={openPayout}>Request payout</button>}<button className="overview-icon-button" aria-label="Refresh affiliate account" disabled={profile.isFetching || history.isFetching || busy} onClick={() => { profile.refetch(); if (enrolled) history.refetch(); }}><RefreshCw size={15} /></button></div></header>
+    {!user || !accessToken ? <div className="overview-auth"><h2>Sign in to view your affiliate account</h2><Link to="/login">Back to login</Link></div> : <>
+      {profile.isError && <div className="overview-error" role="alert"><div><strong>We couldn’t load your affiliate account.</strong><p>{affiliate ? 'Showing the last loaded details.' : 'Try again to load your account.'}</p></div><button onClick={() => profile.refetch()}>Try again</button></div>}
+      {profile.isFetching && <p className="proxy-note" role="status">{affiliate ? 'Updating affiliate account…' : 'Loading affiliate account…'}</p>}
+      {!open && actionError && <p className="proxy-action-error" role="alert">{actionError}</p>}
+      {affiliate?.enrolled === false && !profile.isError && <section className="proxy-empty"><Users size={25} /><h2>Join the affiliate program</h2><p>Create your referral code to track referrals and eligible commissions.</p><button className="overview-button" disabled={busy} onClick={enroll}>{busy ? 'Enrolling…' : 'Join program'}</button><Link className="affiliate-program-link" to="/affiliate-program">View program details</Link></section>}
+      {enrolled && affiliate && <>
+        <section className="affiliate-link"><label htmlFor="affiliate-link">Your referral link</label><div><input id="affiliate-link" readOnly value={referralLink} onFocus={event => event.target.select()} /><button className="overview-button" onClick={copyLink}><Copy size={14} />Copy link</button></div></section>
+        <div className="overview-metrics">{[['Total referrals', affiliate.total_referrals ?? '—'], ['Converted referrals', affiliate.converted ?? '—'], ['Total earned', money(affiliate.total_earned)], ['Available for payout', money(affiliate.pending_balance)]].map(([label, value]) => <div className="overview-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+        <dl className="affiliate-account"><div><dt>Referral code</dt><dd>{affiliate.referral_code}</dd></div><div><dt>Commission rate</dt><dd>{rate(affiliate.commission_rate)}</dd></div><div><dt>Referral discount</dt><dd>{rate(affiliate.discount_rate)}</dd></div><div><dt>Total paid out</dt><dd>{money(affiliate.total_paid_out)}</dd></div><div><dt>Account status</dt><dd><span className="overview-status" data-status={affiliate.status}>{affiliate.status}</span></dd></div></dl>
+        {affiliate.status === 'suspended' && <p className="proxy-note">Payouts are unavailable while your affiliate account is suspended. <Link to="/dashboard/support">Contact support</Link> for help.</p>}
+        <div className="affiliate-tabs" role="group" aria-label="Affiliate history">{(['referrals', 'payouts'] as const).map(value => <button key={value} aria-pressed={tab === value} onClick={() => { setTab(value); setPage(1); }}>{value === 'referrals' ? 'Referrals' : 'Payouts'}</button>)}</div>
+        {history.isError && <div className="overview-error" role="alert"><strong>We couldn’t load your {tab}.</strong><button onClick={() => history.refetch()}>Retry history</button></div>}
+        {history.isFetching && <p className="proxy-note" role="status">Loading {tab}…</p>}
+        {history.data && (history.data.rows.length ? <section className="orders-history"><div className="orders-table-scroll" role="region" aria-label={`${tab} history`} tabIndex={0}><table><caption className="sr-only">{tab === 'referrals' ? 'Referral history' : 'Payout history'}</caption><thead><tr>{(tab === 'referrals' ? ['Referral', 'Status', 'Commission', 'Discount applied', 'Date'] : ['Amount', 'Method', 'Status', 'Requested', 'Paid']).map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{history.data.rows.map(row => <tr key={row.id}>{tab === 'referrals' ? <><td className="affiliate-reference">{row.id}</td><td><span className="overview-status" data-status={row.status}>{row.status}</span></td><td>{money(row.commission)}</td><td>{money(row.discount)}</td><td>{date(row.created_at)}</td></> : <><td>{money(row.amount)}</td><td>{methods.find(method => method.value === row.payment_method)?.label || row.payment_method || 'Not specified'}</td><td><span className="overview-status" data-status={row.status}>{row.status}</span></td><td>{date(row.created_at)}</td><td>{date(row.paid_at)}</td></>}</tr>)}</tbody></table></div></section> : <div className="proxy-empty"><h2>No {tab} yet</h2><p>{tab === 'referrals' ? 'Share your referral link to get started.' : 'Your payout requests will appear here.'}</p></div>)}
+        {history.data && pages > 1 && <nav className="proxy-pagination" aria-label="Affiliate history pages"><button disabled={page === 1 || history.isFetching} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages || history.isFetching} onClick={() => setPage(page + 1)}>Next</button></nav>}
+      </>}
+    </>}
+    <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}><DialogContent className={`proxy-dialog affiliate-payout ${dark ? 'proxy-dialog-dark' : ''}`}><DialogTitle>{review ? 'Review payout' : 'Request payout'}</DialogTitle><DialogDescription>Available balance: {money(affiliate?.pending_balance)} USD</DialogDescription>
+      {actionError && <p className="proxy-action-error" role="alert">{actionError}</p>}
+      <form onSubmit={event => { event.preventDefault(); submit(); }}><fieldset disabled={busy} className="proxy-panel">
+        {review ? <><dl className="proxy-facts"><div><dt>Amount</dt><dd>{money(amount)}</dd></div><div><dt>Method</dt><dd>{methods.find(item => item.value === method)?.label}</dd></div>{method === 'crypto' && <><div><dt>Currency</dt><dd>{currency}</dd></div><div><dt>Gateway</dt><dd>{gateway}</dd></div><div><dt>Wallet address</dt><dd>{address}</dd></div></>}{method === 'manual' && Object.entries(bank).map(([key, value]) => <div key={key}><dt>{key.replace(/_/g, ' ')}</dt><dd>{value}</dd></div>)}</dl><p className="proxy-note">{method === 'wallet' ? 'Confirm to transfer this amount to your main wallet.' : method === 'crypto' ? 'Confirm the currency, network, and destination address before sending. Crypto payouts are dispatched automatically.' : 'This submits a payout request for the team to review.'}</p></> : <>
+          <label htmlFor="payout-amount">Amount (USD)</label><input id="payout-amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" />
+          <label htmlFor="payout-method">Payout method</label><PurchaseSelect id="payout-method" value={method} onValueChange={value => setMethod(value as Method)} options={methods} />
+          {method === 'crypto' && <><label htmlFor="payout-gateway">Gateway</label><PurchaseSelect id="payout-gateway" value={gateway} onValueChange={setGateway} options={[{ value: 'plisio', label: 'Plisio' }, { value: 'heleket', label: 'Heleket' }]} /><label htmlFor="payout-currency">Currency</label><PurchaseSelect id="payout-currency" value={currency} onValueChange={setCurrency} options={['BTC', 'USDC', 'ETH', 'USDT'].map(value => ({ value, label: value }))} /><label htmlFor="payout-address">Wallet address</label><input id="payout-address" value={address} onChange={event => setAddress(event.target.value)} autoComplete="off" /></>}
+          {method === 'manual' && Object.entries({ account_name: 'Account holder name', account_number: 'Account number / IBAN', bank_name: 'Bank name', country: 'Country' }).map(([key, label]) => <div className="affiliate-field" key={key}><label htmlFor={`payout-${key}`}>{label}</label><input id={`payout-${key}`} value={bank[key as keyof typeof bank]} onChange={event => setBank({ ...bank, [key]: event.target.value })} /></div>)}
+        </>}
+        <div className="affiliate-form-actions">{review && <button type="button" className="proxy-secondary" onClick={() => setReview(false)}>Edit details</button>}<button className="proxy-primary" type="submit">{busy ? 'Submitting…' : review ? 'Confirm payout' : 'Review payout'}</button></div>
+      </fieldset></form>
+    </DialogContent></Dialog>
+  </div>;
 }

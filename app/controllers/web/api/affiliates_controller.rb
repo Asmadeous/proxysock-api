@@ -2,8 +2,8 @@
 
 module Web
   module Api
-    class AffiliatesController < ApplicationController
-      before_action :authenticate_user!
+    class AffiliatesController < BaseController
+      before_action :authenticate_actor!
 
       # GET /web/api/affiliate
       def show
