@@ -61,6 +61,8 @@ class RefundService
 
   def process_gateway_refund!(checkout)
     case checkout.payment_method
+    when 'bachs'
+      process_bachs_refund!(checkout)
     when 'rexpay'
       # RexPay exposes no refund API — card reversals are manual (RexPay dashboard),
       # or the order can be refunded to the wallet with refund_method: 'wallet'.
@@ -73,5 +75,25 @@ class RefundService
     else
       raise RefundError, "Unsupported gateway refund for #{checkout.payment_method}"
     end
+  end
+
+  # Bachs settles refunds later (refund.failed alerts staff) and allows one refund
+  # per payment, so a second failed order from the same cart cannot go back to the card.
+  def process_bachs_refund!(checkout)
+    metadata = checkout.metadata.to_h
+    raise RefundError, "No Bachs payment id on checkout #{checkout.id}" if metadata['bachs_charge_id'].blank?
+    if metadata['bachs_refund_id'].present?
+      raise RefundError, "Checkout #{checkout.id} already has a Bachs refund; use refund_method: 'wallet'"
+    end
+
+    refund = BachsService.new.create_refund(
+      charge_id: metadata['bachs_charge_id'],
+      reference: "REF#{@order.id.delete('-')}",
+      amount: @order.total_amount,
+      reason: "Order ##{@order.order_number} failed to provision"
+    )
+    checkout.update!(metadata: metadata.merge('bachs_refund_id' => refund['refund_id']))
+  rescue BachsService::Error => e
+    raise RefundError, "Bachs refused the refund: #{e.message}"
   end
 end

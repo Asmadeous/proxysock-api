@@ -72,7 +72,7 @@ module Api
 
         min = current_reseller.min_deposit_amount
         return render json: { error: "Minimum deposit is $#{min}" }, status: :bad_request if amount < min
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket bachs].include?(gateway)
 
         # Create Pending Deposit. Only RexPay charges in NGN, so only it needs the
         # exchange rate stored (captured now so the webhook uses the same rate).
@@ -154,6 +154,21 @@ module Api
           deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
           deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
+        when 'bachs'
+          link = begin
+            BachsService.new.payment_link(
+              amount: amount,
+              reference: deposit.metadata['transaction_ref'],
+              email: current_reseller.email,
+              success_url: frontend_callback_url
+            )
+          rescue BachsService::Error
+            deposit.update!(status: 'failed') # no checkout link, so nothing can pay it
+            raise
+          end
+          deposit.metadata['bachs_checkout_id'] = link[:checkout_id]
+          deposit.save!
+          link.slice(:url, :amount, :currency)
         when 'fastspring'
           service = FastspringService.new
           ref = deposit.metadata['transaction_ref']

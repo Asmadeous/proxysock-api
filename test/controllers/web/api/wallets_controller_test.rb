@@ -36,6 +36,17 @@ module Web
         assert_not_nil json_response['payment_url']
       end
 
+      test 'refuses a Bachs deposit over the Bachs limit and closes the pending deposit' do
+        BachsService.any_instance.stubs(:payment_link)
+                    .raises(BachsService::LimitExceeded.new('This amount is over the Bachs limit of 5000.00 USD per payment.'))
+
+        post '/web/api/wallet/deposit', params: { amount: 6000.0, gateway: 'bachs' }, headers: auth_header(@user)
+
+        assert_response :unprocessable_entity
+        assert_includes json_response['error'], '5000.00 USD'
+        assert_equal 'failed', Deposit.where(depositable: @user).last.status
+      end
+
       test 'should list transactions' do
         # Create some transactions
         txn = Transaction.create!(

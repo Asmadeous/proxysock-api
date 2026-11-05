@@ -41,7 +41,6 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :cancel
-          post :refund
           post :reorder
           post :update_subscription
           get 'esims/:esim_id/qr', action: :esim_qr
@@ -171,7 +170,6 @@ Rails.application.routes.draw do
         member do
           get :credentials
           post :renew
-          post :refund
           post :reorder
           post :update_subscription
           get :download_ovpn
@@ -185,7 +183,6 @@ Rails.application.routes.draw do
           post :rotation, action: :update_rotation
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
-          post :claim_crypto_refund
           get :topups, to: 'esim_topups#index'
           post :topups, to: 'esim_topups#create'
           post :topup_subscription, to: 'esim_topups#subscribe'
@@ -486,6 +483,7 @@ Rails.application.routes.draw do
     post 'heleket', to: 'webhooks#heleket'
     post 'hundredpay', to: 'webhooks#hundredpay'
     post 'fastspring', to: 'webhooks#fastspring'
+    post 'bachs', to: 'webhooks#bachs'
 
     # RexPay redirects the payer to the callbackUrl via GET — verify then forward to frontend
     get 'rexpay', to: 'webhooks#rexpay'

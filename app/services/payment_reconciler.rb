@@ -59,6 +59,9 @@ class PaymentReconciler
         data['amount'].to_f
       when 'heleket'
         data['amount'].to_f
+      when 'bachs'
+        # A fee the customer paid on top is not wallet balance.
+        [data['amount'].to_f, deposit.amount.to_f].min
       else
         data['amount'].to_f # Plisio uses source_amount for fiat, but we handle that elsewhere or assume crypto
       end
@@ -72,8 +75,12 @@ class PaymentReconciler
       return
     end
 
-    ActiveRecord::Base.transaction do
-      deposit.update!(status: 'completed', completed_at: Time.current)
+    # Locked and re-checked so two deliveries of one payment cannot both credit it.
+    deposit.with_lock do
+      next unless deposit.status == 'pending'
+
+      deposit.update!(status: 'completed', completed_at: Time.current,
+                      metadata: deposit.metadata.to_h.merge(gateway_ids(data)))
 
       wallet = deposit.depositable.wallet
       raise "Wallet missing for #{deposit.depositable_type} #{deposit.depositable_id}" if wallet.nil?
@@ -108,7 +115,7 @@ class PaymentReconciler
     end
   end
 
-  def handle_order_payment(reference, _data, _gateway, metadata)
+  def handle_order_payment(reference, data, gateway, metadata)
     # Recover the order id from the reference. Prefer explicit metadata, then the
     # legacy `ORD_<uuid>_<rand>` form, then the alphanumeric `ORD<uuid32><rand>`
     # form (32 hex digits — a valid Postgres uuid even without hyphens).
@@ -122,8 +129,10 @@ class PaymentReconciler
     # would otherwise block the gateway webhook past its timeout (causing retries).
     actor = order.user || order.reseller
     return unless actor
+    return unless claim_order_payment!(order, reference, data, gateway)
 
-    OrderProvisioningJob.perform_later(order.id, actor.id, actor.class.name)
+    # Already paid at the gateway: skip_payment so provisioning does not debit the wallet too.
+    OrderProvisioningJob.perform_later(order.id, actor.id, actor.class.name, skip_payment: true)
   rescue StandardError => e
     Rails.logger.error("Order payment processing failed: #{e.message}")
     order&.update(status: 'failed')
@@ -135,7 +144,10 @@ class PaymentReconciler
 
     Rails.logger.info("[Reconcile] Processing checkout session #{session.id} via #{gateway}")
 
-    ActiveRecord::Base.transaction do
+    paid_now = false
+    session.with_lock do
+      next unless session.pending?
+
       # Capture gateway tokens for recurring billing
       # (RexPay has no token-recharge API, so nothing to capture for it.)
       if gateway == 'fastspring'
@@ -145,6 +157,7 @@ class PaymentReconciler
         sub_id = raw_fs.dig('items', 0, 'subscription')
         session.metadata['fastspring_sub_id'] = sub_id if sub_id
       end
+      session.metadata = session.metadata.to_h.merge(gateway_ids(data))
 
       session.mark_paid!
 
@@ -159,7 +172,9 @@ class PaymentReconciler
         description: "Cart Checkout via #{gateway}",
         metadata: { checkout_session_id: session.id, gateway: gateway }
       )
+      paid_now = true
     end
+    return unless paid_now
 
     session.provision_orders!
 
@@ -167,5 +182,23 @@ class PaymentReconciler
   rescue StandardError => e
     Rails.logger.error("[Reconcile] Checkout session processing failed: #{e.message}")
     session&.fail! if session&.may_fail?
+  end
+
+  # Records the gateway payment on the order under a lock, so a repeated delivery
+  # of the same payment cannot enqueue provisioning twice.
+  def claim_order_payment!(order, reference, data, gateway)
+    order.with_lock do
+      next false if order.metadata.to_h['paid_via'].present?
+
+      # update_columns: a save would rerun calculate_total_amount and drop a promo discount.
+      order.update_columns(metadata: order.metadata.to_h.merge('paid_via' => gateway, 'gateway_reference' => reference)
+                                          .merge(gateway_ids(data)))
+      true
+    end
+  end
+
+  # Gateway ids kept on the paid record for later refunds and support lookups.
+  def gateway_ids(data)
+    data.to_h.slice('bachs_checkout_id', 'bachs_charge_id').compact
   end
 end

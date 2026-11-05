@@ -129,6 +129,23 @@ module Web
         assert_response :unprocessable_entity
         assert_match(/imei/i, json_response['error'])
       end
+
+      test 'customers cannot refund an order themselves' do
+        order = orders(:two)
+        order.update_columns(orderable_id: @user.id, status: 'failed')
+
+        assert_no_changes -> { @user.wallets.find_by(wallet_type: 'main').reload.balance } do
+          post "/web/api/orders/#{order.id}/refund", headers: auth_header(@user)
+
+          assert_response :not_found
+
+          post "/web/api/orders/#{order.id}/claim_crypto_refund",
+               params: { address: 'TXcustomerAddress', network: 'USDT' }, headers: auth_header(@user)
+
+          assert_response :not_found
+        end
+        assert_equal 'failed', order.reload.status
+      end
     end
   end
 end
