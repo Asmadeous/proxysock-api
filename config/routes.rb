@@ -22,7 +22,7 @@ Rails.application.routes.draw do
           get :me
         end
       end
-      resources :resellers, only: %i[index show update] do
+      resources :resellers, only: %i[show update] do
         collection do
           get :summary_counts
         end
