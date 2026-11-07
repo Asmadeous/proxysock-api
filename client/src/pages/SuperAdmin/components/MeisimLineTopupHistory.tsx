@@ -36,21 +36,21 @@ export default function MeisimLineTopupHistory({ refreshKey = 0 }: { refreshKey?
     }, [refreshKey, refetch]);
 
     if (isLoading) return null;
-    if (isError) return <p className="text-xs text-destructive">Could not load recent line recharges</p>;
+    if (isError) return <p className="text-xs ws-bad">Could not load recent line recharges</p>;
 
     const topups: LineTopup[] = data?.topups ?? [];
-    if (topups.length === 0) return <p className="text-xs text-muted-foreground">No line recharges yet.</p>;
+    if (topups.length === 0) return <p className="text-xs ws-muted">No line recharges yet.</p>;
 
     return (
         <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Recent line recharges</p>
-            <ul className="space-y-1.5">
+            <p className="ws-section-title">Recent line recharges</p>
+            <ul className="ws-list">
                 {topups.map((t) => (
-                    <li key={t.id} className="rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs">
-                        <p className="text-muted-foreground">
+                    <li key={t.id} className="!block text-[11px]">
+                        <p className="ws-muted">
                             {when(t.at)} · <span className="font-mono">{t.line}</span> · {t.network}{t.by ? ` · ${t.by}` : ""}
                         </p>
-                        <p className={t.result === "applied" ? "text-foreground" : "text-destructive"}>
+                        <p className={t.result === "applied" ? "" : "ws-bad"}>
                             {LABEL[t.result] ?? t.result}: {t.plan_code ? `plan ${t.plan_code} (${t.value})` : `${t.value} credit`}
                             {t.result !== "applied" && t.message ? ` · ${t.message}` : ""}
                         </p>

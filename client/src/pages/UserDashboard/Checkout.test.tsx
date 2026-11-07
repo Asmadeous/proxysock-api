@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Checkout from './Checkout';
 import api from '@/services/api';
-const handlers = vi.hoisted(() => ({ handleBalancePayment: vi.fn(), handleRexpayCheckout: vi.fn() }));
+const handlers = vi.hoisted(() => ({ handleBalancePayment: vi.fn(), handleRexpayCheckout: vi.fn(), handleBachsCheckout: vi.fn() }));
 vi.mock('@/services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('@/utils/redditPixel', () => ({ useRedditTracking: () => ({ trackPurchase: vi.fn() }) }));
 vi.mock('@/components/dashboard/Cart/hook/usePaymentCheckoutHandlers', () => ({ usePaymentCheckoutHandlers: () => handlers }));
@@ -22,6 +22,14 @@ it('shows items, accepts decimal balance strings, and preserves payment choices'
   fireEvent.click(screen.getByRole('radio', { name: /Card · RexPay/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Continue to RexPay' }));
   await waitFor(() => expect(handlers.handleRexpayCheckout).toHaveBeenCalledTimes(1));
+});
+it('pays through Bachs when it is chosen', async () => {
+  show();
+  await screen.findByText('Available: $30.50');
+  fireEvent.click(screen.getByRole('radio', { name: /Bachs/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Bachs' }));
+  await waitFor(() => expect(handlers.handleBachsCheckout).toHaveBeenCalledTimes(1));
+  expect(handlers.handleRexpayCheckout).not.toHaveBeenCalled();
 });
 it('retries a failed balance without disabling card payment', async () => {
   vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));

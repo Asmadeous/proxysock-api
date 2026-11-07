@@ -71,32 +71,32 @@ export default function MeisimVerifyHistory({ refreshKey = 0 }: { refreshKey?: n
         }
     };
 
-    if (isLoading) return <p className="text-xs text-muted-foreground">Loading recent eSIM checks…</p>;
-    if (isError) return <p className="text-xs text-destructive">Could not load recent eSIM checks</p>;
+    if (isLoading) return <p className="text-xs ws-muted">Loading recent eSIM checks…</p>;
+    if (isError) return <p className="text-xs ws-bad">Could not load recent eSIM checks</p>;
 
     const batches: Batch[] = data?.batches ?? [];
-    if (batches.length === 0) return <p className="text-xs text-muted-foreground">No eSIM checks yet.</p>;
+    if (batches.length === 0) return <p className="text-xs ws-muted">No eSIM checks yet.</p>;
 
     return (
         <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Recent eSIM checks</p>
-            <ul className="space-y-1.5">
+            <p className="ws-section-title">Recent eSIM checks</p>
+            <ul className="ws-list">
                 {batches.map((batch) => (
-                    <li key={batch.batch_id} className="rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs">
+                    <li key={batch.batch_id} className="!block text-[11px]">
                         <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">
+                            <span className="ws-muted">
                                 {when(batch.submitted_at)} · {batch.codes} code{batch.codes === 1 ? "" : "s"}
                                 {batch.submitted_by ? ` · ${batch.submitted_by}` : ""}
                             </span>
                             <button
                                 onClick={() => download(batch)}
                                 aria-label={`Download results (CSV) of the ${when(batch.submitted_at)} check`}
-                                className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                                className="flex items-center gap-1 text-[var(--ov-accent)]"
                             >
                                 <Download className="w-3.5 h-3.5" aria-hidden="true" /> CSV
                             </button>
                         </div>
-                        <p className="mt-0.5 text-foreground">{summary(batch.progress)}</p>
+                        <p className="mt-1">{summary(batch.progress)}</p>
                     </li>
                 ))}
             </ul>

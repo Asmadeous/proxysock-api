@@ -39,6 +39,7 @@ export default function Checkout() {
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
     const [isLoadingHeleket, setIsLoadingHeleket] = useState(false);
+    const [isLoadingBachs, setIsLoadingBachs] = useState(false);
     const [isAnyPaymentProcessing, setIsAnyPaymentProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -129,6 +130,7 @@ export default function Checkout() {
     const {
         handleBalancePayment,
         handleRexpayCheckout,
+        handleBachsCheckout,
     } = usePaymentCheckoutHandlers({
         cartItems,
         userBalance,
@@ -144,6 +146,7 @@ export default function Checkout() {
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
         setIsLoadingHeleket,
+        setIsLoadingBachs,
         clearCart: () => {
             localStorage.removeItem("cartItems");
             setCartItems([]);
@@ -158,6 +161,7 @@ export default function Checkout() {
         try {
             if (selectedPaymentMethod === 'balance') await handleBalancePayment();
             else if (selectedPaymentMethod === 'rexpay') await handleRexpayCheckout();
+            else if (selectedPaymentMethod === 'bachs') await handleBachsCheckout();
         } finally { paymentPending.current = false; }
     };
 
@@ -207,7 +211,7 @@ export default function Checkout() {
 
 
     const isProcessing =
-        isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingHeleket || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingHeleket || isLoadingBachs || isAnyPaymentProcessing;
 
     const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     const walletUnavailable = balanceLoading || balanceError || userBalance < finalTotal;
@@ -222,16 +226,17 @@ export default function Checkout() {
           <fieldset className="checkout-methods" disabled={isProcessing}><legend className="sr-only">Choose payment method</legend>
             <label className="checkout-method" data-selected={selectedPaymentMethod === 'balance'}><input type="radio" name="payment-method" value="balance" checked={selectedPaymentMethod === 'balance'} onChange={() => { setSelectedPaymentMethod('balance'); setError(null); }} /><Wallet size={20} aria-hidden="true" /><span><strong>Wallet balance</strong><small>{balanceLoading ? 'Loading balance…' : balanceError ? 'Balance unavailable' : `Available: ${money(userBalance)}`}</small></span></label>
             <label className="checkout-method" data-selected={selectedPaymentMethod === 'rexpay'}><input type="radio" name="payment-method" value="rexpay" checked={selectedPaymentMethod === 'rexpay'} onChange={() => { setSelectedPaymentMethod('rexpay'); setError(null); }} /><CreditCard size={20} aria-hidden="true" /><span><strong>Card · RexPay</strong><small>Continue to RexPay to review the NGN charge and pay.</small></span></label>
+            <label className="checkout-method" data-selected={selectedPaymentMethod === 'bachs'}><input type="radio" name="payment-method" value="bachs" checked={selectedPaymentMethod === 'bachs'} onChange={() => { setSelectedPaymentMethod('bachs'); setError(null); }} /><CreditCard size={20} aria-hidden="true" /><span><strong>Bachs</strong><small>Card, bank transfer, mobile money or crypto. Charged in USD.</small></span></label>
           </fieldset>
           {balanceError && <div className="checkout-balance-message" role="alert">Couldn’t load your wallet balance. <button type="button" onClick={fetchBalance} disabled={balanceLoading || isProcessing}>Retry balance</button></div>}
-          {!balanceLoading && !balanceError && selectedPaymentMethod === 'balance' && userBalance < finalTotal && <p className="checkout-balance-message" role="status">Your wallet needs {money(finalTotal - userBalance)} more. Add funds using the wallet button in the sidebar, then <button type="button" onClick={fetchBalance} disabled={isProcessing}>refresh your balance</button>, or choose card payment.</p>}
+          {!balanceLoading && !balanceError && selectedPaymentMethod === 'balance' && userBalance < finalTotal && <p className="checkout-balance-message" role="status">Your wallet needs {money(finalTotal - userBalance)} more. Add funds using the wallet button in the sidebar, then <button type="button" onClick={fetchBalance} disabled={isProcessing}>refresh your balance</button>, or choose another payment method.</p>}
           <p className="checkout-payment-note">To pay with crypto, add funds to your wallet first using the wallet button in the sidebar.</p>
         </section>
         <section className="checkout-panel" aria-labelledby="checkout-items-title"><div className="overview-section-heading"><h2 id="checkout-items-title">Your order <span className="checkout-count">{cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}</span></h2><Link to="/dashboard/cart">Edit cart <ArrowRight size={14} aria-hidden="true" /></Link></div><ul className="checkout-items">{cartItems.map((item, index) => <li key={index}><div><strong>{nameFor(item)}</strong><small>{['usa-esim', 'esim'].includes(item.productType) ? `Quantity: ${item.quantity || 1}` : item.productType.toUpperCase()}{item.auto_renew ? ' · Auto-renew enabled' : ''}</small></div><span>{money(calculateItemTotalSync(item))}</span></li>)}</ul></section>
       </div><aside className="checkout-panel checkout-summary" aria-labelledby="checkout-summary-title"><h2 id="checkout-summary-title">Order summary</h2><dl><div><dt>Subtotal</dt><dd>{money(orderTotal)}</dd></div>{promoApplied && <div className="checkout-discount"><dt>Discount ({promoApplied.code})</dt><dd>−{money(promoDiscount)}</dd></div>}</dl>
         <div className="checkout-promo"><label htmlFor="checkout-promo">Promo or affiliate code</label>{promoApplied ? <div className="checkout-applied" role="status"><span>{promoApplied.code} applied</span><button type="button" aria-label="Remove promo code" disabled={isProcessing} onClick={handleRemovePromo}><X size={15} aria-hidden="true" /></button></div> : <form onSubmit={event => { event.preventDefault(); void handleApplyPromo(); }}><div><input id="checkout-promo" value={promoInput} onChange={event => { setPromoInput(event.target.value.toUpperCase()); setPromoError(null); }} disabled={promoValidating || isProcessing} autoComplete="off" aria-invalid={Boolean(promoError)} aria-describedby={promoError ? 'checkout-promo-error' : undefined} /><button type="submit" disabled={!promoInput.trim() || promoValidating || isProcessing}>{promoValidating ? 'Applying…' : 'Apply'}</button></div>{promoError && <p id="checkout-promo-error" role="alert">{promoError}</p>}</form>}</div>
         <div className="checkout-total"><span>Total</span><strong>{money(finalTotal)}</strong></div><p className="checkout-note">USD · Final pricing and discounts are confirmed when your order is submitted.</p>
-        <button className="checkout-pay" type="button" onClick={handleCheckout} disabled={!cartItems.length || isProcessing || promoValidating || (selectedPaymentMethod === 'balance' && walletUnavailable)}>{isProcessing ? 'Processing payment…' : selectedPaymentMethod === 'balance' ? 'Pay with wallet' : 'Continue to RexPay'}<ArrowRight size={15} aria-hidden="true" /></button>
+        <button className="checkout-pay" type="button" onClick={handleCheckout} disabled={!cartItems.length || isProcessing || promoValidating || (selectedPaymentMethod === 'balance' && walletUnavailable)}>{isProcessing ? 'Processing payment…' : selectedPaymentMethod === 'balance' ? 'Pay with wallet' : selectedPaymentMethod === 'bachs' ? 'Continue to Bachs' : 'Continue to RexPay'}<ArrowRight size={15} aria-hidden="true" /></button>
         <p className="checkout-terms">By purchasing, you agree to our <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.</p>
       </aside></div>
     </div>;

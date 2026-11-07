@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-    DevicePhoneMobileIcon,
-    GlobeAltIcon,
-    SignalIcon,
-    ClipboardDocumentIcon,
-} from "@heroicons/react/24/outline";
+import { QrCode, RefreshCw, Smartphone, Wallet } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import resellerApi, { fetchResellerOrders } from "@/services/resellerApi";
 import EsimTopupDialog from "../../UserDashboard/EsimTopupDialog";
 import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
-import { Skeleton } from "@/components/ui/skeleton";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
+import ServiceCard, { ServiceGrid } from "../../SuperAdmin/components/ServiceCard";
+
+const FILTERS = [
+    { id: "all", label: "All eSIMs" },
+    { id: "esim", label: "eSIM" },
+    { id: "usa_esim", label: "USA eSIM" },
+];
 
 interface ESIMProfile {
     id: string;
@@ -35,7 +36,6 @@ export default function ResESIMManagement() {
     const [profiles, setProfiles] = useState<ESIMProfile[]>([]);
     const [productTypeFilter, setProductTypeFilter] = useState<string>('all');
     const [loading, setLoading] = useState(true);
-    const [_showActivation, _setShowActivation] = useState<{ [key: string]: boolean }>({});
     const [topupProfile, setTopupProfile] = useState<ESIMProfile | null>(null);
     const [qrProfileId, setQrProfileId] = useState<string | null>(null);
 
@@ -78,117 +78,58 @@ export default function ResESIMManagement() {
         }
     };
 
-    const copy = (t: string) => {
-        navigator.clipboard.writeText(t);
-        toast.success('Copied!');
-    };
-
-    if (loading) return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-card rounded-xl border p-6 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <Skeleton className="w-10 h-10 rounded-lg" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-3 w-20" />
-                        </div>
-                    </div>
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-3/4" />
-                    <Skeleton className="h-24 rounded-xl" />
-                </div>
-            ))}
-        </div>
-    );
-
-    const filteredProfiles = profiles.filter(p => {
-        if (productTypeFilter === 'all') return true;
-        return p.product_type === productTypeFilter;
-    });
+    const filteredProfiles = profiles.filter(p => productTypeFilter === "all" || p.product_type === productTypeFilter);
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold">eSIM Management</h1>
-                    <p className="text-muted-foreground mt-1">Manage global travel eSIM profiles.</p>
-                </div>
-                <div className="flex items-center space-x-4">
-                    <select
-                        value={productTypeFilter}
-                        onChange={(e) => setProductTypeFilter(e.target.value)}
-                        className="px-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-                    >
-                        <option value="all">All eSIMs</option>
-                        <option value="esim">eSIM</option>
-                        <option value="usa_esim">USA eSIM</option>
-                    </select>
-                </div>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="eSIM"
+                description="Manage your global travel and USA eSIM profiles."
+                actions={<button type="button" onClick={fetchProfiles} disabled={loading} aria-label="Refresh" title="Refresh" className="ws-icon-button"><RefreshCw className={loading ? "animate-spin" : ""} /></button>}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProfiles.map((p) => (
-                    <motion.div key={p.id} className="bg-card rounded-xl border p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-green-500/10 text-green-500"><DevicePhoneMobileIcon className="w-6 h-6" /></div>
-                                <div>
-                                    <h3 className="font-bold truncate max-w-[150px]">{p.package_name}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${p.product_type === 'usa_esim' ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-                                            {p.product_type === 'usa_esim' ? 'USA eSIM' : 'eSIM'}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">{p.location_name}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="px-2 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground">{p.esim_status}</div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2"><GlobeAltIcon className="w-4 h-4" /> {p.data_label || `${p.data_limit_gb}GB`}</div>
-                            <div className="flex items-center gap-2"><SignalIcon className="w-4 h-4" /> {p.duration_days} Days</div>
-                        </div>
-
-                        <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono break-all">
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">ICCID:</span>
-                                <span className="text-xs">{p.iccid ? `${p.iccid.slice(-8)}...` : 'Pending'}</span>
-                                {p.iccid && <button onClick={() => copy(p.iccid)} aria-label="Copy ICCID"><ClipboardDocumentIcon className="w-4 h-4" /></button>}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            {p.activation_code?.startsWith('LPA:') && (
-                                <button
-                                    onClick={() => setQrProfileId(qrProfileId === p.id ? null : p.id)}
-                                    className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                                >
-                                    {qrProfileId === p.id ? 'Hide QR' : 'View QR'}
-                                </button>
-                            )}
-                            {p.topup_eligible && (
-                                <button
-                                    onClick={() => setTopupProfile(p)}
-                                    className="flex-1 py-2 rounded-lg border border-primary/40 text-primary text-sm font-medium hover:bg-primary/10"
-                                >
-                                    Top up
-                                </button>
-                            )}
-                        </div>
-                        {qrProfileId === p.id && (
-                            <div className="flex flex-col items-center gap-2 pt-2">
-                                {/* White quiet zone so phones can scan it in dark mode too. */}
-                                <div className="rounded-lg bg-white p-3">
-                                    <QRCodeSVG value={p.activation_code} size={180} aria-label="eSIM installation QR code" />
-                                </div>
-                                <p className="text-xs text-muted-foreground text-center">Scan with the phone's camera to install this eSIM.</p>
-                            </div>
-                        )}
-                    </motion.div>
+            <div className="ws-tabs" role="group" aria-label="Filter by eSIM type">
+                {FILTERS.map(f => (
+                    <button type="button" key={f.id} aria-pressed={productTypeFilter === f.id} onClick={() => setProductTypeFilter(f.id)}>
+                        {f.label}<span className="ws-count">{f.id === "all" ? profiles.length : profiles.filter(p => p.product_type === f.id).length}</span>
+                    </button>
                 ))}
             </div>
+
+            <ServiceGrid loading={loading} empty={filteredProfiles.length === 0} emptyIcon={Smartphone} emptyTitle="No eSIMs found" emptyText={productTypeFilter === "all" ? "eSIMs you order appear here with their install codes." : "There are no eSIMs of this type yet."}>
+                {filteredProfiles.map((p) => (
+                    <ServiceCard
+                        key={p.id}
+                        icon={Smartphone}
+                        kind={p.product_type === "usa_esim" ? "USA eSIM" : "eSIM"}
+                        status={p.esim_status}
+                        title={p.package_name}
+                        subtitle={p.location_name}
+                        facts={[
+                            { label: "Data", value: p.data_label || `${p.data_limit_gb} GB` },
+                            { label: "Validity", value: `${p.duration_days} days` },
+                            { label: "ICCID", value: p.iccid ? `…${p.iccid.slice(-8)}` : "Pending", copy: p.iccid || undefined },
+                            { label: "Expires", value: p.expires_at ? new Date(p.expires_at).toLocaleDateString() : "—" },
+                        ]}
+                        actions={(p.activation_code?.startsWith("LPA:") || p.topup_eligible) ? <>
+                            {p.activation_code?.startsWith("LPA:") && (
+                                <button type="button" onClick={() => setQrProfileId(qrProfileId === p.id ? null : p.id)} aria-expanded={qrProfileId === p.id}><QrCode size={14} aria-hidden="true" /> {qrProfileId === p.id ? "Hide QR" : "View QR"}</button>
+                            )}
+                            {p.topup_eligible && <button type="button" onClick={() => setTopupProfile(p)}><Wallet size={14} aria-hidden="true" /> Top up</button>}
+                        </> : undefined}
+                    >
+                        {qrProfileId === p.id && (
+                            <div className="flex flex-col items-center gap-2" style={{ marginTop: 18 }}>
+                                {/* White quiet zone so phones can scan it in dark mode too. */}
+                                <div className="rounded bg-white p-3">
+                                    <QRCodeSVG value={p.activation_code} size={180} aria-label="eSIM installation QR code" />
+                                </div>
+                                <p className="proxy-usage text-center" style={{ marginTop: 0 }}>Scan with the phone’s camera to install this eSIM.</p>
+                            </div>
+                        )}
+                    </ServiceCard>
+                ))}
+            </ServiceGrid>
 
             {topupProfile && (
                 <EsimTopupDialog

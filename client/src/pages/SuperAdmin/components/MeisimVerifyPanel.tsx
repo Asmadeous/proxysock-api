@@ -27,7 +27,7 @@ const TILES: { key: keyof Progress; label: string }[] = [
     { key: "error_count", label: "Error" },
 ];
 
-const inputClass = "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm";
+const inputClass = "ws-input";
 
 // MeiSIM eSIM Verify: checks activation codes without using them up. $1 per code from
 // the MeiSIM wallet; codes whose check errors are refunded. Every batch also stays in the
@@ -101,20 +101,17 @@ export default function MeisimVerifyPanel({ onSubmitted }: { onSubmitted?: () =>
     if (batchId) {
         return (
             <div className="space-y-3" aria-live="polite">
-                <div className="grid grid-cols-5 gap-2">
+                <dl className="ws-figures">
                     {TILES.map((tile) => (
-                        <div key={tile.key} className="rounded-lg border border-border bg-muted/40 px-2 py-2 text-center">
-                            <div className="text-lg font-semibold tabular-nums">{progress?.[tile.key] ?? 0}</div>
-                            <div className="text-[11px] text-muted-foreground">{tile.label}</div>
-                        </div>
+                        <div key={tile.key}><dt>{tile.label}</dt><dd>{progress?.[tile.key] ?? 0}</dd></div>
                     ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
+                </dl>
+                <p className="text-xs ws-muted">
                     {running ? `Checking ${(progress?.pending ?? 0) + (progress?.in_progress ?? 0)}… it keeps running if you leave; the result stays in Recent checks.` : "Done."}
                 </p>
                 <div className="flex gap-2">
-                    <button onClick={download} className="px-3 py-2 rounded-lg border border-border text-sm">Download CSV</button>
-                    <button onClick={reset} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Verify more</button>
+                    <button type="button" onClick={download} className="ws-button" data-variant="secondary">Download CSV</button>
+                    <button type="button" onClick={reset} className="ws-button" data-variant="primary">Verify more</button>
                 </div>
             </div>
         );
@@ -123,25 +120,25 @@ export default function MeisimVerifyPanel({ onSubmitted }: { onSubmitted?: () =>
     return (
         <div className="space-y-4">
             <div className="space-y-1.5">
-                <label htmlFor="verify-codes" className="text-sm font-medium">Activation codes</label>
+                <label htmlFor="verify-codes" className="ws-label">Activation codes</label>
                 <textarea id="verify-codes" value={codes} onChange={(e) => setCodes(e.target.value)} rows={4}
                     placeholder="LPA:1$…  (one per line)" className={`${inputClass} font-mono resize-y`} />
                 {invalid.length > 0 && (
-                    <p className="text-xs text-destructive" role="alert">
+                    <p className="text-xs ws-bad" role="alert">
                         Not a code: {invalid.slice(0, 2).join(", ")}{invalid.length > 2 ? ` +${invalid.length - 2}` : ""}
                     </p>
                 )}
             </div>
             <div className="space-y-1.5">
-                <label htmlFor="verify-email" className="text-sm font-medium">Results email <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <label htmlFor="verify-email" className="ws-label">Results email <span className="ws-muted font-normal">(optional)</span></label>
                 <input id="verify-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
             </div>
             <div className="flex items-center justify-between gap-2">
-                <span className="text-sm text-muted-foreground">
-                    {unique.length} code{unique.length === 1 ? "" : "s"} · <span className="font-semibold text-foreground">${unique.length}</span>
+                <span className="text-xs ws-muted">
+                    {unique.length} code{unique.length === 1 ? "" : "s"} · <span className="font-semibold">${unique.length}</span>
                 </span>
                 <button onClick={submit} disabled={submitting || unique.length === 0 || invalid.length > 0}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                    className="ws-button" data-variant="primary">
                     {submitting ? "Submitting…" : "Verify"}
                 </button>
             </div>

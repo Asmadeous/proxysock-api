@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
     ArrowPathIcon,
     BanknotesIcon,
@@ -10,7 +9,6 @@ import {
     GlobeAltIcon,
     Cog6ToothIcon as CogIcon,
     KeyIcon,
-    XCircleIcon,
     DocumentDuplicateIcon,
     TrashIcon,
     MagnifyingGlassIcon,
@@ -27,6 +25,9 @@ import {
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ManagementFilters from "../components/ManagementFilters";
+import PageHeader from "../components/PageHeader";
+import Button from "../components/Button";
+import WorkspaceDialog from "../components/WorkspaceDialog";
 import { getApiError } from "../utils/errors";
 import {
     fetchAdminOrders,
@@ -360,71 +361,45 @@ export default function OrdersTab() {
         toast.success("Copied!");
     };
 
+    const productIcon = (type: string) => type === 'rdp' ? Monitor : type === 'vps' ? Server : type === 'esim' ? Smartphone : type === 'vpn' ? ShieldCheck : Globe;
     const columns = [
         {
-            key: "id", label: "Order ID", sortable: true,
-            render: (row: OrderRow) => (
-                <span className="text-xs font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded">
-                    #{String(row.id).slice(0, 8)}
-                </span>
-            ),
+            key: "id", label: "Order", sortable: true,
+            render: (row: OrderRow) => <span className="ws-mono">#{String(row.id).slice(0, 8)}</span>,
         },
-        { 
+        {
             key: "product_name", label: "Product", sortable: true,
-            render: (row: OrderRow) => (
-                <div className="flex items-center gap-2">
-                    <div className={cn(
-                        "p-1.5 rounded-lg",
-                        row.product_type === 'rdp' ? "bg-orange-500/10 text-orange-500" :
-                        row.product_type === 'vps' ? "bg-blue-500/10 text-blue-500" :
-                        row.product_type === 'esim' ? "bg-green-500/10 text-green-500" :
-                        "bg-primary/10 text-primary"
-                    )}>
-                        {row.product_type === 'rdp' && <Monitor className="w-4 h-4" />}
-                        {row.product_type === 'vps' && <Server className="w-4 h-4" />}
-                        {row.product_type === 'esim' && <Smartphone className="w-4 h-4" />}
-                        {row.product_type === 'proxy' && <Globe className="w-4 h-4" />}
-                        {row.product_type === 'vpn' && <ShieldCheck className="w-4 h-4" />}
-                    </div>
-                    <span className="font-medium text-foreground">{row.product_name}</span>
-                </div>
-            )
+            render: (row: OrderRow) => {
+                const Icon = productIcon(row.product_type);
+                return <span className="inline-flex items-center gap-2"><Icon className="h-4 w-4 shrink-0 text-[var(--ov-accent)]" aria-hidden="true" /><strong>{row.product_name}</strong></span>;
+            },
         },
         {
             key: "entity_name", label: "Customer",
             render: (row: OrderRow) => (
-                <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">{row.entity_name}</p>
-                    <div className="flex items-center gap-1">
-                        <span className={cn(
-                            "text-[10px] px-1 rounded uppercase font-bold",
-                            row.entity_type === 'Reseller' ? "bg-purple-500/10 text-purple-500" : "bg-blue-500/10 text-blue-500"
-                        )}>
-                            {row.entity_type}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">• {row.entity_email}</span>
-                    </div>
+                <div>
+                    <strong className="block">{row.entity_name}</strong>
+                    <span className="ws-mono">{row.entity_type} · {row.entity_email}</span>
                 </div>
             ),
         },
-        { 
-            key: "total_amount", label: "Amount", sortable: true, 
+        {
+            key: "total_amount", label: "Amount", sortable: true,
             render: (row: OrderRow) => (
-                <div className="flex flex-col">
-                    <span className="text-sm font-bold text-foreground">${Number(row.total_amount).toFixed(2)}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase">{paymentLabel(row.payment_method)}</span>
+                <div className="tabular-nums">
+                    <strong className="block">${Number(row.total_amount).toFixed(2)}</strong>
+                    <span className="ws-mono">{paymentLabel(row.payment_method)}</span>
                 </div>
-            )
+            ),
         },
         { key: "status", label: "Status", sortable: true, render: (row: OrderRow) => <StatusBadge status={row.status} /> },
-        { 
-            key: "created_at", label: "Date", sortable: true, 
+        {
+            key: "created_at", label: "Date", sortable: true,
             render: (row: OrderRow) => (
-                <div className="text-xs text-muted-foreground">
-                    <p>{new Date(row.created_at).toLocaleDateString()}</p>
-                    <p className="opacity-60">{new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-            )
+                <time className="whitespace-nowrap text-[var(--ov-muted)]" dateTime={row.created_at}>
+                    {new Date(row.created_at).toLocaleDateString()}<span className="block ws-mono">{new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </time>
+            ),
         },
     ];
 
@@ -443,775 +418,340 @@ export default function OrdersTab() {
         { id: "processing", label: "Processing", icon: ArrowPathIcon, color: "text-blue-500", bg: "bg-blue-500/10" },
     ];
 
+    const statusCounts: Record<string, number> = { active: stats.active, pending: stats.pending, failed: stats.failed, processing: stats.processing };
+
     return (
-        <div className="space-y-8 pb-20">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h1 className="text-4xl font-black text-foreground tracking-tight">Order Management</h1>
-                    <p className="text-muted-foreground mt-2 text-lg">Monitor and control every transaction across the platform.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <ManagementFilters entityType={entityTypeFilter} onEntityTypeChange={(t) => { setEntityTypeFilter(t); setPage(1); }} />
-                    <button
-                        onClick={openCreate}
-                        className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all shadow-sm font-bold text-sm"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        New Order
-                    </button>
-                    <button
-                        onClick={() => load()}
-                        disabled={loading}
-                        className="p-3 bg-card border border-border rounded-xl hover:bg-muted/50 transition-all shadow-sm"
-                    >
-                        <ArrowPathIcon className={cn("w-5 h-5 text-muted-foreground", loading && "animate-spin")} />
-                    </button>
-                </div>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Orders"
+                description="Monitor and manage every order across the platform."
+                actions={<>
+                    <Button onClick={openCreate}><PlusIcon aria-hidden="true" />New order</Button>
+                    <button type="button" className="overview-icon-button" onClick={() => load()} disabled={loading} aria-label="Refresh orders"><ArrowPathIcon className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden="true" /></button>
+                </>}
+            />
 
-            {/* Premium Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <motion.div 
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group shadow-sm"
-                >
-                    <div className="relative z-10">
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Total Volume</p>
-                        <h3 className="text-3xl font-black text-foreground">{stats.total}</h3>
-                        <div className="mt-4 flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-bold">+{Math.round(stats.active / stats.total * 100) || 0}% Active</span>
-                        </div>
-                    </div>
-                    <ShoppingCart className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0" />
-                </motion.div>
-
-                {statuses.map((s, i) => (
-                    <motion.div
-                        key={s.id}
-                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * (i + 1) }}
+            <div className="overview-metrics" style={{ gridTemplateColumns: "repeat(5,minmax(0,1fr))", marginBottom: 0 }}>
+                <div className="overview-metric">
+                    <span>Total orders<ShoppingCart size={16} aria-hidden="true" /></span>
+                    <strong>{stats.total}</strong>
+                    <small>{Math.round(stats.active / stats.total * 100) || 0}% active</small>
+                </div>
+                {statuses.map(s => (
+                    <button type="button" key={s.id} className="overview-metric text-left" aria-pressed={statusFilter === s.id}
                         onClick={() => { setStatusFilter(statusFilter === s.id ? "" : s.id); setPage(1); }}
-                        className={cn(
-                            "bg-card border rounded-2xl p-6 cursor-pointer transition-all shadow-sm group relative overflow-hidden",
-                            statusFilter === s.id ? "border-primary ring-4 ring-primary/5" : "border-border hover:border-muted-foreground/30"
-                        )}
-                    >
-                        <s.icon className="absolute -right-4 -bottom-4 w-32 h-32 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-all rotate-12 group-hover:rotate-0 z-0" />
-                        <div className="relative z-10 flex flex-col gap-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">{s.label}</p>
-                                <h3 className="text-3xl font-black text-foreground">
-                                    {s.id === 'active' ? stats.active :
-                                     s.id === 'pending' ? stats.pending :
-                                     s.id === 'failed' ? stats.failed : stats.processing}
-                                </h3>
-                            </div>
-                            <div className={cn("p-2 rounded-xl", s.bg, s.color)}>
-                                <s.icon className="w-5 h-5" />
-                            </div>
-                        </div>
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                            <div 
-                                className={cn("h-full rounded-full transition-all duration-1000", s.id === 'active' ? "bg-green-500" : s.id === 'pending' ? "bg-yellow-500" : "bg-red-500")} 
-                                style={{ width: `${Math.round(((s.id === 'active' ? stats.active : s.id === 'pending' ? stats.pending : stats.failed) / stats.total) * 100) || 0}%` }} 
-                            />
-                        </div>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase mr-2 tracking-widest">Category</span>
-                <button 
-                    onClick={() => { setProductTypeFilter(""); setPage(1); }}
-                    className={cn(
-                        "px-4 py-2 rounded-full text-sm font-bold transition-all border shadow-sm",
-                        productTypeFilter === "" ? "bg-foreground text-background border-foreground" : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
-                    )}
-                >
-                    All Orders
-                </button>
-                {productTypes.map((t) => (
-                    <button
-                        key={t.id}
-                        onClick={() => { setProductTypeFilter(t.id); setPage(1); }}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border shadow-sm",
-                            productTypeFilter === t.id 
-                                ? cn("bg-foreground text-background border-foreground")
-                                : "bg-card border-border text-muted-foreground hover:border-muted-foreground"
-                        )}
-                    >
-                        <t.icon className={cn("w-4 h-4", productTypeFilter === t.id ? "text-background" : t.color)} />
-                        {t.label}
-                        <span className={cn(
-                            "text-[10px] px-1.5 rounded-full",
-                            productTypeFilter === t.id ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
-                        )}>
-                            {stats.by_type[t.id] || 0}
-                        </span>
+                        style={statusFilter === s.id ? { background: "var(--ov-wash)", boxShadow: "inset 0 -2px 0 var(--ov-accent)" } : undefined}>
+                        <span>{s.label}<s.icon className="h-4 w-4" aria-hidden="true" /></span>
+                        <strong>{statusCounts[s.id]}</strong>
+                        <small>{statusFilter === s.id ? "Filtering · click to clear" : "Click to filter"}</small>
                     </button>
                 ))}
             </div>
 
-            {/* Data Section */}
-            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-xl">
-                <div className="p-6 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <input 
-                            type="text"
-                            placeholder="Search by Order ID, Customer, or Email..."
-                            value={search}
-                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <ArrowsUpDownIcon className="w-4 h-4" />
-                        <span>Sorted by Latest First</span>
-                    </div>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="ws-tabs" role="group" aria-label="Product type">
+                    <button type="button" aria-pressed={productTypeFilter === ""} onClick={() => { setProductTypeFilter(""); setPage(1); }}>All orders</button>
+                    {productTypes.map(t => (
+                        <button type="button" key={t.id} aria-pressed={productTypeFilter === t.id} onClick={() => { setProductTypeFilter(t.id); setPage(1); }}>
+                            <t.icon aria-hidden="true" />{t.label}<span className="ws-count">{stats.by_type[t.id] || 0}</span>
+                        </button>
+                    ))}
+                </div>
+                <ManagementFilters entityType={entityTypeFilter} onEntityTypeChange={(t) => { setEntityTypeFilter(t); setPage(1); }} />
+            </div>
+
+            <section className="ws-stack" aria-label="Order list">
+                <div className="ws-toolbar" style={{ marginBottom: 0 }}>
+                    <label className="ws-search">
+                        <span className="sr-only">Search orders</span>
+                        <MagnifyingGlassIcon aria-hidden="true" />
+                        <input type="search" placeholder="Search by order ID, customer or email" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+                    </label>
+                    <span className="inline-flex items-center gap-2 text-[11px] text-[var(--ov-muted)]"><ArrowsUpDownIcon className="h-4 w-4" aria-hidden="true" />Latest first</span>
                 </div>
 
                 <DataTable
                     columns={columns} data={orders} loading={loading}
-                    searchPlaceholder=""
-                    onSearch={() => {}} // Controlled by external input
                     page={page} totalPages={Math.ceil(total / PER)} onPageChange={setPage} total={total}
                     emptyMessage="No orders match your current filters."
                     actions={(row: OrderRow) => (
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => openDetail(row)}
-                                className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-blue-500/20"
-                                title="View / Edit Order"
-                            >
-                                <EyeIcon className="h-5 w-5" />
-                            </button>
+                        <>
+                            <button type="button" className="ws-icon-button" onClick={() => openDetail(row)} title="View or edit order" aria-label="View or edit order"><EyeIcon aria-hidden="true" /></button>
                             {(row.status === "failed" || row.status === "error") && (
-                                <button 
-                                    onClick={() => setRescueTarget(row)} 
-                                    className="p-2 text-yellow-500 hover:bg-yellow-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-yellow-500/20"
-                                    title="Rescue Order"
-                                >
-                                    <ArrowPathIcon className="h-5 w-5" />
-                                </button>
+                                <button type="button" className="ws-icon-button" onClick={() => setRescueTarget(row)} title="Rescue order" aria-label="Rescue order"><ArrowPathIcon aria-hidden="true" /></button>
                             )}
                             {row.status !== "refunded" && (
-                                <button 
-                                    onClick={() => openRefund(row)} 
-                                    className="p-2 text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-orange-500/20"
-                                    title="Issue Refund"
-                                >
-                                    <BanknotesIcon className="h-5 w-5" />
-                                </button>
+                                <button type="button" className="ws-icon-button" onClick={() => openRefund(row)} title="Issue refund" aria-label="Issue refund"><BanknotesIcon aria-hidden="true" /></button>
                             )}
                             {row.product_type === 'proxy' && row.status === 'active' && (
-                                <button
-                                    onClick={() => handleProxyModalOpen(row)}
-                                    className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-primary/20"
-                                    title="Proxy Config"
-                                >
-                                    <CogIcon className="h-5 w-5" />
-                                </button>
+                                <button type="button" className="ws-icon-button" onClick={() => handleProxyModalOpen(row)} title="Proxy settings" aria-label="Proxy settings"><CogIcon aria-hidden="true" /></button>
                             )}
                             {row.status !== "cancelled" && row.status !== "refunded" && (
-                                <button
-                                    onClick={() => { setCancelTarget(row); setCancelDeprovision(false); }}
-                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all shadow-sm border border-transparent hover:border-red-500/20"
-                                    title="Cancel Order"
-                                >
-                                    <TrashIcon className="h-5 w-5" />
-                                </button>
+                                <button type="button" className="ws-icon-button" onClick={() => { setCancelTarget(row); setCancelDeprovision(false); }} title="Cancel order" aria-label="Cancel order"><TrashIcon aria-hidden="true" /></button>
                             )}
-                        </div>
+                        </>
                     )}
                 />
-            </div>
+            </section>
 
-            {/* Rescue Modal */}
-            <AnimatePresence>
-                {rescueTarget && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
-                            onClick={() => setRescueTarget(null)} 
-                        />
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
-                        >
-                            <div className="p-4 bg-yellow-500/10 rounded-3xl w-fit">
-                                <ArrowPathIcon className="w-10 h-10 text-yellow-500" />
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="text-2xl font-black text-foreground">Rescue Order?</h3>
-                                <p className="text-muted-foreground">This will attempt to re-provision the infrastructure for order <span className="font-mono text-foreground font-bold">#{String(rescueTarget.id).slice(0, 8)}</span>. Use this for stuck orders.</p>
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setRescueTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
-                                <button onClick={handleRescue} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-yellow-500 text-black hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-yellow-500/20">
-                                    {actionLoading ? "Processing..." : "Rescue Now"}
-                                </button>
-                            </div>
-                        </motion.div>
+            <WorkspaceDialog
+                open={Boolean(rescueTarget)}
+                onClose={() => setRescueTarget(null)}
+                title="Rescue order?"
+                footer={<>
+                    <Button variant="secondary" onClick={() => setRescueTarget(null)}>Cancel</Button>
+                    <Button onClick={handleRescue} loading={actionLoading}>{actionLoading ? "Processing…" : "Rescue now"}</Button>
+                </>}
+            >
+                <p>This tries to provision order <span className="ws-mono">#{String(rescueTarget?.id ?? "").slice(0, 8)}</span> again. Use it for stuck or failed orders.</p>
+            </WorkspaceDialog>
+
+            <WorkspaceDialog
+                open={Boolean(refundTarget)}
+                onClose={() => { setRefundTarget(null); setRefundMethod("wallet"); }}
+                title={`Refund $${Number(refundTarget?.total_amount ?? 0).toFixed(2)}`}
+                description="Choose where the money goes back to."
+                footer={<>
+                    <Button variant="secondary" onClick={() => setRefundTarget(null)}>Discard</Button>
+                    <Button onClick={handleRefund} loading={actionLoading}>{actionLoading ? "Processing…" : "Confirm refund"}</Button>
+                </>}
+            >
+                {refundTarget && <>
+                    <dl className="ws-rows">
+                        <div><dt>Customer</dt><dd>{refundTarget.entity_name}</dd></div>
+                        <div><dt>Payment method</dt><dd>{paymentLabel(refundTarget.payment_method)}</dd></div>
+                    </dl>
+                    <div className="ws-options" role="group" aria-label="Refund destination">
+                        <button type="button" className="ws-option" aria-pressed={refundMethod === "wallet"} onClick={() => setRefundMethod("wallet")}>
+                            <BanknotesIcon aria-hidden="true" /><strong>Customer wallet</strong><small>Credit the balance instantly.</small>
+                        </button>
+                        {refundTarget.payment_method && refundTarget.payment_method !== "balance" && (
+                            <button type="button" className="ws-option" aria-pressed={refundMethod === "original"} onClick={() => setRefundMethod("original")}>
+                                <GlobeAltIcon aria-hidden="true" /><strong>Original gateway</strong><small>Send it back through {paymentLabel(refundTarget.payment_method)}.</small>
+                            </button>
+                        )}
                     </div>
-                )}
-            </AnimatePresence>
+                    {refundMethod === "original" && (
+                        <p className="ws-callout">Gateway refunds go through {paymentLabel(refundTarget.payment_method)}. Card and bank refunds are automatic; crypto refunds must be claimed manually.</p>
+                    )}
+                </>}
+            </WorkspaceDialog>
 
-            {/* Refund Modal */}
-            <AnimatePresence>
-                {refundTarget && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
-                            onClick={() => { setRefundTarget(null); setRefundMethod("wallet"); }} 
-                        />
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="p-4 bg-orange-500/10 rounded-3xl">
-                                    <BanknotesIcon className="w-10 h-10 text-orange-500" />
+            <WorkspaceDialog
+                open={Boolean(proxyConfigTarget)}
+                onClose={() => setProxyConfigTarget(null)}
+                wide tall
+                title="Proxy settings"
+                description={proxyConfigTarget && <><span className="ws-mono">#{proxyConfigTarget.order_number}</span> · {proxyConfigTarget.product_name}</>}
+                footer={<>
+                    <span className="mr-auto self-center text-[10px] text-[var(--ov-muted)]">Changes can briefly reset open connections.</span>
+                    <Button variant="secondary" onClick={() => setProxyConfigTarget(null)}>Close</Button>
+                </>}
+            >
+                <div className="ws-tabs" role="group" aria-label="Proxy settings section">
+                    {[
+                        { id: 'creds', label: 'Access', icon: KeyIcon },
+                        { id: 'whitelist', label: 'IP whitelist', icon: ShieldCheckIcon },
+                        { id: 'protocol', label: 'Protocol', icon: GlobeAltIcon },
+                    ].map(tab => (
+                        <button type="button" key={tab.id} aria-pressed={modalSubTab === tab.id} onClick={() => setModalSubTab(tab.id as any)}><tab.icon aria-hidden="true" />{tab.label}</button>
+                    ))}
+                </div>
+                {proxyActionLoading && !proxyCreds ? (
+                    <div className="ws-empty"><span className="ws-empty-mark"><ArrowPathIcon className="animate-spin" aria-hidden="true" /></span><h3>Loading proxy details…</h3></div>
+                ) : proxyCreds ? (
+                    <>
+                        {modalSubTab === 'creds' && (
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div className="grid gap-3">
+                                    <h4 className="ws-section-title">Credentials</h4>
+                                    <div className="ws-field"><label htmlFor="proxy-username">Username</label><input id="proxy-username" className="ws-input" value={newCreds.username} onChange={e => setNewCreds({ ...newCreds, username: e.target.value })} /></div>
+                                    <div className="ws-field"><label htmlFor="proxy-password">Password</label><input id="proxy-password" className="ws-input" value={newCreds.password} onChange={e => setNewCreds({ ...newCreds, password: e.target.value })} /></div>
+                                    <Button onClick={() => handleProxyAction('update-creds')} disabled={proxyActionLoading}>Save credentials</Button>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Refund Amount</p>
-                                    <h2 className="text-3xl font-black text-foreground">${Number(refundTarget.total_amount).toFixed(2)}</h2>
+                                <div className="grid content-start gap-3">
+                                    <h4 className="ws-section-title">Quick actions</h4>
+                                    <button type="button" className="ws-option" onClick={() => handleProxyAction('rotate')} disabled={proxyActionLoading}><ArrowPathIcon aria-hidden="true" /><strong>Rotate IP</strong><small>Request a new IP now.</small></button>
+                                    <button type="button" className="ws-option" onClick={() => handleProxyAction('renew')}><ClockIcon aria-hidden="true" /><strong>Renew</strong><small>Add 30 days to the expiry.</small></button>
                                 </div>
-                            </div>
-
-                            <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Customer</span>
-                                    <span className="font-bold text-foreground">{refundTarget.entity_name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Payment Method</span>
-                                    <span className="font-bold text-foreground uppercase text-xs">{paymentLabel(refundTarget.payment_method)}</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Refund Destination</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setRefundMethod("wallet")}
-                                        className={cn(
-                                            "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                                            refundMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"
-                                        )}
-                                    >
-                                        <BanknotesIcon className="w-6 h-6" />
-                                        <span className="text-xs font-bold">User Wallet</span>
-                                    </button>
-                                    {refundTarget.payment_method && refundTarget.payment_method !== "balance" && (
-                                        <button
-                                            onClick={() => setRefundMethod("original")}
-                                            className={cn(
-                                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 text-center",
-                                                refundMethod === "original" ? "border-purple-500 bg-purple-500/5 text-purple-500" : "border-border text-muted-foreground hover:border-muted-foreground"
-                                            )}
-                                        >
-                                            <GlobeAltIcon className="w-6 h-6" />
-                                            <span className="text-xs font-bold">Original Gateway</span>
-                                        </button>
-                                    )}
-                                </div>
-                                {refundMethod === "original" && (
-                                    <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] text-yellow-500 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 leading-relaxed font-medium">
-                                        ⚠ Gateway refunds are processed via {paymentLabel(refundTarget.payment_method)}. Automated for fiat; manual claim required for crypto.
-                                    </motion.p>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setRefundTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Discard</button>
-                                <button onClick={handleRefund} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-orange-500 text-white hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-orange-500/20">
-                                    {actionLoading ? "Processing..." : "Confirm Refund"}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Proxy Config Modal - Optimized */}
-            <AnimatePresence>
-                {proxyConfigTarget && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-background/80 backdrop-blur-md" 
-                            onClick={() => setProxyConfigTarget(null)} 
-                        />
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 20 }}
-                            className="relative bg-card border border-border rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh]"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Modal Header */}
-                            <div className="p-8 border-b border-border flex justify-between items-start bg-muted/20">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><GlobeAltIcon className="w-6 h-6" /></div>
-                                        <h3 className="text-2xl font-black text-foreground tracking-tight">Proxy Infrastructure</h3>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                                        <span className="bg-muted px-2 py-0.5 rounded text-[10px] font-mono">#{proxyConfigTarget.order_number}</span>
-                                        <span>•</span>
-                                        <span>{proxyConfigTarget.product_name}</span>
+                                <div className="ws-panel md:col-span-2" style={{ padding: 18 }}>
+                                    <div className="flex flex-wrap items-center justify-between gap-4">
+                                        <dl className="ws-facts" style={{ gridTemplateColumns: "auto auto", gap: "0 32px" }}>
+                                            <div><dt>Endpoint</dt><dd className="font-mono">{proxyCreds.ip}:{proxyCreds.port}</dd></div>
+                                            <div><dt>Protocol</dt><dd className="uppercase">{proxyCreds.protocol}</dd></div>
+                                        </dl>
+                                        <Button variant="secondary" onClick={() => copyToClipboard(`${proxyCreds.ip}:${proxyCreds.port}:${newCreds.username}:${newCreds.password}`)}><DocumentDuplicateIcon aria-hidden="true" />Copy access line</Button>
                                     </div>
                                 </div>
-                                <button onClick={() => setProxyConfigTarget(null)} className="p-2 hover:bg-muted rounded-full transition-all text-muted-foreground hover:text-foreground">
-                                    <XCircleIcon className="w-8 h-8" />
-                                </button>
                             </div>
+                        )}
 
-                            {/* Modal Tabs */}
-                            <div className="flex p-2 bg-muted/10 border-b border-border gap-2">
-                                {[
-                                    { id: 'creds', label: 'Auth & Access', icon: KeyIcon },
-                                    { id: 'whitelist', label: 'IP Whitelist', icon: ShieldCheckIcon },
-                                    { id: 'protocol', label: 'Network Settings', icon: GlobeAltIcon },
-                                ].map((tab) => (
-                                    <button 
-                                        key={tab.id}
-                                        onClick={() => setModalSubTab(tab.id as any)} 
-                                        className={cn(
-                                            "flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-black transition-all",
-                                            modalSubTab === tab.id ? "bg-card text-foreground shadow-sm border border-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                        )}
-                                    >
-                                        <tab.icon className="w-4 h-4" />
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Modal Content */}
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {proxyActionLoading && !proxyCreds ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-4">
-                                        <ArrowPathIcon className="w-12 h-12 animate-spin text-primary" />
-                                        <p className="font-bold text-lg animate-pulse">Syncing with nodes...</p>
-                                    </div>
-                                ) : proxyCreds ? (
-                                    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                                        {modalSubTab === 'creds' && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="space-y-6">
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Authentication</h4>
-                                                    <div className="space-y-4">
-                                                        <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Username</label>
-                                                            <input 
-                                                                className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
-                                                                value={newCreds.username} 
-                                                                onChange={e => setNewCreds({...newCreds, username: e.target.value})} 
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Password</label>
-                                                            <input 
-                                                                className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
-                                                                value={newCreds.password} 
-                                                                onChange={e => setNewCreds({...newCreds, password: e.target.value})} 
-                                                            />
-                                                        </div>
-                                                        <button 
-                                                            onClick={() => handleProxyAction('update-creds')}
-                                                            disabled={proxyActionLoading}
-                                                            className="w-full py-4 bg-primary text-primary-foreground rounded-2xl text-sm font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
-                                                        >
-                                                            Sync New Credentials
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-6">
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Quick Operations</h4>
-                                                    <div className="grid grid-cols-1 gap-3">
-                                                        <button 
-                                                            onClick={() => handleProxyAction('rotate')}
-                                                            disabled={proxyActionLoading}
-                                                            className="p-4 bg-card border border-border rounded-2xl hover:border-primary transition-all flex items-center gap-4 group"
-                                                        >
-                                                            <div className="p-3 bg-primary/10 text-primary rounded-xl group-hover:rotate-180 transition-all duration-500">
-                                                                <ArrowPathIcon className="w-5 h-5" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-xs font-black text-foreground">Force Rotation</p>
-                                                                <p className="text-[10px] text-muted-foreground">Immediate IP change request</p>
-                                                            </div>
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => handleProxyAction('renew')}
-                                                            className="p-4 bg-card border border-border rounded-2xl hover:border-green-500 transition-all flex items-center gap-4 group"
-                                                        >
-                                                            <div className="p-3 bg-green-500/10 text-green-500 rounded-xl group-hover:scale-110 transition-all">
-                                                                <ClockIcon className="w-5 h-5" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-xs font-black text-foreground">Renew Duration</p>
-                                                                <p className="text-[10px] text-muted-foreground">Add 30 days to expiry</p>
-                                                            </div>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {/* Live Status Card */}
-                                                <div className="md:col-span-2 bg-foreground text-background rounded-3xl p-6 flex flex-wrap items-center justify-between gap-6 shadow-xl">
-                                                    <div className="flex gap-8">
-                                                        <div>
-                                                            <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mb-1">Current Endpoint</p>
-                                                            <p className="text-xl font-mono font-bold">{proxyCreds.ip}:{proxyCreds.port}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mb-1">Protocol</p>
-                                                            <p className="text-xl font-bold uppercase">{proxyCreds.protocol}</p>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => copyToClipboard(`${proxyCreds.ip}:${proxyCreds.port}:${newCreds.username}:${newCreds.password}`)} className="bg-background text-foreground px-6 py-3 rounded-2xl text-xs font-black hover:opacity-90 transition-all flex items-center gap-2">
-                                                        <DocumentDuplicateIcon className="w-4 h-4" /> Copy Access Line
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {modalSubTab === 'whitelist' && (
-                                            <div className="space-y-6">
-                                                <div className="flex justify-between items-center">
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Authorized IPs</h4>
-                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full font-black uppercase">{proxyConfigTarget.proxy_details?.whitelist_ips?.length || 0} / 10 Active</span>
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    {proxyConfigTarget.proxy_details?.whitelist_ips?.map((ip: string) => (
-                                                        <div key={ip} className="bg-muted/20 border border-border p-4 rounded-2xl flex justify-between items-center group hover:bg-muted/40 transition-all">
-                                                            <div className="flex items-center gap-3">
-                                                                <ShieldCheckIcon className="w-5 h-5 text-primary" />
-                                                                <span className="text-sm font-mono font-bold">{ip}</span>
-                                                            </div>
-                                                            <button onClick={() => handleProxyAction('whitelist-delete', ip)} className="text-destructive hover:bg-destructive/10 p-2 rounded-xl transition-all">
-                                                                <TrashIcon className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    <div className="bg-card border border-border border-dashed p-4 rounded-2xl flex flex-col gap-4">
-                                                        <div className="flex gap-2">
-                                                            <input 
-                                                                className="flex-1 bg-background border border-border rounded-xl px-4 py-2 text-sm font-mono outline-none focus:ring-4 focus:ring-primary/10" 
-                                                                placeholder="Enter IPv4 Address..." 
-                                                                value={newIp}
-                                                                onChange={e => setNewIp(e.target.value)}
-                                                            />
-                                                            <button 
-                                                                onClick={() => handleProxyAction('whitelist-add')}
-                                                                disabled={proxyActionLoading || !newIp}
-                                                                className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20"
-                                                            >
-                                                                Authorize
-                                                            </button>
-                                                        </div>
-                                                        <p className="text-[10px] text-muted-foreground leading-relaxed italic">Changes take up to 60 seconds to propagate to edge nodes.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {modalSubTab === 'protocol' && (
-                                            <div className="space-y-8">
-                                                <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground text-center">Infrastructure Protocol</h4>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    <button 
-                                                        onClick={() => handleProxyAction('change-protocol', 'http')}
-                                                        className={cn(
-                                                            "p-8 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-4 text-center",
-                                                            proxyCreds.protocol === 'http' ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
-                                                        )}
-                                                    >
-                                                        <div className={cn("p-4 rounded-3xl", proxyCreds.protocol === 'http' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                                                            <GlobeAltIcon className="w-10 h-10" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xl font-black mb-1">HTTP / HTTPS</p>
-                                                            <p className="text-xs text-muted-foreground font-medium">Recommended for browsers and standard scrapers.</p>
-                                                        </div>
-                                                        {proxyCreds.protocol === 'http' && <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Current Configuration</span>}
-                                                    </button>
-                                                    
-                                                    <button 
-                                                        onClick={() => handleProxyAction('change-protocol', 'socks5')}
-                                                        className={cn(
-                                                            "p-8 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-4 text-center",
-                                                            proxyCreds.protocol === 'socks5' ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
-                                                        )}
-                                                    >
-                                                        <div className={cn("p-4 rounded-3xl", proxyCreds.protocol === 'socks5' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                                                            <ShieldCheckIcon className="w-10 h-10" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xl font-black mb-1">SOCKS5</p>
-                                                            <p className="text-xs text-muted-foreground font-medium">Advanced networking with UDP support and proxy chaining.</p>
-                                                        </div>
-                                                        {proxyCreds.protocol === 'socks5' && <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Current Configuration</span>}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                ) : null}
-                            </div>
-                            
-                            <div className="p-6 bg-muted/20 border-t border-border flex justify-between items-center">
-                                <p className="text-[10px] text-muted-foreground font-medium max-w-[200px]">Node synchronization may cause a momentary connection reset.</p>
-                                <button onClick={() => setProxyConfigTarget(null)} className="bg-foreground text-background px-8 py-3 rounded-2xl text-xs font-black hover:opacity-90 transition-all shadow-xl">Close Panel</button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Order Detail / Edit Modal */}
-            <AnimatePresence>
-                {detailId && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-background/80 backdrop-blur-md"
-                            onClick={() => { setDetailId(null); setEditMode(false); }}
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 20 }}
-                            className="relative bg-card border border-border rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh]"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500"><DocumentDuplicateIcon className="w-6 h-6" /></div>
-                                    <div>
-                                        <h3 className="text-xl font-black text-foreground tracking-tight">
-                                            Order #{detail?.order_number || (detailId ? String(detailId).slice(0, 8) : "")}
-                                        </h3>
-                                        {detail && <StatusBadge status={detail.status} />}
-                                    </div>
+                        {modalSubTab === 'whitelist' && (
+                            <div className="grid gap-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="ws-section-title">Allowed IPs</h4>
+                                    <span className="ws-status">{proxyConfigTarget?.proxy_details?.whitelist_ips?.length || 0} / 10 used</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {detail && !editMode && (
-                                        <button onClick={startEdit} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-all">
-                                            <PencilSquareIcon className="w-4 h-4" /> Edit
-                                        </button>
-                                    )}
-                                    <button onClick={() => { setDetailId(null); setEditMode(false); }} className="p-2 text-muted-foreground hover:bg-muted rounded-xl transition-all">
-                                        <XCircleIcon className="w-6 h-6" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                                {detailLoading || !detail ? (
-                                    <div className="flex items-center justify-center h-40 text-muted-foreground">Loading…</div>
-                                ) : editMode ? (
-                                    <div className="space-y-4">
-                                        <p className="text-[11px] text-yellow-500 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 font-medium">
-                                            ⚠ Free edit: status &amp; amount are written directly and will NOT trigger provisioning, refund or deprovision side-effects.
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <label className="space-y-1">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Status</span>
-                                                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm">
-                                                    {["pending", "awaiting_payment", "processing", "active", "expired", "cancelled", "failed", "refunded"].map((s) => <option key={s} value={s}>{s}</option>)}
-                                                </select>
-                                            </label>
-                                            <label className="space-y-1">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Quantity</span>
-                                                <input type="number" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                                            </label>
-                                            <label className="space-y-1">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Total Amount</span>
-                                                <input type="number" step="0.01" value={editForm.total_amount} onChange={(e) => setEditForm({ ...editForm, total_amount: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                                            </label>
-                                            <label className="space-y-1">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Currency</span>
-                                                <input value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                                            </label>
-                                            <label className="space-y-1 col-span-2">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Expires At</span>
-                                                <input type="datetime-local" value={editForm.expires_at} onChange={(e) => setEditForm({ ...editForm, expires_at: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                                            </label>
-                                            <label className="space-y-1 col-span-2">
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">Metadata (JSON)</span>
-                                                <textarea value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} rows={8} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-mono" />
-                                            </label>
+                                <div className="ws-list">
+                                    {proxyConfigTarget?.proxy_details?.whitelist_ips?.map((ip: string) => (
+                                        <div key={ip}>
+                                            <span className="inline-flex items-center gap-2 font-mono"><ShieldCheckIcon className="h-4 w-4 text-[var(--ov-accent)]" aria-hidden="true" />{ip}</span>
+                                            <button type="button" className="ws-icon-button" onClick={() => handleProxyAction('whitelist-delete', ip)} aria-label={`Remove ${ip}`}><TrashIcon aria-hidden="true" /></button>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        <DetailGrid items={[
-                                            ["Product", `${detail.product?.name} (${detail.product?.type})`],
-                                            ["Total", `$${Number(detail.total_amount).toFixed(2)} ${detail.currency || ""}`],
-                                            ["Quantity", detail.quantity],
-                                            ["Payment", paymentLabel(detail.payment_method)],
-                                            ["Provider Order ID", detail.provider_order_id || "—"],
-                                            ["Created", new Date(detail.created_at).toLocaleString()],
-                                            ["Expires", detail.expires_at ? new Date(detail.expires_at).toLocaleString() : "—"],
-                                        ]} />
-                                        <Section title="Customer">
-                                            <DetailGrid items={[
-                                                ["Name", detail.customer?.name],
-                                                ["Email", detail.customer?.email],
-                                                ["Type", detail.customer?.type],
-                                            ]} />
-                                        </Section>
-                                        {detail.pricing && (
-                                            <Section title="Pricing">
-                                                <DetailGrid items={[
-                                                    ["Duration", `${detail.pricing.duration_value} ${detail.pricing.duration_type}`],
-                                                    ["Selling", detail.pricing.user_selling_price ?? detail.pricing.selling_price],
-                                                    ["Cost", detail.pricing.cost_price ?? "—"],
-                                                ]} />
-                                            </Section>
-                                        )}
-                                        {detail.provisioned && <Section title="Provisioned"><JsonBlock value={detail.provisioned} /></Section>}
-                                        {Array.isArray(detail.credentials) ? (detail.credentials.length > 0 && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>) : (detail.credentials && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>)}
-                                        <Section title="Metadata"><JsonBlock value={detail.metadata ?? {}} /></Section>
-                                        {detail.timeline?.length > 0 && (
-                                            <Section title="Timeline">
-                                                <div className="space-y-2">
-                                                    {detail.timeline.map((t: any, i: number) => (
-                                                        <div key={i} className="flex items-center justify-between text-xs bg-muted/30 rounded-lg px-3 py-2">
-                                                            <span className="font-mono text-foreground">{t.action}</span>
-                                                            <span className="text-muted-foreground">{new Date(t.created_at).toLocaleString()}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </Section>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {editMode && (
-                                <div className="p-6 bg-muted/20 border-t border-border flex justify-end gap-3">
-                                    <button onClick={() => setEditMode(false)} className="px-6 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
-                                    <button onClick={handleUpdate} disabled={actionLoading} className="px-6 py-3 rounded-2xl text-sm font-black bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all shadow-lg">
-                                        {actionLoading ? "Saving…" : "Save Changes"}
-                                    </button>
+                                    ))}
                                 </div>
-                            )}
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Create Order Modal */}
-            <AnimatePresence>
-                {createOpen && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={() => setCreateOpen(false)} />
-                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-5">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-primary/10 rounded-2xl text-primary"><PlusIcon className="w-7 h-7" /></div>
-                                <div>
-                                    <h3 className="text-2xl font-black text-foreground">New Order</h3>
-                                    <p className="text-xs text-muted-foreground">Provisions immediately and emails credentials to the customer.</p>
+                                <div className="flex gap-2">
+                                    <label className="sr-only" htmlFor="whitelist-ip">IPv4 address</label>
+                                    <input id="whitelist-ip" className="ws-input font-mono" placeholder="IPv4 address" value={newIp} onChange={e => setNewIp(e.target.value)} />
+                                    <Button onClick={() => handleProxyAction('whitelist-add')} disabled={proxyActionLoading || !newIp}>Allow</Button>
                                 </div>
+                                <p className="ws-field-hint">Changes can take up to 60 seconds to apply.</p>
                             </div>
-                            <label className="space-y-1 block">
-                                <span className="text-xs font-bold text-muted-foreground uppercase">Product</span>
-                                {products.length > 0 ? (
-                                    <select value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm">
-                                        <option value="">Select a product…</option>
-                                        {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                ) : (
-                                    <input value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })} placeholder="Product ID" className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                                )}
-                            </label>
-                            <label className="space-y-1 block">
-                                <span className="text-xs font-bold text-muted-foreground uppercase">Customer Email</span>
-                                <input type="email" value={createForm.customer_email} onChange={(e) => setCreateForm({ ...createForm, customer_email: e.target.value })} placeholder="customer@example.com" className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                            </label>
-                            <label className="space-y-1 block">
-                                <span className="text-xs font-bold text-muted-foreground uppercase">Quantity</span>
-                                <input type="number" min={1} value={createForm.quantity} onChange={(e) => setCreateForm({ ...createForm, quantity: e.target.value })} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm" />
-                            </label>
-                            <label className="space-y-1 block">
-                                <span className="text-xs font-bold text-muted-foreground uppercase">Metadata (JSON, optional)</span>
-                                <textarea value={createForm.metadata} onChange={(e) => setCreateForm({ ...createForm, metadata: e.target.value })} rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-mono" />
-                            </label>
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setCreateOpen(false)} className="flex-1 px-6 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
-                                <button onClick={handleCreate} disabled={actionLoading} className="flex-1 px-6 py-3 rounded-2xl text-sm font-black bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all shadow-lg">
-                                    {actionLoading ? "Creating…" : "Create & Provision"}
+                        )}
+
+                        {modalSubTab === 'protocol' && (
+                            <div className="ws-options" role="group" aria-label="Protocol">
+                                <button type="button" className="ws-option" aria-pressed={proxyCreds.protocol === 'http'} onClick={() => handleProxyAction('change-protocol', 'http')}>
+                                    <GlobeAltIcon aria-hidden="true" /><strong>HTTP / HTTPS</strong><small>For browsers and standard scrapers.</small>{proxyCreds.protocol === 'http' && <span className="ws-status" data-tone="good">Current</span>}
+                                </button>
+                                <button type="button" className="ws-option" aria-pressed={proxyCreds.protocol === 'socks5'} onClick={() => handleProxyAction('change-protocol', 'socks5')}>
+                                    <ShieldCheckIcon aria-hidden="true" /><strong>SOCKS5</strong><small>UDP support and proxy chaining.</small>{proxyCreds.protocol === 'socks5' && <span className="ws-status" data-tone="good">Current</span>}
                                 </button>
                             </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                        )}
+                    </>
+                ) : null}
+            </WorkspaceDialog>
 
-            {/* Cancel (soft-delete) Modal */}
-            <AnimatePresence>
-                {cancelTarget && (
-                    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={() => setCancelTarget(null)} />
-                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
-                            <div className="p-4 bg-red-500/10 rounded-3xl w-fit"><TrashIcon className="w-10 h-10 text-red-500" /></div>
-                            <div className="space-y-2">
-                                <h3 className="text-2xl font-black text-foreground">Cancel Order?</h3>
-                                <p className="text-muted-foreground">Order <span className="font-mono text-foreground font-bold">#{String(cancelTarget.id).slice(0, 8)}</span> will be marked <span className="font-bold">cancelled</span>. The record is kept for history/financials.</p>
+            <WorkspaceDialog
+                open={Boolean(detailId)}
+                onClose={() => { setDetailId(null); setEditMode(false); }}
+                wide tall
+                title={`Order #${detail?.order_number || (detailId ? String(detailId).slice(0, 8) : "")}`}
+                description={detail && <StatusBadge status={detail.status} />}
+                headerActions={detail && !editMode && <Button variant="secondary" size="sm" onClick={startEdit}><PencilSquareIcon aria-hidden="true" />Edit</Button>}
+                footer={editMode && <>
+                    <Button variant="secondary" onClick={() => setEditMode(false)}>Cancel</Button>
+                    <Button onClick={handleUpdate} loading={actionLoading}>{actionLoading ? "Saving…" : "Save changes"}</Button>
+                </>}
+            >
+                {detailLoading || !detail ? (
+                    <div className="ws-empty"><h3>Loading…</h3></div>
+                ) : editMode ? (
+                    <div className="grid gap-4">
+                        <p className="ws-callout">Direct edit: status and amount are saved as entered. Nothing is provisioned, refunded or torn down.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="ws-field"><label htmlFor="edit-status">Status</label>
+                                <select id="edit-status" className="ws-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
+                                    {["pending", "awaiting_payment", "processing", "active", "expired", "cancelled", "failed", "refunded"].map((st) => <option key={st} value={st}>{st}</option>)}
+                                </select>
                             </div>
-                            <label className="flex items-center gap-3 bg-muted/30 rounded-2xl p-4 cursor-pointer">
-                                <input type="checkbox" checked={cancelDeprovision} onChange={(e) => setCancelDeprovision(e.target.checked)} className="w-4 h-4" />
-                                <span className="text-sm text-foreground">Also flag provisioned resources for teardown</span>
-                            </label>
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setCancelTarget(null)} className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted transition-all">Keep Order</button>
-                                <button onClick={handleCancelOrder} disabled={actionLoading} className="flex-1 px-6 py-4 rounded-2xl text-sm font-black bg-red-500 text-white hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-red-500/20">
-                                    {actionLoading ? "Cancelling…" : "Cancel Order"}
-                                </button>
-                            </div>
-                        </motion.div>
+                            <div className="ws-field"><label htmlFor="edit-quantity">Quantity</label><input id="edit-quantity" className="ws-input" type="number" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} /></div>
+                            <div className="ws-field"><label htmlFor="edit-total">Total amount</label><input id="edit-total" className="ws-input" type="number" step="0.01" value={editForm.total_amount} onChange={(e) => setEditForm({ ...editForm, total_amount: e.target.value })} /></div>
+                            <div className="ws-field"><label htmlFor="edit-currency">Currency</label><input id="edit-currency" className="ws-input" value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })} /></div>
+                            <div className="ws-field col-span-2"><label htmlFor="edit-expires">Expires at</label><input id="edit-expires" className="ws-input" type="datetime-local" value={editForm.expires_at} onChange={(e) => setEditForm({ ...editForm, expires_at: e.target.value })} /></div>
+                            <div className="ws-field col-span-2"><label htmlFor="edit-metadata">Metadata (JSON)</label><textarea id="edit-metadata" className="ws-input font-mono" rows={8} value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} /></div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid gap-6">
+                        <DetailGrid items={[
+                            ["Product", `${detail.product?.name} (${detail.product?.type})`],
+                            ["Total", `$${Number(detail.total_amount).toFixed(2)} ${detail.currency || ""}`],
+                            ["Quantity", detail.quantity],
+                            ["Payment", paymentLabel(detail.payment_method)],
+                            ["Provider order ID", detail.provider_order_id || "—"],
+                            ["Created", new Date(detail.created_at).toLocaleString()],
+                            ["Expires", detail.expires_at ? new Date(detail.expires_at).toLocaleString() : "—"],
+                        ]} />
+                        <Section title="Customer">
+                            <DetailGrid items={[["Name", detail.customer?.name], ["Email", detail.customer?.email], ["Type", detail.customer?.type]]} />
+                        </Section>
+                        {detail.pricing && (
+                            <Section title="Pricing">
+                                <DetailGrid items={[
+                                    ["Duration", `${detail.pricing.duration_value} ${detail.pricing.duration_type}`],
+                                    ["Selling", detail.pricing.user_selling_price ?? detail.pricing.selling_price],
+                                    ["Cost", detail.pricing.cost_price ?? "—"],
+                                ]} />
+                            </Section>
+                        )}
+                        {detail.provisioned && <Section title="Provisioned"><JsonBlock value={detail.provisioned} /></Section>}
+                        {Array.isArray(detail.credentials) ? (detail.credentials.length > 0 && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>) : (detail.credentials && <Section title="Credentials"><JsonBlock value={detail.credentials} /></Section>)}
+                        <Section title="Metadata"><JsonBlock value={detail.metadata ?? {}} /></Section>
+                        {detail.timeline?.length > 0 && (
+                            <Section title="Timeline">
+                                <div className="ws-list">
+                                    {detail.timeline.map((t: any, i: number) => (
+                                        <div key={i}><span className="font-mono">{t.action}</span><span className="text-[var(--ov-muted)]">{new Date(t.created_at).toLocaleString()}</span></div>
+                                    ))}
+                                </div>
+                            </Section>
+                        )}
                     </div>
                 )}
-            </AnimatePresence>
+            </WorkspaceDialog>
+
+            <WorkspaceDialog
+                open={createOpen}
+                onClose={() => setCreateOpen(false)}
+                title="New order"
+                description="Provisions straight away and emails the credentials to the customer."
+                footer={<>
+                    <Button variant="secondary" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCreate} loading={actionLoading}>{actionLoading ? "Creating…" : "Create and provision"}</Button>
+                </>}
+            >
+                <div className="ws-field"><label htmlFor="create-product">Product</label>
+                    {products.length > 0 ? (
+                        <select id="create-product" className="ws-input" value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })}>
+                            <option value="">Select a product…</option>
+                            {products.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                        </select>
+                    ) : (
+                        <input id="create-product" className="ws-input" value={createForm.product_id} onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })} placeholder="Product ID" />
+                    )}
+                </div>
+                <div className="ws-field"><label htmlFor="create-email">Customer email</label><input id="create-email" className="ws-input" type="email" value={createForm.customer_email} onChange={(e) => setCreateForm({ ...createForm, customer_email: e.target.value })} placeholder="customer@example.com" /></div>
+                <div className="ws-field"><label htmlFor="create-quantity">Quantity</label><input id="create-quantity" className="ws-input" type="number" min={1} value={createForm.quantity} onChange={(e) => setCreateForm({ ...createForm, quantity: e.target.value })} /></div>
+                <div className="ws-field"><label htmlFor="create-metadata">Metadata (JSON, optional)</label><textarea id="create-metadata" className="ws-input font-mono" rows={3} value={createForm.metadata} onChange={(e) => setCreateForm({ ...createForm, metadata: e.target.value })} /></div>
+            </WorkspaceDialog>
+
+            <WorkspaceDialog
+                open={Boolean(cancelTarget)}
+                onClose={() => setCancelTarget(null)}
+                title="Cancel order?"
+                footer={<>
+                    <Button variant="secondary" onClick={() => setCancelTarget(null)}>Keep order</Button>
+                    <Button variant="danger" onClick={handleCancelOrder} loading={actionLoading}>{actionLoading ? "Cancelling…" : "Cancel order"}</Button>
+                </>}
+            >
+                <p>Order <span className="ws-mono">#{String(cancelTarget?.id ?? "").slice(0, 8)}</span> will be marked cancelled. The record stays for history and accounting.</p>
+                <label className="ws-check"><input type="checkbox" checked={cancelDeprovision} onChange={(e) => setCancelDeprovision(e.target.checked)} />Also flag its provisioned resources for teardown</label>
+            </WorkspaceDialog>
         </div>
     );
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{title}</h4>
+        <section className="grid gap-3">
+            <h4 className="ws-section-title">{title}</h4>
             {children}
-        </div>
+        </section>
     );
 }
 
 function DetailGrid({ items }: { items: [string, ReactNode][] }) {
     return (
-        <div className="grid grid-cols-2 gap-3">
+        <dl className="ws-facts">
             {items.map(([label, value], i) => (
-                <div key={i} className="bg-muted/30 rounded-xl px-3 py-2">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
-                    <p className="text-sm font-medium text-foreground break-words">{value ?? "—"}</p>
-                </div>
+                <div key={i}><dt>{label}</dt><dd>{value ?? "—"}</dd></div>
             ))}
-        </div>
+        </dl>
     );
 }
 
 function JsonBlock({ value }: { value: unknown }) {
-    return (
-        <pre className="bg-muted/40 border border-border rounded-xl p-3 text-[11px] font-mono text-foreground overflow-x-auto max-h-64 overflow-y-auto">
-            {JSON.stringify(value, null, 2)}
-        </pre>
-    );
+    return <pre className="ws-code">{JSON.stringify(value, null, 2)}</pre>;
 }

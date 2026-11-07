@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import {
-    DocumentTextIcon, ServerIcon,
-    ArrowPathIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon,
+    ServerIcon,
+    ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon,
     ClipboardIcon, MagnifyingGlassIcon, ExclamationTriangleIcon,
-    CommandLineIcon,
 } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
+import PageHeader from "../components/PageHeader";
+import Button from "../components/Button";
 import { useSystemLogs, useAuditLogs, useErrorLogs } from "../queries/systemLogs.queries";
 import { toast } from "sonner";
 
@@ -14,52 +15,39 @@ type AnyObj = Record<string, unknown>;
 type SubTab = "system" | "audit" | "errors";
 
 const SEVERITY_COLORS: Record<string, string> = {
-    fatal: "text-red-500 bg-red-500/10",
-    error: "text-red-400 bg-red-500/10",
-    warn: "text-yellow-400 bg-yellow-500/10",
-    request: "text-blue-400 bg-blue-500/10",
-    response: "text-green-400 bg-green-500/10",
-    info: "text-muted-foreground bg-transparent",
+    fatal: "ws-bad bg-[var(--ov-wash)]",
+    error: "ws-bad bg-[var(--ov-wash)]",
+    warn: "ws-wait bg-[var(--ov-wash)]",
+    request: "ws-info bg-[var(--ov-wash)]",
+    response: "ws-good bg-[var(--ov-wash)]",
+    info: "ws-muted bg-transparent",
 };
 
 const ACTION_COLORS: Record<string, string> = {
-    create: "text-green-400",
-    update: "text-blue-400",
-    destroy: "text-red-400",
-    delete: "text-red-400",
-    login: "text-purple-400",
-    refund: "text-yellow-400",
-    onboard: "text-cyan-400",
-    configure: "text-orange-400",
+    create: "ws-good",
+    update: "ws-info",
+    destroy: "ws-bad",
+    delete: "ws-bad",
+    login: "ws-info",
+    refund: "ws-wait",
+    onboard: "ws-info",
+    configure: "ws-wait",
 };
 
 export default function SystemLogsTab() {
     const [subTab, setSubTab] = useState<SubTab>("system");
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-foreground">System Logs</h2>
-            </div>
+        <div className="ws-stack">
+            <PageHeader title="System logs" description="Application logs, audit history and recent errors." />
 
-            {/* Sub-tab Navigation */}
-            <div className="flex gap-2 border-b border-border pb-2">
+            <div className="ws-tabs" role="group" aria-label="Log type">
                 {([
-                    { key: "system", label: "System Logs", icon: CommandLineIcon },
-                    { key: "audit", label: "Audit Logs", icon: DocumentTextIcon },
-                    { key: "errors", label: "Error Logs", icon: ExclamationTriangleIcon },
-                ] as { key: SubTab; label: string; icon: typeof CommandLineIcon }[]).map(({ key, label, icon: Icon }) => (
-                    <button
-                        key={key}
-                        onClick={() => setSubTab(key)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${subTab === key
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                            }`}
-                    >
-                        <Icon className="h-4 w-4" />
-                        {label}
-                    </button>
+                    { key: "system", label: "System logs" },
+                    { key: "audit", label: "Audit logs" },
+                    { key: "errors", label: "Error logs" },
+                ] as { key: SubTab; label: string }[]).map(({ key, label }) => (
+                    <button type="button" key={key} aria-pressed={subTab === key} onClick={() => setSubTab(key)}>{label}</button>
                 ))}
             </div>
 
@@ -94,80 +82,55 @@ function SystemLogPanel() {
 
     return (
         <div className="space-y-3">
-            {/* Controls */}
-            <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-xs text-muted-foreground mb-1">Search</label>
-                    <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && refetch()}
-                            placeholder="Filter logs..."
-                            className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary"
-                        />
+            <div className="ws-toolbar flex-wrap items-end">
+                <div className="ws-field min-w-[200px] flex-1">
+                    <label htmlFor="log-search">Search</label>
+                    <div className="ws-search" style={{ maxWidth: "none" }}>
+                        <MagnifyingGlassIcon aria-hidden="true" />
+                        <input id="log-search" type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && refetch()} placeholder="Filter logs..." />
                     </div>
                 </div>
-                <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Source</label>
-                    <select
-                        value={source}
-                        onChange={(e) => setSource(e.target.value)}
-                        className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary"
-                    >
+                <div className="ws-field">
+                    <label htmlFor="log-source">Source</label>
+                    <select id="log-source" value={source} onChange={(e) => setSource(e.target.value)} className="ws-input">
                         <option value="rails">Rails</option>
                         <option value="sidekiq">Sidekiq</option>
                     </select>
                 </div>
-                <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Lines</label>
-                    <select
-                        value={lineCount}
-                        onChange={(e) => setLineCount(e.target.value)}
-                        className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary"
-                    >
+                <div className="ws-field">
+                    <label htmlFor="log-lines">Lines</label>
+                    <select id="log-lines" value={lineCount} onChange={(e) => setLineCount(e.target.value)} className="ws-input">
                         <option value="100">100</option>
                         <option value="200">200</option>
                         <option value="500">500</option>
                         <option value="1000">1000</option>
                     </select>
                 </div>
-                <button
-                    onClick={() => setAutoRefresh(!autoRefresh)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${autoRefresh ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-                >
-                    {autoRefresh ? "● Live" : "○ Live"}
-                </button>
-                <button
-                    onClick={() => refetch()}
-                    disabled={isLoading}
-                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition"
-                >
-                    <ArrowPathIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-                </button>
+                <Button variant={autoRefresh ? "primary" : "secondary"} aria-pressed={autoRefresh} onClick={() => setAutoRefresh(!autoRefresh)}>
+                    <span className="ws-dot" data-ok={autoRefresh} aria-hidden="true" />{autoRefresh ? "Live" : "Go live"}
+                </Button>
+                <button type="button" onClick={() => refetch()} disabled={isLoading} aria-label="Refresh logs" className="ws-icon-button"><ArrowPathIcon className={isLoading ? "animate-spin" : ""} /></button>
             </div>
 
             {logFile && (
-                <p className="text-xs text-muted-foreground font-mono px-1">
+                <p className="ws-mono text-[11px] ws-muted">
                     {logFile} — {lines.length} lines
                 </p>
             )}
 
-            <div className="bg-[#0d1117] rounded-xl border border-border overflow-hidden">
-                <div className="overflow-y-auto max-h-[600px] font-mono text-xs p-3 space-y-0 scroll-smooth" ref={scrollRef}>
+            <div className="ws-table-panel">
+                <div className="max-h-[600px] overflow-y-auto p-3 font-mono text-[11px] scroll-smooth" ref={scrollRef}>
                     {isLoading ? (
-                        <div className="flex justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+                        <div className="space-y-2 py-4" role="status" aria-label="Loading logs">
+                            {Array.from({ length: 6 }).map((_, i) => <span key={i} className="ws-skeleton block" style={{ height: 12, maxWidth: `${90 - i * 8}%` }} />)}
                         </div>
                     ) : lines.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">No log entries found</p>
+                        <p className="py-8 text-center ws-muted">No log entries found.</p>
                     ) : (
                         lines.map((line) => (
                             <div
                                 key={String(line.id)}
-                                className={`py-0.5 px-2 rounded hover:bg-white/5 whitespace-pre-wrap break-all leading-5 ${SEVERITY_COLORS[String(line.severity)] || "text-muted-foreground"}`}
+                                className={`whitespace-pre-wrap break-all rounded-sm px-2 py-0.5 leading-5 hover:bg-[var(--ov-wash)] ${SEVERITY_COLORS[String(line.severity)] || "ws-muted"}`}
                             >
                                 {String(line.text)}
                             </div>
@@ -184,7 +147,6 @@ function AuditLogPanel() {
     const [page, setPage] = useState(1);
     const [actionFilter, setActionFilter] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
-    const [showFilters, setShowFilters] = useState(false);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
     const PER = 50;
 
@@ -196,7 +158,7 @@ function AuditLogPanel() {
 
     const getActionColor = (action: string) => {
         const key = Object.keys(ACTION_COLORS).find((k) => action?.toLowerCase().includes(k));
-        return key ? ACTION_COLORS[key] : "text-muted-foreground";
+        return key ? ACTION_COLORS[key] : "ws-muted";
     };
 
     const columns = [
@@ -210,8 +172,8 @@ function AuditLogPanel() {
             key: "user_type", label: "Actor",
             render: (row: AnyObj) => (
                 <div>
-                    <p className="text-sm text-foreground">{String(row.user_type || "System")}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{row.user_id ? `#${String(row.user_id).slice(0, 8)}` : "—"}</p>
+                    <p className="text-sm">{String(row.user_type || "System")}</p>
+                    <p className="text-xs ws-muted font-mono">{row.user_id ? `#${String(row.user_id).slice(0, 8)}` : "—"}</p>
                 </div>
             ),
         },
@@ -220,20 +182,20 @@ function AuditLogPanel() {
             render: (row: AnyObj) => (
                 <div>
                     <StatusBadge status={String(row.auditable_type || "unknown")} />
-                    <p className="text-xs text-muted-foreground font-mono mt-0.5">#{String(row.auditable_id).slice(0, 8)}</p>
+                    <p className="text-xs ws-muted font-mono mt-0.5">#{String(row.auditable_id).slice(0, 8)}</p>
                 </div>
             ),
         },
         {
             key: "ip_address", label: "IP",
-            render: (row: AnyObj) => <span className="text-xs font-mono text-muted-foreground">{String(row.ip_address || "—")}</span>,
+            render: (row: AnyObj) => <span className="text-xs font-mono ws-muted">{String(row.ip_address || "—")}</span>,
         },
         {
             key: "created_at", label: "Time",
             render: (row: AnyObj) => (
                 <div>
-                    <p className="text-xs text-muted-foreground">{new Date(String(row.created_at)).toLocaleDateString()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(String(row.created_at)).toLocaleTimeString()}</p>
+                    <p className="text-xs ws-muted">{new Date(String(row.created_at)).toLocaleDateString()}</p>
+                    <p className="text-xs ws-muted">{new Date(String(row.created_at)).toLocaleTimeString()}</p>
                 </div>
             ),
         },
@@ -242,92 +204,68 @@ function AuditLogPanel() {
             render: (row: AnyObj) =>
                 row.object_changes ? (
                     <div className="flex gap-1">
-                        <button onClick={() => setExpandedLog(expandedLog === String(row.id) ? null : String(row.id))} className="text-xs text-blue-400 hover:underline">
+                        <button type="button" onClick={() => setExpandedLog(expandedLog === String(row.id) ? null : String(row.id))} className="text-xs text-[var(--ov-accent)] hover:underline">
                             {expandedLog === String(row.id) ? "Hide" : "View"}
                         </button>
                         <button
                             onClick={() => { navigator.clipboard.writeText(JSON.stringify(row.object_changes, null, 2)); toast.success("Copied"); }}
-                            className="p-0.5 text-muted-foreground hover:text-foreground"
+                            className="ws-icon-button"
                             aria-label="Copy changes"
                         >
                             <ClipboardIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
-                ) : <span className="text-xs text-muted-foreground">—</span>,
+                ) : <span className="text-xs ws-muted">—</span>,
         },
     ];
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{total.toLocaleString()} audit entries</p>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${showFilters ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground border border-border hover:text-foreground"}`}
-                    >
-                        <FunnelIcon className="h-4 w-4" />Filters
-                    </button>
-                    <button onClick={() => refetch()} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
-                        <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
-                    </button>
+            <div className="ws-toolbar flex-wrap items-end">
+                <div className="ws-field">
+                    <label htmlFor="audit-action">Action</label>
+                    <select id="audit-action" value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(1); }} className="ws-input">
+                        <option value="">All</option>
+                        <option value="create">Create</option>
+                        <option value="update">Update</option>
+                        <option value="destroy">Destroy</option>
+                    </select>
+                </div>
+                <div className="ws-field">
+                    <label htmlFor="audit-target">Target</label>
+                    <select id="audit-target" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className="ws-input">
+                        <option value="">All</option>
+                        <option value="Order">Order</option>
+                        <option value="User">User</option>
+                        <option value="Reseller">Reseller</option>
+                        <option value="Vm">Vm</option>
+                        <option value="Product">Product</option>
+                    </select>
+                </div>
+                {(actionFilter || typeFilter) && <Button variant="ghost" onClick={() => { setActionFilter(""); setTypeFilter(""); setPage(1); }}>Clear filters</Button>}
+                <div className="ws-toolbar-actions">
+                    <span className="text-[11px] ws-muted">{total.toLocaleString()} audit entries</span>
+                    <button type="button" onClick={() => refetch()} aria-label="Refresh audit logs" className="ws-icon-button"><ArrowPathIcon className={isLoading ? "animate-spin" : ""} /></button>
                 </div>
             </div>
-
-            {showFilters && (
-                <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-3 items-end">
-                    <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Action</label>
-                        <select value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-                            className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="">All</option>
-                            <option value="create">Create</option>
-                            <option value="update">Update</option>
-                            <option value="destroy">Destroy</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Target</label>
-                        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-                            className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="">All</option>
-                            <option value="Order">Order</option>
-                            <option value="User">User</option>
-                            <option value="Reseller">Reseller</option>
-                            <option value="Vm">Vm</option>
-                            <option value="Product">Product</option>
-                        </select>
-                    </div>
-                    {(actionFilter || typeFilter) && (
-                        <button onClick={() => { setActionFilter(""); setTypeFilter(""); setPage(1); }}
-                            className="px-3 py-1.5 text-xs text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20">Clear</button>
-                    )}
-                </div>
-            )}
 
             <DataTable columns={columns} data={logs} loading={isLoading} emptyMessage="No audit logs found" />
 
             {expandedLog && (
-                <div className="bg-card rounded-xl border border-border p-4">
-                    <h4 className="text-sm font-medium text-foreground mb-2">Changes — #{expandedLog.slice(0, 8)}</h4>
-                    <pre className="bg-[#0d1117] rounded-lg p-3 text-xs font-mono text-muted-foreground overflow-x-auto max-h-64">
+                <section className="ws-panel">
+                    <h3 className="ws-section-title mb-3">Changes · #{expandedLog.slice(0, 8)}</h3>
+                    <pre className="ws-code">
                         {JSON.stringify(logs.find((l) => l.id === expandedLog)?.object_changes, null, 2)}
                     </pre>
-                </div>
+                </section>
             )}
 
             {totalPages > 1 && (
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}
-                            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground disabled:opacity-50">
-                            <ChevronLeftIcon className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
-                            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground disabled:opacity-50">
-                            <ChevronRightIcon className="h-4 w-4" />
-                        </button>
+                <div className="ws-pagination">
+                    <span>Page {page} of {totalPages}</span>
+                    <div>
+                        <button type="button" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} aria-label="Previous page"><ChevronLeftIcon /></button>
+                        <button type="button" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages} aria-label="Next page"><ChevronRightIcon /></button>
                     </div>
                 </div>
             )}
@@ -346,38 +284,39 @@ function ErrorLogPanel() {
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                    {total} error{total !== 1 ? "s" : ""} found (scanning last 1000 lines)
-                </p>
-                <button onClick={() => refetch()} disabled={isLoading} className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition">
-                    <ArrowPathIcon className={`h-4 w-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
-                </button>
+            <div className="ws-toolbar">
+                <span className="text-[11px] ws-muted">{total} error{total !== 1 ? "s" : ""} found in the last 1000 lines</span>
+                <div className="ws-toolbar-actions">
+                    <button type="button" onClick={() => refetch()} disabled={isLoading} aria-label="Refresh errors" className="ws-icon-button"><ArrowPathIcon className={isLoading ? "animate-spin" : ""} /></button>
+                </div>
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+                <div className="ws-panel space-y-3" role="status" aria-label="Loading errors">
+                    <span className="ws-skeleton block" style={{ height: 14 }} />
+                    <span className="ws-skeleton block" style={{ height: 14, maxWidth: "70%" }} />
                 </div>
             ) : errors.length === 0 ? (
-                <div className="bg-card rounded-xl border border-border p-8 text-center">
-                    <ServerIcon className="h-12 w-12 mx-auto text-green-500 mb-3" />
-                    <p className="text-foreground font-medium">No errors found</p>
-                    <p className="text-sm text-muted-foreground mt-1">System is running clean</p>
+                <div className="ws-panel ws-empty">
+                    <span className="ws-empty-mark"><ServerIcon aria-hidden="true" /></span>
+                    <h3>No errors found</h3>
+                    <p>The system is running clean.</p>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="ws-table-panel divide-y divide-[var(--ov-line)]">
                     {errors.map((err, idx) => (
-                        <div key={idx} className="bg-card rounded-xl border border-red-500/20 overflow-hidden">
+                        <div key={idx}>
                             <button
+                                type="button"
+                                aria-expanded={expanded === idx}
                                 onClick={() => setExpanded(expanded === idx ? null : idx)}
-                                className="w-full text-left p-3 hover:bg-muted/30 transition"
+                                className="w-full p-4 text-left hover:bg-[var(--ov-wash)]"
                             >
                                 <div className="flex items-start gap-2">
-                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+                                    <ExclamationTriangleIcon className="h-4 w-4 ws-bad mt-0.5 shrink-0" />
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-sm text-red-400 font-mono truncate">{String(err.message)}</p>
-                                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                                        <p className="ws-mono truncate text-xs ws-bad">{String(err.message)}</p>
+                                        <div className="mt-1 flex gap-3 text-[11px] ws-muted">
                                             {err.timestamp ? <span>{String(err.timestamp)}</span> : null}
                                             {Array.isArray(err.trace) && err.trace.length > 0 ? <span>{(err.trace as unknown[]).length} trace lines</span> : null}
                                         </div>
@@ -385,8 +324,8 @@ function ErrorLogPanel() {
                                 </div>
                             </button>
                             {expanded === idx && Array.isArray(err.trace) && err.trace.length > 0 && (
-                                <div className="border-t border-border bg-[#0d1117] p-3">
-                                    <pre className="text-xs font-mono text-muted-foreground overflow-x-auto max-h-48 space-y-0.5">
+                                <div className="px-4 pb-4">
+                                    <pre className="ws-code">
                                         {(err.trace as string[]).map((line, i) => (
                                             <div key={i} className="py-0.5">{line}</div>
                                         ))}

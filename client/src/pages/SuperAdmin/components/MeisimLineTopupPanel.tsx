@@ -36,7 +36,7 @@ interface BulkRow {
     message?: string;
 }
 
-const inputClass = "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm";
+const inputClass = "ws-input";
 
 // MeiSIM's answer for a failed call: { result, message } from a recharge, { error } otherwise.
 const failure = (error: unknown) => {
@@ -172,16 +172,16 @@ export default function MeisimLineTopupPanel({ preset, onDone, onBusyChange }: {
         toast[ok === done.length ? "success" : "error"](`${ok} of ${done.length} lines recharged`);
     };
 
-    const option = "flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm cursor-pointer has-[:checked]:border-primary";
+    const option = "flex cursor-pointer items-start gap-2 rounded border border-[var(--ov-line)] px-3 py-2 text-xs has-[:checked]:border-[var(--ov-accent)] has-[:checked]:bg-[var(--ov-wash)]";
 
     return (
         <div className="space-y-4">
 
                 {!preset && (
-                    <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/50 p-1 text-sm" role="tablist">
+                    <div className="ws-tabs" role="tablist">
                         {(["one", "bulk"] as const).map((m) => (
                             <button key={m} role="tab" aria-selected={mode === m} disabled={busy} onClick={() => setMode(m)}
-                                className={`rounded-md py-1.5 ${mode === m ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}>
+                                aria-pressed={mode === m}>
                                 {m === "one" ? "One line" : "Bulk"}
                             </button>
                         ))}
@@ -196,37 +196,37 @@ export default function MeisimLineTopupPanel({ preset, onDone, onBusyChange }: {
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1.5">
-                                <label htmlFor="recharge-network" className="text-sm font-medium">Carrier</label>
+                                <label htmlFor="recharge-network" className="ws-label">Carrier</label>
                                 <input id="recharge-network" list="meisim-networks" value={network}
                                     onChange={(e) => { setNetwork(e.target.value); setOffer(null); }}
                                     placeholder={networks.isLoading ? "Loading…" : "Pick a carrier"} className={inputClass} />
                             </div>
                             <div className="space-y-1.5">
-                                <label htmlFor="recharge-line" className="text-sm font-medium">Phone number or ICCID</label>
+                                <label htmlFor="recharge-line" className="ws-label">Phone number or ICCID</label>
                                 <input id="recharge-line" value={line} onChange={(e) => { setLine(e.target.value); setOffer(null); }}
                                     className={`${inputClass} font-mono`} />
                             </div>
                         </div>
-                        {networks.isError && <p className="text-xs text-destructive">Could not load MeiSIM's carriers; type the carrier name.</p>}
+                        {networks.isError && <p className="text-xs ws-bad">Could not load MeiSIM's carriers; type the carrier name.</p>}
 
                         {offer && (
                             <div className="space-y-3">
                                 {offer.plans.length > 0 && (
                                     <fieldset className="space-y-1.5">
-                                        <legend className="text-sm font-medium mb-1">Plans</legend>
+                                        <legend className="ws-label">Plans</legend>
                                         {offer.plans.map((p) => (
                                             <label key={p.code} className={option}>
-                                                <input type="radio" name="recharge-choice" className="mt-0.5"
+                                                <input type="radio" name="recharge-choice" className="mt-1"
                                                     checked={choice?.kind === "plan" && choice.code === p.code}
                                                     onChange={() => pick({ kind: "plan", code: p.code }, p.value)} />
-                                                <span>{p.name} <span className="text-xs text-muted-foreground font-mono">{p.code}</span>{p.value != null && ` · ${p.value}`}</span>
+                                                <span>{p.name} <span className="text-xs ws-muted font-mono">{p.code}</span>{p.value != null && ` · ${p.value}`}</span>
                                             </label>
                                         ))}
                                     </fieldset>
                                 )}
                                 {offer.credit_amounts.length > 0 && (
                                     <fieldset className="space-y-1.5">
-                                        <legend className="text-sm font-medium mb-1">Credit only</legend>
+                                        <legend className="ws-label">Credit only</legend>
                                         <div className="flex flex-wrap gap-2">
                                             {offer.credit_amounts.map((a) => (
                                                 <label key={a} className={option}>
@@ -238,55 +238,55 @@ export default function MeisimLineTopupPanel({ preset, onDone, onBusyChange }: {
                                             ))}
                                         </div>
                                         {offer.plans.length > 0 && (
-                                            <p className="text-xs text-muted-foreground">Credit without a plan is used at the carrier's pay-as-you-go rate.</p>
+                                            <p className="text-xs ws-muted">Credit without a plan is used at the carrier's pay-as-you-go rate.</p>
                                         )}
                                     </fieldset>
                                 )}
                                 {offer.plans.length === 0 && offer.credit_amounts.length === 0 && (
-                                    <p className="text-sm text-destructive">MeiSIM offered no plans or amounts for this line.</p>
+                                    <p className="text-xs ws-bad">MeiSIM offered no plans or amounts for this line.</p>
                                 )}
                                 {choice?.kind === "plan" && (
                                     <div className="space-y-1.5">
-                                        <label htmlFor="recharge-value" className="text-sm font-medium">Amount sent with the plan (topUpValue)</label>
+                                        <label htmlFor="recharge-value" className="ws-label">Amount sent with the plan (topUpValue)</label>
                                         <input id="recharge-value" type="number" min={0} step="0.01" value={value}
                                             onChange={(e) => setValue(e.target.value)} className={inputClass} />
                                     </div>
                                 )}
-                                <details className="text-xs text-muted-foreground">
+                                <details className="text-xs ws-muted">
                                     <summary className="cursor-pointer">MeiSIM's answer</summary>
-                                    <pre className="mt-1 max-h-40 overflow-auto rounded bg-muted/50 p-2">{JSON.stringify(offer.raw, null, 2)}</pre>
+                                    <pre className="ws-code mt-2">{JSON.stringify(offer.raw, null, 2)}</pre>
                                 </details>
                             </div>
                         )}
 
                         {outcome && (
-                            <p role="status" className={`text-sm ${outcome.ok ? "text-green-600" : "text-destructive"}`}>{outcome.message}</p>
+                            <p role="status" className={`text-xs ${outcome.ok ? "ws-good" : "ws-bad"}`}>{outcome.message}</p>
                         )}
                     </div>
                 ) : (
                     <div className="space-y-3">
                         <div className="space-y-1.5">
-                            <label htmlFor="recharge-bulk" className="text-sm font-medium">One line per row: carrier, phone or ICCID, amount, plan code (optional)</label>
+                            <label htmlFor="recharge-bulk" className="ws-label">One line per row: carrier, phone or ICCID, amount, plan code (optional)</label>
                             <textarea id="recharge-bulk" rows={5} value={bulkText} disabled={busy}
                                 onChange={(e) => { setBulkText(e.target.value); setRows([]); }}
                                 placeholder={"O2-UK, +447700900123, 10\nATT-US, 3055550123, 25, ATT-25"}
                                 className={`${inputClass} font-mono resize-y`} />
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs ws-muted">
                                 Each line is checked with MeiSIM first. No plan code means plain credit, which must be one of the line's credit amounts.
                             </p>
                             {badRows > 0 && (
-                                <p className="text-xs text-destructive" role="alert">{badRows} row{badRows === 1 ? "" : "s"} missing a carrier, line or amount</p>
+                                <p className="text-xs ws-bad" role="alert">{badRows} row{badRows === 1 ? "" : "s"} missing a carrier, line or amount</p>
                             )}
                         </div>
                         {rows.length > 0 && (
-                            <ul className="divide-y divide-border rounded-lg border border-border text-xs" aria-live="polite">
+                            <ul className="ws-list text-[11px]" aria-live="polite">
                                 {rows.map((r, i) => (
-                                    <li key={i} className="px-3 py-2">
+                                    <li key={i} className="!block">
                                         <div className="flex justify-between gap-2 font-mono">
                                             <span>{r.line} · {r.network}</span>
                                             <span>{r.plan_code ? `${r.plan_code} (${r.value})` : `${r.value} credit`}</span>
                                         </div>
-                                        <p className={r.status === "applied" ? "text-green-600" : r.status && r.status !== "running" ? "text-destructive" : "text-muted-foreground"}>
+                                        <p className={r.status === "applied" ? "ws-good" : r.status && r.status !== "running" ? "ws-bad" : "ws-muted"}>
                                             {r.status ? STATUS[r.status] : "Waiting"}{r.message && r.status !== "applied" ? `: ${r.message}` : ""}
                                         </p>
                                     </li>
@@ -300,18 +300,18 @@ export default function MeisimLineTopupPanel({ preset, onDone, onBusyChange }: {
                     {mode === "one" ? (
                         !offer ? (
                             <button onClick={check} disabled={busy || !network.trim() || !line.trim()}
-                                className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                                className="ws-button w-full" data-variant="primary">
                                 {busy ? "Checking…" : "Check line"}
                             </button>
                         ) : (
                             <button onClick={recharge} disabled={busy || !choice || !(Number(value) > 0) || outcome?.ok}
-                                className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                                className="ws-button w-full" data-variant="primary">
                                 {busy ? "Recharging…" : "Recharge"}
                             </button>
                         )
                     ) : (
                         <button onClick={runBulk} disabled={busy || parsed.length === 0 || badRows > 0}
-                            className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                            className="ws-button w-full" data-variant="primary">
                             {busy ? "Recharging…" : `Recharge ${parsed.length || ""} line${parsed.length === 1 ? "" : "s"}`}
                         </button>
                     )}

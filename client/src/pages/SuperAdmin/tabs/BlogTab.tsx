@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { PencilIcon, TrashIcon, PlusIcon, EyeIcon, EyeSlashIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { required, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
@@ -103,16 +104,12 @@ export default function BlogTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Blog CMS</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{posts.length} posts</p>
-                </div>
-                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
-                    <PlusIcon className="h-4 w-4" /> New Post
-                </Button>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Blog"
+                description={`${posts.length} posts.`}
+                actions={<Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}><PlusIcon aria-hidden="true" />New post</Button>}
+            />
 
             <DataTable
                 columns={columns}
@@ -123,19 +120,19 @@ export default function BlogTab() {
                 emptyMessage={<EmptyState icon={DocumentTextIcon} title="No blog posts" description="Create your first post to get started." action={{ label: "New Post", onClick: () => setShowCreate(true) }} />}
                 actions={(row: BlogRow) => (
                     <>
-                        <button onClick={() => openEdit(row)} aria-label="Edit post" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                        <button onClick={() => openEdit(row)} aria-label="Edit post" className="ws-icon-button">
                             <PencilIcon className="h-4 w-4" />
                         </button>
                         {row.published ? (
-                            <button onClick={() => unpublishPost.mutate(row.slug)} aria-label="Unpublish post" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10">
+                            <button onClick={() => unpublishPost.mutate(row.slug)} aria-label="Unpublish post" className="ws-icon-button">
                                 <EyeSlashIcon className="h-4 w-4" />
                             </button>
                         ) : (
-                            <button onClick={() => publishPost.mutate(row.slug)} aria-label="Publish post" className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10">
+                            <button onClick={() => publishPost.mutate(row.slug)} aria-label="Publish post" className="ws-icon-button">
                                 <EyeIcon className="h-4 w-4" />
                             </button>
                         )}
-                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete post" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete post" className="ws-icon-button">
                             <TrashIcon className="h-4 w-4" />
                         </button>
                     </>

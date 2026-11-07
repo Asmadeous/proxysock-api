@@ -10,16 +10,13 @@ import MeisimVerifyHistory from "../components/MeisimVerifyHistory";
 import MeisimLineTopupPanel from "../components/MeisimLineTopupPanel";
 import MeisimLineTopupHistory from "../components/MeisimLineTopupHistory";
 import EsimTopupQueue from "../components/EsimTopupQueue";
+import PageHeader from "../components/PageHeader";
 
 function Section({ icon, title, description, children }: { icon: ReactNode; title: string; description: string; children: ReactNode }) {
     return (
-        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
-            <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-violet-500/10 text-violet-500">{icon}</div>
-                <div>
-                    <h2 className="font-semibold text-foreground">{title}</h2>
-                    <p className="text-xs text-muted-foreground">{description}</p>
-                </div>
+        <section className="ws-panel space-y-4">
+            <div className="ws-panel-heading" style={{ marginBottom: 0 }}>
+                <div><h2 className="flex items-center gap-2"><span className="text-[var(--ov-accent)] [&>svg]:h-4 [&>svg]:w-4">{icon}</span>{title}</h2><p>{description}</p></div>
             </div>
             {children}
         </section>
@@ -45,51 +42,35 @@ export default function MeisimTab() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                <div className="space-y-2">
-                    <Link to="/admin/overview" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                        <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Overview
-                    </Link>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 ring-1 ring-violet-500/20">
-                            <Smartphone className="h-6 w-6 text-violet-500" aria-hidden="true" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">MeiSIM</h1>
-                            <p className="text-sm text-muted-foreground">Phone line &amp; travel eSIM dealer account</p>
-                        </div>
-                    </div>
+        <div className="ws-stack">
+            <Link to="/admin/overview" className="proxy-back"><ArrowLeft size={14} aria-hidden="true" /> Overview</Link>
+            <PageHeader
+                title="MeiSIM"
+                description="Phone line and travel eSIM dealer account."
+                actions={<button type="button" onClick={() => refetch()} aria-label="Refresh balance" className="ws-icon-button"><RefreshCw className={isFetching ? "animate-spin" : ""} aria-hidden="true" /></button>}
+            />
+
+            <div className="overview-metrics" style={{ marginBottom: 0 }}>
+                <div className="overview-metric">
+                    <span>Wallet balance<Wallet size={16} aria-hidden="true" /></span>
+                    {isLoading ? <span className="overview-skeleton" style={{ margin: "13px 0 8px" }} /> : <strong className={meisim?.error ? "ws-bad" : ""}>{meisim?.error ? "Connection failed" : usd(meisim?.balance)}</strong>}
                 </div>
-                <div className="flex items-center gap-6">
-                    <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Wallet balance</p>
-                        <p className="text-2xl font-bold text-foreground tabular-nums">
-                            {isLoading ? "…" : meisim?.error ? "Connection failed" : usd(meisim?.balance)}
-                        </p>
-                    </div>
-                    {meisim?.markup_pct != null && (
-                        <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Dealer markup</p>
-                            <p className="text-2xl font-bold text-foreground tabular-nums">{meisim.markup_pct}%</p>
-                        </div>
-                    )}
-                    <button onClick={() => refetch()} aria-label="Refresh balance" className="p-2 rounded-lg border border-border hover:bg-muted">
-                        <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} aria-hidden="true" />
-                    </button>
+                <div className="overview-metric">
+                    <span>Dealer markup<Smartphone size={16} aria-hidden="true" /></span>
+                    {isLoading ? <span className="overview-skeleton" style={{ margin: "13px 0 8px" }} /> : <strong>{meisim?.markup_pct != null ? `${meisim.markup_pct}%` : "—"}</strong>}
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 items-start">
-                <Section icon={<Wallet className="w-5 h-5" />} title="Wallet" description="Fund the dealer wallet by card and download its statement.">
+            <div className="grid items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                <Section icon={<Wallet />} title="Wallet" description="Fund the dealer wallet by card and download its statement.">
                     <MeisimWalletPanel />
                 </Section>
-                <Section icon={<ShieldCheck className="w-5 h-5" />} title="Verify eSIMs"
+                <Section icon={<ShieldCheck />} title="Verify eSIMs"
                     description="Checks activation codes without using them up. $1 per code from the wallet; errors are refunded.">
                     <MeisimVerifyPanel onSubmitted={() => setVerifyRuns((n) => n + 1)} />
                     <MeisimVerifyHistory refreshKey={verifyRuns} />
                 </Section>
-                <Section icon={<Zap className="w-5 h-5" />} title="Recharge lines"
+                <Section icon={<Zap />} title="Recharge lines"
                     description="MeiSIM's top-up API, paid from the wallet. One line, or many in a row.">
                     <MeisimLineTopupPanel onDone={recharged} />
                     <MeisimLineTopupHistory refreshKey={rechargeRuns} />

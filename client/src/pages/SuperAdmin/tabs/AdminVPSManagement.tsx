@@ -1,16 +1,8 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-    ServerIcon,
-    ArrowPathIcon,
-    EyeIcon,
-    EyeSlashIcon,
-    XCircleIcon,
-    TrashIcon,
-    UserIcon
-} from "@heroicons/react/24/outline";
+import { ServerIcon, ArrowPathIcon, TrashIcon, PlayIcon, StopIcon } from "@heroicons/react/24/outline";
+import ServiceCard, { ServiceGrid } from "../components/ServiceCard";
 import { fetchAdminVms, startAdminVm, stopAdminVm, rebootAdminVm, deleteAdminVm } from "@/services/adminApi";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import ManagementFilters from "../components/ManagementFilters";
 
 interface VPSInstance {
@@ -41,7 +33,6 @@ export default function AdminVPSManagement() {
     const [instances, setInstances] = useState<VPSInstance[]>([]);
     const [loading, setLoading] = useState(true);
     const [userType, setUserType] = useState(""); // "" | "User" | "Reseller"
-    const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
     const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
 
     useEffect(() => {
@@ -83,79 +74,43 @@ export default function AdminVPSManagement() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center animate-pulse text-muted-foreground">Loading VPS Instances...</div>;
+
+    const fmt = (v?: string) => (v ? new Date(v).toLocaleDateString() : "—");
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div className="ws-toolbar">
                 <ManagementFilters entityType={userType} onEntityTypeChange={setUserType} />
+                <button type="button" onClick={loadInstances} disabled={loading} aria-label="Refresh" className="ws-icon-button"><ArrowPathIcon className={loading ? "animate-spin" : ""} /></button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {instances.map((vps) => (
-                    <motion.div key={vps.id} className="bg-card rounded-xl border border-border p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500"><ServerIcon className="w-6 h-6" /></div>
-                                <div>
-                                    <h3 className="font-bold text-foreground truncate max-w-[150px]">{vps.hostname || `VPS-${vps.vm_id}`}</h3>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <UserIcon className="w-3 h-3 text-muted-foreground" />
-                                        <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{vps.user_email}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                                vps.status === 'active' ? 'bg-green-500/10 text-green-500' : 
-                                vps.status === 'failed' ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'
-                            }`}>{vps.status}</div>
-                        </div>
-
-                        <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm font-mono">
-                            <div className="flex justify-between gap-2">
-                                <span className="text-muted-foreground">Host:</span>
-                                <span className="text-foreground truncate">{vps.host || vps.ip_address || 'Allocating...'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">{vps.protocol === 'rdp' ? 'RDP port:' : 'SSH port:'}</span>
-                                <span className="text-foreground">{vps.port ?? '—'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">User:</span>
-                                <span className="text-foreground">{vps.username || 'root'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Pass:</span>
-                                <span className="text-foreground">{showPassword[vps.id] ? vps.password : '••••••••'}</span>
-                                <button onClick={() => setShowPassword(p => ({ ...p, [vps.id]: !p[vps.id] }))} className="text-muted-foreground hover:text-foreground">
-                                    {showPassword[vps.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-2">
-                            <button onClick={() => handleAction(vps.id, 'start')} disabled={refreshing[vps.id]} className="p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-50" title="Start">
-                                <ArrowPathIcon className={`w-4 h-4 mx-auto ${refreshing[vps.id] ? 'animate-spin' : ''}`} />
-                            </button>
-                            <button onClick={() => handleAction(vps.id, 'stop')} disabled={refreshing[vps.id]} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50" title="Stop">
-                                <XCircleIcon className="w-4 h-4 mx-auto" />
-                            </button>
-                            <button onClick={() => handleAction(vps.id, 'reboot')} disabled={refreshing[vps.id]} className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors disabled:opacity-50" title="Reboot">
-                                <ArrowPathIcon className="w-4 h-4 mx-auto" />
-                            </button>
-                            <button onClick={() => handleAction(vps.id, 'delete')} disabled={refreshing[vps.id]} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50" title="Delete">
-                                <TrashIcon className="w-4 h-4 mx-auto" />
-                            </button>
-                        </div>
-                    </motion.div>
+            <ServiceGrid loading={loading} empty={instances.length === 0} emptyIcon={ServerIcon}>
+                {instances.map((vm) => (
+                    <ServiceCard
+                        key={vm.id}
+                        icon={ServerIcon}
+                        kind="VPS"
+                        status={vm.status}
+                        title={vm.hostname || `VPS-${vm.vm_id}`}
+                        subtitle={[vm.user_email, vm.plan_name].filter(Boolean).join(" · ")}
+                        facts={[
+                            { label: "Host", value: (vm.host || vm.ip_address || ""), copy: (vm.host || vm.ip_address || "") || undefined },
+                            { label: "Port", value: (vm.port ?? "—") + (vm.protocol ? ` (${vm.protocol.toUpperCase()})` : "") },
+                            { label: "Username", value: (vm.username || "root"), copy: (vm.username || "root") },
+                            { label: "Password", value: vm.password || "—", copy: vm.password || undefined, secret: Boolean(vm.password) },
+                            { label: "Resources", value: `${vm.cpu_cores} vCPU · ${vm.ram_gb} GB · ${vm.storage_gb} GB` },
+                            { label: "Expires", value: fmt(vm.expires_at) },
+                        ]}
+                        actions={
+                            <>
+                                <button type="button" onClick={() => handleAction(vm.id, "start")} disabled={refreshing[vm.id]}><PlayIcon className="h-3.5 w-3.5" /> Start</button>
+                                <button type="button" onClick={() => handleAction(vm.id, "stop")} disabled={refreshing[vm.id]}><StopIcon className="h-3.5 w-3.5" /> Stop</button>
+                                <button type="button" onClick={() => handleAction(vm.id, "reboot")} disabled={refreshing[vm.id]}><ArrowPathIcon className={`h-3.5 w-3.5 ${refreshing[vm.id] ? "animate-spin" : ""}`} /> Reboot</button>
+                                <button type="button" onClick={() => handleAction(vm.id, "delete")} disabled={refreshing[vm.id]}><TrashIcon className="h-3.5 w-3.5" /> Delete</button>
+                            </>
+                        }
+                    />
                 ))}
-            </div>
-            {instances.length === 0 && (
-                <div className="text-center py-20 bg-card rounded-2xl border border-border border-dashed">
-                    <ServerIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No VPS instances found.</p>
-                </div>
-            )}
+            </ServiceGrid>
         </div>
     );
 }

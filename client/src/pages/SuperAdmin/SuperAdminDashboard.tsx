@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useThemeStore } from "@/store/themeStore";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   HomeIcon,
@@ -311,8 +312,10 @@ export default function SuperAdminDashboard() {
     navigate(`${prefix}/${id}`);
   };
 
+  const dark = useThemeStore(state => state.dark);
+
   return (
-    <div className="min-h-screen flex">
+    <div className={`workspace-theme landing-theme min-h-screen flex ${dark ? "dark" : ""}`}>
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
@@ -335,12 +338,14 @@ export default function SuperAdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <div data-page-scroll className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
-          <AdminErrorBoundary>
-            <Suspense fallback={<TabLoader />}>
-              <ActiveComponent />
-            </Suspense>
-          </AdminErrorBoundary>
+        <div data-page-scroll className="h-screen overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-6 max-lg:pt-20 custom-scrollbar">
+          <div className={`dashboard-overview ws-page ${dark ? "overview-dark" : ""}`}>
+            <AdminErrorBoundary>
+              <Suspense fallback={<TabLoader />}>
+                <ActiveComponent />
+              </Suspense>
+            </AdminErrorBoundary>
+          </div>
         </div>
       </main>
     </div>

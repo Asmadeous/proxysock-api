@@ -6,7 +6,7 @@ import { createMeisimTopup, downloadMeisimStatement, previewMeisimTopup } from "
 const apiError = (error: unknown, fallback: string) =>
     (error as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
 
-const inputClass = "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm";
+const inputClass = "ws-input";
 
 // Fund the MeiSIM wallet through MeiSIM's Stripe checkout ($50-$10,000), and download its
 // statement. Nothing is charged until the admin pays on Stripe.
@@ -60,23 +60,23 @@ export default function MeisimWalletPanel() {
     return (
         <div className="space-y-4">
             <div className="space-y-1.5">
-                <label htmlFor="meisim-topup" className="text-sm font-medium">Top up amount (USD)</label>
+                <label htmlFor="meisim-topup" className="ws-label">Top up amount (USD)</label>
                 <div className="flex gap-2">
                     <input id="meisim-topup" type="number" min={50} max={10000} value={amount}
                         onChange={(e) => { setAmount(e.target.value); setFee(null); }} className={inputClass} />
                     <button onClick={preview} disabled={!valid || busy}
-                        className="px-3 rounded-lg border border-border text-sm disabled:opacity-50">Fee</button>
+                        className="ws-button" data-variant="secondary">Fee</button>
                 </div>
-                <p className={`text-xs ${valid ? "text-muted-foreground" : "text-destructive"}`}>
+                <p className={`text-xs ${valid ? "ws-muted" : "ws-bad"}`}>
                     {!valid ? "Between $50 and $10,000" : fee != null ? `Card fee $${fee.toFixed(2)} · total $${(value + fee).toFixed(2)}` : "$50 – $10,000, paid by card on MeiSIM's Stripe checkout"}
                 </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
                 <button onClick={pay} disabled={!valid || busy}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                    className="ws-button" data-variant="primary">
                     Pay with card
                 </button>
-                <button onClick={statement} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm hover:bg-muted">
+                <button onClick={statement} className="ws-button" data-variant="secondary">
                     <Download className="w-4 h-4" aria-hidden="true" /> Statement (CSV, last 90 days)
                 </button>
             </div>

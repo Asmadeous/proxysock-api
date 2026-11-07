@@ -44,31 +44,31 @@ export default function ResApiKeys() {
         <>
         <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center border border-blue-600/20">
-                    <Key className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 rounded bg-[var(--ov-wash)] flex items-center justify-center border border-[var(--ov-line)]">
+                    <Key className="w-6 h-6 ws-info" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight text-foreground font-inter">API Management</h2>
+                    <h2 className="text-3xl font-medium tracking-tight text-foreground font-inter">API Management</h2>
                     <p className="text-muted-foreground font-medium">Configure and manage your secure access credentials</p>
                 </div>
             </div>
 
             <div className="grid gap-6">
                 {/* Credentials Card */}
-                <div className="relative group overflow-hidden bg-card rounded-[2rem] border border-border/50 shadow-xl shadow-blue-500/5">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+                <div className="relative group overflow-hidden bg-[var(--ov-panel)] rounded border border-border/50 ">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--ov-wash)] rounded-full -mr-32 -mt-32 blur-3xl" />
                     
                     <div className="relative p-8 space-y-8">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600/70">
+                                <label className="text-[10px] font-medium uppercase tracking-[0.2em] ws-info">
                                     {isEnterprise ? "Enterprise Integration" : "Programmatic Access"}
                                 </label>
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-xl font-bold tracking-tight">
+                                    <h3 className="text-xl font-medium tracking-tight">
                                         {isEnterprise ? "Dedicated Environment" : "API Only Credentials"}
                                     </h3>
-                                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                    <ShieldCheck className="w-5 h-5 ws-good" />
                                 </div>
                             </div>
                             {isEnterprise && (
@@ -77,7 +77,7 @@ export default function ResApiKeys() {
                                     size="sm"
                                     onClick={() => setShowRotateConfirm(true)}
                                     disabled={isRotating}
-                                    className="rounded-xl border-blue-600/20 hover:bg-blue-600/5 text-blue-600 font-bold px-4 py-5"
+                                    className="rounded border-[var(--ov-line)] hover:bg-[var(--ov-wash)] ws-info font-medium px-4 py-5"
                                 >
                                     <RefreshCw className={`w-4 h-4 mr-2 ${isRotating ? 'animate-spin' : ''}`} />
                                     Rotate Key
@@ -89,19 +89,19 @@ export default function ResApiKeys() {
                             {/* Username (API Only) */}
                             {!isEnterprise && (
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-muted-foreground px-1">API Username</label>
+                                    <label className="text-xs font-medium text-muted-foreground px-1">API Username</label>
                                     <div className="relative">
                                         <Input
                                             value={username}
                                             readOnly
-                                            className="h-14 rounded-2xl bg-muted/30 border-none ring-1 ring-border/50 font-mono pr-20"
+                                            className="h-14 rounded bg-[var(--ov-wash)] border-none ring-1 ring-border/50 font-mono pr-20"
                                         />
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => copyToClipboard(username)}
                                             aria-label="Copy username"
-                                            className="absolute right-2 top-2 bottom-2 rounded-xl hover:bg-background"
+                                            className="absolute right-2 top-2 bottom-2 rounded hover:bg-background"
                                         >
                                             <Copy className="w-4 h-4" />
                                         </Button>
@@ -111,7 +111,7 @@ export default function ResApiKeys() {
 
                             {/* API Key */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-muted-foreground px-1">
+                                <label className="text-xs font-medium text-muted-foreground px-1">
                                     {isEnterprise ? "Dedicated API Key" : "Permanent API Key"}
                                 </label>
                                 <div className="relative">
@@ -119,7 +119,7 @@ export default function ResApiKeys() {
                                         type={showKey ? "text" : "password"}
                                         readOnly
                                         value={apiKey || "Not Generated"}
-                                        className="h-16 rounded-2xl bg-muted/40 border-none ring-1 ring-border/50 focus-visible:ring-2 focus-visible:ring-blue-600 font-mono text-lg pr-32 font-medium"
+                                        className="h-16 rounded bg-[var(--ov-wash)] border-none ring-1 ring-border/50 focus-visible:ring-2 focus-visible:ring-blue-600 font-mono text-lg pr-32 font-medium"
                                     />
                                     <div className="absolute right-2 top-2 bottom-2 flex items-center gap-1">
                                         <Button
@@ -127,7 +127,7 @@ export default function ResApiKeys() {
                                             size="icon"
                                             onClick={() => setShowKey(!showKey)}
                                             aria-label={showKey ? "Hide API key" : "Show API key"}
-                                            className="h-full px-4 rounded-xl hover:bg-background shadow-none"
+                                            className="h-full px-4 rounded hover:bg-background shadow-none"
                                         >
                                             {showKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </Button>
@@ -136,7 +136,7 @@ export default function ResApiKeys() {
                                             size="icon"
                                             onClick={() => copyToClipboard(apiKey)}
                                             aria-label="Copy API key"
-                                            className="h-full px-4 rounded-xl hover:bg-background shadow-none"
+                                            className="h-full px-4 rounded hover:bg-background shadow-none"
                                         >
                                             <Copy className="w-5 h-5" />
                                         </Button>
@@ -145,8 +145,8 @@ export default function ResApiKeys() {
                             </div>
 
                             {!isEnterprise && (
-                                <div className="p-4 bg-blue-600/5 rounded-2xl border border-blue-600/10">
-                                    <div className="flex items-center gap-2 text-blue-600 font-bold mb-1">
+                                <div className="p-4 bg-[var(--ov-wash)] rounded border border-[var(--ov-line)]">
+                                    <div className="flex items-center gap-2 ws-info font-medium mb-1">
                                         <RefreshCw className="w-4 h-4" />
                                         <p className="text-sm">Rotational Token System</p>
                                     </div>
@@ -168,11 +168,11 @@ export default function ResApiKeys() {
 
                 {/* Information Grid */}
                 <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="p-6 bg-card rounded-3xl border border-border/50 space-y-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-600/10 flex items-center justify-center border border-orange-600/20">
-                            <ShieldCheck className="w-5 h-5 text-orange-600" />
+                    <div className="p-6 bg-[var(--ov-panel)] rounded border border-border/50 space-y-3">
+                        <div className="w-10 h-10 rounded bg-[var(--ov-wash)] flex items-center justify-center border border-[var(--ov-line)]">
+                            <ShieldCheck className="w-5 h-5 ws-wait" />
                         </div>
-                        <h4 className="font-bold tracking-tight">Security Protocol</h4>
+                        <h4 className="font-medium tracking-tight">Security Protocol</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                             {isEnterprise 
                                 ? "Infrastructure partners use dedicated keys for direct backend service access. Keep this key confidential."
@@ -180,11 +180,11 @@ export default function ResApiKeys() {
                         </p>
                     </div>
                     
-                    <div className="p-6 bg-card rounded-3xl border border-border/50 space-y-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-600/10 flex items-center justify-center border border-purple-600/20">
-                            <Code className="w-5 h-5 text-purple-600" />
+                    <div className="p-6 bg-[var(--ov-panel)] rounded border border-border/50 space-y-3">
+                        <div className="w-10 h-10 rounded bg-[var(--ov-wash)] flex items-center justify-center border border-[var(--ov-line)]">
+                            <Code className="w-5 h-5 ws-info" />
                         </div>
-                        <h4 className="font-bold tracking-tight">Authorization Format</h4>
+                        <h4 className="font-medium tracking-tight">Authorization Format</h4>
                         <p className="text-xs font-mono text-muted-foreground leading-relaxed">
                             {isEnterprise 
                                 ? "Authorization: Key {dedicated_api_key}" 

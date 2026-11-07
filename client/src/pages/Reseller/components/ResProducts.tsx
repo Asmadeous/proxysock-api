@@ -144,7 +144,7 @@ export default function ResProducts({ type }: ResProductsProps) {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Products</h2>
+            <h2 className="text-2xl font-medium text-foreground">Products</h2>
             <DataTable
                 columns={[
                     { key: "name", label: "Product" },
@@ -162,7 +162,7 @@ export default function ResProducts({ type }: ResProductsProps) {
                                             setSelectedProduct(r);
                                             setIsBuyModalOpen(true);
                                         }}
-                                        className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                                        className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition-colors"
                                     >
                                         <Zap className="w-3.5 h-3.5" />
                                         Buy Now
@@ -183,31 +183,31 @@ export default function ResProducts({ type }: ResProductsProps) {
 
             {/* Buy Now Confirmation Dialog */}
             <Dialog open={isBuyModalOpen} onOpenChange={setIsBuyModalOpen}>
-                <DialogContent className="rounded-3xl border-none shadow-2xl sm:max-w-md">
+                <DialogContent className="rounded border-none sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black tracking-tight">Confirm Purchase</DialogTitle>
+                        <DialogTitle className="text-2xl font-medium tracking-tight">Confirm Purchase</DialogTitle>
                         <DialogDescription className="font-medium text-muted-foreground">
                             You are about to purchase <strong>{selectedProduct?.name}</strong> using your available credits.
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="py-6 space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+                        <div className="flex items-center justify-between p-4 bg-[var(--ov-wash)] rounded border border-border/50">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-xl text-primary"><Zap className="w-5 h-5" /></div>
+                                <div className="p-2 bg-[var(--ov-wash)] rounded text-primary"><Zap className="w-5 h-5" /></div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Price</p>
-                                    <p className="text-xl font-black">${Number(selectedProduct?.base_price || 0).toFixed(2)}</p>
+                                    <p className="text-[10px] font-medium uppercase text-muted-foreground tracking-widest">Price</p>
+                                    <p className="text-xl font-medium">${Number(selectedProduct?.base_price || 0).toFixed(2)}</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Remaining Credits</p>
-                                <p className="text-xl font-black">${(balance - Number(selectedProduct?.base_price || 0)).toFixed(2)}</p>
+                                <p className="text-[10px] font-medium uppercase text-muted-foreground tracking-widest">Remaining Credits</p>
+                                <p className="text-xl font-medium">${(balance - Number(selectedProduct?.base_price || 0)).toFixed(2)}</p>
                             </div>
                         </div>
 
                         {balance < Number(selectedProduct?.base_price || 0) && (
-                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-red-600 text-xs font-bold">
+                            <div className="p-3 bg-[var(--ov-wash)] border border-[var(--ov-line)] rounded flex items-center gap-2 ws-bad text-xs font-medium">
                                 <CreditCard className="w-4 h-4" />
                                 <span>Insufficient balance. Please add credits to your wallet.</span>
                             </div>
@@ -215,11 +215,11 @@ export default function ResProducts({ type }: ResProductsProps) {
                     </div>
 
                     <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="ghost" onClick={() => setIsBuyModalOpen(false)} className="rounded-2xl font-bold py-6">Cancel</Button>
+                        <Button variant="ghost" onClick={() => setIsBuyModalOpen(false)} className="rounded font-medium py-6">Cancel</Button>
                         <Button
                             onClick={handleBuyNow}
                             disabled={isBuying || balance < Number(selectedProduct?.base_price || 0)}
-                            className="rounded-2xl font-black py-6 px-8 bg-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                            className="rounded font-medium py-6 px-8 bg-primary hover:scale-[1.02] transition-transform"
                         >
                             {isBuying ? "Processing..." : "Confirm & Pay"}
                         </Button>
@@ -229,9 +229,9 @@ export default function ResProducts({ type }: ResProductsProps) {
 
             {/* Enterprise Customer Email Modal */}
             <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
-                <DialogContent className="rounded-3xl border-none shadow-2xl sm:max-w-md">
+                <DialogContent className="rounded border-none sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black tracking-tight text-blue-600 font-inter">Customer Delivery</DialogTitle>
+                        <DialogTitle className="text-2xl font-medium tracking-tight ws-info font-inter">Customer Delivery</DialogTitle>
                         <DialogDescription className="font-medium text-muted-foreground">
                             Enter the customer email where credentials and notifications should be sent for <strong>{selectedProduct?.name}</strong>.
                         </DialogDescription>
@@ -239,7 +239,7 @@ export default function ResProducts({ type }: ResProductsProps) {
                     
                     <div className="py-6 space-y-4">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Customer Email Address</label>
+                            <label className="text-[10px] font-medium uppercase text-muted-foreground tracking-widest ml-1">Customer Email Address</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-blue-500 transition-colors">
                                     <Mail className="w-5 h-5" />
@@ -249,15 +249,15 @@ export default function ResProducts({ type }: ResProductsProps) {
                                     value={customerEmail}
                                     onChange={(e) => setCustomerEmail(e.target.value)}
                                     placeholder="customer@example.com"
-                                    className="pl-12 py-7 rounded-2xl bg-muted/40 border-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-blue-500 transition-all font-medium text-lg"
+                                    className="pl-12 py-7 rounded bg-[var(--ov-wash)] border-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-blue-500 transition-all font-medium text-lg"
                                 />
                             </div>
                         </div>
 
-                        <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10 space-y-2">
-                            <div className="flex items-center gap-2 text-blue-600">
+                        <div className="p-4 bg-[var(--ov-wash)] rounded border border-[var(--ov-line)] space-y-2">
+                            <div className="flex items-center gap-2 ws-info">
                                 <AlertCircle className="w-4 h-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest">Enterprise Protocol</p>
+                                <p className="text-[10px] font-medium uppercase tracking-widest">Enterprise Protocol</p>
                             </div>
                             <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                                 The system will automatically provision the service and send unique access credentials to this email upon payment.
@@ -266,11 +266,11 @@ export default function ResProducts({ type }: ResProductsProps) {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowEmailModal(false)} className="rounded-2xl font-bold py-6 px-6">Cancel</Button>
+                        <Button variant="ghost" onClick={() => setShowEmailModal(false)} className="rounded font-medium py-6 px-6">Cancel</Button>
                         <Button
                             onClick={handleEnterpriseOrder}
                             disabled={!customerEmail.trim()}
-                            className="rounded-2xl font-black py-7 px-10 bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            className="rounded font-medium py-7 px-10 bg-blue-600 hover:bg-blue-700 text-white hover:scale-[1.02] active:scale-[0.98] transition-all"
                         >
                             Proceed to Checkout
                         </Button>

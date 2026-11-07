@@ -37,3 +37,16 @@ it('retains the cart when the server rejects a promo checkout', async () => {
   expect(options.clearCart).not.toHaveBeenCalled();
   expect(options.onSuccess).not.toHaveBeenCalled();
 });
+it('sends a Bachs cart checkout and keeps the cart until payment returns', async () => {
+  vi.mocked(api.post).mockResolvedValue({ data: { payment_url: 'https://checkout.bachs.io/c/1' } });
+  const location = { href: '', origin: 'http://localhost' };
+  vi.stubGlobal('location', location);
+  const options = { ...props(), setIsLoadingBachs: vi.fn() };
+  const { result } = renderHook(() => usePaymentCheckoutHandlers(options));
+  await act(async () => result.current.handleBachsCheckout());
+  expect(api.post).toHaveBeenCalledWith('/web/api/orders/checkout_cart', expect.objectContaining({ payment_method: 'gateway', gateway: 'bachs' }));
+  expect(location.href).toBe('https://checkout.bachs.io/c/1');
+  expect(options.setIsLoadingBachs).toHaveBeenLastCalledWith(false);
+  expect(options.clearCart).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});

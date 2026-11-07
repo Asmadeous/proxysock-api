@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { ChatBubbleLeftRightIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
@@ -66,22 +67,12 @@ export default function TicketsTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div>
-                <h2 className="text-2xl font-bold text-foreground">Tickets</h2>
-                <p className="text-sm text-muted-foreground mt-1">{tickets.length} tickets</p>
-            </div>
+        <div className="ws-stack">
+            <PageHeader title="Tickets" description={`${tickets.length} support tickets.`} />
 
-            {/* Status filter tabs */}
-            <div className="flex gap-2">
+            <div className="ws-tabs" role="group" aria-label="Ticket status">
                 {STATUS_TABS.map(({ key, label }) => (
-                    <button
-                        key={key}
-                        onClick={() => setStatusFilter(key)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                    >
-                        {label}
-                    </button>
+                    <button type="button" key={key} aria-pressed={statusFilter === key} onClick={() => setStatusFilter(key)}>{label}</button>
                 ))}
             </div>
 
@@ -94,12 +85,12 @@ export default function TicketsTab() {
                     <div className="flex gap-2">
                         <button
                             onClick={() => { setReplyTarget(row); setReplyMsg(""); }}
-                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                            className="ws-button" data-variant="secondary" data-size="sm"
                         >
                             <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" /> Reply
                         </button>
                         {row.status !== "closed" && row.status !== "resolved" && (
-                            <button onClick={() => handleCloseTicket(row)} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                            <button onClick={() => handleCloseTicket(row)} className="ws-button" data-variant="danger" data-size="sm">
                                 <XCircleIcon className="h-3.5 w-3.5" /> Close
                             </button>
                         )}

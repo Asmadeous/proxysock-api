@@ -48,6 +48,15 @@ it('shows the actual gateway quote before redirecting and does not claim payment
   expect(screen.getByText(/credited after payment is confirmed/)).toBeInTheDocument();
   expect(screen.queryByText('Deposit successful')).not.toBeInTheDocument();
 });
+it('creates a Bachs deposit when Bachs is chosen', async () => {
+  vi.mocked(api.post).mockResolvedValueOnce({ ...http, data: { payment_url: 'https://checkout.bachs.io/c/1', payment_amount: '20', payment_currency: 'USD', transaction_ref: 'DEP9' } });
+  show();
+  fireEvent.change(screen.getByLabelText('Amount (USD)'), { target: { value: '20' } });
+  fireEvent.click(screen.getByRole('radio', { name: /Bachs/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Continue$/ }));
+  expect(await screen.findByRole('link', { name: 'Continue to Bachs' })).toHaveAttribute('href', 'https://checkout.bachs.io/c/1');
+  expect(api.post).toHaveBeenCalledWith('/web/api/wallet/deposit', { amount: 20, gateway: 'bachs', currency: 'USD' });
+});
 it('submits the chosen crypto provider and prevents duplicate requests', async () => {
   let finish!: (value: unknown) => void;
   vi.mocked(api.post).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));

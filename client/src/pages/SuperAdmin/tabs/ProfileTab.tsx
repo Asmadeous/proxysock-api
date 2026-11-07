@@ -1,16 +1,15 @@
-import { useState, useRef, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import {
-    UserCircleIcon,
     EnvelopeIcon,
     KeyIcon,
     CameraIcon,
     CheckCircleIcon,
-    ShieldCheckIcon,
     CalendarDaysIcon,
     BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { Field, inputClasses } from "../components/FormModal";
 import Button from "../components/Button";
+import PageHeader from "../components/PageHeader";
 import { useAdminProfile, useUpdateAdminProfile } from "../queries/profile.queries";
 import { formatImageUrl } from "../../../services/api";
 
@@ -41,17 +40,18 @@ export default function ProfileTab() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-    // Sync form with loaded profile
-    const syncedRef = useRef(false);
-    if (profile && !syncedRef.current) {
-        syncedRef.current = true;
+    // Fill the form once the profile loads (and again if it changes after a save).
+    useEffect(() => {
+        if (!profile) return;
         setInfoForm({
             first_name: profile.first_name || "",
             last_name: profile.last_name || "",
             email: profile.email || "",
             current_password_for_email: "",
         });
-    }
+        setInfoDirty(false);
+        setEmailChanging(false);
+    }, [profile]);
 
     const handleInfoChange = (field: string, value: string) => {
         setInfoForm((prev) => ({ ...prev, [field]: value }));
@@ -90,7 +90,6 @@ export default function ProfileTab() {
                 setInfoDirty(false);
                 setEmailChanging(false);
                 setInfoForm((prev) => ({ ...prev, current_password_for_email: "" }));
-                syncedRef.current = false;
             },
         });
     };
@@ -113,16 +112,18 @@ export default function ProfileTab() {
     };
 
     const sections = [
-        { id: "info" as const, label: "Profile Info", icon: UserCircleIcon },
-        { id: "password" as const, label: "Change Password", icon: KeyIcon },
+        { id: "info" as const, label: "Personal information" },
+        { id: "password" as const, label: "Password" },
     ];
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-foreground">My Profile</h2>
-                <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            <div className="ws-stack">
+                <PageHeader title="Profile" description="Your staff account details and password." />
+                <div className="ws-panel space-y-3" role="status" aria-label="Loading profile">
+                    <span className="ws-skeleton block" style={{ height: 48, width: 48 }} />
+                    <span className="ws-skeleton block" style={{ height: 14, maxWidth: 240 }} />
+                    <span className="ws-skeleton block" style={{ height: 12, maxWidth: 320 }} />
                 </div>
             </div>
         );
@@ -132,83 +133,40 @@ export default function ProfileTab() {
     const initials = `${(profile?.first_name || "A").charAt(0)}${(profile?.last_name || "").charAt(0)}`.toUpperCase();
 
     return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">My Profile</h2>
+        <div className="ws-stack">
+            <PageHeader title="Profile" description="Your staff account details and password." />
 
-            {/* Profile Header Card */}
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                {/* Banner gradient */}
-                <div className="h-28 bg-gradient-to-r from-primary/80 via-primary/50 to-primary/20 relative">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImEiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHBhdGggZD0iTTAgMGgyMHYyMEgweiIgZmlsbD0ibm9uZSIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wOCkiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjYSkiLz48L3N2Zz4=')] opacity-60" />
-                </div>
-
-                <div className="px-6 pb-6 -mt-14 flex flex-col sm:flex-row items-start sm:items-end gap-4">
-                    {/* Avatar */}
-                    <div className="relative group">
-                        <div className="h-24 w-24 rounded-2xl border-4 border-card bg-card shadow-lg overflow-hidden flex items-center justify-center">
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
-                            ) : (
-                                <div className="h-full w-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                                    <span className="text-2xl font-bold text-primary-foreground">{initials}</span>
-                                </div>
-                            )}
-                        </div>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                        >
-                            <CameraIcon className="h-6 w-6 text-white" />
-                        </button>
-                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                    </div>
-
-                    {/* User info summary */}
-                    <div className="flex-1 min-w-0 pt-2">
-                        <h3 className="text-xl font-bold text-foreground truncate">{profile?.full_name}</h3>
-                        <div className="flex flex-wrap items-center gap-3 mt-1">
-                            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                <EnvelopeIcon className="h-4 w-4" /> {profile?.email}
-                            </span>
-                            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                <ShieldCheckIcon className="h-4 w-4" />
-                                <span className="capitalize bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-semibold">{profile?.role}</span>
-                            </span>
-                            {profile?.department && (
-                                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <BuildingOfficeIcon className="h-4 w-4" /> {profile.department}
-                                </span>
-                            )}
-                            {profile?.created_at && (
-                                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <CalendarDaysIcon className="h-4 w-4" /> Joined {new Date(profile.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Section tabs */}
-            <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1 w-fit">
-                {sections.map((s) => (
-                    <button
-                        key={s.id}
-                        onClick={() => setActiveSection(s.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSection === s.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                    >
-                        <s.icon className="h-4 w-4" /> {s.label}
+            <section className="ws-panel flex flex-col gap-5 sm:flex-row sm:items-center" aria-label="Account summary">
+                <div className="relative shrink-0">
+                    <span className="ws-avatar" style={{ width: 72, height: 72, fontSize: 20 }}>
+                        {avatarUrl ? <img src={avatarUrl} alt="" /> : initials}
+                    </span>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Change profile picture" className="ws-icon-button absolute -bottom-2 -right-2 border border-[var(--ov-line)] bg-[var(--ov-panel)]">
+                        <CameraIcon />
                     </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-xl font-medium tracking-[-.035em]">{profile?.full_name}</h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] ws-muted">
+                        <span className="flex items-center gap-1.5"><EnvelopeIcon className="h-3.5 w-3.5" aria-hidden="true" />{profile?.email}</span>
+                        {profile?.role && <span className="ws-status capitalize" data-tone="info">{profile.role}</span>}
+                        {profile?.department && <span className="flex items-center gap-1.5"><BuildingOfficeIcon className="h-3.5 w-3.5" aria-hidden="true" />{profile.department}</span>}
+                        {profile?.created_at && <span className="flex items-center gap-1.5"><CalendarDaysIcon className="h-3.5 w-3.5" aria-hidden="true" />Joined {new Date(profile.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>}
+                    </div>
+                </div>
+            </section>
+
+            <div className="ws-tabs" role="group" aria-label="Profile section">
+                {sections.map((s) => (
+                    <button type="button" key={s.id} aria-pressed={activeSection === s.id} onClick={() => setActiveSection(s.id)}>{s.label}</button>
                 ))}
             </div>
 
             {/* Profile Info Section */}
             {activeSection === "info" && (
-                <div className="bg-card border border-border rounded-xl p-6 space-y-6 max-w-2xl">
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Update your name and email address.</p>
-                    </div>
+                <section className="ws-panel max-w-2xl">
+                    <div className="ws-panel-heading"><div><h2>Personal information</h2><p>Update your name and email address.</p></div></div>
 
                     <div className="grid gap-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -241,7 +199,7 @@ export default function ProfileTab() {
                                     onChange={(e) => handleInfoChange("email", e.target.value)}
                                     placeholder="admin@example.com"
                                 />
-                                <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ws-muted" aria-hidden="true" />
                             </div>
                         </Field>
 
@@ -255,7 +213,7 @@ export default function ProfileTab() {
                                         onChange={(e) => handleInfoChange("current_password_for_email", e.target.value)}
                                         placeholder="Enter your current password"
                                     />
-                                    <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ws-muted" aria-hidden="true" />
                                 </div>
                             </Field>
                         )}
@@ -266,20 +224,17 @@ export default function ProfileTab() {
                                 loading={updateProfile.isLoading}
                                 disabled={!infoDirty || (emailChanging && !infoForm.current_password_for_email)}
                             >
-                                <CheckCircleIcon className="h-4 w-4 mr-2" /> Save Changes
+                                <CheckCircleIcon /> Save changes
                             </Button>
                         </div>
                     </div>
-                </div>
+                </section>
             )}
 
             {/* Password Section */}
             {activeSection === "password" && (
-                <div className="bg-card border border-border rounded-xl p-6 space-y-6 max-w-2xl">
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Change Password</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Ensure your account uses a strong, unique password.</p>
-                    </div>
+                <section className="ws-panel max-w-2xl">
+                    <div className="ws-panel-heading"><div><h2>Change password</h2><p>Ensure your account uses a strong, unique password.</p></div></div>
 
                     <div className="grid gap-4">
                         <Field label="Current Password">
@@ -291,7 +246,7 @@ export default function ProfileTab() {
                                     onChange={(e) => handlePasswordChange("current_password", e.target.value)}
                                     placeholder="Enter current password"
                                 />
-                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ws-muted" aria-hidden="true" />
                             </div>
                         </Field>
 
@@ -308,7 +263,7 @@ export default function ProfileTab() {
                                     onChange={(e) => handlePasswordChange("password", e.target.value)}
                                     placeholder="Enter new password"
                                 />
-                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ws-muted" aria-hidden="true" />
                             </div>
                         </Field>
 
@@ -324,7 +279,7 @@ export default function ProfileTab() {
                                     onChange={(e) => handlePasswordChange("password_confirmation", e.target.value)}
                                     placeholder="Confirm new password"
                                 />
-                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ws-muted" aria-hidden="true" />
                             </div>
                         </Field>
 
@@ -332,23 +287,15 @@ export default function ProfileTab() {
                         {passwordForm.password.length > 0 && (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                passwordForm.password.length >= 12
-                                                    ? "w-full bg-emerald-500"
-                                                    : passwordForm.password.length >= 8
-                                                    ? "w-2/3 bg-amber-500"
-                                                    : "w-1/3 bg-red-500"
-                                            }`}
-                                        />
+                                    <div className="ws-meter flex-1">
+                                        <span style={{ width: passwordForm.password.length >= 12 ? "100%" : passwordForm.password.length >= 8 ? "66%" : "33%" }} />
                                     </div>
                                     <span className={`text-xs font-medium ${
                                         passwordForm.password.length >= 12
-                                            ? "text-emerald-500"
+                                            ? "ws-good"
                                             : passwordForm.password.length >= 8
-                                            ? "text-amber-500"
-                                            : "text-red-500"
+                                            ? "ws-wait"
+                                            : "ws-bad"
                                     }`}>
                                         {passwordForm.password.length >= 12 ? "Strong" : passwordForm.password.length >= 8 ? "Fair" : "Weak"}
                                     </span>
@@ -367,11 +314,11 @@ export default function ProfileTab() {
                                 }
                                 variant="primary"
                             >
-                                <KeyIcon className="h-4 w-4 mr-2" /> Update Password
+                                <KeyIcon /> Update password
                             </Button>
                         </div>
                     </div>
-                </div>
+                </section>
             )}
         </div>
     );

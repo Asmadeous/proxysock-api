@@ -1,10 +1,9 @@
 import { useState } from "react";
 import {
-    ChartBarIcon, CurrencyDollarIcon, UsersIcon, GlobeAltIcon,
+    CurrencyDollarIcon, UsersIcon,
     ArrowTrendingUpIcon, ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
-import StatsCard from "../components/StatsCard";
-import { StatsCardSkeleton } from "../components/TableSkeleton";
+import PageHeader from "../components/PageHeader";
 import {
     useDashboardAnalytics,
     useProductAnalytics,
@@ -17,19 +16,19 @@ import {
 
 // ── Pure SVG Mini-Charts ──
 
-function BarChart({ data, labelKey, valueKey, color = "#ef4444" }: { data: Record<string, unknown>[]; labelKey: string; valueKey: string; color?: string }) {
-    if (!data.length) return <p className="text-muted-foreground text-sm text-center py-6">No data</p>;
+function BarChart({ data, labelKey, valueKey, color = "currentColor" }: { data: Record<string, unknown>[]; labelKey: string; valueKey: string; color?: string }) {
+    if (!data.length) return <p className="text-[var(--ov-muted)] text-sm text-center py-6">No data</p>;
     const max = Math.max(...data.map((d) => Number(d[valueKey]) || 0), 1);
     const barW = Math.min(40, Math.floor(600 / data.length) - 4);
     return (
-        <svg viewBox={`0 0 ${data.length * (barW + 4)} 160`} className="w-full h-48">
+        <svg viewBox={`0 0 ${data.length * (barW + 4)} 160`} className="h-48 w-full text-[var(--ov-accent)]">
             {data.map((d, i) => {
                 const val = Number(d[valueKey]) || 0;
                 const h = (val / max) * 120;
                 return (
                     <g key={i}>
                         <rect x={i * (barW + 4)} y={140 - h} width={barW} height={h} rx={3} fill={color} opacity={0.85} />
-                        <text x={i * (barW + 4) + barW / 2} y={155} textAnchor="middle" fontSize="8" fill="#9ca3af" className="select-none">
+                        <text x={i * (barW + 4) + barW / 2} y={155} textAnchor="middle" fontSize="8" style={{ fill: "var(--ov-muted)" }} className="select-none">
                             {String(d[labelKey] || "").slice(0, 6)}
                         </text>
                         <title>{`${d[labelKey]}: ${val.toLocaleString()}`}</title>
@@ -42,8 +41,8 @@ function BarChart({ data, labelKey, valueKey, color = "#ef4444" }: { data: Recor
 
 function DonutChart({ data, labelKey, valueKey }: { data: Record<string, unknown>[]; labelKey: string; valueKey: string }) {
     const total = data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0);
-    if (!total) return <p className="text-muted-foreground text-sm text-center py-6">No data</p>;
-    const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
+    if (!total) return <p className="text-[var(--ov-muted)] text-sm text-center py-6">No data</p>;
+    const colors = ["#c9212d", "#e46b73", "#8f3040", "#b7791f", "#3b6fd6", "#278963"];
     let cumulative = 0;
     const slices = data.map((d, i) => {
         const val = Number(d[valueKey]) || 0;
@@ -64,13 +63,13 @@ function DonutChart({ data, labelKey, valueKey }: { data: Record<string, unknown
     });
     return (
         <div className="flex items-center gap-4">
-            <svg viewBox="0 0 100 100" className="w-32 h-32 flex-shrink-0">{slices}<circle cx={50} cy={50} r={22} fill="#1f2937" /></svg>
+            <svg viewBox="0 0 100 100" className="w-32 h-32 flex-shrink-0">{slices}<circle cx={50} cy={50} r={22} style={{ fill: "var(--ov-panel)" }} /></svg>
             <div className="space-y-1.5 min-w-0">
                 {data.map((d, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: colors[i % colors.length] }} />
-                        <span className="text-muted-foreground truncate capitalize">{String(d[labelKey])}</span>
-                        <span className="text-muted-foreground ml-auto">{Number(d[valueKey]).toLocaleString()}</span>
+                        <span className="text-[var(--ov-muted)] truncate capitalize">{String(d[labelKey])}</span>
+                        <span className="text-[var(--ov-muted)] ml-auto">{Number(d[valueKey]).toLocaleString()}</span>
                     </div>
                 ))}
             </div>
@@ -78,8 +77,8 @@ function DonutChart({ data, labelKey, valueKey }: { data: Record<string, unknown
     );
 }
 
-function LineChart({ data, color = "#ef4444" }: { data: { date: string; value: number }[]; color?: string }) {
-    if (!data.length) return <p className="text-muted-foreground text-sm text-center py-6">No data</p>;
+function LineChart({ data, color = "currentColor" }: { data: { date: string; value: number }[]; color?: string }) {
+    if (!data.length) return <p className="text-[var(--ov-muted)] text-sm text-center py-6">No data</p>;
     const max = Math.max(...data.map((d) => d.value), 1);
     const w = 600;
     const h = 140;
@@ -87,7 +86,7 @@ function LineChart({ data, color = "#ef4444" }: { data: { date: string; value: n
     const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
     const area = `${line} L${w},${h} L0,${h} Z`;
     return (
-        <svg viewBox={`0 0 ${w} ${h + 20}`} className="w-full h-44" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${w} ${h + 20}`} className="h-44 w-full text-[var(--ov-accent)]" preserveAspectRatio="none">
             <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.3" /><stop offset="100%" stopColor={color} stopOpacity="0" /></linearGradient></defs>
             <path d={area} fill="url(#areaGrad)" />
             <path d={line} fill="none" stroke={color} strokeWidth="2" />
@@ -107,9 +106,9 @@ function FunnelChart({ data }: { data: { stage: string; count: number }[] }) {
                 const pct = (d.count / max) * 100;
                 return (
                     <div key={i}>
-                        <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">{d.stage}</span><span className="text-foreground font-medium">{d.count.toLocaleString()}</span></div>
-                        <div className="h-6 bg-muted rounded-lg overflow-hidden">
-                            <div className="h-full rounded-lg transition-all duration-500" style={{ width: `${pct}%`, background: `hsl(${350 - i * 40}, 70%, 50%)` }} />
+                        <div className="flex justify-between text-sm mb-1"><span className="text-[var(--ov-muted)]">{d.stage}</span><span className="text-[var(--ov-text)] font-medium">{d.count.toLocaleString()}</span></div>
+                        <div className="h-2 overflow-hidden rounded-sm bg-[var(--ov-wash)]">
+                            <div className="h-full bg-[var(--ov-accent)] transition-all duration-500" style={{ width: `${pct}%`, opacity: Math.max(1 - i * 0.15, 0.3) }} />
                         </div>
                     </div>
                 );
@@ -119,7 +118,7 @@ function FunnelChart({ data }: { data: { stage: string; count: number }[] }) {
 }
 
 function GeoMap({ countries }: { countries: { country: string; users: number }[] }) {
-    if (!countries.length) return <p className="text-muted-foreground text-sm text-center py-6">No geolocation data available</p>;
+    if (!countries.length) return <p className="text-[var(--ov-muted)] text-sm text-center py-6">No geolocation data available</p>;
     const max = Math.max(...countries.map((c) => c.users), 1);
     return (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
@@ -127,11 +126,11 @@ function GeoMap({ countries }: { countries: { country: string; users: number }[]
                 const pct = (c.users / max) * 100;
                 return (
                     <div key={i} className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground w-20 truncate">{c.country}</span>
-                        <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%`, opacity: 0.4 + (pct / 100) * 0.6 }} />
+                        <span className="text-sm text-[var(--ov-muted)] w-20 truncate">{c.country}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-sm bg-[var(--ov-wash)]">
+                            <div className="h-full bg-[var(--ov-accent)]" style={{ width: `${pct}%`, opacity: 0.4 + (pct / 100) * 0.6 }} />
                         </div>
-                        <span className="text-xs text-muted-foreground w-12 text-right">{c.users.toLocaleString()}</span>
+                        <span className="text-xs text-[var(--ov-muted)] w-12 text-right">{c.users.toLocaleString()}</span>
                     </div>
                 );
             })}
@@ -141,8 +140,10 @@ function GeoMap({ countries }: { countries: { country: string; users: number }[]
 
 function ChartLoader() {
     return (
-        <div className="flex items-center justify-center h-44">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="flex h-44 flex-col justify-end gap-3" role="status" aria-label="Loading chart">
+            <span className="ws-skeleton block" style={{ height: 12 }} />
+            <span className="ws-skeleton block" style={{ height: 12, maxWidth: "80%" }} />
+            <span className="ws-skeleton block" style={{ height: 12, maxWidth: "60%" }} />
         </div>
     );
 }
@@ -174,78 +175,62 @@ export default function AnalyticsTab() {
     const countries = geoData?.countries ?? [];
     const totalCountries = geoData?.total_countries ?? 0;
 
+    const kpis = [
+        { label: "Revenue", value: `$${Number(metrics.total_revenue || 0).toLocaleString()}`, icon: CurrencyDollarIcon },
+        { label: "Orders", value: Number(metrics.total_orders || 0).toLocaleString(), icon: ShoppingCartIcon },
+        { label: "New users", value: Number(metrics.new_users || 0).toLocaleString(), icon: UsersIcon },
+        { label: "Avg order value", value: `$${Number(metrics.avg_order_value || 0).toFixed(2)}`, icon: ArrowTrendingUpIcon },
+    ];
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Business Intelligence</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Product analytics, revenue trends, and user insights</p>
-                </div>
-                <select
-                    value={dateRange}
-                    onChange={(e) => setDateRange(e.target.value)}
-                    className="px-3 py-1.5 bg-card border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:border-primary"
-                >
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                    <option value="365">Last year</option>
-                </select>
+        <div className="ws-stack">
+            <PageHeader
+                title="Analytics"
+                description="Product analytics, revenue trends and user insights."
+                actions={
+                    <select aria-label="Date range" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="ws-input" style={{ width: "auto" }}>
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                }
+            />
+
+            <div className="overview-metrics" style={{ marginBottom: 0 }}>
+                {kpis.map(({ label, value, icon: Icon }) => (
+                    <div className="overview-metric" key={label}>
+                        <span>{label}<Icon width={16} height={16} aria-hidden="true" /></span>
+                        {dashboardLoading ? <span className="overview-skeleton" style={{ margin: "13px 0 8px" }} /> : <strong>{value}</strong>}
+                    </div>
+                ))}
             </div>
 
-            {/* KPI Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {dashboardLoading ? (
-                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
-                ) : (
-                    <>
-                        <StatsCard title="Revenue" value={`$${Number(metrics.total_revenue || 0).toLocaleString()}`} icon={CurrencyDollarIcon} />
-                        <StatsCard title="Orders" value={Number(metrics.total_orders || 0)} icon={ShoppingCartIcon} />
-                        <StatsCard title="New Users" value={Number(metrics.new_users || 0)} icon={UsersIcon} />
-                        <StatsCard title="Avg Order Value" value={`$${Number(metrics.avg_order_value || 0).toFixed(2)}`} icon={ArrowTrendingUpIcon} />
-                    </>
-                )}
-            </div>
-
-            {/* Revenue Trend + Product Type Breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                        <ArrowTrendingUpIcon className="h-5 w-5 text-primary" />Revenue Trend
-                    </h3>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <section className="ws-panel lg:col-span-2" aria-labelledby="revenue-trend-title">
+                    <div className="ws-panel-heading"><div><h2 id="revenue-trend-title">Revenue trend</h2><p>Daily revenue for the selected range.</p></div></div>
                     {revenueLoading ? <ChartLoader /> : <LineChart data={revenueSeries} />}
-                </div>
-                <div className="bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-3">Product Mix</h3>
+                </section>
+                <section className="ws-panel" aria-labelledby="product-mix-title">
+                    <div className="ws-panel-heading"><div><h2 id="product-mix-title">Product mix</h2><p>Revenue by product type.</p></div></div>
                     {productsLoading ? <ChartLoader /> : <DonutChart data={typeBreakdown} labelKey="type" valueKey="revenue" />}
-                </div>
+                </section>
             </div>
 
-            {/* Top Products */}
-            <div className="bg-card rounded-xl border border-border p-5">
-                <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <ChartBarIcon className="h-5 w-5 text-primary" />Top Products by Revenue
-                </h3>
+            <section className="ws-panel" aria-labelledby="top-products-title">
+                <div className="ws-panel-heading"><div><h2 id="top-products-title">Top products by revenue</h2><p>Best-selling products in the selected range.</p></div></div>
                 {productsLoading ? <ChartLoader /> : <BarChart data={topProducts} labelKey="name" valueKey="revenue" />}
-            </div>
+            </section>
 
-            {/* Conversion Funnel + Geolocation */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-1">Conversion Funnel</h3>
-                    <p className="text-xs text-muted-foreground mb-4">
-                        Rate: {conversionRate}% signup→order · {repeatRate}% repeat
-                    </p>
+            <div className="ws-grid-2">
+                <section className="ws-panel" aria-labelledby="funnel-title">
+                    <div className="ws-panel-heading"><div><h2 id="funnel-title">Conversion funnel</h2><p>{conversionRate}% signup to order · {repeatRate}% repeat</p></div></div>
                     {conversionLoading ? <ChartLoader /> : <FunnelChart data={funnel} />}
-                </div>
-                <div className="bg-card rounded-xl border border-border p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
-                        <GlobeAltIcon className="h-5 w-5 text-blue-500" />User Geolocation
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-4">{totalCountries} countries</p>
+                </section>
+                <section className="ws-panel" aria-labelledby="geo-title">
+                    <div className="ws-panel-heading"><div><h2 id="geo-title">User geolocation</h2><p>{totalCountries} countries</p></div></div>
                     {geoLoading ? <ChartLoader /> : <GeoMap countries={countries} />}
-                </div>
+                </section>
             </div>
         </div>
     );

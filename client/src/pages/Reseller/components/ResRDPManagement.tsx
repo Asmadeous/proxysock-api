@@ -1,17 +1,11 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-    ComputerDesktopIcon,
-    ArrowPathIcon,
-    EyeIcon,
-    EyeSlashIcon,
-    XCircleIcon
-} from "@heroicons/react/24/outline";
+import { CalendarClock, Play, RefreshCw, RotateCw, Square, Monitor } from "lucide-react";
 import resellerApi, { fetchResellerVms, startResellerVm as startVm, stopResellerVm as stopVm, rebootResellerVm as rebootVm } from "@/services/resellerApi";
 import { toast } from "sonner";
 import { getApiError } from "../../SuperAdmin/utils/errors";
-import { Skeleton } from "@/components/ui/skeleton";
 import ManageSubscriptionModal from "@/components/dashboard/ManageSubscriptionModal";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
+import ServiceCard, { ServiceGrid } from "../../SuperAdmin/components/ServiceCard";
 
 interface RDPInstance {
     id: string | number;
@@ -37,8 +31,7 @@ interface RDPInstance {
 export default function ResRDPManagement() {
     const [instances, setInstances] = useState<RDPInstance[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
-    const [_refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
+    const [refreshing, setRefreshing] = useState<{ [key: string]: boolean }>({});
     const [subscriptionRdp, setSubscriptionRdp] = useState<RDPInstance | null>(null);
 
     useEffect(() => {
@@ -72,85 +65,47 @@ export default function ResRDPManagement() {
         }
     };
 
-    if (loading) return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-card rounded-xl border p-6 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <Skeleton className="w-10 h-10 rounded-lg" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-36" />
-                            <Skeleton className="h-3 w-24" />
-                        </div>
-                    </div>
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-5/6" />
-                    <Skeleton className="h-3 w-2/3" />
-                    <div className="grid grid-cols-3 gap-2 pt-2">
-                        <Skeleton className="h-8 rounded-lg" />
-                        <Skeleton className="h-8 rounded-lg" />
-                        <Skeleton className="h-8 rounded-lg" />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
+    const running = instances.filter(i => ["running", "active"].includes((i.status || "").toLowerCase())).length;
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">RDP Management</h1>
-                <p className="text-muted-foreground mt-1">Manage your Windows Remote Desktop instances.</p>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="RDP"
+                description="Manage your Windows Remote Desktop instances."
+                actions={<button type="button" onClick={loadInstances} disabled={loading} aria-label="Refresh" title="Refresh" className="ws-icon-button"><RefreshCw className={loading ? "animate-spin" : ""} /></button>}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {instances.map((rdp) => (
-                    <motion.div key={rdp.id} className="bg-card rounded-xl border p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500"><ComputerDesktopIcon className="w-6 h-6" /></div>
-                                <div>
-                                    <h3 className="font-bold truncate max-w-[150px]">{rdp.hostname || `RDP-${rdp.vm_id}`}</h3>
-                                    <p className="text-xs text-muted-foreground">{rdp.plan_name}</p>
-                                </div>
-                            </div>
-                            <div className="px-2 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">{rdp.status}</div>
-                        </div>
+            {!loading && instances.length > 0 && (
+                <div className="proxy-summary" style={{ marginBottom: 0 }}>
+                    <span><strong>{instances.length}</strong> Instances</span>
+                    <span><strong>{running}</strong> Running</span>
+                </div>
+            )}
 
-                        <div className="bg-muted p-4 rounded-lg space-y-2 text-sm font-mono">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Subdomain:Port</span>
-                                <span>{rdp.dns_name || 'Generating...'}:{rdp.rdp_port}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">User:</span>
-                                <span>{rdp.rdp_username}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Pass:</span>
-                                <span>{showPassword[rdp.id] ? rdp.rdp_password : '••••••••'}</span>
-                                <button
-                                    onClick={() => setShowPassword(p => ({ ...p, [rdp.id]: !p[rdp.id] }))}
-                                    aria-label={showPassword[rdp.id] ? "Hide password" : "Show password"}
-                                >
-                                    {showPassword[rdp.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-2">
-                            <button onClick={() => handleAction(rdp.id, 'start')} className="p-2 rounded-lg bg-green-500/10 text-green-500"><ArrowPathIcon className="w-4 h-4 mx-auto" /></button>
-                            <button onClick={() => handleAction(rdp.id, 'stop')} className="p-2 rounded-lg bg-red-500/10 text-red-500"><XCircleIcon className="w-4 h-4 mx-auto" /></button>
-                            <button onClick={() => handleAction(rdp.id, 'reboot')} className="p-2 rounded-lg bg-blue-500/10 text-blue-500"><ArrowPathIcon className="w-4 h-4 mx-auto" /></button>
-                            {rdp.order_id && (
-                                <button onClick={() => setSubscriptionRdp(rdp)} className="p-2 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20">
-                                    <ArrowPathIcon className="w-4 h-4 mx-auto" />
-                                </button>
-                            )}
-                        </div>
-                    </motion.div>
+            <ServiceGrid loading={loading} empty={instances.length === 0} emptyIcon={Monitor} emptyTitle="No RDP instances yet" emptyText="Servers you order appear here with their connection details.">
+                {instances.map((vm) => (
+                    <ServiceCard
+                        key={vm.id}
+                        icon={Monitor}
+                        kind="RDP"
+                        status={vm.status}
+                        title={vm.hostname || `RDP-${vm.vm_id}`}
+                        subtitle={vm.plan_name}
+                        facts={[
+                            { label: "Address", value: `${vm.dns_name || "Generating…"}:${vm.rdp_port}`, copy: vm.dns_name ? `${vm.dns_name}:${vm.rdp_port}` : undefined },
+                            { label: "Username", value: vm.rdp_username, copy: vm.rdp_username },
+                            { label: "Password", value: vm.rdp_password, copy: vm.rdp_password, secret: true },
+                        ]}
+                        note={vm.expires_at ? `Expires ${new Date(vm.expires_at).toLocaleDateString()}` : undefined}
+                        actions={<>
+                            <button type="button" onClick={() => handleAction(vm.id, "start")} disabled={refreshing[vm.id]}><Play size={14} aria-hidden="true" /> Start</button>
+                            <button type="button" onClick={() => handleAction(vm.id, "stop")} disabled={refreshing[vm.id]}><Square size={14} aria-hidden="true" /> Stop</button>
+                            <button type="button" onClick={() => handleAction(vm.id, "reboot")} disabled={refreshing[vm.id]}><RotateCw size={14} aria-hidden="true" /> Reboot</button>
+                            {vm.order_id && <button type="button" onClick={() => setSubscriptionRdp(vm)}><CalendarClock size={14} aria-hidden="true" /> Renewal</button>}
+                        </>}
+                    />
                 ))}
-            </div>
+            </ServiceGrid>
 
             <ManageSubscriptionModal
                 isOpen={!!subscriptionRdp}

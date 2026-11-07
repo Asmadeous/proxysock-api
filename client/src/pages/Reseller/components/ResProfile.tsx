@@ -5,8 +5,8 @@ export default function ResProfile() {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Profile</h2>
-            <div className="bg-muted rounded-xl border border-border p-6 space-y-4 max-w-lg">
+            <h2 className="text-2xl font-medium text-foreground">Profile</h2>
+            <div className="bg-muted rounded border border-[var(--ov-line)] p-6 space-y-4 max-w-lg">
                 <Field label="Company Name"><input className={inputClasses} defaultValue={user.company_name || ""} readOnly /></Field>
                 <Field label="Email"><input className={inputClasses} defaultValue={user.email || ""} readOnly /></Field>
                 <Field label="Username"><input className={inputClasses} defaultValue={user.username || ""} readOnly /></Field>
