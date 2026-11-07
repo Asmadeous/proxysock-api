@@ -4,7 +4,7 @@ module Web
   module Api
     class VmsController < BaseController
       before_action :authenticate_request
-      before_action :set_vm, only: %i[show destroy start stop status]
+      before_action :set_vm, only: %i[show destroy start stop reboot status]
 
       # GET /web/api/vms
       def index
@@ -155,7 +155,7 @@ module Web
 
         os_template = (vm_order&.os_type || '').downcase
         is_windows = os_template.include?('windows')
-        is_rdp = vm.vm_type == 'rdp' || os_template.include?('rdp') || is_windows
+        is_rdp = vm.vm_type == 'rdp' || os_template.include?('rdp') || is_windows || (vm.rdp_port.present? && vm.ssh_port.blank?)
 
         {
           id: vm.id,
@@ -173,9 +173,9 @@ module Web
           ram_gb: vm_order&.ram_gb,
           storage_gb: vm_order&.disk_gb,
           root_password: vm.root_password,
-          rdp_username: vm.rdp_username || (if is_rdp
-                                              is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")
-                                            end),
+          rdp_username: vm.rdp_username || vm.ssh_username || (if is_rdp
+                                                                 is_windows ? 'Administrator' : (vm.hostname.presence || "vm-#{vm.id}")
+                                                               end),
           rdp_password: vm.root_password,
           ssh_username: vm.ssh_username || 'root',
           expires_at: vm.expires_at || order&.expires_at || (vm.created_at + 30.days),
@@ -190,6 +190,7 @@ module Web
                                                            end),
           node: vm.proxmox_node,
           dns_name: vm.dns_name,
+          connection_host: vm.connection_host,
           auto_renew: vm.metadata&.dig('auto_renew') == true,
           renewal_method: vm.metadata&.dig('renewal_method') || 'wallet',
           order_id: order&.id

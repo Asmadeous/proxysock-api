@@ -323,6 +323,16 @@ export const createMeisimTopup = (amount: number) =>
 export const downloadMeisimStatement = () =>
     adminApi.get("/meisim/statement", { responseType: "blob" }).then(res => res.data as Blob);
 
+// ── MeiSIM line recharge: MeiSIM's top-up API, paid from the MeiSIM wallet (admins only) ──
+export const fetchMeisimLineTopups = () =>
+    adminApi.get("/meisim/line_topups").then(res => res.data);
+export const fetchMeisimTopupNetworks = () =>
+    adminApi.get("/meisim/line_topups/networks").then(res => res.data);
+export const checkMeisimLine = (network: string, line: string) =>
+    adminApi.post("/meisim/line_topups/check", { network, line }).then(res => res.data);
+export const rechargeMeisimLine = (params: { network: string; line: string; value: string; plan_code?: string; esim_topup_id?: string }) =>
+    adminApi.post("/meisim/line_topups", params).then(res => res.data);
+
 export const fetchMeisimVerifyHistory = () =>
     adminApi.get("/meisim/verify").then(res => res.data);
 export const submitMeisimVerify = (lpas: string, notify_email?: string) =>

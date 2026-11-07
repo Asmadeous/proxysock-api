@@ -68,7 +68,7 @@ module Admin
 
       # GET /admin/api/meisim/verify
       # The last bulk checks with MeiSIM's progress for each, so their results stay on the
-      # balance card after the Verify dialog closes. Batch ids come from the audit log.
+      # MeiSIM page after a check is submitted. Batch ids come from the audit log.
       def verify_history
         logs = AuditLog.where(action: 'meisim.esim_verify').order(created_at: :desc).limit(HISTORY_SIZE).to_a
         names = Employee.where(id: logs.map(&:user_id)).to_h { |e| [e.id, e.first_name] }

@@ -1,0 +1,67 @@
+/* Customer dashboard palette for the reseller, admin and employee workspaces.
+   Maps the shadcn tokens their pages use onto the customer dashboard colours. */
+.workspace-theme.landing-theme, :root:has(.workspace-theme) {
+  --background: 350 67% 96%;
+  --foreground: 344 19% 14%;
+  --card: 353 100% 98%;
+  --card-foreground: 344 19% 14%;
+  --popover: 353 100% 98%;
+  --popover-foreground: 344 19% 14%;
+  --primary: 356 72% 46%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 345 45% 92%;
+  --secondary-foreground: 344 19% 14%;
+  --muted: 345 45% 92%;
+  --muted-foreground: var(--light-secondary-foreground);
+  --accent: 345 45% 92%;
+  --accent-foreground: 344 19% 14%;
+  --border: 345 30% 85%;
+  --input: 345 30% 85%;
+  --ring: 356 72% 46%;
+  --radius: 0.25rem;
+}
+.workspace-theme.landing-theme.dark, :root:has(.workspace-theme.dark) {
+  --background: 332 29% 12%;
+  --foreground: 340 29% 94%;
+  --card: 330 25% 16%;
+  --card-foreground: 340 29% 94%;
+  --popover: 330 25% 16%;
+  --popover-foreground: 340 29% 94%;
+  --primary: 356 78% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 330 26% 21%;
+  --secondary-foreground: 340 29% 94%;
+  --muted: 330 26% 21%;
+  --muted-foreground: 336 22% 76%;
+  --accent: 330 26% 21%;
+  --accent-foreground: 340 29% 94%;
+  --border: 338 25% 28%;
+  --input: 338 25% 28%;
+  --ring: 356 100% 72%;
+  --radius: 0.25rem;
+}
+.workspace-theme { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+
+/* Workspace label, search and notification slots in the shared sidebar. */
+.workspace-role strong { display: block; margin-top: 6px; font-size: 14px; font-weight: 500; letter-spacing: -.02em; }
+.workspace-role-mark { display: grid; place-items: center; width: 30px; height: 30px; font-size: 12px; font-weight: 600; color: var(--ws-accent); }
+.workspace-search { padding: 8px 16px 4px; }
+.workspace-search button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-surface); color: var(--ws-muted); font-size: 11px; }
+.workspace-search button:hover { color: var(--ws-text); }
+.workspace-search svg { width: 15px; height: 15px; flex-shrink: 0; }
+.workspace-search span { flex: 1; text-align: left; }
+.workspace-search kbd { font: 9px ui-monospace, SFMono-Regular, monospace; padding: 1px 5px; border: 1px solid var(--ws-line); border-radius: 3px; }
+.is-collapsed .workspace-search { padding-inline: 12px; }
+.is-collapsed .workspace-search button { justify-content: center; padding: 6px; }
+.workspace-nav-link { width: 100%; text-align: left; }
+.workspace-bell { display: inline-flex; align-items: center; color: var(--ws-muted); }
+.is-collapsed .workspace-role { margin-inline: 12px; }
+
+.workspace-mobile-bar { position: fixed; inset: 0 0 auto 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: hsl(var(--background) / .85); backdrop-filter: blur(10px); border-bottom: 1px solid hsl(var(--border)); font-size: 13px; font-weight: 600; }
+.workspace-mobile-bar > button { display: inline-flex; padding: 8px; margin-left: -8px; border-radius: 4px; color: hsl(var(--muted-foreground)); }
+.workspace-mobile-bar > button:hover { color: hsl(var(--foreground)); background: hsl(var(--muted)); }
+.workspace-mobile-bar svg { width: 22px; height: 22px; }
+
+/* Customer dashboard variables at the shell and document level, for overlays rendered outside the page (command palette, portaled dialogs). */
+.workspace-theme, :root:has(.workspace-theme) { --ov-bg:#fcf0f2; --ov-panel:#fff7f8; --ov-text:#291c1e; --ov-muted:hsl(var(--light-secondary-foreground)); --ov-line:#8f304029; --ov-accent:#c9212d; --ov-wash:#ed242b08; }
+:root:has(.workspace-theme.dark), .workspace-theme.dark { --ov-bg:#26151d; --ov-panel:#321e28; --ov-text:#f4ebed; --ov-muted:#d0b5c0; --ov-line:#e7a6b32e; --ov-accent:#ff727b; --ov-wash:#ffadb50c; }

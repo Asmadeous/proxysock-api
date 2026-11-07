@@ -6,7 +6,7 @@ class CheckoutSession < ApplicationRecord
 
   include AASM
 
-  PAYMENT_METHODS = %w[wallet rexpay plisio hundredpay fastspring heleket].freeze
+  PAYMENT_METHODS = %w[wallet rexpay plisio hundredpay fastspring heleket bachs].freeze
 
   # Alias for controllers that reference the gateway by this name
   alias_attribute :gateway, :payment_method

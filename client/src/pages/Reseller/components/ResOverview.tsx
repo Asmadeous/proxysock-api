@@ -1,207 +1,168 @@
-import { useState, useEffect } from "react";
-import { WalletIcon, ShoppingCartIcon, BanknotesIcon } from "@heroicons/react/24/outline";
-import { fetchResellerOrderStats } from "../../../services/resellerApi";
-import { getApiError } from "../../SuperAdmin/utils/errors";
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import StatsCard from "../../SuperAdmin/components/StatsCard";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, ShieldCheckIcon, Clock, CreditCard, Activity } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Code, ListTodo, Network, RefreshCw, ShoppingBag, Wallet } from "lucide-react";
+import { fetchResellerOrderStats, fetchResellerOrders } from "../../../services/resellerApi";
+import { getApiError } from "../../SuperAdmin/utils/errors";
+
+interface Stats {
+    balance: number;
+    earnings: number;
+    orders: number;
+    active: number;
+    pending: number;
+    totalSpent: number;
+}
+
+interface RecentOrder {
+    id: string;
+    product_name: string;
+    status: string;
+    total_amount: number;
+    created_at: string;
+}
+
+const money = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const statusLabel = (status: string) => status.replace(/_/g, " ");
 
 export default function ResOverview() {
     const user = JSON.parse(localStorage.getItem("resellerUser") || "{}");
     const isEnterprise = user?.reseller_type === "infrastructure";
 
-    const [stats, setStats] = useState({
-        balance: 0,
-        earnings: 0,
-        orders: 0,
-        tickets: 0,
-        totalSpent: 0
-    });
+    const [stats, setStats] = useState<Stats | null>(null);
+    const [orders, setOrders] = useState<RecentOrder[] | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchResellerOrderStats()
-            .then((res) => {
-                const d = res.data;
-                setStats({
-                    balance: Number(d.balance || 0),
-                    earnings: Number(d.earnings_balance || 0),
-                    orders: Number(d.total_orders || 0),
-                    tickets: 0,
-                    totalSpent: Number(d.total_spent || 0)
-                });
-                setLoading(false);
-            })
-            .catch((err) => {
-                toast.error(getApiError(err, "Failed to load overview stats"));
-                setLoading(false);
+    const load = useCallback(async () => {
+        setLoading(true);
+        const [statsResult, ordersResult] = await Promise.allSettled([fetchResellerOrderStats(), fetchResellerOrders({ page: "1" })]);
+        if (statsResult.status === "fulfilled") {
+            const d = statsResult.value.data;
+            setStats({
+                balance: Number(d.balance || 0),
+                earnings: Number(d.earnings_balance || 0),
+                orders: Number(d.total_orders || 0),
+                active: Number(d.active_services || 0),
+                pending: Number(d.pending_orders || 0),
+                totalSpent: Number(d.total_spent || 0),
             });
+        } else {
+            toast.error(getApiError(statsResult.reason, "Failed to load overview stats"));
+        }
+        if (ordersResult.status === "fulfilled") {
+            const data = ordersResult.value.data.orders || ordersResult.value.data || [];
+            setOrders(Array.isArray(data) ? data.slice(0, 5) : []);
+        } else {
+            setOrders(null);
+        }
+        setLoading(false);
     }, []);
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
+    useEffect(() => { load(); }, [load]);
 
-    const itemVariants = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
-    };
+    const name = user?.company_name || user?.username || "there";
+    const metrics = [
+        isEnterprise
+            ? { title: "Earnings balance", value: stats ? money(stats.earnings) : undefined, note: "Available to transfer or withdraw", href: "/reseller/earnings" }
+            : { title: "Available credits", value: stats ? money(stats.balance) : undefined, note: "Wallet balance in USD", href: "/reseller/wallet" },
+        isEnterprise
+            ? { title: "Infrastructure fee", value: `$${user?.subscription_fee || "0.00"}`, note: user?.subscription_expires_at ? `Renews ${new Date(user.subscription_expires_at).toLocaleDateString()}` : "Monthly subscription", href: "/reseller/earnings" }
+            : { title: "Lifetime spend", value: stats ? money(stats.totalSpent) : undefined, note: "Credits used on orders", href: "/reseller/wallet" },
+        { title: "Total orders", value: stats?.orders, note: "Your complete order history", href: "/reseller/orders" },
+        { title: "Active services", value: stats?.active, note: stats?.pending ? `${stats.pending} pending` : "Nothing awaiting completion", href: isEnterprise ? "/reseller/management" : "/reseller/orders" },
+    ];
+
+    const shortcuts = [
+        { icon: ShoppingBag, name: isEnterprise ? "Store" : "Products", description: "Browse proxies, servers, VPNs and eSIMs to resell.", href: "/reseller/store", label: "Browse" },
+        { icon: ListTodo, name: "Orders", description: "Follow order status, credentials and cancellations.", href: "/reseller/orders", label: "View orders" },
+        { icon: Wallet, name: isEnterprise ? "Earnings" : "Wallet", description: isEnterprise ? "Track revenue share, transfers and payouts." : "Add credits and review your transactions.", href: isEnterprise ? "/reseller/earnings" : "/reseller/wallet", label: "Open" },
+        { icon: Code, name: "Developer", description: "API keys, documentation and webhooks for your integration.", href: "/reseller/developer", label: "Open" },
+    ];
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div className="space-y-1">
-                    <h2 className="text-4xl font-black text-foreground tracking-tight">Executive Overview</h2>
-                    <p className="text-muted-foreground font-medium flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-                        {isEnterprise ? "Enterprise infrastructure and partnership metrics." : "API Partner node and credit performance."}
-                    </p>
+        <div>
+            <header className="overview-heading">
+                <div><h1>Overview</h1><p>Welcome back, {name}. Here’s your reseller account at a glance.</p></div>
+                <div className="overview-heading-actions">
+                    <span className="ws-status" data-tone={isEnterprise ? "info" : "good"}>{isEnterprise ? "Enterprise tier" : user?.reseller_type === "single_product" ? "Single product tier" : "API tier"}</span>
+                    <button type="button" className="overview-icon-button" onClick={load} disabled={loading} aria-label="Refresh overview" title="Refresh overview"><RefreshCw size={16} /></button>
+                    <Link className="overview-button" to="/reseller/support">Get support <ArrowUpRight size={14} /></Link>
                 </div>
-                <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-border bg-card shadow-sm flex items-center gap-2 ${isEnterprise ? 'text-primary' : 'text-emerald-500'}`}>
-                    <ShieldCheckIcon className="w-4 h-4" />
-                    {isEnterprise ? 'Tier: Enterprise' : 'Tier: API Only'}
+            </header>
+
+            <section className="overview-welcome" aria-labelledby="welcome-title">
+                <div className="overview-welcome-copy">
+                    <h2 id="welcome-title">{isEnterprise ? "Your infrastructure, your customers." : "Everything you resell. Connected."}</h2>
+                    <p>{isEnterprise ? "Provision services for your users, track earnings and manage your infrastructure in one place." : "Top up credits, place orders through the dashboard or API, and keep track of every service you deliver."}</p>
+                    <Link className="overview-welcome-link" to="/reseller/store">Browse the store <ArrowRight size={15} /></Link>
                 </div>
-            </div>
+                <svg className="overview-network" viewBox="0 0 350 210" fill="none" aria-hidden="true"><g stroke="currentColor" strokeOpacity=".2"><circle cx="180" cy="105" r="42" /><circle cx="180" cy="105" r="83" /><path d="M0 165 180 105 330 20M50 5 180 105 340 178M180 105 350 100" /></g><g fill="currentColor"><circle cx="180" cy="105" r="7" /><circle cx="68" cy="142" r="4" /><circle cx="114" cy="54" r="4" /><circle cx="250" cy="65" r="4" /><circle cx="260" cy="142" r="4" /><circle cx="305" cy="101" r="3" /></g><circle cx="180" cy="105" r="15" stroke="currentColor" strokeOpacity=".4" /></svg>
+            </section>
 
-            <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-            >
-                {!isEnterprise ? (
-                    <motion.div variants={itemVariants}>
-                        <StatsCard
-                            title="Available Credits"
-                            value={`$${stats.balance.toFixed(2)}`}
-                            icon={WalletIcon}
-                            loading={loading}
-                        />
-                    </motion.div>
-                ) : (
-                    <motion.div variants={itemVariants}>
-                        <StatsCard
-                            title="Total Earnings"
-                            value={`$${stats.earnings.toFixed(2)}`}
-                            icon={BanknotesIcon}
-                            loading={loading}
-                        />
-                    </motion.div>
-                )}
+            <section className="overview-metrics" aria-label="Account summary" aria-busy={loading}>
+                {metrics.map(metric => (
+                    <Link to={metric.href} className="overview-metric" key={metric.title}>
+                        <span>{metric.title}<ArrowUpRight size={14} /></span>
+                        <strong>{loading ? <span className="overview-skeleton" /> : metric.value ?? "—"}</strong>
+                        <small>{stats ? metric.note : loading ? "Loading account data…" : "Currently unavailable"}</small>
+                    </Link>
+                ))}
+            </section>
 
-                {isEnterprise ? (
-                    <motion.div variants={itemVariants}>
-                        <StatsCard
-                            title="Infrastructure Fee"
-                            value={`$${user?.subscription_fee || "0.00"}`}
-                            icon={CreditCard}
-                            loading={loading}
-                        />
-                    </motion.div>
-                ) : (
-                    <motion.div variants={itemVariants}>
-                        <StatsCard
-                            title="Lifetime Credits Used"
-                            value={`$${stats.totalSpent.toFixed(2)}`}
-                            icon={Activity}
-                            loading={loading}
-                        />
-                    </motion.div>
-                )}
+            <section className="overview-services" aria-labelledby="shortcuts-title">
+                <div className="overview-section-heading"><div><h2 id="shortcuts-title">Your workspace</h2><p>Everything you need to run your reseller business.</p></div></div>
+                <div className="overview-service-grid">
+                    {shortcuts.map(item => (
+                        <article className="overview-service" key={item.name}>
+                            <div className="overview-service-top"><item.icon size={21} strokeWidth={1.5} aria-hidden="true" /></div>
+                            <h3>{item.name}</h3>
+                            <p>{item.description}</p>
+                            <Link to={item.href} aria-label={`${item.label} ${item.name}`}>{item.label} <ArrowRight size={15} /></Link>
+                        </article>
+                    ))}
+                </div>
+            </section>
 
-                <motion.div variants={itemVariants}>
-                    <StatsCard
-                        title="Sub-Order Volume"
-                        value={stats.orders}
-                        icon={ShoppingCartIcon}
-                        loading={loading}
-                    />
-                </motion.div>
-
-                <motion.div variants={itemVariants}>
-                    <StatsCard
-                        title="Network Health"
-                        value="99.9%"
-                        icon={Activity}
-                        loading={loading}
-                    />
-                </motion.div>
-            </motion.div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-                className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-            >
-                <Card className="lg:col-span-2 border border-border shadow-sm bg-card overflow-hidden relative rounded-3xl">
-                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                        <TrendingUp className="h-40 w-40" />
-                    </div>
-                    <CardHeader>
-                        <CardTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tighter">
-                            Market Performance Analytics
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-[250px] flex items-center justify-center border-2 border-dashed border-border/50 rounded-3xl group hover:border-primary/50 transition-colors bg-muted/5">
-                            <div className="text-center">
-                                <p className="text-muted-foreground font-bold mb-2 group-hover:text-primary transition-colors">Growth engine analysis in progress</p>
-                                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest opacity-50">PARTNER_CORE_V5</p>
-                            </div>
+            <div className="overview-bottom-grid">
+                <section className="overview-orders" aria-labelledby="recent-orders-title" aria-busy={loading}>
+                    <div className="overview-section-heading"><h2 id="recent-orders-title">Recent orders</h2><Link to="/reseller/orders">View all <ArrowUpRight size={14} /></Link></div>
+                    {loading ? (
+                        <div className="overview-orders-loading" role="status">Loading recent orders…{[0, 1, 2].map(i => <span key={i} className="overview-skeleton" />)}</div>
+                    ) : !orders ? (
+                        <div className="overview-empty"><h3>Orders are unavailable</h3><p>Try refreshing your overview to load your order history.</p></div>
+                    ) : orders.length === 0 ? (
+                        <div className="overview-empty">
+                            <span className="overview-empty-mark" aria-hidden="true"><Network size={26} strokeWidth={1.3} /></span>
+                            <h3>Your first order belongs here.</h3>
+                            <p>Once you place an order, you can follow its status and find it again here.</p>
+                            <Link className="overview-button" to="/reseller/store">Browse the store <ArrowRight size={14} /></Link>
                         </div>
-                    </CardContent>
-                </Card>
-
-                <div className="space-y-6">
-                    {isEnterprise && (
-                        <Card className="border border-border shadow-sm bg-card rounded-3xl">
-                            <CardHeader>
-                                <CardTitle className="text-lg font-black text-primary flex items-center gap-2">
-                                    <Clock className="w-5 h-5" />
-                                    Fee Schedule
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold uppercase text-muted-foreground">Next Renewal</span>
-                                    <span className="text-sm font-black">{new Date(user?.subscription_expires_at || Date.now()).toLocaleDateString()}</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary w-2/3 shadow-[0_0_8px_rgba(var(--primary),0.4)]" />
-                                </div>
-                                <p className="text-[10px] text-muted-foreground font-medium italic">Billed automatically from earnings wallet.</p>
-                            </CardContent>
-                        </Card>
+                    ) : (
+                        <div className="overview-table-scroll">
+                            <table>
+                                <caption className="sr-only">Your five most recent orders</caption>
+                                <thead><tr><th>Order</th><th>Status</th><th>Amount</th></tr></thead>
+                                <tbody>
+                                    {orders.map(order => (
+                                        <tr key={order.id}>
+                                            <td><strong>{order.product_name || "Service order"}</strong><span>#{String(order.id).slice(0, 8)} · {new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(order.created_at))}</span></td>
+                                            <td><span className="overview-status" data-status={order.status}>{statusLabel(order.status)}</span></td>
+                                            <td>{money(Number(order.total_amount || 0))}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
-
-                    <Card className="border border-border shadow-sm bg-card rounded-3xl">
-                        <CardHeader>
-                            <CardTitle className="text-xl font-bold tracking-tight">Account Compliance</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="p-4 bg-muted/30 rounded-2xl border border-border/50 hover:bg-muted/50 transition-all cursor-pointer group">
-                                <h4 className="font-black text-sm mb-1 group-hover:text-primary uppercase tracking-tight">Sub-Order Audit</h4>
-                                <p className="text-[11px] text-muted-foreground font-medium">Full transparency protocol enabled for all downstream orders.</p>
-                            </div>
-                            {!isEnterprise && (
-                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-all cursor-pointer group border-dashed">
-                                    <h4 className="font-black text-sm text-primary mb-1 uppercase tracking-tight">Enterprise Upgrade</h4>
-                                    <p className="text-[11px] text-muted-foreground font-medium">Static keys & revenue sharing available for high-volume partners.</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-            </motion.div>
+                </section>
+                <aside className="overview-help" aria-labelledby="help-title">
+                    <h2 id="help-title">A little guidance.<br />A lot of possibilities.</h2>
+                    <p>Find your way around, or talk to us when you need a hand.</p>
+                    <Link to="/reseller/developer"><span><strong>Integrate with the API</strong><small>Keys, documentation and webhooks</small></span><ArrowUpRight size={16} /></Link>
+                    <Link to="/reseller/settings"><span><strong>Make it yours</strong><small>Keep your account details up to date</small></span><ArrowUpRight size={16} /></Link>
+                    <Link to="/reseller/support"><span><strong>Let’s work it out</strong><small>Get help from our support team</small></span><ArrowUpRight size={16} /></Link>
+                </aside>
+            </div>
         </div>
     );
 }

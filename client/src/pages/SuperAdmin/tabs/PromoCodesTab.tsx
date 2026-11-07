@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { TrashIcon, PencilIcon, PlusIcon, TicketIcon } from "@heroicons/react/24/outline";
 import { required, positiveNumber, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
@@ -119,7 +120,7 @@ export default function PromoCodesTab() {
     };
 
     const columns = [
-        { key: "code", label: "Code", sortable: true, render: (row: PromoCodeRow) => <span className="font-mono text-sm font-bold text-primary">{row.code}</span> },
+        { key: "code", label: "Code", sortable: true, render: (row: PromoCodeRow) => <span className="font-mono text-xs font-medium text-[var(--ov-accent)]">{row.code}</span> },
         {
             key: "discount_type", label: "Discount",
             render: (row: PromoCodeRow) => (
@@ -163,16 +164,12 @@ export default function PromoCodesTab() {
     );
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Promo Codes</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{total} codes</p>
-                </div>
-                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
-                    <PlusIcon className="h-4 w-4" /> New Code
-                </Button>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Promo codes"
+                description={`${total} discount codes.`}
+                actions={<Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}><PlusIcon aria-hidden="true" />New code</Button>}
+            />
 
             <DataTable
                 columns={columns}
@@ -184,10 +181,10 @@ export default function PromoCodesTab() {
                 emptyMessage={<EmptyState icon={TicketIcon} title="No promo codes" description="Create discount codes to share with customers." action={{ label: "New Code", onClick: () => setShowCreate(true) }} />}
                 actions={(row: PromoCodeRow) => (
                     <>
-                        <button onClick={() => openEdit(row)} aria-label="Edit code" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                        <button onClick={() => openEdit(row)} aria-label="Edit code" className="ws-icon-button">
                             <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete code" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete code" className="ws-icon-button">
                             <TrashIcon className="h-4 w-4" />
                         </button>
                     </>

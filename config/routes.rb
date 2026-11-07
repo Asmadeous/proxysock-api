@@ -22,7 +22,7 @@ Rails.application.routes.draw do
           get :me
         end
       end
-      resources :resellers, only: %i[index show update] do
+      resources :resellers, only: %i[show update] do
         collection do
           get :summary_counts
         end
@@ -41,7 +41,6 @@ Rails.application.routes.draw do
           get :credentials
           post :renew
           post :cancel
-          post :refund
           post :reorder
           post :update_subscription
           get 'esims/:esim_id/qr', action: :esim_qr
@@ -171,7 +170,6 @@ Rails.application.routes.draw do
         member do
           get :credentials
           post :renew
-          post :refund
           post :reorder
           post :update_subscription
           get :download_ovpn
@@ -185,7 +183,6 @@ Rails.application.routes.draw do
           post :rotation, action: :update_rotation
           post :whitelist, action: :whitelist_add
           delete :whitelist, action: :whitelist_delete
-          post :claim_crypto_refund
           get :topups, to: 'esim_topups#index'
           post :topups, to: 'esim_topups#create'
           post :topup_subscription, to: 'esim_topups#subscribe'
@@ -391,6 +388,10 @@ Rails.application.routes.draw do
       get 'meisim/topup_preview', to: 'meisim_wallet#topup_preview'
       post 'meisim/topup', to: 'meisim_wallet#topup'
       get 'meisim/statement', to: 'meisim_wallet#statement'
+      get 'meisim/line_topups', to: 'meisim_line_topups#index'
+      get 'meisim/line_topups/networks', to: 'meisim_line_topups#networks'
+      post 'meisim/line_topups/check', to: 'meisim_line_topups#check'
+      post 'meisim/line_topups', to: 'meisim_line_topups#create'
       get 'meisim/verify', to: 'meisim_wallet#verify_history'
       post 'meisim/verify', to: 'meisim_wallet#verify'
       get 'meisim/verify/:batch_id', to: 'meisim_wallet#verify_status'
@@ -482,6 +483,7 @@ Rails.application.routes.draw do
     post 'heleket', to: 'webhooks#heleket'
     post 'hundredpay', to: 'webhooks#hundredpay'
     post 'fastspring', to: 'webhooks#fastspring'
+    post 'bachs', to: 'webhooks#bachs'
 
     # RexPay redirects the payer to the callbackUrl via GET — verify then forward to frontend
     get 'rexpay', to: 'webhooks#rexpay'

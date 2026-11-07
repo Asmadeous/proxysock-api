@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { WalletIcon, CogIcon, ServerStackIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import { ServerStackIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
 import { validEmail, positiveNumber, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
+import PageHeader from "../components/PageHeader";
 import {
     useAdminProductCategories,
     useSystemInfo,
@@ -75,54 +76,38 @@ export default function SettingsTab() {
     const walletLoading = creditWallet.isLoading || debitWallet.isLoading;
 
     const sections = [
-        { id: "wallet" as const, label: "Wallet Management", icon: WalletIcon },
-        { id: "categories" as const, label: "Product Categories", icon: CogIcon },
-        { id: "system" as const, label: "System Info", icon: ServerStackIcon },
+        { id: "wallet" as const, label: "Wallet" },
+        { id: "categories" as const, label: "Product categories" },
+        { id: "system" as const, label: "System" },
     ];
 
     return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">System Settings</h2>
+        <div className="ws-stack">
+            <PageHeader title="Settings" description="Wallet adjustments, product categories and system information." />
 
-            {/* Section tabs */}
-            <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1 w-fit">
+            <div className="ws-tabs" role="group" aria-label="Settings section">
                 {sections.map((s) => (
-                    <button
-                        key={s.id}
-                        onClick={() => setActiveSection(s.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSection === s.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                    >
-                        <s.icon className="h-4 w-4" /> {s.label}
-                    </button>
+                    <button type="button" key={s.id} aria-pressed={activeSection === s.id} onClick={() => setActiveSection(s.id)}>{s.label}</button>
                 ))}
             </div>
 
-            {/* Wallet Management */}
             {activeSection === "wallet" && (
-                <div className="bg-card border border-border rounded-xl p-6 space-y-6 max-w-2xl">
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Wallet Management</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Credit or debit any user or reseller wallet directly.</p>
+                <section className="ws-panel max-w-2xl" aria-labelledby="wallet-title">
+                    <div className="ws-panel-heading">
+                        <div><h2 id="wallet-title">Wallet adjustment</h2><p>Credit or debit any user or reseller wallet directly. Every adjustment is written to the ledger.</p></div>
                     </div>
 
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setWalletAction("credit")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${walletAction === "credit" ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-                        >
-                            <ArrowUpIcon className="h-4 w-4" /> Credit
-                        </button>
-                        <button
-                            onClick={() => setWalletAction("debit")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${walletAction === "debit" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-                        >
-                            <ArrowDownIcon className="h-4 w-4" /> Debit
-                        </button>
-                    </div>
-
-                    <div className="grid gap-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Entity Type">
+                    <div className="space-y-4">
+                        <div className="ws-options" role="group" aria-label="Adjustment type">
+                            <button type="button" className="ws-option" aria-pressed={walletAction === "credit"} onClick={() => setWalletAction("credit")}>
+                                <ArrowUpIcon aria-hidden="true" /><span>Credit</span><small>Add funds to the wallet.</small>
+                            </button>
+                            <button type="button" className="ws-option" aria-pressed={walletAction === "debit"} onClick={() => setWalletAction("debit")}>
+                                <ArrowDownIcon aria-hidden="true" /><span>Debit</span><small>Remove funds from the wallet.</small>
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Field label="Entity type">
                                 <select className={selectClasses} value={walletForm.entity_type} onChange={(e) => setWalletForm({ ...walletForm, entity_type: e.target.value })}>
                                     <option value="User">User</option>
                                     <option value="Reseller">Reseller</option>
@@ -131,8 +116,6 @@ export default function SettingsTab() {
                             <Field label="Email" error={walletErrors.email}>
                                 <input className={inputClasses} type="email" value={walletForm.email} onChange={(e) => setWalletForm({ ...walletForm, email: e.target.value })} placeholder="user@example.com" />
                             </Field>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
                             <Field label="Amount ($)" error={walletErrors.amount}>
                                 <input className={inputClasses} type="number" step="0.01" value={walletForm.amount} onChange={(e) => setWalletForm({ ...walletForm, amount: e.target.value })} placeholder="100.00" />
                             </Field>
@@ -140,117 +123,89 @@ export default function SettingsTab() {
                                 <input className={inputClasses} value={walletForm.description} onChange={(e) => setWalletForm({ ...walletForm, description: e.target.value })} placeholder="Reason for adjustment" />
                             </Field>
                         </div>
-                        <button
-                            onClick={handleWalletAction}
-                            disabled={walletLoading}
-                            className={`px-6 py-2.5 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 ${walletAction === "credit" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-destructive hover:bg-destructive/90"}`}
-                        >
-                            {walletLoading ? "Processing..." : `${walletAction === "credit" ? "Credit" : "Debit"} Wallet`}
-                        </button>
+                        <div className="flex justify-end">
+                            <Button variant={walletAction === "credit" ? "primary" : "danger"} onClick={handleWalletAction} loading={walletLoading}>
+                                {walletLoading ? "Processing…" : `${walletAction === "credit" ? "Credit" : "Debit"} wallet`}
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* Product Categories */}
             {activeSection === "categories" && (
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">{categories.length} categories</p>
-                        <Button onClick={() => setShowCategoryModal(true)} size="sm">
-                            <PlusIcon className="h-4 w-4" /> Add Category
-                        </Button>
+                <section className="overview-services" style={{ marginBottom: 0 }} aria-labelledby="categories-title">
+                    <div className="overview-section-heading">
+                        <div><h2 id="categories-title">Product categories</h2><p>{categories.length} categories group the product catalogue.</p></div>
+                        <Button onClick={() => setShowCategoryModal(true)} size="sm"><PlusIcon /> Add category</Button>
                     </div>
-                    {categoriesLoading ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
-                                    <div className="h-4 w-24 bg-muted rounded mb-2" />
-                                    <div className="h-3 w-16 bg-muted/70 rounded" />
+                    <div className="ws-grid">
+                        {categoriesLoading
+                            ? Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="overview-service">
+                                    <span className="overview-skeleton" />
+                                    <span className="overview-skeleton" style={{ marginTop: 12, maxWidth: 80 }} />
+                                </div>
+                            ))
+                            : categories.map((cat) => (
+                                <div key={cat.id} className="overview-service">
+                                    <div className="overview-service-top"><ServerStackIcon width={18} height={18} aria-hidden="true" /><span className="ws-mono">{cat.slug}</span></div>
+                                    <h3>{cat.name}</h3>
+                                    <p>{cat.products_count} product{cat.products_count === 1 ? "" : "s"}</p>
                                 </div>
                             ))}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {categories.map((cat) => (
-                                <div key={cat.id} className="bg-card border border-border rounded-xl p-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-semibold text-foreground">{cat.name}</h4>
-                                        <span className="text-xs bg-muted px-2 py-1 rounded-lg text-muted-foreground font-mono">{cat.slug}</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground mt-2">{cat.products_count} products</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    </div>
 
-                    <FormModal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Create Product Category" onSubmit={handleCreateCategory} submitLabel="Create" loading={createCategory.isLoading}>
+                    <FormModal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Create product category" onSubmit={handleCreateCategory} submitLabel="Create" loading={createCategory.isLoading}>
                         <Field label="Name"><input className={inputClasses} value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} placeholder="e.g. Proxies" /></Field>
                         <Field label="Slug (optional)"><input className={inputClasses} value={categoryForm.slug} onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })} placeholder="auto-generated if empty" /></Field>
                     </FormModal>
-                </div>
+                </section>
             )}
 
-            {/* System Info */}
             {activeSection === "system" && (
-                systemLoading ? (
-                    <div className="flex justify-center py-16">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
-                    </div>
-                ) : systemInfo ? (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            {[
-                                { label: "Users", value: systemInfo.total_users },
-                                { label: "Resellers", value: systemInfo.total_resellers },
-                                { label: "Orders", value: systemInfo.total_orders },
-                                { label: "Products", value: systemInfo.total_products },
-                            ].map((s) => (
-                                <div key={s.label} className="bg-card border border-border rounded-xl p-4 text-center">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{s.label}</p>
-                                    <p className="text-2xl font-bold text-foreground mt-1">{s.value}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-                            <h3 className="text-lg font-semibold text-foreground">Environment</h3>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                    <span className="text-muted-foreground">Rails</span>
-                                    <span className="float-right font-mono text-foreground">{systemInfo.rails_version}</span>
-                                </div>
-                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                    <span className="text-muted-foreground">Ruby</span>
-                                    <span className="float-right font-mono text-foreground">{systemInfo.ruby_version}</span>
-                                </div>
-                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                    <span className="text-muted-foreground">Environment</span>
-                                    <span className="float-right font-mono text-foreground">{systemInfo.environment}</span>
-                                </div>
-                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                    <span className="text-muted-foreground">Active Subs</span>
-                                    <span className="float-right font-bold text-foreground">{systemInfo.active_subscriptions}</span>
-                                </div>
+                <>
+                    <div className="overview-metrics" style={{ marginBottom: 0 }}>
+                        {[
+                            { label: "Users", value: systemInfo?.total_users },
+                            { label: "Resellers", value: systemInfo?.total_resellers },
+                            { label: "Orders", value: systemInfo?.total_orders },
+                            { label: "Products", value: systemInfo?.total_products },
+                        ].map((m) => (
+                            <div className="overview-metric" key={m.label}>
+                                <span>{m.label}</span>
+                                {systemLoading ? <span className="overview-skeleton" style={{ margin: "13px 0 8px" }} /> : <strong>{m.value ?? "—"}</strong>}
                             </div>
-                        </div>
-
-                        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-                            <h3 className="text-lg font-semibold text-foreground">Payment Gateways</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {Object.entries(systemInfo.gateways).map(([name, active]) => (
-                                    <div key={name} className={`rounded-xl p-4 border text-center ${active ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                                        {active
-                                            ? <CheckCircleIcon className="h-6 w-6 text-emerald-500 mx-auto" />
-                                            : <XCircleIcon className="h-6 w-6 text-red-500 mx-auto" />
-                                        }
-                                        <p className="text-sm font-medium mt-2 capitalize text-foreground">{name}</p>
-                                        <p className={`text-xs ${active ? "text-emerald-400" : "text-red-400"}`}>{active ? "Active" : "Not Configured"}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                ) : null
+
+                    {systemInfo && (
+                        <div className="ws-grid-2">
+                            <section className="ws-panel" aria-labelledby="env-title">
+                                <div className="ws-panel-heading"><div><h2 id="env-title">Environment</h2><p>Runtime versions for this deployment.</p></div></div>
+                                <dl className="ws-rows">
+                                    <div><dt>Rails</dt><dd className="ws-mono">{systemInfo.rails_version}</dd></div>
+                                    <div><dt>Ruby</dt><dd className="ws-mono">{systemInfo.ruby_version}</dd></div>
+                                    <div><dt>Environment</dt><dd className="ws-mono">{systemInfo.environment}</dd></div>
+                                    <div><dt>Active subscriptions</dt><dd>{systemInfo.active_subscriptions}</dd></div>
+                                </dl>
+                            </section>
+                            <section className="ws-panel" aria-labelledby="gateways-title">
+                                <div className="ws-panel-heading"><div><h2 id="gateways-title">Payment gateways</h2><p>Gateways with credentials configured on the server.</p></div></div>
+                                <ul className="ws-list">
+                                    {Object.entries(systemInfo.gateways).map(([name, active]) => (
+                                        <li key={name}>
+                                            <span className="flex items-center gap-2 capitalize">
+                                                {active ? <CheckCircleIcon className="h-4 w-4 ws-good" aria-hidden="true" /> : <XCircleIcon className="h-4 w-4 ws-bad" aria-hidden="true" />}
+                                                {name}
+                                            </span>
+                                            <span className="ws-status" data-tone={active ? "good" : "bad"}>{active ? "Active" : "Not configured"}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

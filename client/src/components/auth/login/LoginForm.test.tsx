@@ -31,7 +31,7 @@ describe("LoginForm", () => {
     it("renders email and password inputs", () => {
         renderLoginForm(defaultProps);
         expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
     });
 
@@ -42,7 +42,7 @@ describe("LoginForm", () => {
         fireEvent.change(emailInput, { target: { value: "test@example.com" } });
         expect(defaultProps.setEmail).toHaveBeenCalledWith("test@example.com");
 
-        const passwordInput = screen.getByLabelText(/password/i);
+        const passwordInput = screen.getByLabelText(/^password$/i);
         fireEvent.change(passwordInput, { target: { value: "password123" } });
         expect(defaultProps.setPassword).toHaveBeenCalledWith("password123");
     });

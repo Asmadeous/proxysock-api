@@ -64,8 +64,8 @@ export default function ResTickets() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-foreground">Support Tickets</h2>
-                <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90">+ New Ticket</button>
+                <h2 className="text-2xl font-medium text-foreground">Support Tickets</h2>
+                <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">+ New Ticket</button>
             </div>
             <DataTable
                 columns={[
@@ -76,7 +76,7 @@ export default function ResTickets() {
                 data={tickets}
                 loading={loading}
                 actions={(row: Record<string, unknown>) => (
-                    <button onClick={() => { setReplyTarget(row); setReplyMsg(""); }} className="px-2.5 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30">Reply</button>
+                    <button onClick={() => { setReplyTarget(row); setReplyMsg(""); }} className="px-2.5 py-1 text-xs bg-[var(--ov-wash)] ws-info rounded hover:bg-[var(--ov-wash)]">Reply</button>
                 )}
             />
             <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="New Ticket" onSubmit={handleCreate} submitLabel="Submit" loading={creating}>

@@ -1,3 +1,4 @@
+import ESIMPurchaseLayout from "./ESIMPurchaseLayout";
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -33,32 +34,37 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
   const [plans, setPlans] = useState<USAESIMPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
     api.get('/web/api/products?product_type=esim&per_page=all')
-      .then(({ data }) => setPlans((data.products || []).filter((p: any) => PHONE_LINES.includes(p.meisim_line)).map(toUsaEsimPlan)))
-      .catch((err) => setError(err.message || 'Error loading plans. Please try again.'))
-      .finally(() => setIsLoading(false));
-  }, []);
+      .then(({ data }) => { if (!cancelled) setPlans((data.products || []).filter((p: any) => PHONE_LINES.includes(p.meisim_line)).map(toUsaEsimPlan)); })
+      .catch(() => { if (!cancelled) setError('Please try again for current plans and prices.'); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [retry]);
 
-  const cardClass = 'flex min-w-0 flex-col rounded-xl border border-border bg-card p-6 text-left transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const cardClass = 'esim-country-card';
 
   return (
-    <div className="w-full space-y-7">
-      <header>
+    <ESIMPurchaseLayout>
+      <header className="esim-page-heading">
         <BackButton label="Back to eSIM services" to="/dashboard/esim" onBack={onBack} />
         <h1 className="text-3xl font-semibold tracking-tight">Voice, Data + Text eSIM</h1>
-        <p className="mt-3 text-base leading-7 text-muted-foreground">Choose the country for your phone number. Each line comes with calls, texts and data and is activated on one phone.</p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">Choose the country for your phone number. Compare the available call, text and data allowances for each country.</p>
       </header>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-border bg-card p-6">
+        <div role="alert" className="overview-error"><div>
           <h2 className="font-semibold">We couldn’t load the plans</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p></div><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button>
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="esim-service-grid" aria-busy={isLoading}>
         {(Object.keys(COUNTRIES) as LineCountry[]).map((code) => {
           const info = COUNTRIES[code];
           const linePlans = plans.filter((plan) => plan.country === code);
@@ -72,7 +78,7 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
                 <CountryFlag country={code} />
                 <span className="text-2xl font-bold tracking-tight">{info.name} phone number</span>
                 <span className="ml-auto text-right text-sm text-foreground/75">
-                  {isLoading ? <span aria-hidden="true" className="block h-10 w-20 animate-pulse rounded bg-muted" /> : (
+                  {error ? <span>Unavailable</span> : isLoading ? <span aria-hidden="true" className="block h-10 w-20 animate-pulse rounded bg-muted" /> : (
                     <>
                       {linePlans.length} {linePlans.length === 1 ? 'plan' : 'plans'}
                       {fromPrice !== null && <span className="block font-semibold text-foreground">from {formatPrice(fromPrice)}</span>}
@@ -105,7 +111,7 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
               <span className="mb-6 mt-3 block space-y-1 text-sm text-foreground/70">
                 {info.facts.map((fact) => <span key={fact} className="block">{fact}</span>)}
               </span>
-              <span className="mt-auto inline-flex min-h-12 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              <span className="esim-service-action">
                 View {info.name} plans
               </span>
             </>
@@ -118,6 +124,6 @@ export default function PhoneESIMCountries({ onBack, onSelect }: PhoneESIMCountr
           );
         })}
       </div>
-    </div>
+    </ESIMPurchaseLayout>
   );
 }

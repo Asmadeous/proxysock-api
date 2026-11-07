@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { PencilIcon, TrashIcon, UserPlusIcon, FingerPrintIcon } from "@heroicons/react/24/outline";
 import { validEmail, hasErrors, type ValidationErrors } from "../utils/validation";
 import { useTabFilters } from "../hooks/useTabFilters";
@@ -96,7 +97,7 @@ export default function UsersTab() {
             key: "name", label: "User", sortable: true,
             render: (row: UserRow) => (
                 <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                    <div className="ws-avatar">
                         <span className="text-foreground text-xs font-medium">
                             {(row.first_name || row.email)?.[0]?.toUpperCase()}
                         </span>
@@ -123,20 +124,12 @@ export default function UsersTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Users</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{total} total users</p>
-                </div>
-                <button
-                    onClick={() => setCreateModal(true)}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
-                >
-                    <UserPlusIcon className="h-4 w-4" />
-                    Onboard User
-                </button>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Users"
+                description={`${total} customer accounts.`}
+                actions={<button type="button" className="ws-button" data-variant="primary" onClick={() => setCreateModal(true)}><UserPlusIcon aria-hidden="true" />Onboard user</button>}
+            />
 
             <DataTable
                 columns={columns}
@@ -154,31 +147,31 @@ export default function UsersTab() {
                         <button
                             onClick={() => openEdit(row)}
                             aria-label="Edit user"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                            className="ws-icon-button"
                         >
                             <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
                             onClick={() => onboardUser.mutate(row.id)}
                             aria-label="Onboard user"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10"
+                            className="ws-icon-button"
                         >
                             <UserPlusIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                        <button onClick={() => handleRevokeTokens(row.id)} className="ws-icon-button" title="Revoke Access">
                             <span className="text-xs font-medium">Access</span>
                         </button>
                         <button
                             onClick={() => impersonateUser.mutate(row.id)}
                             aria-label="Impersonate user"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-500/10"
+                            className="ws-icon-button"
                         >
                             <FingerPrintIcon className="h-4 w-4" />
                         </button>
                         <button
                             onClick={() => setDeleteTarget(row)}
                             aria-label="Delete user"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            className="ws-icon-button"
                         >
                             <TrashIcon className="h-4 w-4" />
                         </button>

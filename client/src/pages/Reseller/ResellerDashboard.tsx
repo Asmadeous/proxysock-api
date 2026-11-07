@@ -25,6 +25,7 @@ import AdminSidebar from "../SuperAdmin/components/AdminSidebar";
 import ResellerErrorBoundary from "./components/ResellerErrorBoundary";
 import { formatImageUrl } from "../../services/api";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useThemeStore } from "@/store/themeStore";
 
 // Directly imported components for core tabs
 import ResOverview from "./components/ResOverview";
@@ -125,6 +126,7 @@ export default function ResellerDashboard() {
 
     const notifications = useNotificationStore(state => state.notifications);
     const unreadNotifications = useNotificationStore(state => state.unreadCount);
+    const dark = useThemeStore(state => state.dark);
 
     // Fetch summary counts periodically
     useEffect(() => {
@@ -213,7 +215,7 @@ export default function ResellerDashboard() {
     const tabs = isEnterprise ? ENTERPRISE_TABS : isSingleProduct ? SINGLE_PRODUCT_TABS : API_ONLY_TABS;
 
     const DEVELOPER_SUBTABS = useMemo(() => [
-        { id: "api-docs", label: "Protocol Documentation", icon: BookOpen },
+        { id: "api-docs", label: "API documentation", icon: BookOpen },
         ...(!isEnterprise ? [{ id: "webhook-config", label: "Webhooks", icon: Webhook }] : []),
     ], [isEnterprise]);
 
@@ -251,12 +253,9 @@ export default function ResellerDashboard() {
 
     const withBack = (content: ReactNode) => (
         <div className="space-y-4">
-            <button
-                onClick={() => setActiveTab("store")}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-            >
-                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                Back to Store
+            <button type="button" onClick={() => setActiveTab("store")} className="proxy-back" style={{ marginBottom: 0 }}>
+                <ArrowLeft size={14} aria-hidden="true" />
+                Back to store
             </button>
             {content}
         </div>
@@ -325,7 +324,7 @@ export default function ResellerDashboard() {
     };
 
     return (
-        <div className="h-screen flex bg-background overflow-hidden">
+        <div className={`workspace-theme landing-theme h-screen flex overflow-hidden ${dark ? "dark" : ""}`}>
             <AdminSidebar
                 items={tabs.map(t => {
                     const newItem: any = { ...t, name: t.label };
@@ -369,34 +368,24 @@ export default function ResellerDashboard() {
             />
 
 
-            <main className="flex-1 overflow-y-auto">
-                {/* Developer Sub-tabs */}
-                {activeTab === "developer" && (
-                    <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 pt-4 pb-4">
-                        <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">
-                            {DEVELOPER_SUBTABS.map(st => (
-                                <button
-                                    key={st.id}
-                                    onClick={() => navigate(st.id === 'api-docs' ? '/reseller/documentation' : '/reseller/webhooks')}
-                                    className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${devSubTab === st.id
-                                        ? "bg-white text-primary shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    <st.icon className="w-3.5 h-3.5" />
-                                    {st.label}
-                                </button>
-                            ))}
-                        </div>
+            <main data-page-scroll className="flex-1 overflow-y-auto">
+                <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-lg:pt-20">
+                    <div className={`dashboard-overview ws-page ${dark ? "overview-dark" : ""}`}>
+                        {activeTab === "developer" && DEVELOPER_SUBTABS.length > 1 && (
+                            <div className="ws-tabs" role="group" aria-label="Developer section" style={{ marginBottom: 24 }}>
+                                {DEVELOPER_SUBTABS.map(st => (
+                                    <button type="button" key={st.id} aria-pressed={devSubTab === st.id || (st.id === "api-docs" && !devSubTab)} onClick={() => navigate(st.id === "api-docs" ? "/reseller/documentation" : "/reseller/webhooks")}>
+                                        <st.icon aria-hidden="true" />{st.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <ResellerErrorBoundary key={activeTab}>
+                            <Suspense fallback={<TabLoader />}>
+                                {renderContent()}
+                            </Suspense>
+                        </ResellerErrorBoundary>
                     </div>
-                )}
-
-                <div className="p-4 sm:p-6">
-                    <ResellerErrorBoundary key={activeTab}>
-                        <Suspense fallback={<TabLoader />}>
-                            {renderContent()}
-                        </Suspense>
-                    </ResellerErrorBoundary>
                 </div>
             </main>
         </div>

@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
-import { UserIcon, BuildingOfficeIcon, EnvelopeIcon, KeyIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useMemo } from "react";
+import { Copy, Eye, EyeOff } from "lucide-react";
 import { fetchResellerProfile, updateResellerProfile } from "../../../services/resellerApi";
 import { toast } from "sonner";
 import { formatImageUrl } from "../../../services/api";
 import CountrySelect from "../../../components/ui/CountrySelect";
 import ChangePassword from "../../UserDashboard/ChangePassword";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
+import Button from "../../SuperAdmin/components/Button";
+
+const TIER_LABELS: Record<string, string> = { infrastructure: "Enterprise", single_product: "Single product", api_only: "API" };
 
 export default function ResSettings() {
     const [loading, setLoading] = useState(true);
@@ -21,6 +25,8 @@ export default function ResSettings() {
         city: ""
     });
     const [profilePicture, setProfilePicture] = useState<File | null>(null);
+    const [showKey, setShowKey] = useState(false);
+    const tier = JSON.parse(localStorage.getItem("resellerUser") || "{}")?.reseller_type as string | undefined;
 
     useEffect(() => {
         fetchResellerProfile()
@@ -95,145 +101,87 @@ export default function ResSettings() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Loading settings...</div>;
+    const tooLarge = !!profilePicture && profilePicture.size > 5 * 1024 * 1024;
+    const preview = useMemo(() => (profilePicture ? URL.createObjectURL(profilePicture) : ""), [profilePicture]);
+    useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+    const avatar = preview || (profile.profile_picture_url ? formatImageUrl(profile.profile_picture_url) : "");
 
     return (
-        <div className="space-y-6 max-w-4xl animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-4xl font-black tracking-tight">Settings</h1>
-                <p className="text-muted-foreground mt-1 font-medium italic">Manage your reseller node and partner identity.</p>
-            </div>
+        <div className="ws-stack">
+            <PageHeader title="Settings" description="Manage your reseller profile, company details and password." />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="md:col-span-2 space-y-6">
-                    <div className="bg-card border border-border shadow-sm rounded-3xl p-8 space-y-6">
-                        <h3 className="text-xl font-black flex items-center gap-3 uppercase tracking-tighter">
-                            <UserIcon className="w-6 h-6 text-primary" /> Profile Information
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Username</label>
-                                <div className="relative group">
-                                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                    <input
-                                        className="w-full bg-muted/30 border border-border/50 p-4 pl-12 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                        value={profile.username}
-                                        onChange={e => setProfile({ ...profile, username: e.target.value })}
-                                    />
-                                </div>
+            {loading ? (
+                <div className="ws-panel space-y-3" role="status" aria-label="Loading settings">
+                    {[0, 1, 2, 3].map(i => <span key={i} className="ws-skeleton block" style={{ height: 40 }} />)}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <section className="ws-panel lg:col-span-2" aria-labelledby="profile-title">
+                        <div className="ws-panel-heading"><div><h2 id="profile-title">Profile</h2><p>These details appear on your account and invoices.</p></div></div>
+                        <form className="grid grid-cols-1 gap-5 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!tooLarge) handleSave(); }}>
+                            <div className="ws-field">
+                                <label htmlFor="rs-username">Username</label>
+                                <input id="rs-username" className="ws-input" value={profile.username} onChange={e => setProfile({ ...profile, username: e.target.value })} />
                             </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Email Address</label>
-                                <div className="relative">
-                                    <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <input
-                                        className="w-full bg-muted/10 border border-border/50 p-4 pl-12 rounded-2xl text-sm font-bold opacity-50 cursor-not-allowed"
-                                        value={profile.email}
-                                        readOnly
-                                    />
-                                </div>
+                            <div className="ws-field">
+                                <label htmlFor="rs-email">Email</label>
+                                <input id="rs-email" className="ws-input" value={profile.email} readOnly aria-readonly="true" style={{ opacity: 0.6 }} />
+                                <p className="ws-field-hint">Contact support to change your email.</p>
                             </div>
-
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Company Name</label>
-                                <div className="relative group">
-                                    <BuildingOfficeIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                    <input
-                                        className="w-full bg-muted/30 border border-border/50 p-4 pl-12 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                        value={profile.company_name}
-                                        onChange={e => setProfile({ ...profile, company_name: e.target.value })}
-                                    />
-                                </div>
+                            <div className="ws-field sm:col-span-2">
+                                <label htmlFor="rs-company">Company name</label>
+                                <input id="rs-company" className="ws-input" value={profile.company_name} onChange={e => setProfile({ ...profile, company_name: e.target.value })} />
                             </div>
-                            
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Country</label>
-                                <CountrySelect
-                                    value={profile.country_code}
-                                    onSelect={(code, name) => setProfile({ ...profile, country_code: code, country: name })}
-                                />
+                            <div className="ws-field">
+                                <label>Country</label>
+                                <CountrySelect value={profile.country_code} onSelect={(code, name) => setProfile({ ...profile, country_code: code, country: name })} />
                             </div>
-
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">City</label>
-                                <div className="relative group">
-                                    <input
-                                        className="w-full bg-muted/30 border border-border/50 p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                        value={profile.city}
-                                        onChange={e => setProfile({ ...profile, city: e.target.value })}
-                                        placeholder="New York"
-                                    />
-                                </div>
+                            <div className="ws-field">
+                                <label htmlFor="rs-city">City</label>
+                                <input id="rs-city" className="ws-input" value={profile.city} onChange={e => setProfile({ ...profile, city: e.target.value })} placeholder="New York" />
                             </div>
-
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Company Logo / Profile Picture (Optional)</label>
+                            <div className="ws-field sm:col-span-2">
+                                <label htmlFor="rs-avatar">Company logo or profile picture</label>
                                 <div className="flex items-center gap-4">
-                                    {profile.profile_picture_url && !profilePicture && (
-                                        <img src={formatImageUrl(profile.profile_picture_url)} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-border/50" />
-                                    )}
-                                    <div className="relative w-full">
-                                        <input
-                                            type="file"
-                                            accept="image/jpeg, image/png, image/gif, image/webp"
-                                            onChange={e => setProfilePicture(e.target.files ? e.target.files[0] : null)}
-                                            className="w-full bg-muted/30 border border-border/50 py-3 px-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-primary file:text-white hover:file:bg-primary/90"
-                                        />
+                                    {avatar && <span className="ws-avatar" style={{ width: 44, height: 44 }}><img src={avatar} alt="" /></span>}
+                                    <input id="rs-avatar" type="file" accept="image/jpeg, image/png, image/gif, image/webp" className="ws-input" onChange={e => setProfilePicture(e.target.files ? e.target.files[0] : null)} />
+                                </div>
+                                {tooLarge ? <p className="ws-field-error">File must be less than 5MB.</p> : <p className="ws-field-hint">Optional. JPG, PNG, GIF or WebP up to 5MB.</p>}
+                            </div>
+                            <div className="sm:col-span-2">
+                                <Button type="submit" loading={saving} disabled={tooLarge}>{saving ? "Saving…" : "Save changes"}</Button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <aside className="ws-stack">
+                        <section className="ws-panel" aria-labelledby="account-title">
+                            <div className="ws-panel-heading"><h2 id="account-title">Account</h2></div>
+                            <dl className="ws-rows">
+                                <div><dt>Tier</dt><dd>{tier ? TIER_LABELS[tier] ?? tier.replace(/_/g, " ") : "—"}</dd></div>
+                                <div><dt>Country</dt><dd>{profile.country || "—"}</dd></div>
+                                <div><dt>Email</dt><dd>{profile.email || "—"}</dd></div>
+                            </dl>
+                        </section>
+
+                        {profile.dedicated_api_key && (
+                            <section className="ws-panel" aria-labelledby="key-title">
+                                <div className="ws-panel-heading"><div><h2 id="key-title">Dedicated API key</h2><p>Your static key for enterprise integrations. Keep it secret.</p></div></div>
+                                <div className="proxy-secret">
+                                    <span>API key</span>
+                                    <div>
+                                        <code>{showKey ? profile.dedicated_api_key : "•".repeat(24)}</code>
+                                        <button type="button" onClick={() => setShowKey(v => !v)} aria-label={showKey ? "Hide API key" : "Show API key"}>{showKey ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                                        <button type="button" onClick={() => { navigator.clipboard.writeText(profile.dedicated_api_key); toast.success("API key copied"); }} aria-label="Copy API key"><Copy size={14} /></button>
                                     </div>
                                 </div>
-                                {profilePicture && profilePicture.size > 5 * 1024 * 1024 && (
-                                    <p className="text-xs mt-1 text-destructive font-bold ml-1">File must be less than 5MB</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="pt-4">
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="bg-primary text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                            >
-                                {saving ? "Saving Changes..." : "Save Production Data"}
-                            </button>
-                        </div>
-                    </div>
-
-                    {profile.dedicated_api_key && (
-                        <div className="bg-zinc-950 text-white rounded-3xl p-8 space-y-4 border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                                <KeyIcon className="w-24 h-24" />
-                            </div>
-                            <h3 className="text-lg font-black uppercase tracking-tighter">API Infrastructure Key</h3>
-                            <p className="text-xs text-zinc-400 font-medium max-w-sm">Your dedicated static key for enterprise integrations. Keep this secret and secure.</p>
-                            <div className="bg-white/5 p-4 rounded-xl font-mono text-xs text-primary font-bold border border-white/5">
-                                {profile.dedicated_api_key}
-                            </div>
-                        </div>
-                    )}
+                            </section>
+                        )}
+                    </aside>
                 </div>
+            )}
 
-                <div className="space-y-6">
-                    <div className="bg-card border border-border shadow-sm rounded-3xl p-8 space-y-4">
-                        <h4 className="text-sm font-black uppercase tracking-widest">Account Status</h4>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                                <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Identity</div>
-                                <div className="text-xs font-black text-emerald-600">VERIFIED</div>
-                            </div>
-                            <div className="flex items-center justify-between p-4 bg-primary/5 border border-primary/10 rounded-2xl">
-                                <div className="text-[10px] font-black text-primary uppercase tracking-widest">Node Level</div>
-                                <div className="text-xs font-black text-primary">V4_ULTRA</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-8">
-                <ChangePassword />
-            </div>
+            <ChangePassword />
         </div>
     );
 }

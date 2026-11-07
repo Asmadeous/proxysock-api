@@ -621,10 +621,6 @@ This document outlines every single endpoint exposed in the ProxySock applicatio
 - **Controller**: `web/api/orders`
 - **Action**: `change_protocol`
 
-### POST `/web/api/orders/:id/claim_crypto_refund`
-- **Controller**: `web/api/orders`
-- **Action**: `claim_crypto_refund`
-
 ### GET `/web/api/orders/:id/credentials`
 - **Controller**: `web/api/orders`
 - **Action**: `credentials`

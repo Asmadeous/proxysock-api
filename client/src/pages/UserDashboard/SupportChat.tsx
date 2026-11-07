@@ -4,6 +4,8 @@ import { fetchUserSupportChat, sendUserSupportMessage } from "../../services/api
 import { fetchSupportChat as fetchResellerSupportChat, sendSupportMessage as sendResellerSupportMessage } from "../../services/resellerApi";
 import { getCableConsumer } from "../../services/cable";
 import { toast } from "sonner";
+import { useThemeStore } from "@/store/themeStore";
+import "./support.css";
 import type { Subscription } from "@rails/actioncable";
 
 interface SupportChatProps {
@@ -32,6 +34,8 @@ function playNotificationSound() {
 }
 
 export default function SupportChat({ role = "User" }: SupportChatProps) {
+    const dark = useThemeStore(state => state.dark);
+    const [loadError, setLoadError] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
@@ -70,6 +74,8 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
     }, []);
 
     const loadChat = useCallback(async () => {
+        setLoading(true);
+        setLoadError(false);
         try {
             const fetchFn = role === "User" ? fetchUserSupportChat : fetchResellerSupportChat;
             const { data } = await fetchFn();
@@ -77,6 +83,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
             setChatMeta(data.chat || {});
             return data.chat;
         } catch {
+            setLoadError(true);
             return null;
         } finally {
             setLoading(false);
@@ -84,13 +91,15 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
     }, [role]);
 
     useEffect(() => {
+        let disposed = false;
         loadChat().then((chat) => {
+            if (disposed) return;
             if (chat?.id) {
                 chatIdRef.current = chat.id;
                 subscribe(chat.id);
             }
         });
-        return () => { if (subRef.current) subRef.current.unsubscribe(); };
+        return () => { disposed = true; if (subRef.current) subRef.current.unsubscribe(); };
     }, [loadChat, subscribe]);
 
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -130,22 +139,25 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
         } catch {
             // Remove failed optimistic message
             setMessages(prev => prev.filter(m => m.id !== optimisticId));
-            toast.error("Failed to send message");
+            setInput(current => current || msg);
+            toast.error("Failed to send message. Your draft has been restored.");
         } finally {
             setSending(false);
         }
     };
 
+    if (loadError) return <div className="support-load-error" role="alert">Couldn’t load your conversation. <button type="button" onClick={() => loadChat().then(chat => { if (chat?.id) { chatIdRef.current = chat.id; subscribe(chat.id); } })}>Try again</button></div>;
+
     if (loading) return (
-        <div className="flex flex-col items-center justify-center h-96">
+        <div className="support-loading" role="status">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary border-r-transparent" />
             <p className="text-sm text-muted-foreground mt-4 animate-pulse">Initializing support session...</p>
         </div>
     );
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto h-[calc(100vh-10rem)] flex flex-col">
-            <div className="flex items-center justify-between">
+        <div className={`support-chat ${dark ? "support-dark" : ""}`}>
+            <div className="support-chat-heading">
                 <div>
                     <h2 className="text-2xl font-bold text-foreground tracking-tight">Support Chat</h2>
                     <p className="text-sm text-muted-foreground">Chat with our operators for real-time help.</p>
@@ -156,7 +168,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                             <div className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
                             <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-green-500 animate-ping opacity-75" />
                         </div>
-                        <span className="text-sm font-medium text-foreground">{chatMeta.assigned_to_name} (Operator)</span>
+                        <span className="text-sm font-medium text-foreground">Assigned to {chatMeta.assigned_to_name}</span>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-xl border border-border">
@@ -166,11 +178,8 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                 )}
             </div>
 
-            <div className="flex-1 bg-card rounded-[2rem] border border-border flex flex-col overflow-hidden shadow-sm relative">
-                {/* Decorative background element */}
-                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            <div className="support-chat-panel">
+                <div className="support-messages" role="log" aria-label="Support conversation">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                             <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -178,7 +187,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                             </div>
                             <div className="max-w-xs space-y-2">
                                 <h3 className="text-lg font-semibold text-foreground">Welcome to Support</h3>
-                                <p className="text-sm text-muted-foreground">Send a message below to start a verified conversation with our support team.</p>
+                                <p className="text-sm text-muted-foreground">Send a message below to start a conversation with our support team.</p>
                             </div>
                         </div>
                     ) : (
@@ -206,14 +215,16 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                     <div ref={endRef} />
                 </div>
 
-                <div className="p-4 border-t border-border bg-muted/40 backdrop-blur-md">
+                <div className="support-composer">
                     <div className="flex items-end gap-3 max-w-4xl mx-auto">
                         <div className="flex-1 relative">
                             <textarea
+                                aria-label="Message to support"
+                                disabled={sending}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
+                                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                                         e.preventDefault();
                                         handleSend();
                                     }
@@ -224,6 +235,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                             />
                         </div>
                         <button
+                            aria-label="Send message"
                             onClick={handleSend}
                             disabled={!input.trim() || sending}
                             className="bg-primary text-primary-foreground h-12 w-12 rounded-2xl flex items-center justify-center hover:bg-primary/90 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 transition-all shadow-lg shadow-primary/25 shrink-0"
@@ -231,7 +243,7 @@ export default function SupportChat({ role = "User" }: SupportChatProps) {
                             <PaperAirplaneIcon className="h-6 w-6 -rotate-45" />
                         </button>
                     </div>
-                    <p className="text-[10px] text-center text-muted-foreground mt-3 uppercase tracking-tighter opacity-50 font-bold">End-To-End encrypted internal support line</p>
+                    <p className="text-[10px] text-center text-muted-foreground mt-3 uppercase tracking-tighter opacity-50 font-bold">Enter to send · Shift + Enter for a new line</p>
                 </div>
             </div>
         </div>

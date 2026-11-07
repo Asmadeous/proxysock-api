@@ -96,8 +96,9 @@ export const createResellerDeposit = (data: { amount: number, gateway: string, c
 };
 
 // ── Reseller Profile ──────────────────────────────
+// The signed-in reseller's own profile (show ignores the id and returns current_reseller).
 export const fetchResellerProfile = () =>
-    resellerApi.get("/resellers");
+    resellerApi.get("/resellers/me");
 export const updateResellerProfile = (id: number, data: Record<string, unknown> | FormData) => {
     if (data instanceof FormData) {
         return resellerApi.patch(`/resellers/${id}`, data, {
@@ -125,8 +126,6 @@ export const sendSupportMessage = (message: string) =>
 // ── Order Actions ─────────────────────────────────
 export const cancelResellerOrder = (id: string) =>
     resellerApi.post(`/orders/${id}/cancel`);
-export const refundResellerOrder = (id: string) =>
-    resellerApi.post(`/orders/${id}/refund`);
 export const fetchOrderCredentials = (id: string) =>
     resellerApi.get(`/orders/${id}/credentials`);
 export const updateProxyCredentials = (id: string, data: { username?: string; password?: string }) =>

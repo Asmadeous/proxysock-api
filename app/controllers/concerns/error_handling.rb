@@ -9,9 +9,14 @@ module ErrorHandling
     rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
     rescue_from ActiveRecord::RecordInvalid, with: :handle_record_invalid
     rescue_from ActionController::ParameterMissing, with: :handle_bad_request
+    rescue_from BachsService::LimitExceeded, with: :handle_payment_limit
   end
 
   private
+
+  def handle_payment_limit(exception)
+    render json: { error: exception.message }, status: :unprocessable_entity
+  end
 
   def handle_standard_error(exception)
     # Report to Sentry

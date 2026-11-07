@@ -16,7 +16,12 @@ class SlackNotifyJob < ApplicationJob
     'provisioning_failed' => 'Order'
   }.freeze
 
+  # Events whose second argument is the alert hash itself rather than a record id.
+  PAYLOAD_EVENTS = %w[bachs_alert].freeze
+
   def perform(event, record_id, **opts)
+    return SlackNotifierService.notify(event.to_sym, record_id) if PAYLOAD_EVENTS.include?(event)
+
     model_class = EVENT_MODELS[event]
     unless model_class
       Rails.logger.warn("[SlackNotifyJob] Unknown event type: #{event}")

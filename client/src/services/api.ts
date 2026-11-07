@@ -117,9 +117,6 @@ export const changeVmPassword = (id: string | number, password: string) =>
 export const updateProxyCredentials = (id: string | number, data: { username?: string, password?: string }) =>
   api.post(`/web/api/orders/${id}/update_credentials`, data);
 
-export const refundOrder = (id: string | number) =>
-  api.post(`/web/api/orders/${id}/refund`);
-
 export const rotateProxyIp = (id: string | number) =>
   api.post(`/web/api/orders/${id}/rotate_ip`);
 

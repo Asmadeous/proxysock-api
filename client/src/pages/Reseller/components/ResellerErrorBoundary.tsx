@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Button from "../../SuperAdmin/components/Button";
 
 interface Props {
     children: ReactNode;
@@ -32,24 +32,12 @@ export default class ResellerErrorBoundary extends Component<Props, State> {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center p-8">
-                    <div className="p-4 bg-destructive/10 rounded-full">
-                        <AlertTriangle className="w-10 h-10 text-destructive" />
-                    </div>
-                    <div className="space-y-2">
-                        <h2 className="text-xl font-bold">Something went wrong</h2>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            This section encountered an unexpected error. You can try reloading it or navigate to another tab.
-                        </p>
-                        {this.state.error && (
-                            <p className="text-xs font-mono text-muted-foreground/60 mt-2">
-                                {this.state.error.message}
-                            </p>
-                        )}
-                    </div>
-                    <Button onClick={this.handleReset} variant="outline">
-                        Try Again
-                    </Button>
+                <div className="overview-empty" role="alert">
+                    <span className="overview-empty-mark" aria-hidden="true"><AlertTriangle size={26} strokeWidth={1.3} /></span>
+                    <h3>Something went wrong</h3>
+                    <p>This section hit an unexpected error. Try loading it again, or open another page from the sidebar.</p>
+                    {this.state.error && <p className="ws-mono">{this.state.error.message}</p>}
+                    <Button variant="secondary" onClick={this.handleReset}>Try again</Button>
                 </div>
             );
         }

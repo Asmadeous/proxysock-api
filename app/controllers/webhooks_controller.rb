@@ -203,6 +203,23 @@ class WebhooksController < ApplicationController
     head :ok
   end
 
+  # Unlike the other gateways, a missing secret or signature is a rejection, not a pass.
+  def bachs
+    unless BachsService.valid_signature?(request.raw_post, request.headers['X-Bachs-Signature-V2'], ENV['BACHS_WEBHOOK_SECRET'])
+      Rails.logger.warn('[Webhook] Bachs signature mismatch, rejecting')
+      return head :bad_request
+    end
+
+    BachsWebhookService.new(JSON.parse(request.raw_post)).process!
+    head :ok
+  rescue JSON::ParserError
+    head :bad_request
+  rescue BachsService::Error, BachsWebhookService::NotReady => e
+    # Any 5xx makes Bachs redeliver the event later.
+    Rails.logger.warn("[Webhook] Bachs: #{e.message}")
+    head :service_unavailable
+  end
+
   private
 
   # Browser GETs (the payer returning from RexPay) are forwarded to the frontend

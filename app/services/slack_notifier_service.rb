@@ -22,7 +22,8 @@ class SlackNotifierService
     guest_chat_message: :support,
     support_chat_message: :support,
     provisioning_failed: :alerts,
-    esim_topup_requested: :alerts
+    esim_topup_requested: :alerts,
+    bachs_alert: :alerts
   }.freeze
 
   class << self
@@ -87,6 +88,7 @@ class SlackNotifierService
       when :support_chat_message then support_chat_blocks(record)
       when :provisioning_failed then provisioning_failure_blocks(record, **opts)
       when :esim_topup_requested then esim_topup_blocks(record)
+      when :bachs_alert then bachs_alert_blocks(record)
       end
     end
 
@@ -105,6 +107,8 @@ class SlackNotifierService
         "🚨 Provisioning failed: Order ##{record.order_number}"
       when :esim_topup_requested
         "📲 eSIM top-up to apply: $#{record.topup_value.to_i} on order ##{record.order.order_number} (#{record.reference})"
+      when :bachs_alert
+        "💳 #{record['title']}"
       end
     end
 
@@ -233,6 +237,16 @@ class SlackNotifierService
           ]
         },
         { type: 'context', elements: [{ type: 'mrkdwn', text: "Order `#{order.order_number}` • #{topup.reference} • apply in the MeiSIM portal, then mark it done in the admin panel" }] }
+      ]
+    end
+
+    # `alert` is a plain hash: { 'title' => String, 'fields' => { label => value } }.
+    def bachs_alert_blocks(alert)
+      fields = alert['fields'].to_h.compact_blank.map { |label, value| { type: 'mrkdwn', text: "*#{label}:*\n#{value}" } }
+      [
+        { type: 'header', text: { type: 'plain_text', text: "💳 #{alert['title']}", emoji: true } },
+        *fields.each_slice(10).map { |slice| { type: 'section', fields: slice } },
+        { type: 'context', elements: [{ type: 'mrkdwn', text: "Bachs • #{Time.current.strftime('%b %d, %Y %H:%M UTC')}" }] }
       ]
     end
 

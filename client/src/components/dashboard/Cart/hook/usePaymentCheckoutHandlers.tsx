@@ -26,6 +26,7 @@ interface UsePaymentCheckoutHandlersProps {
   setIsLoadingHundredpay: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingFastspring: React.Dispatch<React.SetStateAction<boolean>>;
   setIsLoadingHeleket?: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoadingBachs?: React.Dispatch<React.SetStateAction<boolean>>;
   // functions
   clearCart: () => void;
   // constants
@@ -48,6 +49,7 @@ export const usePaymentCheckoutHandlers = ({
   setIsLoadingHundredpay,
   setIsLoadingFastspring,
   setIsLoadingHeleket,
+  setIsLoadingBachs,
   clearCart,
   onSuccess,
   promoCode,
@@ -163,8 +165,8 @@ export const usePaymentCheckoutHandlers = ({
     setError(null);
     try {
       if (!cartItems.length) throw new Error("Your cart is empty");
-      const totalUsd = calculateOrderTotalSync();
-      if (userBalance < totalUsd) {
+      let totalUsd = calculateOrderTotalSync();
+      if (!promoCode && userBalance < totalUsd) {
         throw new Error(
           `Insufficient balance. You have $${userBalance.toFixed(2)}, but need $${totalUsd.toFixed(2)}`,
         );
@@ -179,6 +181,14 @@ export const usePaymentCheckoutHandlers = ({
       };
 
       const { data: checkoutData } = await api.post("/web/api/orders/checkout_cart", payload);
+      // The server prices each order and applies any approved discount.
+      if (Array.isArray(checkoutData?.orders) && checkoutData.orders.length > 0) {
+        const amounts = checkoutData.orders.map((order: { total_amount: number | string }) => Number(order.total_amount));
+        if (amounts.every((amount: number) => Number.isFinite(amount) && amount >= 0)) {
+          totalUsd = amounts.reduce((sum: number, amount: number) => sum + amount, 0);
+        }
+      }
+
 
       const orderId = storeOrderDataForSuccess(cartItems, totalUsd, "balance");
       clearCart();
@@ -248,6 +258,7 @@ export const usePaymentCheckoutHandlers = ({
   const handleHundredpayCheckout = () => handleDepositGateway('hundredpay', setIsLoadingHundredpay);
   const handleFastSpringCheckout = () => handleDepositGateway('fastspring', setIsLoadingFastspring);
   const handleHeleketCheckout = () => setIsLoadingHeleket && handleDepositGateway('heleket', setIsLoadingHeleket);
+  const handleBachsCheckout = () => handleDepositGateway('bachs', setIsLoadingBachs ?? (() => undefined));
 
   return {
     handleBalancePayment,
@@ -257,5 +268,6 @@ export const usePaymentCheckoutHandlers = ({
     handleHundredpayCheckout,
     handleFastSpringCheckout,
     handleHeleketCheckout,
+    handleBachsCheckout,
   };
 };
