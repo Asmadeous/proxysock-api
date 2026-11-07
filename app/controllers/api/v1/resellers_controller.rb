@@ -28,25 +28,16 @@ module Api
         }
       end
 
-      def index
-        resellers = Reseller.page(params[:page]).per(params[:per] || 25)
-        render json: {
-          resellers: resellers,
-          total: Reseller.count
-        }
-      end
-
+      # Always the authenticated reseller's own record; the :id segment is ignored
+      # so one reseller can never read another's profile.
       def show
-        render json: current_reseller
+        render json: serialize_reseller(current_reseller)
       end
 
       def update
+        # profile_picture_url is derived from the attached avatar (Reseller#profile_picture_url).
         if current_reseller.update(reseller_params)
-          if current_reseller.avatar.attached?
-            proxy_path = Rails.application.routes.url_helpers.rails_storage_proxy_path(current_reseller.avatar, only_path: true)
-            current_reseller.update_column(:profile_picture_url, proxy_path)
-          end
-          render json: current_reseller
+          render json: serialize_reseller(current_reseller)
         else
           render json: { errors: current_reseller.errors }, status: :unprocessable_entity
         end
@@ -100,6 +91,31 @@ module Api
       end
 
       private
+
+      # Explicit allowlist: never render the raw model (password_digest, api_key_hash,
+      # reset/unlock/confirmation tokens). dedicated_api_key is shown to its owner on
+      # the Settings page; permanent_api_key is not needed here (auth/me returns it).
+      def serialize_reseller(reseller)
+        {
+          id: reseller.id,
+          email: reseller.email,
+          username: reseller.username,
+          company_name: reseller.company_name,
+          reseller_type: reseller.reseller_type,
+          balance: reseller.balance,
+          earnings_balance: reseller.earnings_balance,
+          dedicated_api_key: reseller.dedicated_api_key,
+          subscription_fee: reseller.subscription_fee,
+          subscription_expires_at: reseller.subscription_expires_at,
+          customer_email: reseller.customer_email,
+          allowed_product_category_id: reseller.allowed_product_category_id,
+          allowed_product_category_name: reseller.allowed_product_category&.name,
+          country: reseller.country,
+          country_code: reseller.country_code,
+          city: reseller.city,
+          profile_picture_url: reseller.profile_picture_url
+        }
+      end
 
       def generate_payment_link(gateway, deposit, amount, currency)
         frontend_callback_url = "#{ENV['FRONTEND_URL']}/reseller/wallet"
@@ -183,8 +199,10 @@ module Api
         end
       end
 
+      # Email is the login identity and is not self-service (no re-verification flow
+      # exists), so it is deliberately not permitted here.
       def reseller_params
-        params.require(:reseller).permit(:company_name, :email, :profile_picture_url, :avatar)
+        params.require(:reseller).permit(:company_name, :username, :country, :country_code, :city, :avatar)
       end
     end
   end

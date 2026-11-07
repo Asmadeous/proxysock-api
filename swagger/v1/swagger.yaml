@@ -473,17 +473,6 @@ paths:
                 email:
                   type: string
                   example: new@example.com
-  "/api/v1/resellers":
-    get:
-      summary: List Resellers
-      tags:
-      - Reseller Profile
-      security:
-      - Bearer: []
-      description: Returns a paginated list of authorized partners.
-      responses:
-        '200':
-          description: successful
   "/api/v1/resellers/{id}/deposit":
     parameters:
     - name: id
