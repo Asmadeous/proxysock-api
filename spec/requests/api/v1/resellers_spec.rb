@@ -45,22 +45,6 @@ RSpec.describe 'api/v1/resellers', type: :request do
     end
   end
 
-  path '/api/v1/resellers' do
-    get('List Resellers') do
-      tags 'Reseller Profile'
-      security [{ Bearer: [] }]
-      produces 'application/json'
-      description 'Returns a paginated list of authorized partners.'
-
-      response(200, 'successful') do
-        let(:reseller) { Reseller.create!(username: 'partner_admin', email: 'admin@example.com', password: 'password', company_name: 'Test Company', country_code: 'US', city: 'New York') }
-        let(:token) { JWT.encode({ reseller_id: reseller.id }, Rails.application.secret_key_base) }
-        let(:Authorization) { "Bearer #{token}" }
-        run_test!
-      end
-    end
-  end
-
   path '/api/v1/resellers/{id}/deposit' do
     parameter name: :id, in: :path, type: :string
 
