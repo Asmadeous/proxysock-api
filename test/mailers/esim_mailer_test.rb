@@ -30,6 +30,7 @@ class EsimMailerTest < ActionMailer::TestCase
     html = mail.html_part&.body&.decoded || mail.body.decoded
 
     assert_equal [@user.email], mail.to
+    assert_includes html, 'src="https://proxysock.com/logo.png"', 'layout logo uses the stable, unhashed URL'
     assert_includes html, 'AT&amp;T Prepaid · Unlimited Saver'
     ['3415128315', '8901', '1234', 'SMDP.EXAMPLE', 'ABC123', 'LPA:1$SMDP.EXAMPLE$ABC123',
      'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA%3A1%24SMDP.EXAMPLE%24ABC123',
