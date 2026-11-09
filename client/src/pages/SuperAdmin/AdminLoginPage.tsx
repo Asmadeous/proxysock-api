@@ -1,19 +1,12 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-    EnvelopeIcon,
-    LockClosedIcon,
-    EyeIcon,
-    EyeSlashIcon,
-    ArrowRightIcon,
-    ShieldCheckIcon,
-    BuildingOfficeIcon,
-} from "@heroicons/react/24/outline";
-import { adminLogin } from "../../services/adminApi";
-import AuthLogo from "../../components/auth/AuthLogo";
-import AuroraBackground from "../../components/auth/carousel/AuroraBackground";
-import { getApiError } from "../../utils/apiError";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { AlertCircle, ArrowLeft, ArrowRight, Building2, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { Helmet } from "react-helmet-async";
+import { adminLogin } from "@/services/adminApi";
+import { getApiError } from "@/utils/apiError";
+import { useThemeStore } from "@/store/themeStore";
+import LoginBrandPanel from "@/components/auth/login/LoginBrandPanel";
+import "@/pages/auth/login.css";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
@@ -23,20 +16,22 @@ export default function AdminLoginPage() {
     const [error, setError] = useState("");
     const navigate = useNavigate();
     const location = useLocation();
+    const dark = useThemeStore(state => state.dark);
 
+    // Zoho SSO failures come back as ?error=…&message=…
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const errorParam = params.get("error");
         const messageParam = params.get("message");
         if (errorParam) {
             setError(messageParam || errorParam);
-            // Optional: clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, [location]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (loading) return;
         setError("");
         setLoading(true);
         try {
@@ -51,167 +46,63 @@ export default function AdminLoginPage() {
         }
     };
 
+    const handleZohoSignIn = () => {
+        const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, "");
+        window.location.href = `${baseUrl}/admin/api/auth/zoho`;
+    };
+
     return (
-        <div className="flex h-screen bg-background">
-            {/* Left Panel */}
-            <div className="hidden lg:flex w-[45%] xl:w-[40%] relative">
-                <AuroraBackground />
-
-                {/* Logo */}
-                <div className="absolute top-8 left-8 z-10">
-                    <AuthLogo variant="dark" />
-                </div>
-
-                {/* Welcome text */}
-                <div className="absolute bottom-8 left-8 right-8 z-10">
-                    <div className="bg-white/[0.08] backdrop-blur-2xl rounded-2xl p-6 border border-white/10 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-white/10 rounded-xl">
-                                <ShieldCheckIcon className="w-5 h-5 text-white/90" />
+        <div className={`landing-theme ${dark ? "dark" : ""}`}>
+            <Helmet><title>Admin Sign In | ProxySock</title><meta name="robots" content="noindex" /></Helmet>
+            <div className="login-page">
+                <LoginBrandPanel variant="admin" />
+                <main className="login-main">
+                    <header className="login-topbar">
+                        <Link to="/" className="login-back"><ArrowLeft size={15} aria-hidden="true" /> Back to website</Link>
+                    </header>
+                    <div className="login-form-area">
+                        <div className="login-form-content">
+                            <div className="login-form-heading">
+                                <p className="login-eyebrow">ProxySock / Management console</p>
+                                <h1>Welcome back<span>.</span></h1>
+                                <p>Sign in with your employee credentials to access the dashboard.</p>
                             </div>
-                            <h3 className="text-white/90 text-lg font-medium">Management Console</h3>
-                        </div>
-                        <p className="text-white/60 text-sm leading-relaxed">
-                            Restricted access. Employee credentials required. All sessions are monitored and logged.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right Panel */}
-            <div className="flex-1 flex flex-col bg-background">
-                {/* Mobile header */}
-                <div className="lg:hidden flex items-center justify-center py-8 px-6">
-                    <AuthLogo variant="auto" size="sm" />
-                </div>
-
-                <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                        className="w-full max-w-md"
-                    >
-                        {/* Header */}
-                        <div className="mb-8">
-                            <h1 className="text-3xl font-bold text-foreground tracking-tight">Admin Portal</h1>
-                            <p className="text-muted-foreground mt-2 text-sm">
-                                Sign in with your employee credentials to access the dashboard.
-                            </p>
-                        </div>
-
-                        {/* Form card */}
-                        <div className="bg-card/50 backdrop-blur-xl rounded-2xl border border-border shadow-xl p-6 space-y-4">
-                            {error && (
-                                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-                                    <div className="flex items-center gap-2">
-                                        <svg className="h-5 w-5 text-destructive shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                        </svg>
-                                        <p className="text-destructive text-sm font-medium">{error}</p>
-                                    </div>
+                            <form className="login-form" onSubmit={handleSubmit} aria-label="Admin sign in" aria-busy={loading}>
+                                {error && <div className="login-error" role="alert"><AlertCircle size={18} aria-hidden="true" /><p>{error}</p></div>}
+                                <div className="login-field">
+                                    <label htmlFor="admin-email">Email address</label>
+                                    <input id="admin-email" name="email" type="email" autoComplete="username" required autoFocus
+                                        disabled={loading} value={email} onChange={event => setEmail(event.target.value)}
+                                        placeholder="employee@company.com" />
                                 </div>
-                            )}
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Email */}
-                                <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                                        Email Address
-                                    </label>
-                                    <div className="relative">
-                                        <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                        <input
-                                            id="email"
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                            autoFocus
-                                            disabled={loading}
-                                            placeholder="employee@company.com"
-                                            className="pl-10 pr-3 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Password */}
-                                <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                                        Password
-                                    </label>
-                                    <div className="relative">
-                                        <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                        <input
-                                            id="password"
-                                            type={showPassword ? "text" : "password"}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            required
-                                            disabled={loading}
-                                            placeholder="Enter your password"
-                                            className="pl-10 pr-10 py-3 w-full rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground transition-colors disabled:opacity-50"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            disabled={loading}
-                                            aria-label={showPassword ? "Hide password" : "Show password"}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                        >
-                                            {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                                <div className="login-field">
+                                    <label htmlFor="admin-password">Password</label>
+                                    <div className="login-password">
+                                        <input id="admin-password" name="password" type={showPassword ? "text" : "password"}
+                                            autoComplete="current-password" required disabled={loading} value={password}
+                                            onChange={event => setPassword(event.target.value)} placeholder="Enter your password" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={loading}
+                                            aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>
+                                            {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Submit */}
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mt-2"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
-                                            <span>Signing in...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Sign In</span>
-                                            <ArrowRightIcon className="h-4 w-4" />
-                                        </>
-                                    )}
+                                <button type="submit" className="login-submit" disabled={loading}>
+                                    <span>{loading ? "Signing in..." : "Sign in"}</span>
+                                    {loading ? <LoaderCircle className="login-spinner" size={18} aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}
                                 </button>
                             </form>
-
-                            <div className="relative my-6">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-border"></div>
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
-                                </div>
+                            <div className="login-divider"><span>Or continue with</span></div>
+                            <div className="login-social" style={{ gridTemplateColumns: "1fr" }}>
+                                <button type="button" onClick={handleZohoSignIn} disabled={loading} aria-label="Sign in with Zoho SSO">
+                                    <Building2 size={17} aria-hidden="true" />
+                                    <span>Zoho SSO</span>
+                                </button>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1").replace(/\/api\/v1\/?$/, '');
-                                    window.location.href = `${baseUrl}/admin/api/auth/zoho`;
-                                }}
-                                disabled={loading}
-                                className="w-full bg-background hover:bg-muted border border-border text-foreground py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                <BuildingOfficeIcon className="h-5 w-5 text-blue-500" />
-                                <span>Sign in with Zoho SSO</span>
-                            </button>
+                            <p className="login-register">Employee access only. Unauthorized access is logged.</p>
                         </div>
-
-                        <p className="text-center text-xs text-muted-foreground mt-6">
-                            Employee access only. Unauthorized access is logged.
-                        </p>
-                    </motion.div>
-                </div>
+                    </div>
+                </main>
             </div>
         </div>
     );
