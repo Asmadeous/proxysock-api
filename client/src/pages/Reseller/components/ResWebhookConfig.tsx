@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Globe, Pencil, Plus, Radio, Trash2, Webhook } from "lucide-react";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import ConfirmModal from "../../SuperAdmin/components/ConfirmModal";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
+import Button from "../../SuperAdmin/components/Button";
+import WorkspaceDialog from "../../SuperAdmin/components/WorkspaceDialog";
+import ServiceCard, { ServiceGrid } from "../../SuperAdmin/components/ServiceCard";
 import {
     fetchResellerWebhooks,
     createResellerWebhook,
@@ -9,21 +14,6 @@ import {
     deleteResellerWebhook,
     verifyResellerWebhook
 } from "../../../services/resellerApi";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import {
-    PlusIcon,
-    TrashIcon,
-    PencilIcon,
-    ArrowPathIcon,
-    CheckCircleIcon,
-    GlobeAltIcon,
-    ShieldCheckIcon
-} from "@heroicons/react/24/outline";
-import { Loader2, Webhook } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface WebhookEndpoint {
     id: string;
@@ -51,7 +41,6 @@ export default function ResWebhookConfig() {
     const [formEvents, setFormEvents] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [verifyingId, setVerifyingId] = useState<string | null>(null);
-    const [showSecret, setShowSecret] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -144,179 +133,87 @@ export default function ResWebhookConfig() {
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Webhook Configuration</h1>
-                    <p className="text-muted-foreground mt-1">Receive real-time notifications when order events occur.</p>
-                </div>
-                <Button onClick={openCreate} className="gap-2">
-                    <PlusIcon className="w-4 h-4" /> Add Endpoint
-                </Button>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Webhooks"
+                description="Receive real-time notifications when order events occur."
+                actions={<Button onClick={openCreate}><Plus aria-hidden="true" /> Add endpoint</Button>}
+            />
 
-            {/* Info Card */}
-            <Card className="bg-blue-500/5 border-blue-500/10">
-                <CardContent className="p-6">
-                    <div className="flex gap-4 items-start">
-                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-                            <ShieldCheckIcon className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1">
-                            <h4 className="font-bold text-sm">Webhook Security</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                Every webhook delivery includes an <code className="bg-muted px-1 rounded">X-ProxySock-Signature</code> header.
-                                Verify this HMAC-SHA256 signature using your endpoint's secret to ensure authenticity.
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            <p className="ws-callout">
+                Every delivery includes an <code>X-ProxySock-Signature</code> header. Verify this HMAC-SHA256 signature with the endpoint’s secret to confirm the request came from us.
+            </p>
 
-            {/* Endpoints List */}
-            {loading ? (
-                <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
-            ) : webhooks.length === 0 ? (
-                <Card className="border-dashed border-2">
-                    <CardContent className="p-12 flex flex-col items-center justify-center text-center">
-                        <Webhook className="w-12 h-12 text-muted-foreground mb-4" />
-                        <h3 className="font-bold text-lg mb-2">No Webhooks Configured</h3>
-                        <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                            Set up webhook endpoints to receive instant notifications about order completions, cancellations, and credential availability.
-                        </p>
-                        <Button onClick={openCreate} className="gap-2">
-                            <PlusIcon className="w-4 h-4" /> Create First Endpoint
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-4">
-                    {webhooks.map(wh => (
-                        <Card key={wh.id} className="hover:shadow-lg transition-shadow">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex gap-4 items-start flex-1 min-w-0">
-                                        <div className="p-3 bg-primary/10 rounded-xl">
-                                            <GlobeAltIcon className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <code className="text-sm font-bold truncate block">{wh.url}</code>
-                                            </div>
-                                            {wh.description && (
-                                                <p className="text-xs text-muted-foreground mb-2">{wh.description}</p>
-                                            )}
-                                            <div className="flex gap-2 flex-wrap mt-2">
-                                                {(wh.events || []).map(ev => (
-                                                    <Badge key={ev} variant="secondary" className="text-[10px]">{ev}</Badge>
-                                                ))}
-                                            </div>
-                                            <div className="mt-3 flex items-center gap-2">
-                                                <span className="text-[10px] text-muted-foreground font-bold uppercase">Secret:</span>
-                                                <code className="text-[10px] font-mono text-muted-foreground">
-                                                    {showSecret === wh.id ? wh.secret : "••••••••••••••••••••"}
-                                                </code>
-                                                <button
-                                                    onClick={() => setShowSecret(showSecret === wh.id ? null : wh.id)}
-                                                    aria-label={showSecret === wh.id ? "Hide webhook secret" : "Show webhook secret"}
-                                                    className="text-[10px] text-primary font-bold hover:underline"
-                                                >
-                                                    {showSecret === wh.id ? "Hide" : "Show"}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2 ml-4">
-                                        <Button
-                                            size="sm" variant="outline"
-                                            onClick={() => handleVerifyPulse(wh.id)}
-                                            disabled={verifyingId === wh.id}
-                                            className="gap-1 h-8"
-                                        >
-                                            {verifyingId === wh.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowPathIcon className="w-3 h-3" />}
-                                            Verify Pulse
-                                        </Button>
-                                        <Button size="sm" variant="outline" onClick={() => openEdit(wh)} className="gap-1 h-8">
-                                            <PencilIcon className="w-3 h-3" /> Edit
-                                        </Button>
-                                        <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteId(wh.id)} className="gap-1 h-8">
-                                            <TrashIcon className="w-3 h-3" /> Delete
-                                        </Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
+            <ServiceGrid
+                loading={loading}
+                empty={webhooks.length === 0}
+                emptyIcon={Webhook}
+                emptyTitle="No webhooks configured"
+                emptyText="Add an endpoint to get instant notifications about completed orders, cancellations and credentials."
+                emptyAction={<Button onClick={openCreate}><Plus aria-hidden="true" /> Add endpoint</Button>}
+            >
+                {webhooks.map(wh => (
+                    <ServiceCard
+                        key={wh.id}
+                        icon={Globe}
+                        kind="Endpoint"
+                        title={wh.description || "Webhook endpoint"}
+                        subtitle={wh.url}
+                        facts={[
+                            { label: "Events", value: (wh.events || []).length ? wh.events.join(", ") : "None" },
+                            { label: "Created", value: new Date(wh.created_at).toLocaleDateString() },
+                            { label: "Signing secret", value: wh.secret, copy: wh.secret, secret: true },
+                        ]}
+                        actions={<>
+                            <button type="button" onClick={() => handleVerifyPulse(wh.id)} disabled={verifyingId === wh.id}><Radio size={14} aria-hidden="true" /> {verifyingId === wh.id ? "Sending…" : "Send test"}</button>
+                            <button type="button" onClick={() => openEdit(wh)}><Pencil size={14} aria-hidden="true" /> Edit</button>
+                            <button type="button" onClick={() => setConfirmDeleteId(wh.id)}><Trash2 size={14} aria-hidden="true" /> Delete</button>
+                        </>}
+                    />
+                ))}
+            </ServiceGrid>
 
             <ConfirmModal
                 open={!!confirmDeleteId}
                 onClose={() => setConfirmDeleteId(null)}
                 onConfirm={handleDelete}
-                title="Delete Webhook"
-                message="Are you sure you want to delete this webhook endpoint? This action cannot be undone."
+                title="Delete webhook"
+                message="Delete this webhook endpoint? It will stop receiving events. This cannot be undone."
                 confirmLabel="Delete"
                 loading={isDeleting}
                 destructive
             />
 
-            {/* Create/Edit Modal */}
-            <Dialog open={showModal} onOpenChange={setShowModal}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>{editing ? "Edit Webhook" : "New Webhook Endpoint"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div>
-                            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Endpoint URL</label>
-                            <Input
-                                value={formUrl}
-                                onChange={e => setFormUrl(e.target.value)}
-                                placeholder="https://your-server.com/webhooks/proxysock"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Description (optional)</label>
-                            <Input
-                                value={formDesc}
-                                onChange={e => setFormDesc(e.target.value)}
-                                placeholder="Production webhook for order processing"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold uppercase text-muted-foreground mb-2 block">Events to Subscribe</label>
-                            <div className="space-y-2">
-                                {AVAILABLE_EVENTS.map(ev => (
-                                    <label
-                                        key={ev.id}
-                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${formEvents.includes(ev.id) ? "bg-primary/5 border-primary/20" : "border-border hover:bg-muted/50"
-                                            }`}
-                                        onClick={() => toggleEvent(ev.id)}
-                                    >
-                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${formEvents.includes(ev.id) ? "bg-primary border-primary" : "border-muted-foreground/30"
-                                            }`}>
-                                            {formEvents.includes(ev.id) && <CheckCircleIcon className="w-3 h-3 text-white" />}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium">{ev.label}</p>
-                                            <p className="text-[10px] text-muted-foreground">{ev.desc}</p>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
+            <WorkspaceDialog
+                open={showModal}
+                onClose={() => { if (!saving) setShowModal(false); }}
+                title={editing ? "Edit webhook" : "New webhook endpoint"}
+                footer={<>
+                    <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</Button>
+                    <Button onClick={handleSave} loading={saving}>{editing ? "Save changes" : "Create endpoint"}</Button>
+                </>}
+            >
+                <form className="grid gap-5" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                    <div className="ws-field">
+                        <label htmlFor="wh-url">Endpoint URL</label>
+                        <input id="wh-url" type="url" className="ws-input" value={formUrl} onChange={e => setFormUrl(e.target.value)} placeholder="https://your-server.com/webhooks/proxysock" required />
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={saving}>
-                            {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                            {editing ? "Update" : "Create"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    <div className="ws-field">
+                        <label htmlFor="wh-desc">Description</label>
+                        <input id="wh-desc" className="ws-input" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Production order notifications" />
+                        <p className="ws-field-hint">Optional.</p>
+                    </div>
+                    <fieldset className="grid gap-2">
+                        <legend className="ws-label">Events</legend>
+                        {AVAILABLE_EVENTS.map(ev => (
+                            <label key={ev.id} className="ws-check">
+                                <input type="checkbox" checked={formEvents.includes(ev.id)} onChange={() => toggleEvent(ev.id)} />
+                                <span><span className="block">{ev.label}</span><small className="ws-muted">{ev.desc}</small></span>
+                            </label>
+                        ))}
+                    </fieldset>
+                </form>
+            </WorkspaceDialog>
         </div>
     );
 }

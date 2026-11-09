@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, TrashIcon, PlusIcon, CogIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, ChevronUpIcon, UsersIcon, GlobeAltIcon, ServerStackIcon, TagIcon, KeyIcon } from "@heroicons/react/24/outline";
 import { validEmail, required, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
 import { useTabFilters } from "../hooks/useTabFilters";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import StatsCard from "../components/StatsCard";
+import PageHeader from "../components/PageHeader";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses } from "../components/FormModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import CountrySelect from "../../../components/ui/CountrySelect";
 import EmptyState from "../components/EmptyState";
-import { StatsCardSkeleton } from "../components/TableSkeleton";
 import {
     useAdminResellers,
     useResellerDetail,
@@ -200,44 +199,27 @@ export default function ResellersTab() {
         return type;
     };
 
-    const tierColor = (type: string) => {
-        if (type === "infrastructure") return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-        if (type === "single_product") return "text-purple-400 bg-purple-500/10 border-purple-500/20";
-        return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-    };
-
     const columns = [
         {
             key: "company_name", label: "Reseller", sortable: true,
             render: (row: ResellerRow) => (
                 <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${row.reseller_type === "infrastructure" ? "bg-emerald-500/20" : "bg-blue-500/20"}`}>
-                        <span className={`text-xs font-bold ${row.reseller_type === "infrastructure" ? "text-emerald-400" : "text-blue-400"}`}>
-                            {(row.company_name || row.username)?.[0]?.toUpperCase()}
-                        </span>
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-foreground">{row.company_name || row.username}</p>
-                        <p className="text-xs text-muted-foreground">{row.email}</p>
-                    </div>
+                    <span className="ws-avatar" aria-hidden="true">{(row.company_name || row.username)?.[0]?.toUpperCase()}</span>
+                    <div><strong>{row.company_name || row.username}</strong><span className="block text-[11px] text-[var(--ov-muted)]">{row.email}</span></div>
                 </div>
             ),
         },
         {
             key: "reseller_type", label: "Tier", sortable: true,
-            render: (row: ResellerRow) => (
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${tierColor(row.reseller_type)}`}>
-                    {tierLabel(row.reseller_type)}
-                </span>
-            ),
+            render: (row: ResellerRow) => <span className="ws-status" data-tone={row.reseller_type === "infrastructure" ? "good" : row.reseller_type === "single_product" ? "wait" : "info"}>{tierLabel(row.reseller_type)}</span>,
         },
         {
             key: "balance", label: "Balance", sortable: true,
             render: (row: ResellerRow) => (
                 <div className="text-right">
-                    <p className="text-sm font-medium">${Number(row.balance || 0).toFixed(2)}</p>
+                    <p className="text-sm tabular-nums">${Number(row.balance || 0).toFixed(2)}</p>
                     {row.reseller_type === "infrastructure" && (
-                        <p className="text-xs text-emerald-400">${Number(row.earnings_balance || 0).toFixed(2)} earned</p>
+                        <p className="text-[11px] text-[var(--ov-muted)]">${Number(row.earnings_balance || 0).toFixed(2)} earned</p>
                     )}
                 </div>
             ),
@@ -246,7 +228,7 @@ export default function ResellersTab() {
             key: "discount_percentage", label: "Discount", sortable: true,
             render: (row: ResellerRow) => (
                 <div className="text-right">
-                    <p className="text-sm font-medium text-emerald-400">
+                    <p className="text-sm">
                         {row.discount_percentage && row.discount_percentage > 0 ? `${row.discount_percentage}%` : "—"}
                     </p>
                 </div>
@@ -255,60 +237,46 @@ export default function ResellersTab() {
         {
             key: "subscription_fee", label: "Subscription", sortable: false,
             render: (row: ResellerRow) => {
-                if (row.reseller_type !== "infrastructure") return <span className="text-xs text-muted-foreground">—</span>;
+                if (row.reseller_type !== "infrastructure") return <span className="text-xs text-[var(--ov-muted)]">—</span>;
                 const isActive = row.subscription_expires_at && new Date(row.subscription_expires_at) > new Date();
                 return (
                     <div>
-                        <p className="text-sm font-medium">${row.subscription_fee || 0}/mo</p>
-                        <span className={`text-xs ${isActive ? "text-emerald-400" : "text-red-400"}`}>
-                            {isActive ? "Active" : "Expired"}
-                        </span>
+                        <p className="text-sm">${row.subscription_fee || 0}/mo</p>
+                        <span className="ws-status" data-tone={isActive ? "good" : "bad"}>{isActive ? "Active" : "Expired"}</span>
                     </div>
                 );
             },
         },
         { key: "total_orders", label: "Orders", sortable: true },
-        { key: "created_at", label: "Joined", render: (row: ResellerRow) => <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleDateString()}</span> },
+        { key: "created_at", label: "Joined", render: (row: ResellerRow) => <span className="text-xs text-[var(--ov-muted)]">{new Date(row.created_at).toLocaleDateString()}</span> },
     ];
 
     return (
-        <div className="space-y-6">
-            {/* Header + Filter Chips */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-foreground">Resellers</h2>
-                    <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
-                        {TYPE_FILTERS.map((f) => (
-                            <button
-                                key={f.value}
-                                onClick={() => update({ type: f.value, page: 1 })}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${typeFilter === f.value
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                    }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
+        <div className="ws-stack">
+            <PageHeader
+                title="Resellers"
+                description="Reseller accounts, tiers, users and recent orders."
+                actions={<Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}><PlusIcon className="h-4 w-4" /> Add reseller</Button>}
+            />
+
+            <div className="overview-metrics" style={{ marginBottom: 0 }}>
+                {[
+                    { label: "Total resellers", value: stats.total, icon: UsersIcon },
+                    { label: "API only", value: stats.api_only, icon: GlobeAltIcon },
+                    { label: "Single product", value: stats.single_product, icon: TagIcon },
+                    { label: "Enterprise", value: stats.enterprise, icon: ServerStackIcon },
+                ].map(({ label, value, icon: Icon }) => (
+                    <div className="overview-metric" key={label}>
+                        <span>{label}<Icon width={16} height={16} aria-hidden="true" /></span>
+                        {isLoading ? <span className="overview-skeleton" style={{ margin: "13px 0 8px" }} /> : <strong>{value}</strong>}
                     </div>
-                </div>
-                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
-                    <PlusIcon className="h-4 w-4" /> Add Reseller
-                </Button>
+                ))}
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {isLoading ? (
-                    Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)
-                ) : (
-                    <>
-                        <StatsCard title="Total Resellers" value={stats.total} icon={UsersIcon} />
-                        <StatsCard title="API Only" value={stats.api_only} icon={GlobeAltIcon} />
-                        <StatsCard title="Single Product" value={stats.single_product} icon={TagIcon} />
-                        <StatsCard title="Enterprise" value={stats.enterprise} icon={ServerStackIcon} />
-                    </>
-                )}
+            <div className="ws-tabs" role="group" aria-label="Reseller tier">
+                {TYPE_FILTERS.map((f) => (
+                    <button type="button" key={f.value} aria-pressed={typeFilter === f.value} onClick={() => update({ type: f.value, page: 1 })}>{f.label}</button>
+                ))}
             </div>
 
             <DataTable
@@ -319,124 +287,102 @@ export default function ResellersTab() {
                 emptyMessage={<EmptyState icon={UsersIcon} title="No resellers found" description="Add a reseller to get started." action={{ label: "Add Reseller", onClick: () => { setShowCreate(true); setForm(EMPTY_FORM); } }} />}
                 actions={(row: ResellerRow) => (
                     <>
-                        <button onClick={() => toggleExpand(row)} aria-label="View details" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
-                            {expandedId === row.id ? <ChevronUpIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        <button type="button" onClick={() => toggleExpand(row)} aria-label="View details" className="ws-icon-button">
+                            {expandedId === row.id ? <ChevronUpIcon /> : <EyeIcon />}
                         </button>
-                        <button onClick={() => openEdit(row)} aria-label="Edit reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"><PencilIcon className="h-4 w-4" /></button>
-                        <button onClick={() => openConfig(row)} aria-label="Configure reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10"><CogIcon className="h-4 w-4" /></button>
-                        <button onClick={() => onboardReseller.mutate(row.id)} aria-label="Onboard reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-green-400 hover:bg-green-500/10"><ArrowPathIcon className="h-4 w-4" /></button>
-                        <button onClick={() => handleRevokeTokens(row.id)} aria-label="Revoke access" className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                            <span className="text-xs font-medium">Access</span>
-                        </button>
-                        <button onClick={() => setDeleteTarget(row)} aria-label="Delete reseller" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"><TrashIcon className="h-4 w-4" /></button>
+                        <button type="button" onClick={() => openEdit(row)} aria-label="Edit reseller" className="ws-icon-button"><PencilIcon /></button>
+                        <button type="button" onClick={() => openConfig(row)} aria-label="Configure reseller" className="ws-icon-button"><CogIcon /></button>
+                        <button type="button" onClick={() => onboardReseller.mutate(row.id)} aria-label="Onboard reseller" className="ws-icon-button"><ArrowPathIcon /></button>
+                        <button type="button" onClick={() => handleRevokeTokens(row.id)} aria-label="Revoke access" className="ws-icon-button"><KeyIcon /></button>
+                        <button type="button" onClick={() => setDeleteTarget(row)} aria-label="Delete reseller" className="ws-icon-button"><TrashIcon /></button>
                     </>
                 )}
             />
 
-            {/* Detail Panel */}
             {expandedId && (
-                <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-foreground">
-                            {detailData?.company_name || detailData?.username || "Loading..."} — Details
-                        </h3>
-                        <button onClick={() => setExpandedId(null)} className="text-muted-foreground hover:text-foreground">
-                            <ChevronUpIcon className="h-5 w-5" />
-                        </button>
+                <section className="ws-panel" aria-labelledby="reseller-detail-title">
+                    <div className="ws-panel-heading">
+                        <div>
+                            <h2 id="reseller-detail-title">{detailData?.company_name || detailData?.username || "Loading…"}</h2>
+                            <p>Users, recent orders and account configuration.</p>
+                        </div>
+                        <button type="button" onClick={() => setExpandedId(null)} aria-label="Close details" className="ws-icon-button"><ChevronUpIcon /></button>
                     </div>
                     {detailLoading ? (
-                        <div className="h-32 flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+                        <div className="space-y-3" role="status" aria-label="Loading details">
+                            <span className="ws-skeleton block" style={{ height: 14 }} />
+                            <span className="ws-skeleton block" style={{ height: 14, maxWidth: "70%" }} />
+                            <span className="ws-skeleton block" style={{ height: 14, maxWidth: "50%" }} />
                         </div>
                     ) : detailData && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Users */}
-                            <div className="lg:col-span-1">
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Users</h4>
+                        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                            <div>
+                                <h3 className="ws-section-title mb-2">Users</h3>
                                 {detailData.users && detailData.users.length > 0 ? (
-                                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                                    <ul className="ws-list max-h-64 overflow-y-auto">
                                         {detailData.users.map((u: { id: string; email: string; name: string; status: string }) => (
-                                            <div key={u.id} className="flex justify-between items-center text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                                <div className="min-w-0 pr-2">
-                                                    <p className="text-foreground font-medium truncate">{u.name || u.email}</p>
-                                                    <p className="text-muted-foreground truncate opacity-80">{u.name ? u.email : ""}</p>
+                                            <li key={u.id}>
+                                                <div className="min-w-0">
+                                                    <p className="truncate">{u.name || u.email}</p>
+                                                    {u.name && <p className="truncate text-[11px] text-[var(--ov-muted)]">{u.email}</p>}
                                                 </div>
                                                 <StatusBadge status={u.status} />
-                                            </div>
+                                            </li>
                                         ))}
-                                    </div>
-                                ) : <p className="text-xs text-muted-foreground">No users assigned</p>}
+                                    </ul>
+                                ) : <p className="text-xs text-[var(--ov-muted)]">No users assigned.</p>}
                             </div>
 
-                            {/* Orders */}
-                            <div className="lg:col-span-1">
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Recent Orders</h4>
+                            <div>
+                                <h3 className="ws-section-title mb-2">Recent orders</h3>
                                 {detailData.orders && detailData.orders.length > 0 ? (
-                                    <div className="space-y-1.5">
+                                    <ul className="ws-list">
                                         {detailData.orders.slice(0, 8).map((o: { id: string; product: string; status: string; total: number; created_at: string }) => (
-                                            <div key={o.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                                <span className="text-foreground font-medium truncate max-w-[150px]">{o.product || "—"}</span>
+                                            <li key={o.id}>
+                                                <div className="min-w-0">
+                                                    <p className="truncate">{o.product || "—"}</p>
+                                                    <p className="text-[11px] text-[var(--ov-muted)]">{new Date(o.created_at).toLocaleDateString()} · ${Number(o.total || 0).toFixed(2)}</p>
+                                                </div>
                                                 <StatusBadge status={o.status} />
-                                                <span className="text-muted-foreground">${Number(o.total || 0).toFixed(2)}</span>
-                                                <span className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</span>
-                                            </div>
+                                            </li>
                                         ))}
-                                    </div>
-                                ) : <p className="text-xs text-muted-foreground">No orders</p>}
+                                    </ul>
+                                ) : <p className="text-xs text-[var(--ov-muted)]">No orders yet.</p>}
                             </div>
 
-                            {/* Account Details + Webhooks */}
-                            <div className="lg:col-span-1 space-y-4">
+                            <div className="space-y-6">
                                 <div>
-                                    <h4 className="text-sm font-semibold text-foreground mb-2">Account Details</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                            <p className="text-muted-foreground">Type</p>
-                                            <p className="font-medium text-foreground">{tierLabel(detailData.reseller_type)}</p>
-                                        </div>
-                                        <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                            <p className="text-muted-foreground">Surcharge</p>
-                                            <p className="font-medium text-foreground">{detailData.surcharge || 0}%</p>
-                                        </div>
+                                    <h3 className="ws-section-title mb-3">Account details</h3>
+                                    <dl className="ws-facts">
+                                        <div><dt>Type</dt><dd>{tierLabel(detailData.reseller_type)}</dd></div>
+                                        <div><dt>Surcharge</dt><dd>{detailData.surcharge || 0}%</dd></div>
                                         {detailData.reseller_type === "infrastructure" && (
                                             <>
-                                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                                    <p className="text-muted-foreground">Subscription</p>
-                                                    <p className="font-medium text-foreground">${detailData.subscription_fee || 0}/mo</p>
-                                                </div>
-                                                <div className="bg-muted/50 rounded-lg px-3 py-2">
-                                                    <p className="text-muted-foreground">Expires</p>
-                                                    <p className="font-medium text-foreground">{detailData.subscription_expires_at ? new Date(detailData.subscription_expires_at).toLocaleDateString() : "—"}</p>
-                                                </div>
-                                                <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
-                                                    <p className="text-muted-foreground">API Key</p>
-                                                    <p className="font-mono text-foreground text-[10px] truncate">{detailData.dedicated_api_key || "Not set"}</p>
-                                                </div>
-                                                <div className="bg-muted/50 rounded-lg px-3 py-2 col-span-2">
-                                                    <p className="text-muted-foreground">Customer Email</p>
-                                                    <p className="font-medium text-foreground">{detailData.customer_email || "Not set"}</p>
-                                                </div>
+                                                <div><dt>Subscription</dt><dd>${detailData.subscription_fee || 0}/mo</dd></div>
+                                                <div><dt>Expires</dt><dd>{detailData.subscription_expires_at ? new Date(detailData.subscription_expires_at).toLocaleDateString() : "—"}</dd></div>
+                                                <div className="col-span-2"><dt>API key</dt><dd className="ws-mono truncate">{detailData.dedicated_api_key || "Not set"}</dd></div>
+                                                <div className="col-span-2"><dt>Customer email</dt><dd>{detailData.customer_email || "Not set"}</dd></div>
                                             </>
                                         )}
-                                    </div>
+                                    </dl>
                                 </div>
                                 {detailData.webhooks && detailData.webhooks.length > 0 && (
                                     <div>
-                                        <h4 className="text-sm font-semibold text-foreground mb-2">Webhooks</h4>
-                                        <div className="space-y-1.5">
+                                        <h3 className="ws-section-title mb-2">Webhooks</h3>
+                                        <ul className="ws-list">
                                             {detailData.webhooks.map((w: { id: string; url: string; events: string[] }) => (
-                                                <div key={w.id} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
-                                                    <span className="text-foreground font-mono truncate max-w-[200px]">{w.url}</span>
-                                                    <span className="text-muted-foreground">{w.events?.length || 0} events</span>
-                                                </div>
+                                                <li key={w.id}>
+                                                    <span className="ws-mono truncate">{w.url}</span>
+                                                    <span className="shrink-0 text-[var(--ov-muted)]">{w.events?.length || 0} events</span>
+                                                </li>
                                             ))}
-                                        </div>
+                                        </ul>
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
-                </div>
+                </section>
             )}
 
             {/* Create Modal */}
@@ -454,7 +400,7 @@ export default function ResellersTab() {
                 <Field label="Password" error={formErrors.password}>
                     <div className="relative">
                         <input className={inputClasses} type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? "Hide password" : "Show password"}>
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ov-muted)] hover:text-[var(--ov-text)]" aria-label={showPassword ? "Hide password" : "Show password"}>
                             {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                         </button>
                     </div>
@@ -471,9 +417,7 @@ export default function ResellersTab() {
                 </Field>
                 {form.reseller_type === "single_product" && (
                     <>
-                        <div className="border-t border-border pt-3 mt-2">
-                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
-                        </div>
+                        <h4 className="ws-section-title border-t border-[var(--ov-line)] pt-4">Single product configuration</h4>
                         <Field label="Allowed Product Category">
                             <Select value={(form as any).allowed_product_category_id || ""} onValueChange={(v) => setForm({ ...form, allowed_product_category_id: v })}>
                                 <SelectTrigger className={inputClasses}>
@@ -499,7 +443,7 @@ export default function ResellersTab() {
                 <Field label="Password (leave blank to keep current)" error={formErrors.password}>
                     <div className="relative">
                         <input className={inputClasses} type={showPassword ? "text" : "password"} value={form.password || ""} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="New password" />
-                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? "Hide password" : "Show password"}>
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ov-muted)] hover:text-[var(--ov-text)]" aria-label={showPassword ? "Hide password" : "Show password"}>
                             {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                         </button>
                     </div>
@@ -523,9 +467,7 @@ export default function ResellersTab() {
                 </Field>
                 {form.reseller_type === "single_product" && (
                     <>
-                        <div className="border-t border-border pt-3 mt-2">
-                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
-                        </div>
+                        <h4 className="ws-section-title border-t border-[var(--ov-line)] pt-4">Single product configuration</h4>
                         <Field label="Allowed Product Category">
                             <Select value={(form as any).allowed_product_category_id || ""} onValueChange={(v) => setForm({ ...form, allowed_product_category_id: v })}>
                                 <SelectTrigger className={inputClasses}>
@@ -573,9 +515,7 @@ export default function ResellersTab() {
                 </Field>
                 {configForm.reseller_type === "infrastructure" && (
                     <>
-                        <div className="border-t border-border pt-3 mt-2">
-                            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-3">Enterprise Configuration</p>
-                        </div>
+                        <h4 className="ws-section-title border-t border-[var(--ov-line)] pt-4">Enterprise configuration</h4>
                         <Field label="Monthly Subscription Fee ($)">
                             <input className={inputClasses} type="number" step="0.01" value={configForm.subscription_fee} onChange={(e) => setConfigForm({ ...configForm, subscription_fee: e.target.value })} placeholder="e.g. 299.00" />
                         </Field>
@@ -589,9 +529,7 @@ export default function ResellersTab() {
                 )}
                 {configForm.reseller_type === "single_product" && (
                     <>
-                        <div className="border-t border-border pt-3 mt-2">
-                            <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">Single Product Configuration</p>
-                        </div>
+                        <h4 className="ws-section-title border-t border-[var(--ov-line)] pt-4">Single product configuration</h4>
                         <Field label="Allowed Product Category ID">
                             <Select value={configForm.allowed_product_category_id || ""} onValueChange={(v) => setConfigForm({ ...configForm, allowed_product_category_id: v })}>
                                 <SelectTrigger className={inputClasses}>

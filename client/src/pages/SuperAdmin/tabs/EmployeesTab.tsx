@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { PencilIcon, TrashIcon, PlusIcon, ClipboardDocumentCheckIcon } from "@heroicons/react/24/outline";
 import { validEmail, required, minLength, hasErrors, type ValidationErrors } from "../utils/validation";
 import Button from "../components/Button";
@@ -134,10 +135,10 @@ export default function EmployeesTab() {
             render: (row: EmployeeRow) => (
                 <div className="flex items-center gap-3">
                     {row.profile_picture_url ? (
-                        <img src={row.profile_picture_url} alt={row.first_name} className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                        <img src={row.profile_picture_url} alt={row.first_name} className="ws-avatar" />
                     ) : (
-                        <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-purple-400 text-xs font-medium">{row.first_name?.[0]?.toUpperCase()}</span>
+                        <div className="ws-avatar">
+                            <span>{row.first_name?.[0]?.toUpperCase()}</span>
                         </div>
                     )}
                     <div>
@@ -159,16 +160,12 @@ export default function EmployeesTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Employees</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{total} employees</p>
-                </div>
-                <Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}>
-                    <PlusIcon className="h-4 w-4" /> Add Employee
-                </Button>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Employees"
+                description={`${total} team members.`}
+                actions={<Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}><PlusIcon aria-hidden="true" />Add employee</Button>}
+            />
 
             <DataTable
                 columns={columns}
@@ -180,16 +177,16 @@ export default function EmployeesTab() {
                 emptyMessage={<EmptyState title="No employees found" description="Add your first team member to get started." action={{ label: "Add Employee", onClick: () => setShowCreate(true) }} />}
                 actions={(row: EmployeeRow) => (
                     <>
-                        <button onClick={() => openEdit(row)} aria-label="Edit employee" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                        <button onClick={() => openEdit(row)} aria-label="Edit employee" className="ws-icon-button">
                             <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setAssignTarget(row)} aria-label="Assign tickets" className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-500/10">
+                        <button onClick={() => setAssignTarget(row)} aria-label="Assign tickets" className="ws-icon-button">
                             <ClipboardDocumentCheckIcon className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleRevokeTokens(row.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10" title="Revoke Access">
+                        <button onClick={() => handleRevokeTokens(row.id)} className="ws-icon-button" title="Revoke Access">
                             <span className="text-xs font-medium">Access</span>
                         </button>
-                        <button onClick={() => setDeleteTarget(row)} aria-label="Deactivate employee" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                        <button onClick={() => setDeleteTarget(row)} aria-label="Deactivate employee" className="ws-icon-button">
                             <TrashIcon className="h-4 w-4" />
                         </button>
                     </>

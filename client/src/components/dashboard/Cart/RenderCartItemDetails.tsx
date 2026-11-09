@@ -1,3 +1,5 @@
+import { useThemeStore } from "@/store/themeStore";
+import "@/pages/UserDashboard/cart.css";
 import { CartItem } from "@/types/index";
 import { useCalculateOrderItems } from "./hook/useCalculateOrderTotalSync";
 import { formatDataVolume, formatDuration } from "@/utils/cart/formatData";
@@ -41,6 +43,7 @@ interface ItemDetailsProps {
 
 const AutoRenewToggle = ({ item, index, updateItemAutoRenew }: { item: CartItem, index: number, updateItemAutoRenew?: (index: number, auto_renew: boolean) => void }) => {
     const [showWarning, setShowWarning] = useState(false);
+    const dark = useThemeStore(state => state.dark);
 
     const handleToggle = (checked: boolean) => {
         if (checked) {
@@ -73,13 +76,13 @@ const AutoRenewToggle = ({ item, index, updateItemAutoRenew }: { item: CartItem,
             </div>
 
             <Dialog open={showWarning} onOpenChange={setShowWarning}>
-                <DialogContent>
+                <DialogContent className={`cart-renew-dialog ${dark ? "cart-renew-dark" : ""}`}>
                     <DialogHeader>
                         <DialogTitle>Enable Auto-Renewal?</DialogTitle>
-                        <DialogDescription className="pt-2">
+                        <DialogDescription asChild><div className="pt-2">
                             <p className="font-semibold text-foreground mb-2">Notice: You are about to enable a subscription for this service.</p>
                             By enabling auto-renew, this product will be automatically renewed using your default payment method (Wallet Balance or Saved Card) upon expiry. You can cancel this at any time from your dashboard.
-                        </DialogDescription>
+                        </div></DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button variant="ghost" onClick={() => setShowWarning(false)}>Cancel</Button>
@@ -118,6 +121,7 @@ const ProxyItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.plan.display_name || item.plan.name || "proxy"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -217,6 +221,7 @@ const EsimItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.esimPackage.name || "eSIM"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -251,6 +256,7 @@ const EsimItemDetails = ({
             <span className="text-muted-foreground">Quantity</span>
             <div className="flex items-center gap-2">
               <Button
+                aria-label="Decrease eSIM quantity"
                 onClick={() =>
                   updateESIMQuantity?.(index, (item.quantity || 1) - 1)
                 }
@@ -264,6 +270,7 @@ const EsimItemDetails = ({
                 {item.quantity || 1}
               </span>
               <Button
+                aria-label="Increase eSIM quantity"
                 onClick={() =>
                   updateESIMQuantity?.(index, (item.quantity || 1) + 1)
                 }
@@ -342,6 +349,7 @@ const ResidentialItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.plan.name || "residential proxy"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -438,6 +446,7 @@ const VpsItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.vpsPlan.name || "VPS"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -461,6 +470,7 @@ const VpsItemDetails = ({
           </div>
         </div>
         <div className="space-y-2.5 text-sm">
+          <div className="flex justify-between gap-4 items-center min-w-0"><span className="text-muted-foreground shrink-0">Operating system</span><span className="font-medium text-right">{item.osTemplate?.replace(/[-_]/g, ' ') || 'Not selected'}</span></div>
           <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Duration</span>
             <span className="font-medium truncate text-right flex-1 min-w-0">
@@ -528,6 +538,7 @@ const RdpItemDetails = ({
             </h3>
           </div>
           <Button
+            aria-label={`Remove ${item.rdpPlan.name || "RDP"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"
@@ -551,6 +562,7 @@ const RdpItemDetails = ({
           </div>
         </div>
         <div className="space-y-2.5 text-sm">
+          <div className="flex justify-between gap-4 items-center min-w-0"><span className="text-muted-foreground shrink-0">Operating system</span><span className="font-medium text-right">{item.osTemplate?.replace(/[-_]/g, ' ') || 'Not selected'}</span></div>
           <div className="flex justify-between gap-4 items-center min-w-0">
             <span className="text-muted-foreground shrink-0">Duration</span>
             <span className="font-medium truncate text-right flex-1 min-w-0">
@@ -718,6 +730,7 @@ const VpnItemDetails = ({
             <h3 className="text-lg font-bold truncate"> {item.vpnPlan.name}</h3>
           </div>
           <Button
+            aria-label={`Remove ${item.vpnPlan.name || "VPN"} from cart`}
             onClick={() => removeItem(index)}
             variant="ghost"
             size="icon"

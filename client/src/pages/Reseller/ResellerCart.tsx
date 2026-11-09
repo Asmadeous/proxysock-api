@@ -164,11 +164,11 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <ShoppingCart className="w-8 h-8 text-blue-500" />
+            <div className="p-2 bg-[var(--ov-wash)] rounded">
+              <ShoppingCart className="w-8 h-8 ws-info" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Reseller Cart</h1>
+              <h1 className="text-3xl font-medium">Reseller Cart</h1>
               <p className="text-muted-foreground mt-1">
                 {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
               </p>
@@ -177,9 +177,9 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
         </div>
         {!isLoadingBalanceFetch && (
           <div className="hidden sm:block">
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/5 rounded-full border border-blue-500/20">
-              <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--ov-wash)] rounded-full border border-[var(--ov-line)]">
+              <Wallet className="w-4 h-4 ws-info ws-info" />
+              <span className="text-sm font-medium ws-info ws-info">
                 Balance: ${userBalance.toFixed(2)}
               </span>
             </div>
@@ -188,7 +188,7 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
       </div>
 
       {error && (
-        <Card className="border-l-4 border-l-destructive bg-destructive/5">
+        <Card className="border-l-4 border-l-destructive bg-[var(--ov-wash)]">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -204,7 +204,7 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
             <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
               <ShoppingCart className="w-12 h-12 text-muted-foreground/50" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
+            <h2 className="text-2xl font-medium mb-2">Your cart is empty</h2>
             <p className="text-muted-foreground text-center max-w-md mx-auto mb-8">
               Looks like you haven't added any proxies or services yet.
             </p>
@@ -220,13 +220,13 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
         </Card>
       ) : (
         <Card className="flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between border-b px-6 py-4 bg-muted/20">
+          <CardHeader className="flex flex-row items-center justify-between border-b px-6 py-4 bg-[var(--ov-wash)]">
             <CardTitle className="text-lg font-medium">Items</CardTitle>
             <Button
               onClick={clearCart}
               variant="ghost"
               size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="text-destructive hover:text-destructive hover:bg-[var(--ov-wash)]"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Clear
@@ -256,7 +256,7 @@ export default function ResellerCart({ onCheckout, onBrowse }: ResellerCartProps
             <Button
               size="lg"
               onClick={onCheckout}
-              className="w-full sm:w-auto gap-2 shadow-lg bg-blue-600 hover:bg-blue-700"
+              className="w-full sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700"
             >
               Proceed to Checkout
               <ArrowRight className="w-4 h-4 ml-1" />

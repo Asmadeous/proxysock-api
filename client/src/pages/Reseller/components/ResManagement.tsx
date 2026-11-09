@@ -1,26 +1,14 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
     Server,
     Monitor,
     Smartphone,
     ShoppingCart,
     ArrowRight,
-    CheckCircle,
-    XCircle,
-    BarChart3,
     Lock,
-    Loader2
+    RefreshCw
 } from "lucide-react";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
 import { fetchResellerOrderStats } from "../../../services/resellerApi";
 import { getApiError } from "../../SuperAdmin/utils/errors";
 import { toast } from "sonner";
@@ -32,14 +20,6 @@ interface ProductStats {
     proxy: { total: number; active: number; expired: number; pending: number };
     vpn: { total: number; active: number; expired: number; pending: number };
 }
-
-const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-    blue:   { bg: "bg-blue-500/10",   text: "text-blue-500" },
-    purple: { bg: "bg-purple-500/10", text: "text-purple-500" },
-    green:  { bg: "bg-green-500/10",  text: "text-green-500" },
-    orange: { bg: "bg-orange-500/10", text: "text-orange-500" },
-    red:    { bg: "bg-red-500/10",    text: "text-red-500" },
-};
 
 interface ResManagementProps {
     onNavigate: (tab: string) => void;
@@ -126,71 +106,35 @@ export default function ResManagement({ onNavigate }: ResManagementProps) {
         },
     ];
 
-    if (loading) return (
-        <div className="flex items-center justify-center p-20">
-            <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        </div>
-    );
-
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Service Management</h1>
-                    <p className="text-muted-foreground mt-1">Monitor and control your active reseller services.</p>
-                </div>
-                <Button onClick={fetchStats} variant="outline" size="sm" className="gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Refresh
-                </Button>
+        <div className="ws-stack">
+            <PageHeader
+                title="Service management"
+                description="Monitor and control the services you have provisioned."
+                actions={<button type="button" onClick={fetchStats} disabled={loading} aria-label="Refresh" className="ws-icon-button"><RefreshCw className={loading ? "animate-spin" : ""} /></button>}
+            />
+
+            <div className="proxy-summary" style={{ marginBottom: 0 }}>
+                <span><strong>{loading ? "—" : productCards.reduce((n, p) => n + (p.stats?.total || 0), 0)}</strong> Total services</span>
+                <span><strong>{loading ? "—" : productCards.reduce((n, p) => n + (p.stats?.active || 0), 0)}</strong> Active</span>
+                <span><strong>{loading ? "—" : productCards.reduce((n, p) => n + (p.stats?.pending || 0), 0)}</strong> Pending</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="overview-service-grid">
                 {productCards.map((product) => (
-                    <motion.div
-                        key={product.title}
-                        whileHover={{ y: -5 }}
-                        className="group"
-                        onClick={() => onNavigate(product.tab)}
-                    >
-                        <Card className="cursor-pointer border-border hover:border-primary/50 transition-all hover:shadow-lg">
-                            <CardHeader>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className={`p-3 rounded-lg ${COLOR_MAP[product.color]?.bg ?? "bg-muted"}`}>
-                                        <product.icon className={`h-6 w-6 ${COLOR_MAP[product.color]?.text ?? "text-muted-foreground"}`} />
-                                    </div>
-                                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                </div>
-                                <CardTitle className="text-xl">{product.title}</CardTitle>
-                                <CardDescription>{product.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Total Services</p>
-                                        <p className="text-3xl font-bold">{product.stats?.total || 0}</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2 pt-4 border-t">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4 text-emerald-500" />
-                                            {product.labels.primary}
-                                        </span>
-                                        <Badge variant="secondary">{product.stats?.active || 0}</Badge>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="flex items-center gap-2">
-                                            <XCircle className="w-4 h-4 text-destructive" />
-                                            {product.labels.secondary}
-                                        </span>
-                                        <Badge variant="destructive">{product.stats?.expired || 0}</Badge>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
+                    <article className="overview-service" key={product.title}>
+                        <div className="overview-service-top">
+                            <product.icon size={21} strokeWidth={1.5} aria-hidden="true" />
+                            <span>{loading ? "Loading…" : `${product.stats?.total || 0} total`}</span>
+                        </div>
+                        <h3>{product.title}</h3>
+                        <p>{product.description}</p>
+                        <dl className="proxy-facts" style={{ marginTop: 16 }}>
+                            <div><dt>{product.labels.primary}</dt><dd>{loading ? "—" : product.stats?.active || 0}</dd></div>
+                            <div><dt>{product.labels.secondary}</dt><dd>{loading ? "—" : product.stats?.expired || 0}</dd></div>
+                        </dl>
+                        <button type="button" onClick={() => onNavigate(product.tab)} aria-label={`Manage ${product.title}`}>Manage <ArrowRight size={15} /></button>
+                    </article>
                 ))}
             </div>
         </div>

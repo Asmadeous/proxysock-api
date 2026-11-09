@@ -2,8 +2,8 @@
 
 module Web
   module Api
-    class AffiliateReferralsController < ApplicationController
-      before_action :authenticate_user!
+    class AffiliateReferralsController < BaseController
+      before_action :authenticate_actor!
 
       # GET /web/api/affiliate_referrals
       def index

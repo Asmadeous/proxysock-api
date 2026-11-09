@@ -105,7 +105,7 @@ export const fetchVPNCategory = async (): Promise<VPNCategory | null> => {
     };
   } catch (err) {
     console.error(`Error fetching VPN category:`, err);
-    return null;
+    throw err;
   }
 };
 

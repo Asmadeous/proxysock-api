@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import PageHeader from "../components/PageHeader";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import EmptyState from "../components/EmptyState";
@@ -56,7 +57,7 @@ export default function TransactionsTab() {
             render: (row: TxRow) => (
                 <div className="flex flex-col">
                     <span className="font-mono text-[10px]">{String(row.reference_id || "N/A").slice(0, 8)}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold">{row.reference_type}</span>
+                    <span className="ws-mono">{row.reference_type}</span>
                 </div>
             )
         },
@@ -67,35 +68,24 @@ export default function TransactionsTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Transactions</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{filtered.length} transactions</p>
-                </div>
-                <select
-                    value={entityTypeFilter}
-                    onChange={(e) => setEntityTypeFilter(e.target.value)}
-                    className="bg-card text-foreground border border-border rounded-xl text-sm px-4 py-2 outline-none hover:border-muted-foreground/30 transition-colors"
-                >
-                    <option value="">All Entities</option>
-                    <option value="User">Users Only</option>
-                    <option value="Reseller">Resellers Only</option>
-                </select>
-            </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Transactions"
+                description={`${filtered.length} transactions.`}
+                actions={<>
+                    <label className="sr-only" htmlFor="tx-entity">Account type</label>
+                    <select id="tx-entity" className="ws-input" style={{ width: 170 }} value={entityTypeFilter} onChange={(e) => setEntityTypeFilter(e.target.value)}>
+                        <option value="">All accounts</option>
+                        <option value="User">Users only</option>
+                        <option value="Reseller">Resellers only</option>
+                    </select>
+                </>}
+            />
 
-            {/* Status tabs */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="ws-tabs" role="group" aria-label="Transaction status">
                 {STATUS_TABS.map(({ key, label }) => (
-                    <button
-                        key={key}
-                        onClick={() => setStatusFilter(key)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${statusFilter === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                    >
-                        {label}
-                        <span className="text-xs opacity-70">
-                            {counts[key as keyof typeof counts] ?? counts.all}
-                        </span>
+                    <button type="button" key={key} aria-pressed={statusFilter === key} onClick={() => setStatusFilter(key)}>
+                        {label}<span className="ws-count">{counts[key as keyof typeof counts] ?? counts.all}</span>
                     </button>
                 ))}
             </div>

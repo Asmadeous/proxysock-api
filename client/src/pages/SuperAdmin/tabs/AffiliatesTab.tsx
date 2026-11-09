@@ -7,6 +7,7 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmModal from "../components/ConfirmModal";
 import FormModal, { Field, inputClasses, selectClasses } from "../components/FormModal";
+import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import {
     useAdminAffiliates,
@@ -163,8 +164,8 @@ export default function AffiliatesTab() {
             key: "referral_code", label: "Affiliate", sortable: true,
             render: (row: AffiliateRow) => (
                 <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                        <LinkIcon className="h-4 w-4 text-emerald-400" />
+                    <div className="ws-avatar">
+                        <LinkIcon className="h-4 w-4 ws-good" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -172,7 +173,7 @@ export default function AffiliatesTab() {
                             <button
                                 onClick={(e) => { e.stopPropagation(); copyCode(row.referral_code); }}
                                 aria-label="Copy referral code"
-                                className="p-0.5 rounded text-muted-foreground hover:text-blue-400 transition-colors"
+                                className="p-0.5 rounded text-muted-foreground transition-colors"
                             >
                                 <ClipboardDocumentIcon className="h-3.5 w-3.5" />
                             </button>
@@ -196,8 +197,8 @@ export default function AffiliatesTab() {
             ),
         },
         { key: "status", label: "Status", render: (row: AffiliateRow) => <StatusBadge status={row.status ?? "active"} /> },
-        { key: "commission_rate", label: "Commission", render: (row: AffiliateRow) => <span className="text-sm font-medium text-emerald-400">{row.commission_rate}%</span> },
-        { key: "discount_rate", label: "Discount", render: (row: AffiliateRow) => <span className="text-sm text-blue-400">{row.discount_rate}%</span> },
+        { key: "commission_rate", label: "Commission", render: (row: AffiliateRow) => <span className="text-sm font-medium ws-good">{row.commission_rate}%</span> },
+        { key: "discount_rate", label: "Discount", render: (row: AffiliateRow) => <span className="text-sm ws-info">{row.discount_rate}%</span> },
         { key: "total_referrals", label: "Referrals", sortable: true },
         { key: "converted", label: "Converted", sortable: true },
         {
@@ -206,7 +207,7 @@ export default function AffiliatesTab() {
                 <div>
                     <span className="text-sm font-medium text-foreground">${Number(row.total_earned ?? 0).toFixed(2)}</span>
                     {(row.pending_balance ?? 0) > 0 && (
-                        <p className="text-[10px] text-yellow-400">${Number(row.pending_balance).toFixed(2)} pending</p>
+                        <p className="text-[10px] ws-wait">${Number(row.pending_balance).toFixed(2)} pending</p>
                     )}
                 </div>
             ),
@@ -222,28 +223,17 @@ export default function AffiliatesTab() {
     ];
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">Affiliates</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{total} affiliates</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button onClick={() => setShowCreate(true)}>
-                        <PlusIcon className="h-4 w-4" /> Onboard Affiliate
-                    </Button>
-                    <div className="flex bg-card rounded-xl border border-border p-0.5">
-                        {(["affiliates", "payouts"] as const).map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => update({ subtab: tab, search: "" })}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${activeSubTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+        <div className="ws-stack">
+            <PageHeader
+                title="Affiliates"
+                description={`${total} affiliates, their commission rates and payout requests.`}
+                actions={<Button onClick={() => setShowCreate(true)}><PlusIcon className="h-4 w-4" /> Onboard affiliate</Button>}
+            />
+
+            <div className="ws-tabs" role="group" aria-label="Affiliate view">
+                {(["affiliates", "payouts"] as const).map((tab) => (
+                    <button type="button" key={tab} aria-pressed={activeSubTab === tab} onClick={() => update({ subtab: tab, search: "" })}>{tab === "affiliates" ? "Affiliates" : "Payouts"}</button>
+                ))}
             </div>
 
             {activeSubTab === "affiliates" ? (
@@ -257,10 +247,10 @@ export default function AffiliatesTab() {
                     emptyMessage={<EmptyState icon={LinkIcon} title="No affiliates" description="Onboard affiliates to start tracking referrals." action={{ label: "Onboard Affiliate", onClick: () => setShowCreate(true) }} />}
                     actions={(row: AffiliateRow) => (
                         <>
-                            <button onClick={() => openConfig(row)} aria-label="Configure affiliate" className="p-1.5 rounded-lg text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10">
+                            <button onClick={() => openConfig(row)} aria-label="Configure affiliate" className="ws-icon-button">
                                 <CogIcon className="h-4 w-4" />
                             </button>
-                            <button onClick={() => setDeleteTarget(row)} aria-label="Delete affiliate" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <button onClick={() => setDeleteTarget(row)} aria-label="Delete affiliate" className="ws-icon-button">
                                 <TrashIcon className="h-4 w-4" />
                             </button>
                         </>
@@ -274,12 +264,7 @@ export default function AffiliatesTab() {
                     emptyMessage={<EmptyState title="No payouts" description="Affiliate payout requests will appear here." />}
                     actions={(row: PayoutRow) =>
                         row.status === "pending" ? (
-                            <button
-                                onClick={() => handleProcessPayout(row.id)}
-                                className="px-3 py-1 text-xs bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
-                            >
-                                Process
-                            </button>
+<Button size="sm" variant="secondary" onClick={() => handleProcessPayout(row.id)}>Process</Button>
                         ) : null
                     }
                 />
@@ -296,13 +281,13 @@ export default function AffiliatesTab() {
                 </Field>
 
                 {createForm.affiliatable_id ? (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
+                    <div className="ws-callout mb-4 flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-emerald-400 font-medium uppercase tracking-wider">Selected {createForm.affiliatable_type}</p>
+                            <p className="text-xs ws-good font-medium uppercase tracking-wider">Selected {createForm.affiliatable_type}</p>
                             <p className="text-sm font-medium text-foreground">{createForm.name}</p>
                             <p className="text-xs text-muted-foreground">{createForm.email}</p>
                         </div>
-                        <button onClick={() => setCreateForm({ ...createForm, affiliatable_id: "", email: "", name: "" })} className="text-xs text-red-400 hover:text-red-300">Change</button>
+                        <button onClick={() => setCreateForm({ ...createForm, affiliatable_id: "", email: "", name: "" })} className="text-xs ws-bad ">Change</button>
                     </div>
                 ) : createForm.affiliatable_type !== "Standalone" ? (
                     <div className="space-y-3 mb-4">
@@ -315,15 +300,15 @@ export default function AffiliatesTab() {
                                     onChange={(e) => setEntitySearch(e.target.value)}
                                     placeholder="Search by email or name..."
                                 />
-                                {searching && <div className="absolute right-3 top-2.5"><div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full"></div></div>}
+                                {searching && <span className="ws-spinner absolute right-3 top-3" aria-label="Searching" />}
                             </div>
                         </Field>
                         {entities.length > 0 && (
-                            <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border">
+                            <div className="max-h-48 overflow-y-auto rounded border border-[var(--ov-line)] bg-[var(--ov-panel)] divide-y divide-border">
                                 {entities.map((e) => (
-                                    <button key={e.id} onClick={() => selectEntity(e)} className="w-full px-4 py-2.5 text-left hover:bg-emerald-500/5 transition-colors group">
+                                    <button key={e.id} onClick={() => selectEntity(e)} className="w-full px-4 py-2.5 text-left hover:bg-[var(--ov-wash)] transition-colors group">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-sm font-medium text-foreground group-hover:text-emerald-400">{e.company_name || `${e.first_name} ${e.last_name}`}</p>
+                                            <p className="text-sm font-medium text-foreground ">{e.company_name || `${e.first_name} ${e.last_name}`}</p>
                                             {e.reseller_type && <span className="text-[10px] text-muted-foreground font-mono uppercase">{e.reseller_type}</span>}
                                         </div>
                                         <p className="text-xs text-muted-foreground">{e.email}</p>
@@ -353,8 +338,8 @@ export default function AffiliatesTab() {
                         <input className={inputClasses} type="number" value={createForm.discount_rate} onChange={(e) => setCreateForm({ ...createForm, discount_rate: e.target.value })} />
                     </Field>
                 </div>
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mt-2">
-                    <p className="text-xs text-blue-300">A unique promo code will be auto-generated for referrals and checkout discounts.</p>
+                <div className="ws-callout">
+                    <p>A unique promo code will be auto-generated for referrals and checkout discounts.</p>
                 </div>
             </FormModal>
 

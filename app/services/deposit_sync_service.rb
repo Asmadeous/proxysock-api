@@ -10,6 +10,9 @@ class DepositSyncService
     return if @deposit.status != 'pending'
 
     verification = verify_with_gateway
+    # Not paid yet: leave the deposit pending so a later payment can still credit it.
+    return false if verification[:status] == 'pending'
+
     if verification[:status] == 'success'
       process_completion(verification[:amount])
       true
@@ -47,13 +50,36 @@ class DepositSyncService
       # 100Pay uses charge_id for verification. We might have stored it in metadata or use transaction_ref
       charge_id = @deposit.metadata['hundredpay_charge_id'] || @deposit.metadata['transaction_ref']
       HundredpayService.new.verify_transaction(charge_id)
+    when 'bachs'
+      verify_with_bachs
     else
       { status: 'unsupported' }
     end
   end
 
+  def verify_with_bachs
+    checkout = BachsService.new.checkout(@deposit.metadata['bachs_checkout_id'])
+    case checkout['status']
+    when 'completed'
+      return { status: 'failed', error: "Bachs checkout paid in #{checkout['currency']}" } unless checkout['currency'] == 'USD'
+
+      owed = BachsService.amount_owed(checkout)
+      if owed.positive?
+        return { status: 'failed', error: "Bachs payment is short by #{owed.to_s('F')} #{checkout.dig('charge', 'currency')}" }
+      end
+
+      { status: 'success', amount: [checkout['amount'].to_f, @deposit.amount.to_f].min }
+    # A bank transfer sent before expiry can still complete an expired checkout.
+    when 'open', 'expired' then { status: 'pending' }
+    else { status: checkout['status'], error: "Bachs checkout is #{checkout['status']}" }
+    end
+  end
+
+  # Locked and re-checked: the Bachs webhook may credit the same deposit at the same time.
   def process_completion(paid_amount)
-    ActiveRecord::Base.transaction do
+    @deposit.with_lock do
+      next unless @deposit.status == 'pending'
+
       @deposit.update!(status: 'completed', completed_at: Time.current)
 
       @deposit.depositable&.wallet&.credit!(paid_amount, "Deposit sync via #{@gateway}", {

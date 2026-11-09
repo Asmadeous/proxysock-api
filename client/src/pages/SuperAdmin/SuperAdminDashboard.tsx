@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useThemeStore } from "@/store/themeStore";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   HomeIcon,
@@ -53,6 +54,8 @@ const NotificationsPage = lazy(() => import("../misc/NotificationsPage"));
 // Consolidated Management Tab
 const ManagementTab = lazy(() => import("./tabs/ManagementTab"));
 const ProfileTab = lazy(() => import("./tabs/ProfileTab"));
+// MeiSIM page: opened from the MeiSIM card on Overview, not listed in the sidebar.
+const MeisimTab = lazy(() => import("./tabs/MeisimTab"));
 
 const sidebarGroups: SidebarGroup[] = [
   {
@@ -124,6 +127,7 @@ const TAB_COMPONENTS: Record<string, any> = {
   notifications: NotificationsPage,
   logs: SystemLogsTab,
   profile: ProfileTab,
+  meisim: MeisimTab,
 };
 
 // Tabs that can have "unseen" events
@@ -308,8 +312,10 @@ export default function SuperAdminDashboard() {
     navigate(`${prefix}/${id}`);
   };
 
+  const dark = useThemeStore(state => state.dark);
+
   return (
-    <div className="min-h-screen flex">
+    <div className={`workspace-theme landing-theme min-h-screen flex ${dark ? "dark" : ""}`}>
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
@@ -332,12 +338,14 @@ export default function SuperAdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
-          <AdminErrorBoundary>
-            <Suspense fallback={<TabLoader />}>
-              <ActiveComponent />
-            </Suspense>
-          </AdminErrorBoundary>
+        <div data-page-scroll className="h-screen overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-6 max-lg:pt-20 custom-scrollbar">
+          <div className={`dashboard-overview ws-page ${dark ? "overview-dark" : ""}`}>
+            <AdminErrorBoundary>
+              <Suspense fallback={<TabLoader />}>
+                <ActiveComponent />
+              </Suspense>
+            </AdminErrorBoundary>
+          </div>
         </div>
       </main>
     </div>

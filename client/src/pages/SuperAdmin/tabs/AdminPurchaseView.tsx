@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Mail, AlertCircle } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
+import Button from "../components/Button";
 
 import ResStore from "../../Reseller/components/ResStore";
 import BuyProxies from "../../UserDashboard/BuyProxies";
@@ -55,12 +56,9 @@ export default function AdminPurchaseView({ onBack, initialTab }: AdminPurchaseV
 
     const withBack = (content: React.ReactNode) => activeTab === home ? <>{content}</> : (
         <div className="space-y-4">
-            <button
-                onClick={() => setActiveTab(home)}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-            >
-                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                {home === "store" ? "Back to Store" : "Back"}
+            <button type="button" onClick={() => setActiveTab(home)} className="proxy-back" style={{ marginBottom: 0 }}>
+                <ArrowLeft size={14} aria-hidden="true" />
+                {home === "store" ? "Back to store" : "Back"}
             </button>
             {content}
         </div>
@@ -85,31 +83,18 @@ export default function AdminPurchaseView({ onBack, initialTab }: AdminPurchaseV
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-                {onBack ? (
-                    <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                        <ArrowLeft className="w-4 h-4" /> Back to Products
-                    </button>
-                ) : <span />}
-                <div className="flex items-center gap-4 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl">
-                    <div className="flex items-center gap-2 text-blue-500">
-                        <AlertCircle className="w-5 h-5 hidden sm:block" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Admin Provisioning</span>
+        <div className="ws-stack">
+            <section className="ws-panel flex flex-wrap items-end justify-between gap-4" aria-label="Provisioning target">
+                <div className="ws-field min-w-[260px] flex-1" style={{ maxWidth: 420 }}>
+                    <label htmlFor="provision-email">Customer email</label>
+                    <div className="ws-search" style={{ maxWidth: "none" }}>
+                        <Mail aria-hidden="true" />
+                        <input id="provision-email" type="email" placeholder="customer@example.com" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
                     </div>
-                    <div className="h-6 w-px bg-blue-500/20" />
-                    <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-blue-500" />
-                        <input
-                            type="email"
-                            placeholder="Target Customer Email"
-                            value={customerEmail}
-                            onChange={(e) => setCustomerEmail(e.target.value)}
-                            className="bg-transparent border-none text-sm font-medium outline-none placeholder:text-blue-500/50 text-blue-700 min-w-[250px]"
-                        />
-                    </div>
+                    <p className="ws-field-hint">The order is created and provisioned on this customer's account. No payment is taken.</p>
                 </div>
-            </div>
+                {onBack && <Button variant="secondary" onClick={onBack}><ArrowLeft /> Back to products</Button>}
+            </section>
 
             {renderContent()}
         </div>

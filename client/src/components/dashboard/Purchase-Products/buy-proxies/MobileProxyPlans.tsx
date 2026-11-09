@@ -64,7 +64,9 @@ export const renderMobileProxyPlans = ({
                 togglePlanSelection(plan.id);
               }
             }}
-            role="button"
+            aria-pressed={String(selectedPlan) === String(plan.id)}
+          aria-label={`Select ${plan.display_name || plan.name}`}
+          role="button"
             tabIndex={0}
           >
             <CardHeader>

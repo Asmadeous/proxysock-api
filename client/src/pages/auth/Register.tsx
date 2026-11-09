@@ -1,23 +1,12 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useCallback, useRef, useEffect } from "react";
 
 import { toast } from "sonner";
 import { conversionTracker } from "../../utils/redditPixel";
 import { registerUser } from "../../services/api";
-import AuthLogo from "../../components/auth/AuthLogo";
-import {
-  RegisterHeader,
-  RegisterForm,
-} from "../../components/auth/register";
-import {
-  AuroraBackground,
-  RegisterBenefitsCarousel,
-} from "../../components/auth/carousel";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGoogle, faXTwitter } from "@fortawesome/free-brands-svg-icons";
-
-
+import AuthPage from "@/components/auth/AuthPage";
+import { RegisterForm } from "@/components/auth/register";
+import SocialLoginButtons from "@/components/auth/login/SocialLoginButtons";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -316,7 +305,7 @@ export default function Register() {
       setCity("");
       setProfilePicture(null);
 
-      setTimeout(() => navigate("/wait-for-verification"), 1500);
+      setTimeout(() => navigate("/wait-for-verification", { state: { email } }), 1500);
 
       // Clear referral code from localStorage after successful registration
       localStorage.removeItem('referral_code');
@@ -359,90 +348,10 @@ export default function Register() {
   const remainingTime = getRemainingTime();
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Left Panel - Aurora Background with Benefits */}
-      <div className="hidden lg:flex w-[45%] xl:w-[42%] relative">
-        <AuroraBackground />
-
-        {/* Register Benefits Carousel */}
-        <RegisterBenefitsCarousel />
-
-        {/* Logo */}
-        <div className="absolute top-8 left-8 z-10">
-          <AuthLogo variant="dark" />
-        </div>
-
-        {/* Welcome Text + Stats */}
-        <div className="absolute bottom-8 left-8 right-8 z-10 space-y-3">
-          {/* Trust indicators */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1 }}
-            className="flex gap-3"
-          >
-            {[
-              { value: "50K+", label: "Users" },
-              { value: "Free", label: "Trial" },
-              { value: "< 1 min", label: "Setup" },
-            ].map((stat, idx) => (
-              <div
-                key={idx}
-                className="flex-1 bg-white/[0.06] backdrop-blur-xl rounded-xl px-3 py-2.5 border border-white/8 text-center"
-              >
-                <div className="text-white font-bold text-sm font-manrope">
-                  {stat.value}
-                </div>
-                <div className="text-white/45 text-[10px] font-inter font-medium uppercase tracking-wider mt-0.5">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-
-          {/* Welcome card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
-            className="bg-white/[0.06] backdrop-blur-2xl rounded-2xl p-5 border border-white/8 shadow-2xl"
-          >
-            <h3 className="text-white/90 text-lg font-semibold leading-relaxed mb-1.5 font-manrope">
-              Join ProxySock Today
-            </h3>
-            <p className="text-white/50 text-sm font-inter leading-relaxed">
-              Get instant access to premium proxies, RDP, VPS, and global eSIM solutions
-            </p>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Right Panel - Registration Form */}
-      <div className="flex-1 flex flex-col bg-background relative">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
-          backgroundSize: '32px 32px',
-        }} />
-
-        {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-center py-8 px-6">
-          <AuthLogo variant="auto" size="sm" />
-        </div>
-
-        <div className="flex-1 flex flex-col p-6 lg:p-12 overflow-y-auto relative">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
-            className="w-full max-w-[480px] m-auto"
-          >
-            <div className="space-y-6">
-              {/* Form Header */}
-              <RegisterHeader />
-
-              {/* Registration Form */}
-              <RegisterForm
+    <AuthPage variant="register" title="Create your account" eyebrow="Join ProxySock" description="Your services and connections, together in one account.">
+      <SocialLoginButtons onGoogleSignIn={handleGoogleSignIn} onXSignIn={handleXSignIn} googleLoading={googleLoading} xLoading={xLoading} isOAuthDisabled={isOAuthDisabled || isLoading} />
+      <div className="login-divider"><span>Or sign up with email</span></div>
+      <RegisterForm
                 firstName={firstName}
                 setFirstName={setFirstName}
                 lastName={lastName}
@@ -475,82 +384,7 @@ export default function Register() {
                 setReferralCode={setReferralCode}
                 onSubmit={handleSubmit}
               />
-
-              {/* Social Login Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/40"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-4 bg-background text-muted-foreground/60 font-inter font-medium uppercase tracking-widest">
-                    or continue with
-                  </span>
-                </div>
-              </div>
-
-              {/* Social Login Buttons */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                className="space-y-3"
-              >
-                <motion.button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={isOAuthDisabled}
-                  whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
-                  whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white dark:bg-white/95 hover:bg-gray-50 dark:hover:bg-white border border-gray-200/80 dark:border-gray-200 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
-                >
-                  {googleLoading ? (
-                    <motion.div
-                      className="w-5 h-5 border-2 border-gray-300 border-t-red-500 rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    />
-                  ) : (
-                    <FontAwesomeIcon
-                      icon={faGoogle}
-                      className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-200"
-                    />
-                  )}
-                  <span className="text-gray-700 font-semibold text-sm font-inter">
-                    {googleLoading
-                      ? "Connecting..."
-                      : "Continue with Google"}
-                  </span>
-                </motion.button>
-
-                <motion.button
-                  type="button"
-                  onClick={handleXSignIn}
-                  disabled={isOAuthDisabled}
-                  whileHover={{ scale: isOAuthDisabled ? 1 : 1.01 }}
-                  whileTap={{ scale: isOAuthDisabled ? 1 : 0.98 }}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-[#0a0a0a] hover:bg-black border border-gray-800 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md group"
-                >
-                  {xLoading ? (
-                    <motion.div
-                      className="w-5 h-5 border-2 border-gray-600 border-t-white rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    />
-                  ) : (
-                    <FontAwesomeIcon
-                      icon={faXTwitter}
-                      className="h-5 w-5 text-white group-hover:scale-110 transition-transform duration-200"
-                    />
-                  )}
-                  <span className="text-white font-semibold text-sm font-inter">
-                    {xLoading ? "Connecting..." : "Continue with X"}
-                  </span>
-                </motion.button>
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </div>
+      <p className="login-register">Already have an account? <Link to="/login">Sign in <span aria-hidden="true">↗</span></Link></p>
+    </AuthPage>
   );
 }

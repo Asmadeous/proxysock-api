@@ -35,11 +35,11 @@ module Web
       # POST /web/api/wallet/deposit
       def deposit
         amount = params[:amount].to_f
-        gateway = params[:gateway] # 'rexpay', 'plisio', 'hundredpay', 'fastspring', 'heleket'
+        gateway = params[:gateway] # 'rexpay', 'plisio', 'hundredpay', 'fastspring', 'heleket', 'bachs'
         currency = params[:currency] || 'USD'
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket bachs].include?(gateway)
 
         # Create pending deposit. Only RexPay charges in NGN, so only it needs the
         # exchange rate stored (captured now so the webhook uses the same rate).
@@ -126,6 +126,22 @@ module Web
           deposit.metadata['hundredpay_charge_id'] = result[:txn_id]
           deposit.save!
           { url: result[:url], amount: amount, currency: 'USD' }
+
+        when 'bachs'
+          link = begin
+            BachsService.new.payment_link(
+              amount: amount,
+              reference: deposit.metadata['transaction_ref'],
+              email: current_actor.email,
+              success_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=bachs&type=deposit&amount=#{deposit.amount}"
+            )
+          rescue BachsService::Error
+            deposit.update!(status: 'failed') # no checkout link, so nothing can pay it
+            raise
+          end
+          deposit.metadata['bachs_checkout_id'] = link[:checkout_id]
+          deposit.save!
+          link.slice(:url, :amount, :currency)
 
         when 'fastspring'
           service = FastspringService.new

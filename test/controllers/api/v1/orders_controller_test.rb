@@ -124,6 +124,17 @@ module Api
         assert_response :unprocessable_entity
         assert_equal product.id, json_response['product_id']
       end
+
+      test 'resellers cannot refund an order themselves' do
+        order = orders(:one)
+        order.update_columns(status: 'failed')
+
+        assert_no_changes -> { @reseller.wallets.find_by(wallet_type: 'main').reload.balance } do
+          post "/api/v1/orders/#{order.id}/refund", headers: auth_header(@reseller)
+        end
+        assert_response :not_found
+        assert_equal 'failed', order.reload.status
+      end
     end
   end
 end

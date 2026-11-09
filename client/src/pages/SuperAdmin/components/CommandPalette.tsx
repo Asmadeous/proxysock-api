@@ -102,22 +102,22 @@ export default function CommandPalette({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97, y: -8 }}
                     transition={{ duration: 0.15 }}
-                    className="relative w-full max-w-[95vw] sm:max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-[95vw] sm:max-w-lg bg-[var(--ov-panel)] border border-[var(--ov-line)] rounded overflow-hidden"
                 >
                     {/* Search input */}
-                    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
-                        <MagnifyingGlassIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--ov-line)]">
+                        <MagnifyingGlassIcon className="h-5 w-5 ws-muted flex-shrink-0" aria-hidden="true" />
                         <input
                             ref={inputRef}
                             type="text"
                             value={query}
                             onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
                             placeholder="Go to..."
-                            className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-sm focus:outline-none"
+                            className="flex-1 bg-transparent text-[var(--ov-text)] placeholder-muted-foreground text-sm focus:outline-none"
                             aria-label="Search tabs"
                             autoComplete="off"
                         />
-                        <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border text-[10px] text-muted-foreground font-mono select-none">
+                        <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[var(--ov-line)] text-[10px] ws-muted font-mono select-none">
                             Esc
                         </kbd>
                     </div>
@@ -130,7 +130,7 @@ export default function CommandPalette({
                         aria-label="Navigation options"
                     >
                         {filtered.length === 0 ? (
-                            <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                            <li className="px-4 py-8 text-center text-sm ws-muted">
                                 No results for &ldquo;{query}&rdquo;
                             </li>
                         ) : (
@@ -144,22 +144,19 @@ export default function CommandPalette({
                                         aria-selected={isCursor}
                                         onClick={() => handleSelect(item.id)}
                                         onMouseEnter={() => setCursor(i)}
-                                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors
-                                            ${isCursor ? "bg-muted" : "hover:bg-muted/50"}`}
+                                        className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 ${isCursor ? "bg-[var(--ov-wash)] shadow-[inset_2px_0_0_var(--ov-accent)]" : ""}`}
                                     >
-                                        <div className={`p-1.5 rounded-lg flex-shrink-0 ${isCursor ? "bg-primary/10" : "bg-muted"}`}>
-                                            <item.icon className={`h-4 w-4 ${isCursor ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
-                                        </div>
-                                        <span className={`flex-1 text-sm ${isCursor ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                                        <item.icon className={`h-4 w-4 shrink-0 ${isCursor ? "text-[var(--ov-accent)]" : "ws-muted"}`} aria-hidden="true" />
+                                        <span className={`flex-1 text-xs ${isCursor ? "text-[var(--ov-text)]" : "ws-muted"}`}>
                                             {item.name}
                                         </span>
                                         {item.group && (
-                                            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider select-none">
+                                            <span className="text-[10px] ws-muted uppercase tracking-wider select-none">
                                                 {item.group}
                                             </span>
                                         )}
                                         {isActive && (
-                                            <span className="text-[10px] text-primary font-medium select-none">
+                                            <span className="select-none text-[10px] text-[var(--ov-accent)]">
                                                 current
                                             </span>
                                         )}
@@ -170,17 +167,17 @@ export default function CommandPalette({
                     </ul>
 
                     {/* Footer hint */}
-                    <div className="flex items-center gap-4 px-4 py-2 border-t border-border bg-muted/30">
-                        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <kbd className="px-1 py-0.5 rounded border border-border font-mono text-[10px]">↑↓</kbd>
+                    <div className="flex items-center gap-4 px-4 py-2 border-t border-[var(--ov-line)] bg-[var(--ov-wash)]">
+                        <span className="flex items-center gap-1.5 text-[11px] ws-muted">
+                            <kbd className="px-1 py-0.5 rounded border border-[var(--ov-line)] font-mono text-[10px]">↑↓</kbd>
                             navigate
                         </span>
-                        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <kbd className="px-1 py-0.5 rounded border border-border font-mono text-[10px]">↵</kbd>
+                        <span className="flex items-center gap-1.5 text-[11px] ws-muted">
+                            <kbd className="px-1 py-0.5 rounded border border-[var(--ov-line)] font-mono text-[10px]">↵</kbd>
                             open
                         </span>
-                        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <kbd className="px-1 py-0.5 rounded border border-border font-mono text-[10px]">Esc</kbd>
+                        <span className="flex items-center gap-1.5 text-[11px] ws-muted">
+                            <kbd className="px-1 py-0.5 rounded border border-[var(--ov-line)] font-mono text-[10px]">Esc</kbd>
                             close
                         </span>
                     </div>

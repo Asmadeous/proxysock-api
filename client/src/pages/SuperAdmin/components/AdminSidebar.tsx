@@ -1,27 +1,19 @@
 import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
-import { Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { Link } from "react-router-dom";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Home, Sun, Moon, LogOut, Menu, Search, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import NotificationBell from "../../../components/NotificationBell";
 import { useThemeStore } from "@/store/themeStore";
-import { Home, Sun, Moon, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { useNotificationStore } from "@/store/notificationStore";
 import { formatImageUrl } from "../../../services/api";
-import logoDark from "../../../assets/images/PROXY PNG.webp";
-import logoLight from "../../../assets/images/PROXY SOCKS DARK FONT.webp";
-
-const SidebarTooltip = ({ children, content, show }: { children: React.ReactNode; content: string; show: boolean }) => {
-    if (!show) return <>{children}</>;
-    return (
-        <div className="group relative z-50">
-            {children}
-            <div className="invisible group-hover:visible absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md whitespace-nowrap border z-50">
-                {content}
-            </div>
-        </div>
-    );
-};
-
+import logo from "@/assets/images/proxysock-wordmark.svg";
+import lightLogo from "@/assets/images/proxysock-wordmark-light.svg";
+import nodeLogo from "@/assets/images/favicon.svg";
+import "@/components/dashboard/layout/sidebar.css";
+import "./workspace-theme.css";
+import "@/pages/UserDashboard/dashboard-home.css";
+import "@/pages/UserDashboard/proxy-management.css";
+import "./workspace-kit.css";
 
 export interface SidebarItem {
     id: string;
@@ -51,6 +43,7 @@ interface AdminSidebarProps {
     markNotificationsAsRead?: () => Promise<any>;
 }
 
+// Staff and reseller workspace navigation, styled like the customer dashboard sidebar.
 export default function AdminSidebar({
     groups: groupsProp,
     items: itemsProp,
@@ -66,8 +59,9 @@ export default function AdminSidebar({
 }: AdminSidebarProps) {
     const groups: SidebarGroup[] = groupsProp ?? (itemsProp ? [{ items: itemsProp }] : []);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("adminSidebarCollapsed") === "true");
+    const [isMobile, setIsMobile] = useState(() => globalThis.innerWidth < 1024);
+    const [failedAvatar, setFailedAvatar] = useState<string>();
 
     const notifications = useNotificationStore(state => state.notifications);
     const unreadCount = useNotificationStore(state => state.unreadCount);
@@ -76,16 +70,12 @@ export default function AdminSidebar({
     const subscribeToRealtime = useNotificationStore(state => state.subscribeToRealtime);
     const unsubscribeFromRealtime = useNotificationStore(state => state.unsubscribeFromRealtime);
     const markAllAsRead = useNotificationStore(state => state.markAllAsRead);
-
     const { dark, toggleDark } = useThemeStore();
 
     const loadNotifications = useCallback(async () => {
         try {
-            await Promise.all([
-                fetchStoreNotifications(),
-                fetchUnreadCount()
-            ]);
-        } catch (e) { /* silent */ }
+            await Promise.all([fetchStoreNotifications(), fetchUnreadCount()]);
+        } catch { /* silent */ }
     }, [fetchStoreNotifications, fetchUnreadCount]);
 
     useEffect(() => {
@@ -94,297 +84,127 @@ export default function AdminSidebar({
         return () => unsubscribeFromRealtime();
     }, [loadNotifications, subscribeToRealtime, unsubscribeFromRealtime]);
 
-    // Persist collapsed state
     useEffect(() => {
-        const saved = localStorage.getItem("adminSidebarCollapsed");
-        if (saved) setIsCollapsed(saved === "true");
+        const check = () => {
+            const mobile = globalThis.innerWidth < 1024;
+            setIsMobile(mobile);
+            if (!mobile) setSidebarOpen(false);
+        };
+        check();
+        globalThis.addEventListener("resize", check);
+        return () => globalThis.removeEventListener("resize", check);
     }, []);
 
     const toggleCollapse = () => {
-        setIsCollapsed((prev) => {
+        setDesktopCollapsed(prev => {
             const next = !prev;
             localStorage.setItem("adminSidebarCollapsed", String(next));
             return next;
         });
     };
 
-    useEffect(() => {
-        const check = () => {
-            const mobile = window.innerWidth < 1024;
-            setIsMobile(mobile);
-            if (!mobile) setSidebarOpen(false);
-        };
-        check();
-        window.addEventListener("resize", check);
-        return () => window.removeEventListener("resize", check);
-    }, []);
-
     const handleTabClick = (id: string) => {
         onTabChange(id);
-        if (isMobile) setSidebarOpen(false);
+        setSidebarOpen(false);
     };
 
-    const activeBg = `bg-primary`;
-    const activeTxt = `text-primary-foreground`;
+    const showBell = Boolean(fetchNotifications && markNotificationsAsRead);
+    const avatarUrl = profilePictureUrl ? formatImageUrl(profilePictureUrl) : undefined;
+    const initials = userName?.split(" ").map(part => part[0]).join("").toUpperCase().slice(0, 2) || "?";
 
-    const renderNav = () => (
-        <div className="h-full flex flex-col bg-background border-r border-border relative">
-            {/* Collapse Toggle (Desktop Only) */}
-            {!isMobile && (
-                <button
-                    className={`absolute -right-3 top-6 rounded-full border border-border bg-background shadow-md z-20 hover:bg-muted flex items-center justify-center transition-all duration-300 ${isCollapsed ? "h-6 w-6 scale-90" : "h-8 w-8 scale-110"}`}
-                    onClick={toggleCollapse}
-                >
-                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-5 w-5" />}
-                </button>
-            )}
-
-            {/* Header */}
-            <div className={`px-4 py-4 border-b border-border flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto flex-shrink-0" />
-                    {!isCollapsed && (
-                        <span className="text-sm font-semibold text-muted-foreground truncate">{title}</span>
-                    )}
+    const renderNav = (mobile: boolean) => {
+        const isCollapsed = !mobile && desktopCollapsed;
+        return (
+            <aside className={`workspace-sidebar ${dark ? "workspace-sidebar-dark" : ""} ${isCollapsed ? "is-collapsed" : ""}`} aria-label={`${title} sidebar`}>
+                <div className="workspace-brand">
+                    <Link to="/" aria-label="ProxySock home" title={isCollapsed ? "ProxySock home" : undefined}>
+                        {isCollapsed ? <img src={nodeLogo} alt="ProxySock" className="workspace-brand-symbol" /> : <img src={dark ? logo : lightLogo} alt="ProxySock" />}
+                    </Link>
+                    <button type="button" className="workspace-icon-button" aria-label={mobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} title={mobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => mobile ? setSidebarOpen(false) : toggleCollapse()}>
+                        {mobile ? <X /> : isCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+                    </button>
                 </div>
-                {!isCollapsed && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        {fetchNotifications && markNotificationsAsRead && (
-                            <NotificationBell
-                                notifications={notifications}
-                                unreadCount={unreadCount}
-                                markAsRead={markAllAsRead}
-                            />
-                        )}
-                        {isMobile && (
-                            <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground lg:hidden">
-                                <XMarkIcon className="h-5 w-5" />
-                            </button>
-                        )}
+
+                <div className="workspace-wallet workspace-role">
+                    {!isCollapsed && <span className="workspace-caption">Workspace</span>}
+                    {isCollapsed ? <span className="workspace-role-mark" title={title}>{title.charAt(0)}</span> : <strong>{title}</strong>}
+                </div>
+
+                {onOpenCommandPalette && (
+                    <div className="workspace-search">
+                        <button type="button" onClick={() => { setSidebarOpen(false); onOpenCommandPalette(); }} aria-label="Open command palette" title={isCollapsed ? "Search (⌘K)" : undefined}>
+                            <Search aria-hidden="true" />
+                            {!isCollapsed && <><span>Search…</span><kbd>⌘K</kbd></>}
+                        </button>
                     </div>
                 )}
-            </div>
 
-            {/* Command Palette Trigger */}
-            {onOpenCommandPalette && (
-                <div className="px-3 pt-2 pb-1">
-                    <SidebarTooltip content="Search (⌘K)" show={!isMobile && isCollapsed}>
-                        <button
-                            onClick={onOpenCommandPalette}
-                            aria-label="Open command palette"
-                            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-muted/40 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground
-                                ${isCollapsed ? "justify-center p-2" : "px-3 py-2"}`}
-                        >
-                            <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                            {!isCollapsed && (
-                                <>
-                                    <span className="flex-1 text-left text-xs">Search...</span>
-                                    <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-[10px] font-mono select-none">
-                                        ⌘K
-                                    </kbd>
-                                </>
-                            )}
-                        </button>
-                    </SidebarTooltip>
-                </div>
-            )}
-
-            {/* Nav */}
-            <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar space-y-4">
-                {groups.map((group, gi) => (
-                    <div key={gi} className="space-y-0.5">
-                        {group.label && !isCollapsed && (
-                            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">
-                                {group.label}
-                            </p>
-                        )}
-                        {group.items.map((item) => {
-                            const isActive = activeTab === item.id;
-                            return (
-                                <SidebarTooltip key={item.id} content={item.name} show={!isMobile && isCollapsed}>
-                                    <button
-                                        onClick={() => handleTabClick(item.id)}
-                                        className={`w-full flex items-center py-2.5 rounded-xl transition-all text-sm
-                                        ${isActive ? `${activeBg} ${activeTxt} font-medium shadow-sm` : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"}
-                                        ${isCollapsed ? "justify-center px-1" : "px-3"}`}
-                                    >
-                                        <div className="relative flex items-center justify-center">
-                                            <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-primary-foreground" : ""}`} />
-                                            {((item.count != null && Number(item.count) > 0) || item.badge) && isCollapsed && (
-                                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-background"></span>
-                                                </span>
-                                            )}
-                                        </div>
-                                        {!isCollapsed && (
-                                            <>
-                                                <span className="flex-1 text-left truncate ml-3">{item.name}</span>
-                                                {item.count != null && Number(item.count) > 0 && (
-                                                    <div className="flex items-center gap-1.5 ml-1">
-                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? "bg-background/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                                                            {item.count}
-                                                        </span>
-                                                        <span className="relative flex h-2 w-2">
-                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {item.badge && !item.count && (
-                                                    item.badge === "!" ? (
-                                                        <span className="relative flex h-2 w-2 ml-2">
-                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className={`px-2 py-0.5 text-xs rounded-full ml-1 ${isActive ? "bg-background/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                                                            {item.badge}
-                                                        </span>
-                                                    )
-                                                )}
-                                            </>
-                                        )}
+                <nav className="workspace-navigation" aria-label={`${title} navigation`}>
+                    {groups.map((group, index) => (
+                        <div className="workspace-nav-group" key={group.label || index}>
+                            {group.label && <h2 className={isCollapsed ? "sr-only" : "workspace-caption"}>{group.label}</h2>}
+                            {group.items.map(item => {
+                                const active = activeTab === item.id;
+                                const count = Number(item.count) || 0;
+                                const Icon = item.icon;
+                                return (
+                                    <button type="button" key={item.id} onClick={() => handleTabClick(item.id)} className="workspace-nav-link" aria-label={item.name} aria-current={active ? "page" : undefined} title={isCollapsed ? item.name : undefined}>
+                                        <Icon aria-hidden="true" />
+                                        {!isCollapsed && <span className="workspace-link-label">{item.name}</span>}
+                                        {count > 0 && <span className="workspace-count" aria-label={`${count} updates`}>{count > 99 ? "99+" : count}</span>}
+                                        {item.badge && item.badge !== "!" && !count && !isCollapsed && <span className="workspace-count">{item.badge}</span>}
+                                        {item.badge === "!" && !count && <span className="workspace-activity" aria-label="New activity" />}
                                     </button>
-                                </SidebarTooltip>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
+                    ))}
+                </nav>
+
+                <div className="workspace-account">
+                    <div className="workspace-utilities">
+                        {showBell && <span className="workspace-bell"><NotificationBell notifications={notifications} unreadCount={unreadCount} markAsRead={markAllAsRead} /></span>}
+                        <button type="button" className="workspace-icon-button" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Switch to light mode" : "Switch to dark mode"}>{dark ? <Sun /> : <Moon />}</button>
+                        <Link to="/" className="workspace-icon-button" aria-label="Back to website" title="Back to website"><Home /></Link>
                     </div>
-                ))}
-            </nav>
-
-            {/* Profile & Footer Actions */}
-            <div className="p-3 border-t border-border bg-muted/30 space-y-2">
-                {/* Theme Toggle */}
-                <SidebarTooltip content="Toggle Theme" show={!isMobile && isCollapsed}>
-                    <button
-                        onClick={toggleDark}
-                        className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-foreground hover:bg-background border border-transparent hover:border-border transition-all ${isCollapsed ? "justify-center" : ""}`}
-                    >
-                        <div className={`relative h-4.5 w-4.5 ${isCollapsed ? "" : "shrink-0"}`}>
-                            <AnimatePresence mode="wait">
-                                {dark ? (
-                                    <motion.div
-                                        key="sun"
-                                        initial={{ opacity: 0, rotate: -90 }}
-                                        animate={{ opacity: 1, rotate: 0 }}
-                                        exit={{ opacity: 0, rotate: 90 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <Sun className="h-4.5 w-4.5" />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="moon"
-                                        initial={{ opacity: 0, rotate: 90 }}
-                                        animate={{ opacity: 1, rotate: 0 }}
-                                        exit={{ opacity: 0, rotate: -90 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <Moon className="h-4.5 w-4.5" />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                    <div className="workspace-profile-row">
+                        <div className="workspace-profile" title={isCollapsed ? `${userName} (${userRole})` : undefined}>
+                            <span className="workspace-avatar">{avatarUrl && failedAvatar !== avatarUrl ? <img src={avatarUrl} alt="" onError={() => setFailedAvatar(avatarUrl)} /> : initials}</span>
+                            {!isCollapsed && <span className="workspace-profile-copy"><strong>{userName}</strong><span className="capitalize">{userRole}</span></span>}
                         </div>
-                        {!isCollapsed && (
-                            <div className="flex-1 flex items-center justify-between">
-                                <span className="font-medium">Dark Mode</span>
-                                <div className={`w-8 h-4 rounded-full relative transition-colors ${dark ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${dark ? "translate-x-4" : "translate-x-0"}`} />
-                                </div>
-                            </div>
-                        )}
-                    </button>
-                </SidebarTooltip>
-
-                {/* Home Button */}
-                <SidebarTooltip content="Home" show={!isMobile && isCollapsed}>
-                    <Link
-                        to="/"
-                        className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-foreground hover:bg-background border border-transparent hover:border-border transition-all ${isCollapsed ? "justify-center" : ""}`}
-                    >
-                        <Home className="h-4.5 w-4.5 shrink-0" />
-                        {!isCollapsed && <span className="font-medium">Home</span>}
-                    </Link>
-                </SidebarTooltip>
-
-                {/* Logout Button */}
-                <SidebarTooltip content="Logout" show={!isMobile && isCollapsed}>
-                    <button
-                        onClick={() => onTabChange("logout")}
-                        className={`flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all ${isCollapsed ? "justify-center" : ""}`}
-                    >
-                        <LogOut className="h-4.5 w-4.5 shrink-0" />
-                        {!isCollapsed && <span className="font-medium">Logout</span>}
-                    </button>
-                </SidebarTooltip>
-
-                {/* User Profile Info */}
-                <div className={`flex items-center bg-muted/80 rounded-xl mt-2 ${isCollapsed ? "justify-center p-2" : "space-x-3 p-3 overflow-hidden"}`}>
-                    <SidebarTooltip content={`${userName} (${userRole})`} show={!isMobile && isCollapsed}>
-                        <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 cursor-default overflow-hidden">
-                            {profilePictureUrl ? (
-                                <img src={formatImageUrl(profilePictureUrl)} alt={userName} className="h-full w-full object-cover" />
-                            ) : (
-                                <span className="text-primary-foreground font-medium text-sm">{userName?.charAt(0)?.toUpperCase() || "?"}</span>
-                            )}
-                        </div>
-                    </SidebarTooltip>
-                    {!isCollapsed && (
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{userName}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
-                        </div>
-                    )}
+                        <button type="button" className="workspace-icon-button workspace-logout" onClick={() => handleTabClick("logout")} aria-label="Log out" title="Log out"><LogOut /></button>
+                    </div>
                 </div>
-            </div>
-
-        </div>
-    );
+            </aside>
+        );
+    };
 
     return (
-        <div className={`landing-theme ${dark ? "dark" : ""} bg-background`}>
-            {/* Desktop Sidebar */}
-            <div className={`hidden lg:block flex-shrink-0 h-screen transition-all duration-300 ease-in-out ${isCollapsed ? "w-[80px]" : "w-64"}`}>
-                {renderNav()}
+        <>
+            <div className={`hidden lg:block flex-shrink-0 h-screen transition-[width] duration-200 motion-reduce:transition-none ${desktopCollapsed ? "w-[80px]" : "w-[260px]"}`}>
+                {!isMobile && renderNav(false)}
             </div>
 
-            {/* Mobile Header */}
             {isMobile && (
-                <div className="fixed top-0 left-0 right-0 z-30 bg-background border-b border-border p-3 flex items-center justify-between lg:hidden">
-                    <button
-                        onClick={() => setSidebarOpen(!isSidebarOpen)}
-                        className="p-2 rounded-xl bg-muted text-muted-foreground hover:text-foreground transition-all"
-                    >
-                        {isSidebarOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <img src={dark ? logoDark : logoLight} alt="ProxySock" className="h-7 w-auto" />
-                        <span className="text-sm font-semibold text-muted-foreground">{title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {fetchNotifications && markNotificationsAsRead && (
-                            <NotificationBell
-                                notifications={notifications}
-                                unreadCount={unreadCount}
-                                markAsRead={markAllAsRead}
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Mobile Sidebar Overlay */}
-            {isMobile && isSidebarOpen && (
                 <>
-                    <div
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                    <div className="fixed inset-y-0 left-0 w-64 z-50 lg:hidden h-screen">{renderNav()}</div>
+                    <div className="workspace-mobile-bar lg:hidden">
+                        <button id="workspace-menu-toggle" type="button" aria-label="Open navigation" aria-expanded={isSidebarOpen} onClick={() => setSidebarOpen(true)}>
+                            <Menu aria-hidden="true" />
+                        </button>
+                        <span>{title}</span>
+                        {showBell ? <NotificationBell notifications={notifications} unreadCount={unreadCount} markAsRead={markAllAsRead} /> : <span className="w-8" />}
+                    </div>
+                    <Dialog.Root open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+                        <Dialog.Portal>
+                            <Dialog.Overlay className="workspace-mobile-overlay" />
+                            <Dialog.Content className={`workspace-mobile-drawer workspace-theme landing-theme ${dark ? "dark" : ""}`} aria-describedby={undefined} onCloseAutoFocus={event => { event.preventDefault(); document.getElementById("workspace-menu-toggle")?.focus(); }}>
+                                <Dialog.Title className="sr-only">{title} navigation</Dialog.Title>
+                                {renderNav(true)}
+                            </Dialog.Content>
+                        </Dialog.Portal>
+                    </Dialog.Root>
                 </>
             )}
-        </div>
+        </>
     );
 }
-

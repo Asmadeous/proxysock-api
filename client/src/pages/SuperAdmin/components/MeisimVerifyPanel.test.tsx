@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import MeisimVerifyDialog from "./MeisimVerifyDialog";
+import MeisimVerifyPanel from "./MeisimVerifyPanel";
 import { submitMeisimVerify } from "../../../services/adminApi";
 
 vi.mock("../../../services/adminApi", () => ({
@@ -11,11 +11,12 @@ vi.mock("../../../services/adminApi", () => ({
 }));
 afterEach(cleanup);
 
-it("prices the batch, refuses non-codes and submits the codes", async () => {
+it("prices the batch, refuses non-codes, submits the codes and tells the page", async () => {
   vi.mocked(submitMeisimVerify).mockResolvedValue({ batch_id: "b-9", total_rows: 2, charged_usd: 2 });
   vi.spyOn(window, "confirm").mockReturnValue(true);
+  const onSubmitted = vi.fn();
   const user = userEvent.setup();
-  render(<MeisimVerifyDialog open onOpenChange={() => {}} />);
+  render(<MeisimVerifyPanel onSubmitted={onSubmitted} />);
 
   const codes = screen.getByLabelText("Activation codes");
   await user.type(codes, "8901240527188633351");
@@ -31,6 +32,7 @@ it("prices the batch, refuses non-codes and submits the codes", async () => {
 
   expect(submitMeisimVerify).toHaveBeenCalledWith(
     "LPA:1$T-MOBILE.IDEMIA.IO$AAA\nLPA:1$T-MOBILE.IDEMIA.IO$BBB", "ops@proxysock.com");
+  expect(onSubmitted).toHaveBeenCalled();
   expect(await screen.findByRole("button", { name: "Download CSV" })).toBeInTheDocument();
   expect(screen.getByText("Used")).toBeInTheDocument();
 });

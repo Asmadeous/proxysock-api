@@ -1,14 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
-import {
-    UserPlusIcon,
-    MagnifyingGlassIcon,
-    PencilIcon,
-    TrashIcon,
-    ChevronDownIcon,
-    ChevronUpIcon,
-    ShoppingCartIcon,
-    BanknotesIcon
-} from "@heroicons/react/24/outline";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users } from "lucide-react";
 import {
     fetchResellerUsers,
     createResellerUser,
@@ -21,6 +12,12 @@ import { toast } from "sonner";
 import { getApiError } from "@/utils/apiError";
 import StatusBadge from "../../SuperAdmin/components/StatusBadge";
 import FormModal, { Field, inputClasses } from "../../SuperAdmin/components/FormModal";
+import ConfirmModal from "../../SuperAdmin/components/ConfirmModal";
+import PageHeader from "../../SuperAdmin/components/PageHeader";
+import Button from "../../SuperAdmin/components/Button";
+import { ServiceSearch } from "../../SuperAdmin/components/ServiceCard";
+
+const money = (value: number) => `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface ManagedUser {
     id: number;
@@ -165,243 +162,157 @@ export default function ResUserManagement() {
         });
     };
 
+    const totalPages = Math.max(1, Math.ceil(total / 20));
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-extrabold tracking-tighter uppercase">User Management</h1>
-                    <p className="text-muted-foreground mt-1 font-medium italic opacity-80">Track and manage your managed sub-clients.</p>
-                </div>
-                <button 
-                    onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}
-                    className="bg-primary text-white px-6 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                    <UserPlusIcon className="w-4 h-4" />
-                    Create User
-                </button>
+        <div className="ws-stack">
+            <PageHeader
+                title="Users"
+                description="Create and manage the customer accounts you serve."
+                actions={<Button onClick={() => { setShowCreate(true); setForm(EMPTY_FORM); }}><UserPlus aria-hidden="true" /> Create user</Button>}
+            />
+
+            <div className="ws-toolbar" style={{ marginBottom: 0 }}>
+                <ServiceSearch value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search by name or email" />
+                <span className="ws-muted text-xs">{loading ? "Loading…" : `${total} user${total === 1 ? "" : "s"}`}</span>
             </div>
 
-            <div className="bg-card border border-border shadow-sm rounded-3xl overflow-hidden">
-                <div className="p-6 border-b border-border/50 flex gap-4">
-                    <div className="relative flex-1 group">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <input 
-                            className="w-full bg-muted/30 border border-border/50 pl-11 pr-4 py-3 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
-                            placeholder="Filter users by name or email..." 
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+            <div className="ws-table-panel" aria-busy={loading}>
+                {loading ? (
+                    <div className="space-y-3 py-6" role="status" aria-label="Loading users">
+                        {[0, 1, 2].map(i => <span key={i} className="ws-skeleton block" style={{ height: 14, maxWidth: i % 2 ? "70%" : "100%" }} />)}
                     </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-muted/30 text-[10px] uppercase tracking-widest font-black text-muted-foreground">
-                                <th className="px-6 py-4">Client</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Location</th>
-                                <th className="px-6 py-4">Balance</th>
-                                <th className="px-6 py-4">Joined</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/50">
-                            {loading ? (
-                                Array(3).fill(0).map((_, i) => (
-                                    <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-6 py-4 h-16 bg-muted/10"></td>
-                                    </tr>
-                                ))
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground font-medium italic">
-                                        No managed users found matching your search.
-                                    </td>
-                                </tr>
-                            ) : users.map((user) => (
-                                <Fragment key={user.id}>
-                                    <tr className={`hover:bg-muted/20 transition-colors group ${expandedId === user.id ? 'bg-muted/30' : ''}`}>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                                                    <span className="text-primary font-black text-xs uppercase">{(user.first_name || user.username)?.[0]}</span>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-black tracking-tight">{user.first_name} {user.last_name || user.username}</p>
-                                                    <p className="text-[10px] text-muted-foreground font-bold opacity-60 uppercase">{user.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-xs font-black">
-                                            <StatusBadge status={user.status} />
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <p className="text-xs font-bold tracking-tight">{user.city || "—"}</p>
-                                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter opacity-60">{user.country_code || "—"}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-xs font-black text-emerald-500">${user.balance.toFixed(2)}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-[10px] font-black uppercase text-muted-foreground opacity-60">
-                                            {new Date(user.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button 
-                                                    onClick={() => toggleExpand(user.id)}
-                                                    className="p-2 rounded-xl text-muted-foreground hover:bg-white/5 hover:text-white transition-all"
-                                                >
-                                                    {expandedId === user.id ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                                                </button>
-                                                <button 
-                                                    onClick={() => openEdit(user)}
-                                                    className="p-2 rounded-xl text-muted-foreground hover:bg-white/5 hover:text-white transition-all"
-                                                >
-                                                    <PencilIcon className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => setDeleteTarget(user)}
-                                                    className="p-2 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
-                                                >
-                                                    <TrashIcon className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    {expandedId === user.id && (
-                                        <tr className="bg-muted/10 border-b border-border/50">
-                                            <td colSpan={6} className="px-8 py-8">
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <div className="space-y-4">
-                                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                                            <ShoppingCartIcon className="w-3 h-3" /> Recent Orders
-                                                        </h4>
-                                                        {detailsLoading ? (
-                                                            <div className="h-24 bg-muted/20 rounded-2xl animate-pulse"></div>
-                                                        ) : userOrders.length === 0 ? (
-                                                            <p className="text-xs italic text-muted-foreground font-medium p-4 bg-muted/20 rounded-2xl">No orders placed by this user yet.</p>
-                                                        ) : (
-                                                            <div className="space-y-2">
-                                                                {userOrders.slice(0, 5).map((order: any) => (
-                                                                    <div key={order.id} className="flex items-center justify-between p-3 bg-muted/30 border border-border/50 rounded-2xl">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Order #{order.order_number}</span>
-                                                                            <span className="text-xs font-bold">{order.product_name}</span>
-                                                                        </div>
-                                                                        <div className="text-right">
-                                                                            <span className="text-xs font-black text-emerald-500">${Number(order.total_amount).toFixed(2)}</span>
-                                                                            <p className="text-[9px] font-black uppercase opacity-40">{new Date(order.created_at).toLocaleDateString()}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                ) : users.length === 0 ? (
+                    <div className="overview-empty">
+                        <span className="overview-empty-mark" aria-hidden="true"><Users size={26} strokeWidth={1.3} /></span>
+                        <h3>{search ? "No users match your search" : "No users yet"}</h3>
+                        <p>{search ? "Try a different name or email address." : "Create a user to place orders and manage services on their behalf."}</p>
+                    </div>
+                ) : (
+                    <div className="ws-table-scroll">
+                        <table className="ws-table">
+                            <caption className="sr-only">Managed users</caption>
+                            <thead>
+                                <tr><th>User</th><th>Status</th><th>Location</th><th>Balance</th><th>Joined</th><th className="ws-actions"><span className="sr-only">Actions</span></th></tr>
+                            </thead>
+                            <tbody>
+                                {users.map((user) => {
+                                    const name = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
+                                    const expanded = expandedId === user.id;
+                                    return (
+                                        <Fragment key={user.id}>
+                                            <tr>
+                                                <td>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="ws-avatar" aria-hidden="true">{(name || user.email)?.[0]?.toUpperCase()}</span>
+                                                        <div className="min-w-0">
+                                                            <strong>{name}</strong>
+                                                            <div className="ws-mono truncate">{user.email}</div>
+                                                        </div>
                                                     </div>
-
-                                                    <div className="space-y-4">
-                                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                                            <BanknotesIcon className="w-3 h-3" /> Wallet Ledger
-                                                        </h4>
-                                                        {detailsLoading ? (
-                                                            <div className="h-24 bg-muted/20 rounded-2xl animate-pulse"></div>
-                                                        ) : userTransactions.length === 0 ? (
-                                                            <p className="text-xs italic text-muted-foreground font-medium p-4 bg-muted/20 rounded-2xl">No transaction history records found.</p>
-                                                        ) : (
-                                                            <div className="space-y-2">
-                                                                {userTransactions.slice(0, 5).map((txn: any) => (
-                                                                    <div key={txn.id} className="flex items-center justify-between p-3 bg-muted/30 border border-border/50 rounded-2xl">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-[10px] font-black uppercase text-muted-foreground">{txn.transaction_type}</span>
-                                                                            <span className="text-xs font-bold leading-tight">{txn.description}</span>
-                                                                        </div>
-                                                                        <div className="text-right">
-                                                                            <span className={`text-xs font-black ${txn.transaction_type === 'credit' ? 'text-emerald-500' : 'text-primary'}`}>
-                                                                                {txn.transaction_type === 'credit' ? '+' : '-'}${Number(txn.amount).toFixed(2)}
-                                                                            </span>
-                                                                            <p className="text-[9px] font-black uppercase opacity-40">{new Date(txn.created_at).toLocaleDateString()}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                </td>
+                                                <td><StatusBadge status={user.status} /></td>
+                                                <td>{[user.city, user.country_code].filter(Boolean).join(", ") || "—"}</td>
+                                                <td>{money(user.balance)}</td>
+                                                <td className="ws-muted">{new Date(user.created_at).toLocaleDateString()}</td>
+                                                <td className="ws-actions">
+                                                    <div>
+                                                        <button type="button" className="ws-icon-button" onClick={() => toggleExpand(user.id)} aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "Show"} activity for ${user.email}`} title="Activity">{expanded ? <ChevronUp /> : <ChevronDown />}</button>
+                                                        <button type="button" className="ws-icon-button" onClick={() => openEdit(user)} aria-label={`Edit ${user.email}`} title="Edit"><Pencil /></button>
+                                                        <button type="button" className="ws-icon-button" onClick={() => setDeleteTarget(user)} aria-label={`Delete ${user.email}`} title="Delete"><Trash2 /></button>
                                                     </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                                </td>
+                                            </tr>
+                                            {expanded && (
+                                                <tr>
+                                                    <td colSpan={6} style={{ background: "var(--ov-wash)" }}>
+                                                        <div className="grid grid-cols-1 gap-6 py-2 lg:grid-cols-2">
+                                                            <section aria-label="Recent orders">
+                                                                <p className="ws-label">Recent orders</p>
+                                                                {detailsLoading ? <span className="ws-skeleton block" style={{ height: 60 }} /> : userOrders.length === 0 ? (
+                                                                    <p className="ws-muted text-xs">No orders placed by this user yet.</p>
+                                                                ) : (
+                                                                    <div className="ws-list">
+                                                                        {userOrders.slice(0, 5).map((order: any) => (
+                                                                            <div key={order.id}>
+                                                                                <span className="min-w-0"><strong className="block truncate">{order.product_name}</strong><span className="ws-mono">#{order.order_number} · {new Date(order.created_at).toLocaleDateString()}</span></span>
+                                                                                <span>{money(order.total_amount)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </section>
+                                                            <section aria-label="Wallet ledger">
+                                                                <p className="ws-label">Wallet ledger</p>
+                                                                {detailsLoading ? <span className="ws-skeleton block" style={{ height: 60 }} /> : userTransactions.length === 0 ? (
+                                                                    <p className="ws-muted text-xs">No transactions recorded yet.</p>
+                                                                ) : (
+                                                                    <div className="ws-list">
+                                                                        {userTransactions.slice(0, 5).map((txn: any) => (
+                                                                            <div key={txn.id}>
+                                                                                <span className="min-w-0"><strong className="block truncate">{txn.description}</strong><span className="ws-mono">{txn.transaction_type} · {new Date(txn.created_at).toLocaleDateString()}</span></span>
+                                                                                <span className={txn.transaction_type === "credit" ? "ws-good" : "ws-bad"}>{txn.transaction_type === "credit" ? "+" : "−"}{money(txn.amount)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </section>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
                 {total > 20 && (
-                    <div className="p-4 border-t border-border/50 flex justify-center gap-2">
-                        <button 
-                            disabled={page === 1}
-                            onClick={() => setPage(page - 1)}
-                            className="bg-muted text-foreground px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50"
-                        >
-                            Prev
-                        </button>
-                        <button 
-                            disabled={page * 20 >= total}
-                            onClick={() => setPage(page + 1)}
-                            className="bg-muted text-foreground px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50"
-                        >
-                            Next
-                        </button>
+                    <div className="ws-pagination">
+                        <span>Page {page} of {totalPages}</span>
+                        <div>
+                            <button type="button" onClick={() => setPage(page - 1)} disabled={page === 1 || loading} aria-label="Previous page"><ChevronLeft /></button>
+                            <button type="button" onClick={() => setPage(page + 1)} disabled={page * 20 >= total || loading} aria-label="Next page"><ChevronRight /></button>
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* modals - same as admin but calling reseller APIs */}
-            <FormModal 
-                open={showCreate || !!editTarget} 
-                onClose={() => { setShowCreate(false); setEditTarget(null); }} 
-                title={editTarget ? "Edit Managed Client" : "Initialize New Client"} 
-                onSubmit={editTarget ? handleUpdate : handleCreate} 
-                submitLabel={editTarget ? "Save Production State" : "Provision Identity"} 
+            <FormModal
+                open={showCreate || !!editTarget}
+                onClose={() => { setShowCreate(false); setEditTarget(null); }}
+                title={editTarget ? "Edit user" : "Create user"}
+                onSubmit={editTarget ? handleUpdate : handleCreate}
+                submitLabel={editTarget ? "Save changes" : "Create user"}
                 loading={actionLoading}
             >
-                <div className="grid grid-cols-2 gap-4">
-                    <Field label="First Name"><input className={inputClasses} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></Field>
-                    <Field label="Last Name"><input className={inputClasses} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></Field>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="First name"><input className={inputClasses} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></Field>
+                    <Field label="Last name"><input className={inputClasses} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></Field>
                 </div>
-                <Field label="Client Email (Identity Key)"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-                <Field label="Username (Internal)"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
-                
-                <div className="grid grid-cols-2 gap-4 border-y border-border/50 py-4 my-2">
-                    <Field label="ISO Country Code">
-                        <input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" />
-                    </Field>
-                    <Field label="City Location">
-                        <input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York" />
-                    </Field>
+                <Field label="Email"><input className={inputClasses} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+                <Field label="Username"><input className={inputClasses} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Country code"><input className={inputClasses} value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value })} placeholder="US" /></Field>
+                    <Field label="City"><input className={inputClasses} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York" /></Field>
                 </div>
-
-                <Field label="Phone Contact"><input className={inputClasses} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+                <Field label="Phone"><input className={inputClasses} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
                 {!editTarget && (
-                    <Field label="Force Password Override (Optional)"><input className={inputClasses} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Keep empty for secure random" /></Field>
+                    <Field label="Password" hint="Leave empty to generate a secure random password."><input className={inputClasses} type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
                 )}
             </FormModal>
 
-            <FormModal 
-                open={!!deleteTarget} 
-                onClose={() => setDeleteTarget(null)} 
-                title="Decommission Identity" 
-                onSubmit={handleDelete} 
-                submitLabel="CONFIRM WIPE" 
+            <ConfirmModal
+                open={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDelete}
+                title="Delete user"
+                message={`Permanently delete ${deleteTarget?.email ?? "this user"}? Their active subscriptions will be terminated. This cannot be undone.`}
+                confirmLabel="Delete user"
                 loading={actionLoading}
-            >
-                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl">
-                    <p className="text-xs font-black text-destructive uppercase tracking-widest text-center">Caution: Irreversible Action</p>
-                    <p className="text-sm font-medium text-center mt-2">You are about to permanently delete <span className="font-bold underline">{deleteTarget?.email}</span>. This will terminate all active subscriptions associated with this client node.</p>
-                </div>
-            </FormModal>
+            />
         </div>
     );
 }
-

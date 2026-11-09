@@ -1,83 +1,61 @@
 import { useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import AuthLogo from "../../components/auth/AuthLogo";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { ArrowRight, Eye, EyeOff, KeyRound, LoaderCircle, Link2Off } from "lucide-react";
 import { toast } from "sonner";
 import { resetPassword } from "../../services/railsAuth";
+import AuthPage from "@/components/auth/AuthPage";
 
 export default function ResetPassword() {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const token = searchParams.get("token");
-    const [password, setPassword] = useState("");
-    const [passwordConfirmation, setPasswordConfirmation] = useState("");
-    const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get("token");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!token) return;
-        if (password !== passwordConfirmation) {
-            toast.error("Passwords do not match");
-            return;
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || loading) return;
+    if (password !== passwordConfirmation) {
+      setErrorMessage("Passwords do not match");
+      return;
+    }
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      await resetPassword(password, passwordConfirmation, token);
+      toast.success("Password reset successfully");
+      navigate("/login");
+    } catch (error: any) {
+      const message = error.response?.data?.error || "Failed to reset password. Try requesting a new link.";
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoading(true);
-        try {
-            await resetPassword(password, passwordConfirmation, token);
-            toast.success("Password reset successfully");
-            navigate("/login");
-        } catch (error: any) {
-            toast.error(error.response?.data?.error || "Failed to reset password");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!token) return <div className="p-8 text-center text-red-500">Invalid link</div>;
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
-                <div className="flex flex-col items-center gap-4">
-                    <AuthLogo variant="auto" />
-                    <h2 className="text-center text-3xl font-extrabold text-gray-900">
-                        Set new password
-                    </h2>
-                </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <div>
-                            <input
-                                type="password"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="New Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <input
-                                type="password"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="Confirm Password"
-                                value={passwordConfirmation}
-                                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                            {loading ? "Resetting..." : "Reset Password"}
-                        </button>
-                    </div>
-                </form>
-            </div>
+  return (
+    <AuthPage variant="reset" title={token ? "Set a new password" : "Let's try that again"} eyebrow="Account recovery"
+      description={token ? "Choose a password you haven't used before. You'll use it the next time you sign in." : "This reset link is incomplete. Request a new link to get back to your account."}
+      icon={token ? <KeyRound /> : <Link2Off />}>
+      {token ? <form onSubmit={handleSubmit} className="login-form" aria-busy={loading}>
+        {errorMessage && <div className="login-error" role="alert">{errorMessage}</div>}
+        <div className="login-field">
+          <label htmlFor="new-password">New password</label>
+          <div className="login-password">
+            <input id="new-password" name="password" autoComplete="new-password" type={showPassword ? "text" : "password"} required minLength={8} disabled={loading} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a new password" aria-describedby="reset-password-hint" />
+            <button type="button" disabled={loading} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide passwords" : "Show passwords"} aria-pressed={showPassword}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+          </div>
+          <p id="reset-password-hint" className="auth-hint">Use at least 8 characters.</p>
         </div>
-    );
+        <div className="login-field"><label htmlFor="confirm-password">Confirm password</label><input id="confirm-password" name="password_confirmation" autoComplete="new-password" type={showPassword ? "text" : "password"} required minLength={8} disabled={loading} value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.target.value)} placeholder="Re-enter your new password" /></div>
+        <button type="submit" className="login-submit" disabled={loading}><span>{loading ? "Resetting password..." : "Reset password"}</span>{loading ? <LoaderCircle size={18} className="login-spinner" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}</button>
+        {errorMessage && <Link to="/forgot-password" className="auth-secondary-link">Request a new reset link</Link>}
+      </form> : <Link to="/forgot-password" className="login-submit">Request a new link <ArrowRight size={18} aria-hidden="true" /></Link>}
+      <Link to="/login" className="auth-secondary-link">Back to sign in</Link>
+    </AuthPage>
+  );
 }

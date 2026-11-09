@@ -64,7 +64,8 @@ const VPNBuy = lazy(() => import("./pages/products/VPNPlans"));
 
 // ─── Misc pages ──────────────────────────────────────────────
 const NotFound = lazy(() => import("./pages/misc/NotFound"));
-const NotificationsPage = lazy(() => import("./pages/misc/NotificationsPage"));
+const AddFunds = lazy(() => import("./pages/UserDashboard/AddFunds"));
+const NotificationsPage = lazy(() => import("./pages/UserDashboard/Notifications"));
 
 // ─── User Dashboard ──────────────────────────────────────────
 const Dashboard = lazy(() => import("./pages/UserDashboard/Dashboard"));
@@ -121,7 +122,6 @@ export default function App() {
   return (
     <AuthProvider>
       <HelmetProvider>
-        <ScrollToTop />
         <Toaster position="top-right" richColors={true} />
         <HotToaster
           position="top-right"
@@ -149,6 +149,7 @@ export default function App() {
           defaultDescription="Buy premium proxies, VPN, RDP, VPS & eSIM. Datacenter, residential, ISP proxies. Windows/Linux hosting. Global eSIM cards. 24/7 support."
         >
           <Suspense fallback={<PageLoader />}>
+            <ScrollToTop />
             <Routes>
               {/* Public Routes */}
               <Route element={<PublicLayout />}>
@@ -170,13 +171,13 @@ export default function App() {
                 <Route path="/ip-checker" element={<IPChecker />} />
                 <Route path="/blog" element={<BlogPage />} />
                 <Route path="/blog/:id" element={<BlogPostPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
               </Route>
 
               {/* Auth Routes */}
               <Route element={<AuthLayout />}>
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -210,7 +211,6 @@ export default function App() {
                   <Route path="proxy-orders" element={<ProxyOrders />} />
                   <Route path="esim-orders" element={<EsimOrders />} />
                   <Route path="rdp-orders" element={<RDPOrders />} />
-                  <Route path="rdp-orders" element={<RDPOrders />} />
                   <Route path="vps-orders" element={<VPSOrders />} />
                   <Route path="vpn-orders" element={<VPNOrders />} />
 
@@ -222,7 +222,6 @@ export default function App() {
                   <Route path="products" element={<ProductManagement />} />
                   <Route path="proxy-management" element={<ProxyManagement />} />
                   <Route path="Esim-management" element={<ESIMManagement />} />
-                  <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="VPS-management" element={<VPSManagement />} />
                   <Route path="RDP-management" element={<RDPPManagement />} />
                   <Route path="vpn-management" element={<VPNManagement />} />
@@ -237,6 +236,7 @@ export default function App() {
                   <Route path="change-password" element={<ChangePassword />} />
                   <Route path="affiliate" element={<AffiliateDashboard />} />
                   <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="add-funds" element={<AddFunds />} />
                 </Route>
               </Route>
 

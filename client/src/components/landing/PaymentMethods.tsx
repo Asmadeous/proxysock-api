@@ -14,8 +14,9 @@ import ethereumIconBlack from "../../assets/logos/ethereum-black.svg";
 import usdtIconBlack from "../../assets/logos/usdt-black.svg";
 import usdcIconBlack from "../../assets/logos/usdc-black.svg";
 
-export const SecurePaymentsSection = () => {
-  const { dark } = useThemeStore();
+export const SecurePaymentsSection = ({ variant = "section" }: { variant?: "section" | "footer" }) => {
+  const theme = useThemeStore();
+  const dark = variant === "footer" || theme.dark;
   const paymentMethods = [
     { name: "Mastercard", icon: dark ? mastercardIcon : mastercardIconBlack },
     { name: "Visa", icon: dark ? visaIcon : visaIconBlack },
@@ -25,6 +26,15 @@ export const SecurePaymentsSection = () => {
     { name: "Usdt", icon: dark ? usdtIcon : usdtIconBlack },
     { name: "Usdc", icon: dark ? usdcIcon : usdcIconBlack },
   ];
+
+  if (variant === "footer") {
+    return (
+      <section className="footer-payments" aria-label="Secure payment methods">
+        <h2>Secure payments<span>Cards & crypto</span></h2>
+        <ul>{paymentMethods.map((method) => <li key={method.name}><img src={method.icon} alt={method.name} loading="lazy" />{method.name !== "Visa" && method.name !== "American Express" && <span aria-hidden="true">{method.name === "Usdt" || method.name === "Usdc" ? method.name.toUpperCase() : method.name}</span>}</li>)}</ul>
+      </section>
+    );
+  }
 
   return (
     <div className="bg-background py-14 border-t border-primary">

@@ -54,6 +54,26 @@ class MeisimService
     request(:get, "/dealer/order/#{ERB::Util.url_encode(order_id)}/usage?line=#{line.to_i}")
   end
 
+  # Carriers whose lines MeiSIM can recharge (GET /api/v1/topup/networks).
+  def topup_networks
+    request(:get, '/api/v1/topup/networks', allow_array: true)
+  end
+
+  # Checks that a line exists on a network before it is recharged. Returns its plans
+  # (BundleList, each with a BundleProductCode) and plain credit amounts (TopUpList).
+  def topup_confirm(network:, number: nil, iccid: nil)
+    request(:post, '/api/v1/topup/confirm', topup_line(network, number, iccid))
+  end
+
+  # Recharges one line from our MeiSIM wallet: a plan by its code, plain credit with
+  # credit_only (a line that has plans needs one or the other), or, on a network without
+  # plans, an amount from TopUpList. There is no bulk endpoint: one line per call.
+  def topup_recharge(network:, value:, number: nil, iccid: nil, plan_code: nil, credit_only: false)
+    body = topup_line(network, number, iccid)
+           .merge(topUpValue: json_number(value), bundleProductCode: plan_code.presence, creditOnly: (true if credit_only))
+    request(:post, '/api/v1/topup/recharge', body.compact)
+  end
+
   # Stripe fee for topping up our MeiSIM wallet by `net` USD: { net, gross, fee }.
   def topup_preview(net)
     request(:get, "/dealer/topup/preview?net=#{net.to_d}")
@@ -128,13 +148,14 @@ class MeisimService
 
   private
 
-  def request(method, path, payload = nil)
+  def request(method, path, payload = nil, allow_array: false)
     options = { headers: headers }
     options[:body] = payload.to_json if payload
     response = http(method, path, **options)
     body = response.parsed_response
+    valid = body.is_a?(Hash) ? body['ok'] != false : allow_array && body.is_a?(Array)
 
-    unless response.success? && body.is_a?(Hash) && body['ok'] != false
+    unless response.success? && valid
       raise Error.new("MeiSIM #{method.upcase} #{path} failed: #{error_message(body)}", status: response.code)
     end
 
@@ -153,6 +174,17 @@ class MeisimService
   rescue StandardError => e
     Rails.logger.warn("[MeiSIM] #{method.upcase} #{path} -> #{e.class} (#{elapsed_ms(started)}ms)")
     raise
+  end
+
+  # The docs take either the phone number or the SIM serial (ICCID), never both.
+  def topup_line(network, number, iccid)
+    { networkName: network, contactNumber: number.presence, simSerialNumber: (iccid.presence if number.blank?) }.compact
+  end
+
+  # 20 rather than 20.0 for whole amounts, as in MeiSIM's examples.
+  def json_number(value)
+    amount = value.to_d
+    amount.frac.zero? ? amount.to_i : amount.to_f
   end
 
   def elapsed_ms(started)

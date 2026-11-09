@@ -7,9 +7,9 @@ import { EnhancedStatsSection } from "@/components/landing/EnhancedStatsSection"
 import { WhyChooseUs } from "@/components/landing/WhyChooseUs";
 import { CallToAction } from "@/components/landing/CallToAction";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
-import { SecurePaymentsSection } from "@/components/landing/PaymentMethods";
 import { useAuth } from "@/context/AuthContext";
 import { Loading } from "@/components/ui/loading";
+import "./home.css";
 
 export default function MainLandingPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -165,7 +165,7 @@ export default function MainLandingPage() {
         </script>
       </Helmet>
 
-      <div className="min-h-screen ">
+      <div className="home-landing min-h-screen bg-background">
         {/* Enhanced Hero Section with Trust Signals */}
         <HeroSection trackConversion={trackConversion} />
 
@@ -184,14 +184,12 @@ export default function MainLandingPage() {
         {/* Enhanced Testimonials */}
         <TestimonialsSection />
 
-        {/* Enhanced CTA Section */}
+        {/* Closing CTA, immediately above the footer */}
         <CallToAction
           trackConversion={trackConversion}
           isAuthenticated={isAuthenticated}
         />
 
-        {/* Payment Methods Section */}
-        <SecurePaymentsSection />
       </div>
     </>
   );

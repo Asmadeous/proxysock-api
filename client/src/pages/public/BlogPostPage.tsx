@@ -1,253 +1,57 @@
-import { useState, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { motion } from "framer-motion";
-import { useRedditTracking } from "../../utils/redditPixel";
-import { type ExtendedPost } from "../../data/blogPost";
-import { getBlogPost, getBlogPosts } from "../../services/blog";
-import { BlogPostBreadcrumbs } from "../../components/landing/blog/BlogPostBreadcrumbs";
-import { BlogPostHeroSection } from "../../components/landing/blog/BlogPostHeroSection";
-import { BlogPostContent } from "../../components/landing/blog/BlogPostContent";
-import { BlogPostTags } from "../../components/landing/blog/BlogPostTags";
-import { BlogPostRelated } from "../../components/landing/blog/BlogPostRelated";
-import { BlogPostNewsletter } from "../../components/landing/blog/BlogPostNewsletter";
-import { ReadingProgress } from "../../components/landing/blog/ReadingProgress";
+import { ArrowLeft, Bookmark, Share2 } from "lucide-react";
+import type { ExtendedPost } from "@/data/blogPost";
+import { getBlogPost, getBlogPosts } from "@/services/blog";
+import { useRedditTracking } from "@/utils/redditPixel";
+import { ReadingProgress } from "@/components/landing/blog/ReadingProgress";
+import { ResourcePage, ResourceClosing, ResourceEmpty } from "@/components/landing/resources/ResourceLayout";
+import { ResourceArticleCard, articleDate } from "@/components/landing/resources/ResourceArticleCard";
 
+function bookmarks(): string[] {
+  try { const saved = JSON.parse(localStorage.getItem("blog_bookmarks") || "[]"); return Array.isArray(saved) ? saved.filter((id) => typeof id === "string") : []; } catch { return []; }
+}
 export default function BlogPostPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [post, setPost] = useState<ExtendedPost | null>(null);
-  const [relatedPosts, setRelatedPosts] = useState<ExtendedPost[]>([]);
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [related, setRelated] = useState<ExtendedPost[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [saved, setSaved] = useState(false);
+  const [message, setMessage] = useState("");
+  const [retry, setRetry] = useState(0);
   const { trackPageView, trackViewContent } = useRedditTracking();
-
   useEffect(() => {
+    let active = true;
+    setStatus("loading"); setPost(null); setRelated([]); setMessage(""); setSaved(bookmarks().includes(id || ""));
+    if (!id) { setStatus("missing"); return; }
+    getBlogPost(id).then((article) => {
+      if (!active) return;
+      setPost(article); setStatus("ready"); trackPageView(); trackViewContent({ productId: article.id, productName: article.title, category: "blog_post", value: 0 });
+      getBlogPosts({ category: article.category }).then((data) => { if (active) setRelated(data.posts.filter((item) => item.id !== id && item.id !== article.id).slice(0,3)); }).catch(() => {});
+    }).catch((error) => { if (active) setStatus(error.response?.status === 404 ? "missing" : "error"); });
+    return () => { active = false; };
+  }, [id, retry, trackPageView, trackViewContent]);
+  function toggleBookmark() {
     if (!id) return;
-
-    setIsLoading(true);
-    getBlogPost(id)
-      .then((currentPost) => {
-        setPost(currentPost);
-
-        // Fetch related posts
-        getBlogPosts({ category: currentPost.category }).then((res) => {
-          // Use id (the slug from URL) for filtering out current post
-          setRelatedPosts(res.posts.filter((p) => p.id !== id).slice(0, 3));
-        });
-
-        trackPageView();
-        trackViewContent({
-          productId: currentPost.id,
-          productName: currentPost.title,
-          category: "blog_post",
-          value: 0,
-        });
-      })
-      .catch((err) => {
-        console.error("Error loading blog post:", err);
-        navigate("/blog");
-      })
-      .finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, navigate]);
-
-
-  useEffect(() => {
-    // Load bookmark state from localStorage
-    const bookmarks = JSON.parse(localStorage.getItem("blog_bookmarks") || "[]");
-    setIsBookmarked(bookmarks.includes(id));
-  }, [id]);
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: post?.title,
-          text: post?.excerpt,
-          url: globalThis.location?.href,
-        });
-      } catch (err) {
-        navigator.clipboard.writeText(globalThis.location?.href || "");
-        alert("Link copied to clipboard!");
-      }
-    } else {
-      navigator.clipboard.writeText(globalThis.location?.href || "");
-      alert("Link copied to clipboard!");
-    }
-  };
-
-  const toggleBookmark = () => {
-    const bookmarks = JSON.parse(localStorage.getItem("blog_bookmarks") || "[]");
-    let newBookmarks;
-    if (isBookmarked) {
-      newBookmarks = bookmarks.filter((bId: string) => bId !== id);
-    } else {
-      newBookmarks = [...bookmarks, id];
-    }
-    localStorage.setItem("blog_bookmarks", JSON.stringify(newBookmarks));
-    setIsBookmarked(!isBookmarked);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-        </div>
-      </div>
-    );
+    try { localStorage.setItem("blog_bookmarks", JSON.stringify(saved ? bookmarks().filter((item) => item !== id) : [...new Set([...bookmarks(), id])])); setSaved(!saved); setMessage(saved ? "Article removed from saved articles." : "Article saved in this browser."); }
+    catch { setMessage("Your browser couldn't save this article."); }
   }
-
-  if (!post) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Post Not Found
-            </h1>
-            <p className="text-gray-400 mb-8">
-              The blog post you're looking for doesn't exist.
-            </p>
-            <Link
-              to="/blog"
-              className="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              <ArrowLeftIcon className="h-5 w-5 mr-2" />
-              Back to Blog
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+  async function share() {
+    try {
+      if (navigator.share) { await navigator.share({ title: post?.title, text: post?.excerpt, url: window.location.href }); setMessage("Article shared."); }
+      else { await navigator.clipboard.writeText(window.location.href); setMessage("Article link copied."); }
+    } catch (error) { if (error instanceof Error && error.name === "AbortError") return; setMessage("Couldn't share automatically. You can copy the page address from your browser."); }
   }
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Reading Progress Bar */}
-      <ReadingProgress />
-
-      {/* SEO Meta Tags with Helmet */}
-      <Helmet>
-        <title>{post.title} | ProxySock Blog</title>
-        <meta name="description" content={post.excerpt} />
-        <meta name="keywords" content={post.tags.join(", ")} />
-        <link rel="canonical" href={`https://proxysock.com/blog/${id}`} />
-
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://proxysock.com/blog/${id}`} />
-        <meta property="og:title" content={post.title} />
-        <meta property="og:description" content={post.excerpt} />
-        <meta property="og:site_name" content="ProxySock" />
-        <meta
-          property="og:image"
-          content="https://proxysock.com/assets/images/blog-og.png"
-        />
-        <meta property="article:published_time" content={post.date} />
-        <meta property="article:author" content={post.author} />
-        <meta property="article:section" content={post.category} />
-        {post.tags.map((tag) => (
-          <meta key={tag} property="article:tag" content={tag} />
-        ))}
-
-        {/* Twitter */}
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta
-          property="twitter:url"
-          content={`https://proxysock.com/blog/${id}`}
-        />
-        <meta property="twitter:title" content={post.title} />
-        <meta property="twitter:description" content={post.excerpt} />
-        <meta
-          property="twitter:image"
-          content="https://proxysock.com/assets/images/blog-og.png"
-        />
-
-        {/* Structured Data for Article */}
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BlogPosting",
-            headline: post.title,
-            description: post.excerpt,
-            image: "https://proxysock.com/assets/images/blog-og.png",
-            datePublished: post.date,
-            dateModified: post.date,
-            author: {
-              "@type": "Person",
-              name: post.author,
-            },
-            publisher: {
-              "@type": "Organization",
-              name: "ProxySock",
-              logo: {
-                "@type": "ImageObject",
-                url: "https://proxysock.com/assets/images/logo.svg",
-                width: "200",
-                height: "60",
-              },
-            },
-            mainEntityOfPage: {
-              "@type": "WebPage",
-              "@id": `https://proxysock.com/blog/${id}`,
-            },
-            keywords: post.tags.join(", "),
-            articleSection: post.category,
-            wordCount: post.content
-              ? post.content.replace(/<[^>]*>/g, "").split(" ").length
-              : 0,
-          })}
-        </script>
-      </Helmet>
-
-      <article className="pt-8 pb-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Back to Blog Button */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <Link
-              to="/blog"
-              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors px-4 py-2 rounded-lg hover:bg-primary/5 group"
-            >
-              <ArrowLeftIcon className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Back to Blog</span>
-            </Link>
-          </motion.div>
-
-          {/* Breadcrumbs */}
-          <BlogPostBreadcrumbs category={post.category} />
-
-          {/* Article Header */}
-          <BlogPostHeroSection
-            post={post}
-            isBookmarked={isBookmarked}
-            onToggleBookmark={toggleBookmark}
-            onShare={handleShare}
-          />
-
-          {/* Article Content */}
-          <BlogPostContent post={post} />
-
-          {/* Article Tags */}
-          <BlogPostTags post={post} />
-
-          {/* Related Posts */}
-          <BlogPostRelated
-            relatedPosts={relatedPosts}
-            currentCategory={post.category}
-          />
-
-          {/* Newsletter CTA */}
-          <BlogPostNewsletter />
-        </div>
-      </article>
-    </div>
-  );
+  return <ResourcePage name={post ? `${post.title} — Blog` : "Blog article"} path={`/blog/${id || ""}`} description={post?.excerpt || "Read ProxySock's practical guides and infrastructure insights."}>
+    <ReadingProgress />
+    <article className="resource-post"><header className="resource-post-header"><Link to="/blog" className="proxy-text-link"><ArrowLeft size={15} aria-hidden="true" />Back to the journal</Link>
+      {post && <><Helmet><meta property="og:type" content="article" /><meta property="article:published_time" content={post.date} /></Helmet><p className="proxy-eyebrow mt-8">{post.category}</p><h1>{post.title}</h1><p>{post.excerpt}</p><div className="resource-article-meta"><span>{post.author}</span><span>{articleDate(post.date)} · {post.readTime}</span></div><div className="resource-post-actions"><button type="button" onClick={toggleBookmark} aria-pressed={saved}><Bookmark size={15} aria-hidden="true" />{saved ? "Saved" : "Save article"}</button><button type="button" onClick={() => void share()}><Share2 size={15} aria-hidden="true" />Share article</button><span className="resource-post-message" role="status">{message}</span></div></>}
+    </header>
+    {status === "loading" && <ResourceEmpty title="Loading article…" />}{status === "missing" && <ResourceEmpty title="This article wasn't found."><p>Explore the journal for more guides and insights.</p><Link to="/blog">Browse articles</Link></ResourceEmpty>}{status === "error" && <ResourceEmpty title="We couldn't load this article."><p>Please try again shortly.</p><button type="button" onClick={() => setRetry(retry + 1)}>Try again</button></ResourceEmpty>}
+    {post && <><div className="resource-post-body" dangerouslySetInnerHTML={{ __html: post.content }} /><div className="resource-post-tags" aria-label="Article topics">{post.tags.map((tag) => <Link key={tag} to={`/blog?q=${encodeURIComponent(tag)}`}>{tag}</Link>)}</div></>}
+    </article>
+    {related.length > 0 && <section className="resource-section" aria-labelledby="related-title"><div className="resource-section-heading"><h2 id="related-title">Keep exploring.</h2></div><div className="resource-article-grid">{related.map((article) => <ResourceArticleCard key={article.id} post={article} />)}</div></section>}
+    <ResourceClosing title="From reading" accent="to your next connection." />
+  </ResourcePage>;
 }

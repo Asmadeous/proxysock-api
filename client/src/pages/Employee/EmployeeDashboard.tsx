@@ -1,5 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useThemeStore } from "@/store/themeStore";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { ArrowRight, ArrowUpRight, ClipboardList, LifeBuoy, ShoppingCart, Users } from "lucide-react";
 import {
     HomeIcon,
     ChatBubbleLeftRightIcon,
@@ -13,7 +15,8 @@ import {
 import AdminSidebar, { type SidebarItem } from "../SuperAdmin/components/AdminSidebar";
 import DataTable from "../SuperAdmin/components/DataTable";
 import StatusBadge from "../SuperAdmin/components/StatusBadge";
-import StatsCard from "../SuperAdmin/components/StatsCard";
+import PageHeader from "../SuperAdmin/components/PageHeader";
+import Button from "../SuperAdmin/components/Button";
 import FormModal, { Field, inputClasses } from "../SuperAdmin/components/FormModal";
 import adminApi, { fetchAdminNotifications, markAdminNotificationsAsRead } from "../../services/adminApi";
 import { toast } from "sonner";
@@ -87,8 +90,10 @@ export default function EmployeeDashboard() {
         navigate(`/employee/${id}`);
     };
 
+    const dark = useThemeStore(state => state.dark);
+
     return (
-        <div className="min-h-screen flex">
+        <div className={`workspace-theme landing-theme min-h-screen flex ${dark ? "dark" : ""}`}>
             <AdminSidebar
                 items={TABS}
                 activeTab={activeTab}
@@ -102,23 +107,25 @@ export default function EmployeeDashboard() {
                 markNotificationsAsRead={markAdminNotificationsAsRead}
             />
             <main className="flex-1 overflow-hidden">
-                <div className="h-screen overflow-y-auto p-4 sm:p-6 lg:pt-6 pt-16 bg-background custom-scrollbar">
+                <div data-page-scroll className="h-screen overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-6 max-lg:pt-20 custom-scrollbar">
+                  <div className={`dashboard-overview ws-page ${dark ? "overview-dark" : ""}`}>
                     {activeTab === "overview" && <EmpOverview />}
                     {activeTab === "tickets" && <EmpTickets />}
                     {activeTab === "support_chats" && <SupportChatsTab />}
                     { activeTab === "orders" && <EmpOrders />}
                     { activeTab === "management" && (
-                        <Suspense fallback={<div>Loading...</div>}>
+                        <Suspense fallback={<TabLoading />}>
                             <ManagementTab />
                         </Suspense>
                     )}
                     { activeTab === "users" && <EmpUsers />}
                     {activeTab === "notifications" && (
-                        <Suspense fallback={<div>Loading...</div>}>
+                        <Suspense fallback={<TabLoading />}>
                             <NotificationsPage />
                         </Suspense>
                     )}
                     {activeTab === "logs" && <EmpLogs />}
+                  </div>
                 </div>
             </main>
         </div>
@@ -127,27 +134,72 @@ export default function EmployeeDashboard() {
 
 // ── Sub-components ── Each small and focused ──
 
+function TabLoading() {
+    return (
+        <div className="space-y-3" role="status" aria-label="Loading">
+            <span className="overview-skeleton" style={{ height: 28, maxWidth: 240 }} />
+            <span className="overview-skeleton" style={{ height: 14, maxWidth: 380 }} />
+        </div>
+    );
+}
+
 function EmpOverview() {
-    const [stats, setStats] = useState({ tickets: 0, orders: 0, failed: 0 });
+    const [stats, setStats] = useState<{ tickets: number; orders: number; failed: number } | null>(null);
     const [loading, setLoading] = useState(true);
+    const user = JSON.parse(localStorage.getItem("adminUser") || "{}");
 
     useEffect(() => {
         Promise.allSettled([empApi.tickets(), empApi.orders()]).then(([t, o]) => {
             const tickets = t.status === "fulfilled" ? (t.value.data.tickets || t.value.data || []).length : 0;
             const ordersData = o.status === "fulfilled" ? o.value.data : { stats: {} };
-            setStats({ tickets, orders: ordersData.total || 0, failed: ordersData.stats?.failed || 0 });
+            if (t.status === "fulfilled" || o.status === "fulfilled") {
+                setStats({ tickets, orders: ordersData.total || 0, failed: ordersData.stats?.failed || 0 });
+            }
             setLoading(false);
         });
     }, []);
 
+    const metrics = [
+        { title: "Assigned tickets", value: stats?.tickets, note: "Tickets waiting on you", href: "/employee/tickets" },
+        { title: "Total orders", value: stats?.orders, note: "Orders across the platform", href: "/employee/orders" },
+        { title: "Failed orders", value: stats?.failed, note: stats?.failed ? "Need a rescue" : "Nothing to rescue", href: "/employee/orders" },
+    ];
+    const shortcuts = [
+        { icon: ClipboardList, name: "Tickets", description: "Reply to the support tickets assigned to you.", href: "/employee/tickets" },
+        { icon: LifeBuoy, name: "Support chats", description: "Answer live conversations with customers and resellers.", href: "/employee/support_chats" },
+        { icon: ShoppingCart, name: "Orders", description: "Review orders and rescue the ones that failed.", href: "/employee/orders" },
+        { icon: Users, name: "Users", description: "Look up customer accounts (read only).", href: "/employee/users" },
+    ];
+
     return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatsCard title="Assigned Tickets" value={stats.tickets} icon={ChatBubbleLeftRightIcon} loading={loading} />
-                <StatsCard title="Total Orders" value={stats.orders} icon={ShoppingCartIcon} loading={loading} />
-                <StatsCard title="Failed Orders" value={stats.failed} icon={ShoppingCartIcon} loading={loading} positive={false} change={stats.failed > 0 ? "Needs rescue" : "0"} />
-            </div>
+        <div>
+            <header className="overview-heading">
+                <div><h1>Overview</h1><p>Welcome back{user.full_name ? `, ${user.full_name}` : ""}. Here’s what needs your attention.</p></div>
+            </header>
+
+            <section className="overview-metrics" aria-label="Workload summary" aria-busy={loading}>
+                {metrics.map(metric => (
+                    <Link to={metric.href} className="overview-metric" key={metric.title}>
+                        <span>{metric.title}<ArrowUpRight size={14} /></span>
+                        <strong>{loading ? <span className="overview-skeleton" /> : metric.value ?? "—"}</strong>
+                        <small>{stats ? metric.note : loading ? "Loading…" : "Currently unavailable"}</small>
+                    </Link>
+                ))}
+            </section>
+
+            <section className="overview-services" aria-labelledby="emp-shortcuts">
+                <div className="overview-section-heading"><div><h2 id="emp-shortcuts">Your workspace</h2><p>Everything you need for support and order operations.</p></div></div>
+                <div className="overview-service-grid">
+                    {shortcuts.map(item => (
+                        <article className="overview-service" key={item.name}>
+                            <div className="overview-service-top"><item.icon size={21} strokeWidth={1.5} aria-hidden="true" /></div>
+                            <h3>{item.name}</h3>
+                            <p>{item.description}</p>
+                            <Link to={item.href} aria-label={`Open ${item.name}`}>Open <ArrowRight size={15} /></Link>
+                        </article>
+                    ))}
+                </div>
+            </section>
         </div>
     );
 }
@@ -160,7 +212,7 @@ function EmpTickets() {
     const [replyLoading, setReplyLoading] = useState(false);
 
     useEffect(() => {
-        empApi.tickets().then((r) => { setTickets(r.data.tickets || r.data || []); setLoading(false); }).catch(() => setLoading(false));
+        empApi.tickets().then((r) => { setTickets(r.data.tickets || r.data || []); setLoading(false); }).catch(() => { toast.error("Failed to load tickets"); setLoading(false); });
     }, []);
 
     const handleReply = async () => {
@@ -171,28 +223,28 @@ function EmpTickets() {
             toast.success("Reply sent");
             setReplyTarget(null);
             setReplyMsg("");
-        } catch { toast.error("Failed"); }
+        } catch { toast.error("Failed to send reply"); }
         finally { setReplyLoading(false); }
     };
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Tickets</h2>
+        <div className="ws-stack">
+            <PageHeader title="Tickets" description="Support tickets assigned to you." />
             <DataTable
                 columns={[
-                    { key: "subject", label: "Subject", sortable: true },
+                    { key: "subject", label: "Subject", sortable: true, render: (r: Record<string, unknown>) => <strong>{String(r.subject || "—")}</strong> },
                     { key: "status", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={String(r.status || "open")} /> },
-                    { key: "created_at", label: "Date", render: (r: Record<string, unknown>) => <span className="text-xs text-muted-foreground">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
+                    { key: "created_at", label: "Date", render: (r: Record<string, unknown>) => <span className="ws-muted">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
                 ]}
                 data={tickets}
                 loading={loading}
-                emptyMessage="No tickets assigned"
+                emptyMessage="No tickets assigned to you."
                 actions={(row: Record<string, unknown>) => (
-                    <button onClick={() => { setReplyTarget(row); setReplyMsg(""); }} className="px-2.5 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30">Reply</button>
+                    <Button size="sm" variant="secondary" onClick={() => { setReplyTarget(row); setReplyMsg(""); }}>Reply</Button>
                 )}
             />
-            <FormModal open={!!replyTarget} onClose={() => setReplyTarget(null)} title={`Reply: ${String(replyTarget?.subject || "")}`} onSubmit={handleReply} submitLabel="Send" loading={replyLoading}>
-                <Field label="Message"><textarea className={`${inputClasses} h-24 resize-y`} value={replyMsg} onChange={(e) => setReplyMsg(e.target.value)} /></Field>
+            <FormModal open={!!replyTarget} onClose={() => setReplyTarget(null)} title={`Reply: ${String(replyTarget?.subject || "")}`} onSubmit={handleReply} submitLabel="Send reply" loading={replyLoading}>
+                <Field label="Message"><textarea className={`${inputClasses} h-28 resize-y`} value={replyMsg} onChange={(e) => setReplyMsg(e.target.value)} /></Field>
             </FormModal>
         </div>
     );
@@ -201,31 +253,34 @@ function EmpTickets() {
 function EmpOrders() {
     const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
     const [loading, setLoading] = useState(true);
+    const [rescuing, setRescuing] = useState<number | null>(null);
 
     useEffect(() => {
-        empApi.orders().then((r) => { setOrders(r.data.orders || []); setLoading(false); }).catch(() => setLoading(false));
+        empApi.orders().then((r) => { setOrders(r.data.orders || []); setLoading(false); }).catch(() => { toast.error("Failed to load orders"); setLoading(false); });
     }, []);
 
     const handleRescue = async (id: number) => {
-        try { await empApi.rescueOrder(id); toast.success("Rescued"); } catch { toast.error("Failed"); }
+        setRescuing(id);
+        try { await empApi.rescueOrder(id); toast.success("Rescue started"); } catch { toast.error("Rescue failed"); }
+        finally { setRescuing(null); }
     };
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Orders</h2>
+        <div className="ws-stack">
+            <PageHeader title="Orders" description="Review orders and rescue the ones that failed to provision." />
             <DataTable
                 columns={[
-                    { key: "id", label: "Order", render: (r: Record<string, unknown>) => <span className="font-mono text-xs">#{String(r.id).slice(0, 8)}</span> },
-                    { key: "product_name", label: "Product" },
+                    { key: "id", label: "Order", render: (r: Record<string, unknown>) => <span className="ws-mono">#{String(r.id).slice(0, 8)}</span> },
+                    { key: "product_name", label: "Product", render: (r: Record<string, unknown>) => <strong>{String(r.product_name || "—")}</strong> },
                     { key: "total_amount", label: "Amount", render: (r: Record<string, unknown>) => `$${Number(r.total_amount || 0).toFixed(2)}` },
                     { key: "status", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={String(r.status)} /> },
                 ]}
                 data={orders}
                 loading={loading}
-                emptyMessage="No orders"
+                emptyMessage="No orders yet."
                 actions={(row: Record<string, unknown>) =>
                     (String(row.status) === "failed" || String(row.status) === "error") ? (
-                        <button onClick={() => handleRescue(Number(row.id))} className="px-2.5 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30">Rescue</button>
+                        <Button size="sm" variant="secondary" loading={rescuing === Number(row.id)} onClick={() => handleRescue(Number(row.id))}>Rescue</Button>
                     ) : null
                 }
             />
@@ -238,22 +293,22 @@ function EmpUsers() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        empApi.users().then((r) => { setUsers(r.data.users || []); setLoading(false); }).catch(() => setLoading(false));
+        empApi.users().then((r) => { setUsers(r.data.users || []); setLoading(false); }).catch(() => { toast.error("Failed to load users"); setLoading(false); });
     }, []);
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Users (Read Only)</h2>
+        <div className="ws-stack">
+            <PageHeader title="Users" description="Customer accounts. Read only." />
             <DataTable
                 columns={[
-                    { key: "email", label: "Email", sortable: true },
-                    { key: "first_name", label: "Name", render: (r: Record<string, unknown>) => `${r.first_name || ""} ${r.last_name || ""}` },
+                    { key: "email", label: "Email", sortable: true, render: (r: Record<string, unknown>) => <strong>{String(r.email || "—")}</strong> },
+                    { key: "first_name", label: "Name", render: (r: Record<string, unknown>) => `${r.first_name || ""} ${r.last_name || ""}`.trim() || "—" },
                     { key: "status", label: "Status", render: (r: Record<string, unknown>) => <StatusBadge status={String(r.status || "active")} /> },
-                    { key: "created_at", label: "Joined", render: (r: Record<string, unknown>) => <span className="text-xs text-muted-foreground">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
+                    { key: "created_at", label: "Joined", render: (r: Record<string, unknown>) => <span className="ws-muted">{new Date(String(r.created_at)).toLocaleDateString()}</span> },
                 ]}
                 data={users}
                 loading={loading}
-                emptyMessage="No users"
+                emptyMessage="No users found."
             />
         </div>
     );
@@ -261,11 +316,12 @@ function EmpUsers() {
 
 function EmpLogs() {
     return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Activity Logs</h2>
-            <div className="bg-muted rounded-xl border border-border p-8 text-center">
-                <ServerStackIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Your activity is tracked automatically. Contact an admin to review audit logs.</p>
+        <div className="ws-stack">
+            <PageHeader title="Activity" description="Your actions in the staff workspace." />
+            <div className="overview-empty">
+                <span className="overview-empty-mark" aria-hidden="true"><ClipboardList size={26} strokeWidth={1.3} /></span>
+                <h3>Activity is recorded automatically</h3>
+                <p>Every action you take is written to the audit log. Ask an admin if you need a record reviewed.</p>
             </div>
         </div>
     );

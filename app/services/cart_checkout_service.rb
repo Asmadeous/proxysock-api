@@ -3,7 +3,7 @@
 class CartCheckoutService
   class CheckoutError < StandardError; end
 
-  SUPPORTED_GATEWAYS = %w[rexpay plisio fastspring heleket].freeze
+  SUPPORTED_GATEWAYS = %w[rexpay plisio fastspring heleket bachs].freeze
 
   def initialize(actor, cart, payment_method: 'wallet')
     @actor = actor
@@ -200,6 +200,10 @@ class CartCheckoutService
         callback_url: callback_url,
         email: @actor.email
       )[:url]
+
+    when 'bachs'
+      BachsService.new.payment_link(amount: amount, reference: reference, email: @actor.email,
+                                    success_url: callback_url)[:url]
 
     when 'fastspring'
       fs = FastspringService.new

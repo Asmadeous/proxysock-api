@@ -881,120 +881,6 @@ module Web
         end
       end
 
-      # POST /web/api/orders/:id/claim_crypto_refund
-      def claim_crypto_refund
-        order = current_actor.orders.find(params[:id])
-        address = params[:address]
-        network = params[:network]
-
-        return render json: { error: 'Address is required' }, status: :unprocessable_entity if address.blank?
-
-        order.with_lock do
-          if order.status != 'failed'
-            return render json: { error: 'Order must be failed to claim refund' }, status: :unprocessable_entity
-          end
-
-          checkout = order.checkout_session
-          unless %w[plisio hundredpay heleket].include?(checkout&.gateway)
-            return render json: { error: 'This order does not qualify for a crypto refund.' }, status: :unprocessable_entity
-          end
-
-          # Failsafe for external API products
-          is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
-          if is_external_api_product && order.provider_order_id.present?
-            # API processed it, block crypto withdrawal and open ticket
-            ticket = current_actor.tickets.create!(
-              subject: "Crypto Refund Request Intercepted - External Order ##{order.order_number}",
-              priority: 'high',
-              order_id: order.id,
-              user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
-            )
-            ticket.ticket_messages.create!(
-              sender: current_actor,
-              body: "Automated Crypto Refund Blocked: Order failed locally but was processed externally (Provider Order ID: #{order.provider_order_id}). Attempted crypto address: #{address} (#{network}). Please review manually."
-            )
-            NotificationService.notify_staff(
-              category: 'warning',
-              title: 'Crypto Refund Intercepted',
-              message: "#{current_actor.email} attempted crypto refund for processed external order ##{order.order_number}.",
-              metadata: { order_id: order.id, ticket_id: ticket.id }
-            )
-            return render json: { error: 'This order was processed by our external provider. For security, automated crypto refunds are blocked. A support ticket has been created for manual review.' }, status: :unprocessable_entity
-          end
-
-          # Dispatch actual crypto withdrawal
-          begin
-            case checkout.gateway
-            when 'plisio'
-              PlisioService.new.withdraw(order.total_amount, network || 'USDT', address, "REFUND-#{order.order_number}")
-            when 'heleket'
-              HeleketService.new.create_withdrawal(order.total_amount, network || 'USDT', address)
-            when 'hundredpay'
-              return render json: { error: 'HundredPay refunds must be claimed via support momentarily.' }, status: :unprocessable_entity
-            end
-
-            # Atomically mark refunded
-            order.refund!
-            record_audit_log('order.crypto_refund_claimed', order, { address: address, network: network })
-
-            render json: { message: 'Crypto refund successfully claimed and dispatched.' }
-          rescue StandardError => e
-            render json: { error: "Failed to dispatch crypto refund: #{e.message}" }, status: :service_unavailable
-          end
-        end
-      end
-
-      # POST /web/api/orders/:id/refund
-      # Allows users to refund failed orders. External API products are intercepted if already processed.
-      def refund
-        order = current_actor.orders.find(params[:id])
-
-        unless order.failed?
-          return render json: { error: 'Order is not in a failed state. Only failed orders can be refunded.' }, status: :unprocessable_entity
-        end
-
-        is_external_api_product = %w[proxy vpn].include?(order.product.product_type)
-
-        if is_external_api_product && order.provider_order_id.present?
-          # Intercept: API processed it, we can't auto-refund without manual check
-          begin
-            ActiveRecord::Base.transaction do
-              ticket = current_actor.tickets.create!(
-                subject: "Refund Request for Processed External Order ##{order.order_number}",
-                priority: 'high',
-                order_id: order.id,
-                user_type: current_actor.is_a?(Reseller) ? 'reseller' : 'user'
-              )
-              ticket.ticket_messages.create!(
-                sender: current_actor,
-                body: "Automated Refund Request: This order failed locally but was processed by the external API (Provider Order ID: #{order.provider_order_id}). Manual review required."
-              )
-
-              NotificationService.notify_staff(
-                category: 'warning',
-                title: 'Manual User Refund Required',
-                message: "#{current_actor.email} requested refund for processed external order ##{order.order_number}.",
-                metadata: { order_id: order.id, ticket_id: ticket.id }
-              )
-            end
-
-            return render json: {
-              error: 'This order was processed by our external provider before failing locally. A high-priority support ticket has been created for manual refund review.'
-            }, status: :unprocessable_entity
-          rescue StandardError => e
-            return render json: { error: "Failed to generate support ticket: #{e.message}" }, status: :unprocessable_entity
-          end
-        end
-
-        # Proceed with standard refund
-        begin
-          RefundService.new(order).process!(refund_method: 'wallet')
-          render json: { message: 'Order successfully refunded to your wallet balance.', order: serialize_order(order.reload) }
-        rescue StandardError => e
-          render json: { error: "Refund failed: #{e.message}" }, status: :unprocessable_entity
-        end
-      end
-
       private
 
       # Extract the provider's order ID from stored metadata.
@@ -1087,11 +973,15 @@ module Web
           base[:vm_id] = resource&.proxmox_vm_id&.to_i
           base[:hostname] = resource&.hostname || "vm-#{resource&.id}"
           base[:node] = resource&.proxmox_node || 'N/A'
-          base[:os_template] = order.product.metadata&.dig('os_template') || 'ubuntu-22.04'
+          base[:os_template] = order.vm_order&.os_type.presence || order.product.metadata&.dig('os_template')
+          base[:cpu_cores] = order.vm_order&.cpu_cores
+          base[:ram_gb] = order.vm_order&.ram_gb
+          base[:storage_gb] = order.vm_order&.disk_gb
           base[:service_type] = order.product.metadata&.dig('vm_type') || 'residential'
           base[:management_type] = 'unmanaged'
           base[:ip_address] = resource&.ip_address
           base[:dns_name] = resource&.dns_name
+          base[:connection_host] = resource&.connection_host
           # A VM reached over RDP has no SSH port; don't advertise a default one.
           base[:ssh_port] = resource&.ssh_port || (resource&.rdp_port ? nil : 22)
           base[:rdp_port] = resource&.rdp_port || (order.product.product_type == 'rdp' ? 3389 : nil)
@@ -1178,6 +1068,14 @@ module Web
             amount: amount_ngn,
             currency: 'NGN'
           }
+        when 'bachs'
+          # Bachs never reuses a reference, so each payment attempt gets a fresh one.
+          BachsService.new.payment_link(
+            amount: amount,
+            reference: "ORD#{order.id.delete('-')}#{SecureRandom.hex(4)}",
+            email: current_actor.email,
+            success_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=bachs&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
+          ).slice(:url, :amount, :currency)
         when 'plisio'
           {
             url: PlisioService.new.create_invoice(
@@ -1251,6 +1149,13 @@ module Web
             amount: amount_ngn,
             currency: 'NGN'
           }
+        when 'bachs'
+          BachsService.new.payment_link(
+            amount: amount,
+            reference: reference,
+            email: current_actor.email,
+            success_url: "#{ENV['FRONTEND_URL']}/payments/success?payment=bachs&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
+          ).slice(:url, :amount, :currency)
         when 'plisio'
           {
             url: PlisioService.new.create_invoice(
