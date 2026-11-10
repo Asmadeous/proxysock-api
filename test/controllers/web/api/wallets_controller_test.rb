@@ -28,12 +28,23 @@ module Web
       end
 
       test 'should initiate deposit' do
+        BachsService.any_instance.stubs(:payment_link)
+                    .returns({ url: 'https://pay.bachs.test/x', amount: 100.0, currency: 'USD' })
+
         post '/web/api/wallet/deposit',
-             params: { amount: 100.0, gateway: 'rexpay' },
+             params: { amount: 100.0, gateway: 'bachs' },
              headers: auth_header(@user)
 
         assert_response :success
-        assert_not_nil json_response['payment_url']
+        assert_equal 'https://pay.bachs.test/x', json_response['payment_url']
+      end
+
+      test 'rejects the removed RexPay gateway' do
+        assert_no_difference 'Deposit.count' do
+          post '/web/api/wallet/deposit', params: { amount: 100.0, gateway: 'rexpay' }, headers: auth_header(@user)
+        end
+
+        assert_response :bad_request
       end
 
       test 'refuses a Bachs deposit over the Bachs limit and closes the pending deposit' do

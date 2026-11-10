@@ -164,7 +164,7 @@ module Api
         end
 
         items = params[:items] || []
-        gateway = params[:gateway] || 'rexpay'
+        gateway = params[:gateway] || 'bachs'
         customer_email = params[:customer_email]
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
@@ -610,7 +610,7 @@ module Api
       # ── infrastructure: Gateway-based order ──
       # Creates a CheckoutSession, returns payment link. Customer email receives credentials after payment.
       def create_infrastructure_order(product, pricing, custom_metadata = nil)
-        gateway = params[:gateway] || 'rexpay'
+        gateway = params[:gateway] || 'bachs'
         customer_email = params[:customer_email] || (custom_metadata ? custom_metadata['customer_email'] : nil)
 
         return render json: { error: 'customer_email is required for infrastructure orders' }, status: :bad_request if customer_email.blank?
@@ -743,21 +743,6 @@ module Api
         frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=#{gateway}&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
 
         case gateway
-        when 'rexpay'
-          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
-          amount_ngn = RexpayService.ngn_charge_amount(amount)
-          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=reseller_cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}"
-          {
-            url: RexpayService.new.create_payment(
-              email: email,
-              amount: amount_ngn,
-              currency: 'NGN',
-              reference: reference,
-              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
-            )[:payment_url],
-            amount: amount_ngn,
-            currency: 'NGN'
-          }
         when 'bachs'
           BachsService.new.payment_link(amount: amount, reference: reference, email: email,
                                         success_url: frontend_callback_url).slice(:url, :amount, :currency)

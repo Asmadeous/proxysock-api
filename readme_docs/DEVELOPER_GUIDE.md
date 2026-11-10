@@ -46,9 +46,8 @@ ProxySock relies on several external services. Ensure your `.env` file contains 
 - `CLOUDFLARE_API_TOKEN` - For DNS management.
 
 ### Payment Gateways
-- `REXPAY_USERNAME`
-- `REXPAY_SECRET_KEY`
-- `REXPAY_BASE_URL`
+- `BACHS_API_KEY`
+- `BACHS_WEBHOOK_SECRET`
 - `HUNDREDPAY_SECRET_KEY`
 - `PLISIO_API_KEY`
 

@@ -4,44 +4,6 @@ require 'digest'
 require 'base64'
 
 class WebhooksController < ApplicationController
-  def rexpay
-    # RexPay hits the callbackUrl (user redirect and/or server notification)
-    # without a documented signature, so the payload is never trusted — the
-    # charge is confirmed server-side via getTransactionStatus before crediting.
-    data =
-      begin
-        JSON.parse(request.raw_post)
-      rescue StandardError
-        {}
-      end
-    data = params.to_unsafe_h.except('controller', 'action', 'format').merge(data)
-
-    reference = data['reference'] || data['paymentReference'] || data['transactionReference']
-
-    if reference.blank?
-      Rails.logger.warn('[Webhook] RexPay: missing transaction reference in payload')
-      return rexpay_respond(:bad_request, reference)
-    end
-
-    verification = RexpayService.new.verify_transaction(reference)
-
-    if verification[:status] == 'success'
-      handle_payment(
-        {
-          'reference' => reference,
-          'amount' => verification[:amount],
-          'currency' => verification[:currency],
-          'metadata' => data['metadata'] || {}
-        },
-        'rexpay'
-      )
-    else
-      Rails.logger.info("[Webhook] RexPay: payment #{reference} not successful yet (#{verification[:error]})")
-    end
-
-    rexpay_respond(:ok, reference)
-  end
-
   def plisio
     # Plisio (with `json=true` on the callback URL) POSTs the invoice update as a JSON body
     # with a `verify_hash` field. Verification (Plisio docs, Node example): take the raw JSON,
@@ -222,39 +184,8 @@ class WebhooksController < ApplicationController
 
   private
 
-  # Browser GETs (the payer returning from RexPay) are forwarded to the frontend
-  # success page; server-to-server POSTs get a plain status.
-  def rexpay_respond(status, reference = nil)
-    return head(status) unless request.get? || request.head?
-
-    redirect_to(rexpay_success_url(reference), allow_other_host: true)
-  end
-
-  # Rebuild the frontend success URL from the paid record, so the callbackUrl we
-  # send to RexPay can stay clean (no nested query string). Only ever redirects
-  # to our own FRONTEND_URL, so there is no open-redirect surface.
-  def rexpay_success_url(reference)
-    frontend = ENV['FRONTEND_URL'].to_s.presence || '/'
-    return frontend if reference.blank?
-
-    base = "#{frontend}/payments/success?payment=rexpay"
-    case reference.to_s
-    when /\ACHECKOUT/
-      session = CheckoutSession.find_by(gateway_reference: reference)
-      session ? "#{base}&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{session.total_amount}" : frontend
-    when /\ADEP/
-      deposit = Deposit.where("metadata->>'transaction_ref' = ?", reference).first
-      deposit ? "#{base}&type=deposit&amount=#{deposit.amount}" : frontend
-    when /\AORD/
-      order = Order.find_by(id: reference.to_s[/\AORD([0-9a-fA-F]{32})/, 1])
-      order ? "#{base}&type=order&order_id=#{order.id}&amount=#{order.total_amount}" : frontend
-    else
-      frontend
-    end
-  end
-
   # Confirmed-payment reconciliation lives in PaymentReconciler so the webhook and
-  # the RexPay sweeper (poller) apply identical effects. Callers must have verified
+  # other callers apply identical effects. Callers must have verified
   # the payment before calling this.
   def handle_payment(data, gateway)
     PaymentReconciler.reconcile(data, gateway)

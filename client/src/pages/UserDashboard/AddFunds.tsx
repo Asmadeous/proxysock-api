@@ -13,7 +13,6 @@ import './checkout.css';
 import './add-funds.css';
 
 const methods: { value: string; name: string; description: string; image?: string }[] = [
-  { value: 'rexpay', name: 'RexPay', description: 'Pay by card. RexPay charges in NGN.', image: '/rexpay.svg' },
   { value: 'bachs', name: 'Bachs', description: 'Card, bank transfer, mobile money or crypto. Charged in USD.' },
   { value: 'heleket', name: 'Heleket', description: 'Pay with cryptocurrency.', image: '/heleket.webp' },
   { value: 'plisio', name: 'Plisio', description: 'Pay with cryptocurrency.', image: '/plisio.webp' },
@@ -31,7 +30,7 @@ export default function AddFunds() {
   const dark = useThemeStore(state => state.dark);
   const balance = useWalletBalance();
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('rexpay');
+  const [method, setMethod] = useState('bachs');
   const [session, setSession] = useState<Session | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -66,7 +65,7 @@ export default function AddFunds() {
           <div className="deposit-presets" aria-label="Suggested deposit amounts">{[10, 25, 50, 100].map(value => <button type="button" key={value} aria-pressed={Number(amount) === value} onClick={() => { setAmount(String(value)); setError(''); }}>{walletMoney(value)}</button>)}</div>
         </fieldset>
         <fieldset disabled={busy} className="checkout-methods"><legend>Payment method</legend>{methods.map(item => <label className="checkout-method" data-selected={method === item.value} key={item.value}><input type="radio" name="deposit-method" value={item.value} checked={method === item.value} onChange={() => setMethod(item.value)} />{item.image ? <img src={item.image} alt="" /> : <CreditCard size={20} aria-hidden="true" />}<span><strong>{item.name}</strong><small>{item.description}</small></span></label>)}</fieldset>
-        <p className="proxy-note">{method === 'rexpay' ? 'The next step shows the NGN charge returned by RexPay, including its processing fee.' : method === 'bachs' ? 'Choose card, bank transfer, mobile money or crypto on the Bachs payment page.' : 'Choose an available cryptocurrency and network on the provider’s payment page.'}</p>
+        <p className="proxy-note">{method === 'bachs' ? 'Choose card, bank transfer, mobile money or crypto on the Bachs payment page.' : 'Choose an available cryptocurrency and network on the provider’s payment page.'}</p>
         {error && <div className="overview-error" role="alert"><p>{error}</p></div>}
         <button className="proxy-primary" disabled={busy} type="submit">{busy ? 'Creating payment session…' : 'Continue'}</button>
       </form>}</div>

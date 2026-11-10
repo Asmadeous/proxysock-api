@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Checkout from './Checkout';
 import api from '@/services/api';
-const handlers = vi.hoisted(() => ({ handleBalancePayment: vi.fn(), handleRexpayCheckout: vi.fn(), handleBachsCheckout: vi.fn() }));
+const handlers = vi.hoisted(() => ({ handleBalancePayment: vi.fn(), handleBachsCheckout: vi.fn() }));
 vi.mock('@/services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('@/utils/redditPixel', () => ({ useRedditTracking: () => ({ trackPurchase: vi.fn() }) }));
 vi.mock('@/components/dashboard/Cart/hook/usePaymentCheckoutHandlers', () => ({ usePaymentCheckoutHandlers: () => handlers }));
@@ -19,9 +19,9 @@ it('shows items, accepts decimal balance strings, and preserves payment choices'
   expect(screen.getByRole('link', { name: 'Back to cart' })).toHaveAttribute('href', '/dashboard/cart');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Pay with wallet' })); });
   expect(handlers.handleBalancePayment).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('radio', { name: /Card · RexPay/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to RexPay' }));
-  await waitFor(() => expect(handlers.handleRexpayCheckout).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('radio', { name: /Bachs/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Bachs' }));
+  await waitFor(() => expect(handlers.handleBachsCheckout).toHaveBeenCalledTimes(1));
 });
 it('pays through Bachs when it is chosen', async () => {
   show();
@@ -29,15 +29,15 @@ it('pays through Bachs when it is chosen', async () => {
   fireEvent.click(screen.getByRole('radio', { name: /Bachs/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Continue to Bachs' }));
   await waitFor(() => expect(handlers.handleBachsCheckout).toHaveBeenCalledTimes(1));
-  expect(handlers.handleRexpayCheckout).not.toHaveBeenCalled();
+  expect(handlers.handleBalancePayment).not.toHaveBeenCalled();
 });
 it('retries a failed balance without disabling card payment', async () => {
   vi.mocked(api.get).mockRejectedValueOnce(new Error('offline'));
   show();
   expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load your wallet balance.');
   expect(screen.getByRole('button', { name: 'Pay with wallet' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('radio', { name: /Card · RexPay/ }));
-  expect(screen.getByRole('button', { name: 'Continue to RexPay' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('radio', { name: /Bachs/ }));
+  expect(screen.getByRole('button', { name: 'Continue to Bachs' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Retry balance' }));
   expect(await screen.findByText('Available: $30.50')).toBeInTheDocument();
 });
