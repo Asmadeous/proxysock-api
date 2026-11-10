@@ -71,7 +71,6 @@ module Admin
           total_products: Product.count,
           active_subscriptions: Reseller.where('subscription_expires_at > ?', Time.current).count,
           gateways: {
-            rexpay: ENV['REXPAY_SECRET_KEY'].present?,
             plisio: ENV['PLISIO_API_KEY'].present? || ENV['PLISIO_SECRET_KEY'].present?,
             payvra: ENV['PAYVRA_API_KEY'].present?,
             hundredpay: ENV['HUNDREDPAY_API_KEY'].present?

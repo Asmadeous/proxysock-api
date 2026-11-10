@@ -85,10 +85,8 @@ RSpec.describe 'api/v1/orders', type: :request do
         let(:order) { { product_id: product.id, quantity: 1, customer_email: 'client@example.com' } }
 
         before do
-          allow(FixerService).to receive(:get_rate).and_return(1500.0)
-          rexpay = instance_double(RexpayService)
-          allow(RexpayService).to receive(:new).and_return(rexpay)
-          allow(rexpay).to receive(:create_payment).and_return({ payment_url: 'https://rexpay.example/pay/abc' })
+          allow_any_instance_of(BachsService).to receive(:payment_link)
+            .and_return({ url: 'https://checkout.bachs.test/pay/abc', amount: 10.0, currency: 'USD' })
         end
 
         run_test!
@@ -146,7 +144,7 @@ RSpec.describe 'api/v1/orders', type: :request do
       parameter name: :checkout_data, in: :body, schema: {
         type: :object,
         properties: {
-          gateway: { type: :string, example: 'rexpay' },
+          gateway: { type: :string, example: 'bachs' },
           currency: { type: :string, example: 'USD' }
         },
         required: ['gateway']
@@ -158,13 +156,11 @@ RSpec.describe 'api/v1/orders', type: :request do
         let(:Authorization) { "Bearer #{token}" }
         let(:product) { Product.create!(product_category: ProductCategory.first || ProductCategory.create!(name: 'Test', slug: 'test'), name: 'Static ISP Proxy', product_type: 'proxy', provider_type: 'myproxyapi') }
         let!(:pricing) { ProductPricing.create!(product: product, selling_price: 10, currency: 'USD', active: true) }
-        let(:checkout_data) { { gateway: 'rexpay', customer_email: 'client@example.com', items: [{ product_id: product.id, quantity: 1 }] } }
+        let(:checkout_data) { { gateway: 'bachs', customer_email: 'client@example.com', items: [{ product_id: product.id, quantity: 1 }] } }
 
         before do
-          allow(FixerService).to receive(:get_rate).and_return(1500.0)
-          rexpay = instance_double(RexpayService)
-          allow(RexpayService).to receive(:new).and_return(rexpay)
-          allow(rexpay).to receive(:create_payment).and_return({ payment_url: 'https://rexpay.example/pay/abc' })
+          allow_any_instance_of(BachsService).to receive(:payment_link)
+            .and_return({ url: 'https://checkout.bachs.test/pay/abc', amount: 10.0, currency: 'USD' })
         end
 
         run_test!

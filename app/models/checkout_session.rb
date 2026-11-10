@@ -6,7 +6,7 @@ class CheckoutSession < ApplicationRecord
 
   include AASM
 
-  PAYMENT_METHODS = %w[wallet rexpay plisio hundredpay fastspring heleket bachs].freeze
+  PAYMENT_METHODS = %w[wallet plisio hundredpay fastspring heleket bachs].freeze
 
   # Alias for controllers that reference the gateway by this name
   alias_attribute :gateway, :payment_method
@@ -48,7 +48,7 @@ class CheckoutSession < ApplicationRecord
   end
 
   # Generate a unique reference for payment gateways.
-  # Alphanumeric only — some gateways (RexPay) reject `_`/`-` in references.
+  # Alphanumeric only — some gateways reject `_`/`-` in references.
   # It is looked up by gateway_reference, so the id need not be embedded.
   def generate_reference!
     ref = "CHECKOUT#{SecureRandom.hex(6).upcase}"

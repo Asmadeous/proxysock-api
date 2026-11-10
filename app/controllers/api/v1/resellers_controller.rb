@@ -63,13 +63,11 @@ module Api
 
         min = current_reseller.min_deposit_amount
         return render json: { error: "Minimum deposit is $#{min}" }, status: :bad_request if amount < min
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket bachs].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[plisio hundredpay fastspring heleket bachs].include?(gateway)
 
-        # Create Pending Deposit. Only RexPay charges in NGN, so only it needs the
-        # exchange rate stored (captured now so the webhook uses the same rate).
-        transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
+        # Create pending deposit
+        transaction_ref = "DEP#{SecureRandom.hex(8)}"
         metadata = { transaction_ref: transaction_ref }
-        metadata[:exchange_rate] = FixerService.get_rate('USD', 'NGN') if gateway == 'rexpay'
         deposit = Deposit.create!(
           depositable: current_reseller,
           amount: amount,
@@ -121,17 +119,6 @@ module Api
         frontend_callback_url = "#{ENV['FRONTEND_URL']}/reseller/wallet"
 
         case gateway
-        when 'rexpay'
-          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
-          amount_ngn = RexpayService.ngn_charge_amount(amount)
-          result = RexpayService.new.create_payment(
-            email: current_reseller.email,
-            amount: amount_ngn,
-            currency: 'NGN',
-            reference: deposit.metadata['transaction_ref'],
-            callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], frontend_callback_url)
-          )
-          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(

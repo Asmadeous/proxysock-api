@@ -221,9 +221,6 @@ MAILER_FROM=support@proxysock.com
 SENTRY_DSN=CHANGE_ME
 
 # ─── Payment Gateways ───────────────────────────────────────
-REXPAY_USERNAME=CHANGE_ME
-REXPAY_SECRET_KEY=CHANGE_ME
-REXPAY_BASE_URL=https://pgs-sandbox.globalaccelerex.com
 HUNDREDPAY_SECRET_KEY=CHANGE_ME
 PLISIO_SECRET_KEY=CHANGE_ME
 PAYVRA_API_KEY=CHANGE_ME

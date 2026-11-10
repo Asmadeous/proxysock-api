@@ -43,4 +43,13 @@ class DepositSyncServiceTest < ActiveSupport::TestCase
     assert_equal 'failed', @deposit.reload.status
     assert_in_delta 0.0, @user.wallet.reload.balance
   end
+
+  test 'verifies a Heleket deposit with Heleket instead of failing it' do
+    deposit = Deposit.create!(depositable: @user, amount: 20, gateway: 'heleket', status: 'pending',
+                              metadata: { 'transaction_ref' => 'DEPhel1', 'heleket_invoice_id' => 'inv_1' })
+    HeleketService.any_instance.expects(:verify_transaction).with('inv_1').returns({ status: 'pending' })
+
+    assert_not DepositSyncService.new(deposit).sync!
+    assert_equal 'pending', deposit.reload.status
+  end
 end

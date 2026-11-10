@@ -4,8 +4,8 @@
 # (credit a deposit, provision an order, complete a checkout session).
 #
 # Both entry points feed into this:
-#   - WebhooksController — when the gateway calls back / the payer is redirected
-#   - RexpaySweepJob     — the fallback poller, for payments whose callback never arrived
+#   - WebhooksController  — when the gateway calls back / the payer is redirected
+#   - BachsWebhookService — Bachs checkout.completed events
 #
 # `data` must already represent a CONFIRMED-successful payment: callers verify
 # server-side (getTransactionStatus / signature) before reconciling.
@@ -21,7 +21,7 @@ class PaymentReconciler
     metadata = data['metadata'] || data[:metadata] || {}
 
     # Prefixes are matched without a trailing `_` so both the current
-    # alphanumeric references (CHECKOUT…/DEP…/ORD…, required by RexPay) and the
+    # alphanumeric references (CHECKOUT…/DEP…/ORD…) and the
     # legacy underscore form (CHECKOUT_…/DEP_…/ORD_…, still emitted to the crypto
     # gateways) route correctly.
     if reference.to_s.start_with?('CHECKOUT')
@@ -44,13 +44,6 @@ class PaymentReconciler
     # Normalise the paid amount to USD.
     paid_amount_usd =
       case gateway
-      when 'rexpay'
-        # RexPay charges NGN grossed up for fees. Convert the paid NGN back to USD
-        # but never credit more than the intended deposit — the fee is the
-        # customer's cost, not wallet balance.
-        rate = deposit.metadata['exchange_rate'].to_f
-        rate = FixerService.get_rate('USD', 'NGN') if rate.zero?
-        [(data['amount'].to_f / rate), deposit.amount].min
       when 'plisio'
         # Plisio: 'source_amount' is the fiat amount (USD)
         data['source_amount'].to_f
@@ -149,7 +142,6 @@ class PaymentReconciler
       next unless session.pending?
 
       # Capture gateway tokens for recurring billing
-      # (RexPay has no token-recharge API, so nothing to capture for it.)
       if gateway == 'fastspring'
         # Extract subscription ID from the first item if available
         # Webhook 'order.completed' data structure: data -> items -> [ { subscription: "..." }, ... ]

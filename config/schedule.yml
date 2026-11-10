@@ -34,10 +34,6 @@ resource_alert_check:
   cron: "*/5 * * * *"   # Every 5 minutes
   class: "ResourceAlertCheckJob"
 
-rexpay_reconciliation:
-  cron: "*/5 * * * *"   # Every 5 minutes — fallback poller for RexPay (no webhook)
-  class: "RexpayReconciliationJob"
-
 esim_topup_renewal:
   cron: "15 * * * *"   # Hourly — charges monthly eSIM auto top-ups that are due
   class: "EsimTopupRenewalJob"

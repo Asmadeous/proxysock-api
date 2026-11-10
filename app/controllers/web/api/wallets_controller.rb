@@ -35,17 +35,15 @@ module Web
       # POST /web/api/wallet/deposit
       def deposit
         amount = params[:amount].to_f
-        gateway = params[:gateway] # 'rexpay', 'plisio', 'hundredpay', 'fastspring', 'heleket', 'bachs'
+        gateway = params[:gateway] # 'plisio', 'hundredpay', 'fastspring', 'heleket', 'bachs'
         currency = params[:currency] || 'USD'
 
         return render json: { error: 'Minimum deposit is $10' }, status: :bad_request if amount < 10
-        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[rexpay plisio hundredpay fastspring heleket bachs].include?(gateway)
+        return render json: { error: 'Invalid gateway' }, status: :bad_request unless %w[plisio hundredpay fastspring heleket bachs].include?(gateway)
 
-        # Create pending deposit. Only RexPay charges in NGN, so only it needs the
-        # exchange rate stored (captured now so the webhook uses the same rate).
-        transaction_ref = "DEP#{SecureRandom.hex(8)}" # alphanumeric — RexPay rejects `_`
+        # Create pending deposit
+        transaction_ref = "DEP#{SecureRandom.hex(8)}"
         metadata = { transaction_ref: transaction_ref }
-        metadata[:exchange_rate] = FixerService.get_rate('USD', 'NGN') if gateway == 'rexpay'
         deposit = Deposit.create!(
           depositable: current_actor,
           amount: amount,
@@ -73,19 +71,6 @@ module Web
         callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
 
         case gateway
-        when 'rexpay'
-          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
-          amount_ngn = RexpayService.ngn_charge_amount(amount)
-          success_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=deposit&amount=#{deposit.amount}"
-          result = RexpayService.new.create_payment(
-            email: current_actor.email,
-            amount: amount_ngn,
-            currency: 'NGN',
-            reference: deposit.metadata['transaction_ref'],
-            callback_url: RexpayService.webhook_callback_url(deposit.metadata['transaction_ref'], success_url)
-          )
-          { url: result[:payment_url], amount: amount_ngn, currency: 'NGN' }
-
         when 'plisio'
           service = PlisioService.new
           result = service.create_invoice(

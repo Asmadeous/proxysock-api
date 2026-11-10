@@ -23,7 +23,7 @@ afterEach(cleanup);
 it('shows decimal wallet balances and accessible payment choices', async () => {
   show();
   expect(await screen.findByText('$42.25')).toBeInTheDocument();
-  expect(screen.getByRole('radio', { name: /RexPay/ })).toBeChecked();
+  expect(screen.getByRole('radio', { name: /Bachs/ })).toBeChecked();
   fireEvent.click(screen.getByRole('radio', { name: /Heleket/ }));
   expect(screen.getByRole('radio', { name: /Heleket/ })).toBeChecked();
 });
@@ -40,9 +40,9 @@ it('shows the actual gateway quote before redirecting and does not claim payment
   show();
   fireEvent.change(screen.getByLabelText('Amount (USD)'), { target: { value: '10.25' } });
   fireEvent.click(screen.getByRole('button', { name: /^Continue$/ }));
-  const link = await screen.findByRole('link', { name: 'Continue to RexPay' });
+  const link = await screen.findByRole('link', { name: 'Continue to Bachs' });
   expect(link).toHaveAttribute('href', 'https://payments.example.com/session');
-  expect(api.post).toHaveBeenCalledWith('/web/api/wallet/deposit', { amount: 10.25, gateway: 'rexpay', currency: 'USD' });
+  expect(api.post).toHaveBeenCalledWith('/web/api/wallet/deposit', { amount: 10.25, gateway: 'bachs', currency: 'USD' });
   expect(screen.getByText(/16,500.00/)).toBeInTheDocument();
   expect(screen.getByText('DEP123')).toBeInTheDocument();
   expect(screen.getByText(/credited after payment is confirmed/)).toBeInTheDocument();
@@ -78,7 +78,7 @@ it('keeps failed sessions retryable without clearing the amount', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Gateway unavailable');
   expect(screen.getByLabelText('Amount (USD)')).toHaveValue('20');
   fireEvent.click(screen.getByRole('button', { name: /^Continue$/ }));
-  expect(await screen.findByRole('link', { name: 'Continue to RexPay' })).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'Continue to Bachs' })).toBeInTheDocument();
 });
 it('does not present an unsafe payment link', async () => {
   vi.mocked(api.post).mockResolvedValueOnce({ ...http, data: { payment_url: 'javascript:alert(1)' } });
@@ -86,7 +86,7 @@ it('does not present an unsafe payment link', async () => {
   fireEvent.click(screen.getByRole('button', { name: '$10.00' }));
   fireEvent.click(screen.getByRole('button', { name: /^Continue$/ }));
   expect(await screen.findByRole('alert')).toHaveTextContent('unsupported payment link');
-  expect(screen.queryByRole('link', { name: 'Continue to RexPay' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Continue to Bachs' })).not.toBeInTheDocument();
 });
 it('distinguishes a missing balance from zero and allows a retry', async () => {
   vi.mocked(fetchBalance).mockResolvedValueOnce({ ...http, data: { available_balance: null } });

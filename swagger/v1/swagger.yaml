@@ -347,7 +347,7 @@ paths:
               properties:
                 gateway:
                   type: string
-                  example: rexpay
+                  example: bachs
                 currency:
                   type: string
                   example: USD
@@ -502,7 +502,7 @@ paths:
                   example: 1500.0
                 gateway:
                   type: string
-                  example: rexpay
+                  example: bachs
                 currency:
                   type: string
                   example: USD
