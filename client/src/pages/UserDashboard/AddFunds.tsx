@@ -15,7 +15,8 @@ import './add-funds.css';
 const methods: { value: string; name: string; description: string; image?: string }[] = [
   { value: 'bachs', name: 'Bachs', description: 'Card, bank transfer, mobile money or crypto. Charged in USD.' },
   { value: 'heleket', name: 'Heleket', description: 'Pay with cryptocurrency.', image: '/heleket.webp' },
-  { value: 'plisio', name: 'Plisio', description: 'Pay with cryptocurrency.', image: '/plisio.webp' },
+  // Plisio hidden during their outage; uncomment to restore.
+  // { value: 'plisio', name: 'Plisio', description: 'Pay with cryptocurrency.', image: '/plisio.webp' },
 ];
 interface Session {
   url: string;
