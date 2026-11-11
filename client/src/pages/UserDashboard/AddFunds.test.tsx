@@ -62,12 +62,12 @@ it('submits the chosen crypto provider and prevents duplicate requests', async (
   vi.mocked(api.post).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   show();
   fireEvent.click(screen.getByRole('button', { name: '$25.00' }));
-  fireEvent.click(screen.getByRole('radio', { name: /Plisio/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Heleket/ }));
   fireEvent.click(screen.getByRole('button', { name: /^Continue$/ }));
   expect(screen.getByRole('button', { name: 'Creating payment session…' })).toBeDisabled();
-  expect(api.post).toHaveBeenCalledExactlyOnceWith('/web/api/wallet/deposit', { amount: 25, gateway: 'plisio', currency: 'USD' });
+  expect(api.post).toHaveBeenCalledExactlyOnceWith('/web/api/wallet/deposit', { amount: 25, gateway: 'heleket', currency: 'USD' });
   finish({ data: { payment_url: 'https://payments.example.com/crypto' } });
-  expect(await screen.findByRole('link', { name: 'Continue to Plisio' })).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'Continue to Heleket' })).toBeInTheDocument();
   expect(screen.getByText('Shown at checkout')).toBeInTheDocument();
 });
 it('keeps failed sessions retryable without clearing the amount', async () => {
