@@ -6,7 +6,7 @@ import type { CartItem } from '@/types';
 vi.mock('@/services/api', () => ({ default: { post: vi.fn() } }));
 function props(promoCode?: string) {
   return { cartItems: [{ productType: 'vpn', vpnPlan: { id: 'vpn-1', price: 20 }, totalPrice: 20 }] as CartItem[], userBalance: 15, exchangeRate: null, promoCode,
-    setIsLoadingBalance: vi.fn(), setIsAnyPaymentProcessing: vi.fn(), setError: vi.fn(), storeOrderDataForSuccess: vi.fn(() => 'order-1'), setUserBalance: vi.fn(), setIsLoadingPlisio: vi.fn(), setIsLoadingHundredpay: vi.fn(), setIsLoadingFastspring: vi.fn(), clearCart: vi.fn(), onSuccess: vi.fn() };
+    setIsLoadingBalance: vi.fn(), setIsAnyPaymentProcessing: vi.fn(), setError: vi.fn(), storeOrderDataForSuccess: vi.fn(() => 'order-1'), setUserBalance: vi.fn(), setIsLoadingPlisio: vi.fn(), setIsLoadingRexpay: vi.fn(), setIsLoadingHundredpay: vi.fn(), setIsLoadingFastspring: vi.fn(), clearCart: vi.fn(), onSuccess: vi.fn() };
 }
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
 it('allows server validation of discounted wallet checkout and uses returned order totals', async () => {

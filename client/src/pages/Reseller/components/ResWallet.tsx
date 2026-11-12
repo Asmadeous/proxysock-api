@@ -10,6 +10,7 @@ import WorkspaceDialog from "../../SuperAdmin/components/WorkspaceDialog";
 import "../../UserDashboard/checkout.css";
 
 const DEPOSIT_METHODS: { value: string; name: string; description: string; image?: string }[] = [
+    { value: "rexpay", name: "RexPay", description: "Pay by card. RexPay charges in NGN.", image: "/rexpay.svg" },
     { value: "bachs", name: "Bachs", description: "Card, bank transfer, mobile money or crypto. Charged in USD." },
     { value: "plisio", name: "Plisio", description: "Pay with cryptocurrency (BTC, ETH, USDT and more).", image: "/plisio.webp" },
     { value: "heleket", name: "Heleket", description: "Pay with cryptocurrency (BTC, ETH, USDT and more).", image: "/heleket.webp" },
@@ -34,7 +35,7 @@ export default function ResWallet() {
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
     const [withdrawDetails, setWithdrawDetails] = useState<Record<string, string>>({});
-    const [paymentGateway, setPaymentGateway] = useState("bachs");
+    const [paymentGateway, setPaymentGateway] = useState("rexpay");
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
@@ -251,7 +252,7 @@ export default function ResWallet() {
                                 </label>
                             ))}
                         </fieldset>
-                        <p className="ws-callout">{paymentGateway === "bachs" ? "Choose card, bank transfer, mobile money or crypto on the Bachs payment page." : "Choose an available cryptocurrency and network on the provider’s payment page."}</p>
+                        <p className="ws-callout">{paymentGateway === "rexpay" ? "RexPay shows the NGN charge, including its processing fee, on the next step." : paymentGateway === "bachs" ? "Choose card, bank transfer, mobile money or crypto on the Bachs payment page." : "Choose an available cryptocurrency and network on the provider’s payment page."}</p>
                     </div>
                 </WorkspaceDialog>
             )}

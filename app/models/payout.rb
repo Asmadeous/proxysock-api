@@ -3,7 +3,7 @@
 class Payout < ApplicationRecord
   belongs_to :reseller
 
-  GATEWAYS = %w[plisio hundredpay manual heleket].freeze
+  GATEWAYS = %w[rexpay plisio hundredpay manual heleket].freeze
   STATUSES = %w[pending processing completed failed].freeze
 
   # Crypto gateways are auto-dispatched; others are manually processed by admin
@@ -24,7 +24,7 @@ class Payout < ApplicationRecord
   scope :processing, -> { where(status: 'processing') }
   scope :completed, -> { where(status: 'completed') }
   scope :failed, -> { where(status: 'failed') }
-  scope :manual_review, -> { where.not(gateway: CRYPTO_GATEWAYS).where(status: 'pending') }
+  scope :manual_review, -> { where(gateway: GATEWAYS - CRYPTO_GATEWAYS, status: 'pending') }
 
   def mark_completed!(response = {})
     update!(status: 'completed', gateway_response: response, completed_at: Time.current)

@@ -3,7 +3,7 @@
 class CartCheckoutService
   class CheckoutError < StandardError; end
 
-  SUPPORTED_GATEWAYS = %w[plisio fastspring heleket bachs].freeze
+  SUPPORTED_GATEWAYS = %w[rexpay plisio fastspring heleket bachs].freeze
 
   def initialize(actor, cart, payment_method: 'wallet')
     @actor = actor
@@ -163,6 +163,8 @@ class CartCheckoutService
 
   def generate_payment_url(session, amount)
     # The callback_url is where the USER is redirected after payment.
+    # For RexPay the callbackUrl points at our webhook, which verifies the
+    # charge and then bounces the user to the FRONTEND success page.
     # Determine product type for the success page (if it's a single type or multiple)
     types = @cart.cart_items.map { |i| i.product.product_type }.uniq
     product_type = types.size == 1 ? types.first : 'mixed'
@@ -171,6 +173,16 @@ class CartCheckoutService
     reference = session.gateway_reference
 
     case @payment_method
+    when 'rexpay'
+      # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+      RexpayService.new.create_payment(
+        email: @actor.email,
+        amount: RexpayService.ngn_charge_amount(amount),
+        currency: 'NGN',
+        reference: reference,
+        callback_url: RexpayService.webhook_callback_url(reference, callback_url)
+      )[:payment_url]
+
     when 'plisio'
       PlisioService.new.create_invoice(
         amount: amount,

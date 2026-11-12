@@ -19,7 +19,7 @@
   - [x] **eSIMs**: eSIM Access API integration, QR code generation.
   - [x] **Proxies**: XProxy, MyProxyApi, and Internal Inventory mapping.
   - [x] **VPNs**: WireGuard/OpenVPN config generation and downloads.
-- [x] **Payments**: Bachs, Hundredpay, Plisio, Payvra (Cards & Crypto).
+- [x] **Payments**: Hundredpay, RexPay, Plisio, Payvra (Cards & Crypto).
 - [x] **Financials**: Immutable ledger, Wallet system, Affiliate earnings.
 - [x] **Analytics**: Reddit CAPI, Pixel tracking, Daily metric aggregation.
 - [x] **Deployment**: Kamal (Docker), Zero-downtime, Sidekiq-cron scheduling.

@@ -63,6 +63,10 @@ class RefundService
     case checkout.payment_method
     when 'bachs'
       process_bachs_refund!(checkout)
+    when 'rexpay'
+      # RexPay exposes no refund API — card reversals are manual (RexPay dashboard),
+      # or the order can be refunded to the wallet with refund_method: 'wallet'.
+      raise RefundError, "RexPay refunds must be processed manually from the RexPay dashboard, or use refund_method: 'wallet'"
     when 'plisio', 'hundredpay', 'heleket'
       # These gateways usually require sending crypto via a withdrawal or manual transfer,
       # or they don't support automated direct refunds.

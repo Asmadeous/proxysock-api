@@ -11,24 +11,33 @@ RSpec.describe 'Web::Api::Wallets', type: :request do
 
   describe 'POST /web/api/wallet/deposit' do
     let(:amount) { 100.0 }
-    let(:gateway) { 'bachs' }
+    let(:gateway) { 'rexpay' }
     let(:currency) { 'USD' }
 
-    context 'with Bachs' do
+    context 'with RexPay' do
       before do
-        expect_any_instance_of(BachsService).to receive(:payment_link)
-          .with(hash_including(amount: 100.0, email: user.email))
-          .and_return({ url: 'https://checkout.bachs.test/pay/abc', amount: 100.0, currency: 'USD' })
+        # RexPay charges NGN grossed up for its fee: 100 USD * 1400 = 140,000 + 1.5% = 142,100
+        allow(FixerService).to receive(:get_rate).with('USD', 'NGN').and_return(1400.0)
+
+        mock_rexpay = double('RexpayService')
+        expect(RexpayService).to receive(:new).and_return(mock_rexpay)
+        expect(mock_rexpay).to receive(:create_payment).with(
+          hash_including(
+            email: user.email,
+            amount: 142_100, # NGN incl. customer-borne fee
+            currency: 'NGN'
+          )
+        ).and_return({ payment_url: 'https://pgs-sandbox.globalaccelerex.com/pay/abc' })
       end
 
-      it 'returns a successful response with the USD amount and currency' do
+      it 'returns a successful response with NGN amount and currency' do
         post '/web/api/wallet/deposit', params: { amount: amount, gateway: gateway }, headers: headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json['payment_url']).to eq('https://checkout.bachs.test/pay/abc')
-        expect(json['payment_amount'].to_f).to eq(100.0)
-        expect(json['payment_currency']).to eq('USD')
+        expect(json['payment_url']).to eq('https://pgs-sandbox.globalaccelerex.com/pay/abc')
+        expect(json['payment_amount'].to_f).to eq(142_100.0)
+        expect(json['payment_currency']).to eq('NGN')
       end
 
       it 'creates a pending deposit with the intended USD amount' do
@@ -38,7 +47,7 @@ RSpec.describe 'Web::Api::Wallets', type: :request do
 
         deposit = Deposit.last
         expect(deposit.status).to eq('pending')
-        expect(deposit.amount).to eq(100.0)
+        expect(deposit.amount).to eq(100.0) # intended USD deposit (fee is extra)
       end
     end
   end
