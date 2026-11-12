@@ -13,7 +13,7 @@ env:
 jobs:
     deploy-production:
         name: Deploy to Production
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04 # 26.04 ignores sudo -E, which breaks tailscale/github-action@v2 OAuth login
         environment: production
 
         permissions:
