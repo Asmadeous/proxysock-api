@@ -27,6 +27,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
 
+    const [isLoadingRexpay, setIsLoadingRexpay] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
     const [isLoadingBachs, setIsLoadingBachs] = useState(false);
@@ -114,6 +115,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
 
     const {
         handleBalancePayment,
+        handleRexpayCheckout,
         handleHundredpayCheckout,
 
         handlePlisioCheckout,
@@ -130,6 +132,8 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
         storeOrderDataForSuccess,
         setUserBalance,
         setIsLoadingPlisio,
+
+        setIsLoadingRexpay,
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
         setIsLoadingBachs,
@@ -147,6 +151,7 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
 
     const handleCheckout = () => {
         if (selectedPaymentMethod === "balance") handleBalancePayment();
+        else if (selectedPaymentMethod === "rexpay") handleRexpayCheckout();
         else if (selectedPaymentMethod === "hundredpay") handleHundredpayCheckout();
         else if (selectedPaymentMethod === "plisio") handlePlisioCheckout();
         else if (selectedPaymentMethod === "fastspring") handleFastSpringCheckout();
@@ -197,12 +202,13 @@ export default function ResellerCheckout({ onSuccess, onCancel }: ResellerChecko
     };
 
     const isProcessing =
-        isLoadingBalance || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingBachs || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingBachs || isAnyPaymentProcessing;
 
     const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
     const nameFor = (item: CartItem) => item.product || item.plan?.name || item.esimPackage?.name || item.vpsPlan?.name || item.rdpPlan?.name || item.vpnPlan?.name || item.usaEsimPlan?.name || "Service";
     const methods: { value: string; name: string; description: string; image?: string; icon?: typeof Wallet }[] = [
         { value: "balance", name: "Wallet balance", description: `Available: ${money(userBalance)}`, icon: Wallet },
+        { value: "rexpay", name: "Card · RexPay", description: "Continue to RexPay to review the NGN charge and pay.", image: "/rexpay.svg" },
         { value: "bachs", name: "Bachs", description: "Card, bank transfer, mobile money or crypto. Charged in USD.", icon: CreditCard },
         { value: "plisio", name: "Crypto · Plisio", description: "BTC, ETH, USDT and more.", image: "/plisio.webp" },
         { value: "heleket", name: "Crypto · Heleket", description: "Pay with cryptocurrency.", image: "/heleket.webp" },

@@ -35,6 +35,7 @@ export default function Checkout() {
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [isLoadingPlisio, setIsLoadingPlisio] = useState(false);
 
+    const [isLoadingRexpay, setIsLoadingRexpay] = useState(false);
     const [isLoadingHundredpay, setIsLoadingHundredpay] = useState(false);
     const [isLoadingFastspring, setIsLoadingFastspring] = useState(false);
     const [isLoadingHeleket, setIsLoadingHeleket] = useState(false);
@@ -128,6 +129,7 @@ export default function Checkout() {
 
     const {
         handleBalancePayment,
+        handleRexpayCheckout,
         handleBachsCheckout,
     } = usePaymentCheckoutHandlers({
         cartItems,
@@ -139,6 +141,8 @@ export default function Checkout() {
         storeOrderDataForSuccess,
         setUserBalance,
         setIsLoadingPlisio,
+
+        setIsLoadingRexpay,
         setIsLoadingHundredpay,
         setIsLoadingFastspring,
         setIsLoadingHeleket,
@@ -156,6 +160,7 @@ export default function Checkout() {
         paymentPending.current = true;
         try {
             if (selectedPaymentMethod === 'balance') await handleBalancePayment();
+            else if (selectedPaymentMethod === 'rexpay') await handleRexpayCheckout();
             else if (selectedPaymentMethod === 'bachs') await handleBachsCheckout();
         } finally { paymentPending.current = false; }
     };
@@ -206,7 +211,7 @@ export default function Checkout() {
 
 
     const isProcessing =
-        isLoadingBalance || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingHeleket || isLoadingBachs || isAnyPaymentProcessing;
+        isLoadingBalance || isLoadingRexpay || isLoadingHundredpay || isLoadingPlisio || isLoadingFastspring || isLoadingHeleket || isLoadingBachs || isAnyPaymentProcessing;
 
     const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     const walletUnavailable = balanceLoading || balanceError || userBalance < finalTotal;
@@ -220,6 +225,7 @@ export default function Checkout() {
         <section className="checkout-panel" aria-labelledby="payment-title"><div className="overview-section-heading"><div><h2 id="payment-title">Payment method</h2><p>Your order is priced in USD.</p></div></div>
           <fieldset className="checkout-methods" disabled={isProcessing}><legend className="sr-only">Choose payment method</legend>
             <label className="checkout-method" data-selected={selectedPaymentMethod === 'balance'}><input type="radio" name="payment-method" value="balance" checked={selectedPaymentMethod === 'balance'} onChange={() => { setSelectedPaymentMethod('balance'); setError(null); }} /><Wallet size={20} aria-hidden="true" /><span><strong>Wallet balance</strong><small>{balanceLoading ? 'Loading balance…' : balanceError ? 'Balance unavailable' : `Available: ${money(userBalance)}`}</small></span></label>
+            <label className="checkout-method" data-selected={selectedPaymentMethod === 'rexpay'}><input type="radio" name="payment-method" value="rexpay" checked={selectedPaymentMethod === 'rexpay'} onChange={() => { setSelectedPaymentMethod('rexpay'); setError(null); }} /><CreditCard size={20} aria-hidden="true" /><span><strong>Card · RexPay</strong><small>Continue to RexPay to review the NGN charge and pay.</small></span></label>
             <label className="checkout-method" data-selected={selectedPaymentMethod === 'bachs'}><input type="radio" name="payment-method" value="bachs" checked={selectedPaymentMethod === 'bachs'} onChange={() => { setSelectedPaymentMethod('bachs'); setError(null); }} /><CreditCard size={20} aria-hidden="true" /><span><strong>Bachs</strong><small>Card, bank transfer, mobile money or crypto. Charged in USD.</small></span></label>
           </fieldset>
           {balanceError && <div className="checkout-balance-message" role="alert">Couldn’t load your wallet balance. <button type="button" onClick={fetchBalance} disabled={balanceLoading || isProcessing}>Retry balance</button></div>}
@@ -230,7 +236,7 @@ export default function Checkout() {
       </div><aside className="checkout-panel checkout-summary" aria-labelledby="checkout-summary-title"><h2 id="checkout-summary-title">Order summary</h2><dl><div><dt>Subtotal</dt><dd>{money(orderTotal)}</dd></div>{promoApplied && <div className="checkout-discount"><dt>Discount ({promoApplied.code})</dt><dd>−{money(promoDiscount)}</dd></div>}</dl>
         <div className="checkout-promo"><label htmlFor="checkout-promo">Promo or affiliate code</label>{promoApplied ? <div className="checkout-applied" role="status"><span>{promoApplied.code} applied</span><button type="button" aria-label="Remove promo code" disabled={isProcessing} onClick={handleRemovePromo}><X size={15} aria-hidden="true" /></button></div> : <form onSubmit={event => { event.preventDefault(); void handleApplyPromo(); }}><div><input id="checkout-promo" value={promoInput} onChange={event => { setPromoInput(event.target.value.toUpperCase()); setPromoError(null); }} disabled={promoValidating || isProcessing} autoComplete="off" aria-invalid={Boolean(promoError)} aria-describedby={promoError ? 'checkout-promo-error' : undefined} /><button type="submit" disabled={!promoInput.trim() || promoValidating || isProcessing}>{promoValidating ? 'Applying…' : 'Apply'}</button></div>{promoError && <p id="checkout-promo-error" role="alert">{promoError}</p>}</form>}</div>
         <div className="checkout-total"><span>Total</span><strong>{money(finalTotal)}</strong></div><p className="checkout-note">USD · Final pricing and discounts are confirmed when your order is submitted.</p>
-        <button className="checkout-pay" type="button" onClick={handleCheckout} disabled={!cartItems.length || isProcessing || promoValidating || (selectedPaymentMethod === 'balance' && walletUnavailable)}>{isProcessing ? 'Processing payment…' : selectedPaymentMethod === 'balance' ? 'Pay with wallet' : selectedPaymentMethod === 'bachs' ? 'Continue to Bachs' : 'Continue to payment'}<ArrowRight size={15} aria-hidden="true" /></button>
+        <button className="checkout-pay" type="button" onClick={handleCheckout} disabled={!cartItems.length || isProcessing || promoValidating || (selectedPaymentMethod === 'balance' && walletUnavailable)}>{isProcessing ? 'Processing payment…' : selectedPaymentMethod === 'balance' ? 'Pay with wallet' : selectedPaymentMethod === 'bachs' ? 'Continue to Bachs' : 'Continue to RexPay'}<ArrowRight size={15} aria-hidden="true" /></button>
         <p className="checkout-terms">By purchasing, you agree to our <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.</p>
       </aside></div>
     </div>;

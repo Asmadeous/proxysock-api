@@ -61,20 +61,22 @@ RSpec.describe 'Web::Api::Orders', type: :request do
       end
     end
 
-    context 'with Bachs gateway' do
+    context 'with RexPay gateway' do
       before do
-        allow_any_instance_of(BachsService).to receive(:payment_link)
-          .and_return({ url: 'https://checkout.bachs.test/o', amount: 10.0, currency: 'USD' })
+        allow(FixerService).to receive(:get_rate).with('USD', 'NGN').and_return(1400.0)
+        mock_gateway = double('RexpayService')
+        allow(RexpayService).to receive(:new).and_return(mock_gateway)
+        allow(mock_gateway).to receive(:create_payment).and_return({ payment_url: 'http://rex.pay' })
       end
 
-      it 'returns a payment URL and USD amount' do
-        post '/web/api/orders', params: params.merge(payment_method: 'gateway', gateway: 'bachs'), headers: headers
+      it 'returns a payment URL and NGN amount incl. fee' do
+        post '/web/api/orders', params: params.merge(payment_method: 'gateway', gateway: 'rexpay'), headers: headers
 
         expect(response).to have_http_status(:accepted)
         json = JSON.parse(response.body)
-        expect(json['payment_url']).to eq('https://checkout.bachs.test/o')
-        expect(json['payment_amount'].to_f).to eq(10.0)
-        expect(json['payment_currency']).to eq('USD')
+        expect(json['payment_url']).to eq('http://rex.pay')
+        expect(json['payment_amount'].to_f).to eq(14_210.0) # 10 USD * 1400 + 1.5% fee
+        expect(json['payment_currency']).to eq('NGN')
       end
     end
   end
@@ -83,15 +85,17 @@ RSpec.describe 'Web::Api::Orders', type: :request do
     let(:items) { [{ product_id: product.id, quantity: 2 }] }
 
     it 'creates a checkout session for gateway payment' do
-      allow_any_instance_of(BachsService).to receive(:payment_link)
-        .and_return({ url: 'https://checkout.bachs.test/cart', amount: 20.0, currency: 'USD' })
+      allow(FixerService).to receive(:get_rate).with('USD', 'NGN').and_return(1400.0)
+      mock_gateway = double('RexpayService')
+      allow(RexpayService).to receive(:new).and_return(mock_gateway)
+      allow(mock_gateway).to receive(:create_payment).and_return({ payment_url: 'http://rex.pay/cart' })
 
-      post '/web/api/orders/checkout_cart', params: { items: items, payment_method: 'gateway', gateway: 'bachs' }, headers: headers
+      post '/web/api/orders/checkout_cart', params: { items: items, payment_method: 'gateway', gateway: 'rexpay' }, headers: headers
 
       expect(response).to have_http_status(:accepted)
       json = JSON.parse(response.body)
-      expect(json['payment_amount'].to_f).to eq(20.0)
-      expect(json['payment_currency']).to eq('USD')
+      expect(json['payment_amount'].to_f).to eq(28_420.0) # 2 * 10 USD * 1400 + 1.5% fee
+      expect(json['payment_currency']).to eq('NGN')
 
       expect(CheckoutSession.last.total_amount).to eq(20.0)
     end

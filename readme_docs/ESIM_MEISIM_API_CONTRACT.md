@@ -247,7 +247,7 @@ UX hints: on iPhone and Android, IMEI and EID are under Settings > General > Abo
 {
   "product_id": "0cf1fe4c-…",
   "payment_method": "wallet",
-  "gateway": "bachs",
+  "gateway": "rexpay",
   "quantity": 1,
   "promo_code": "OPTIONAL",
   "metadata": {

@@ -109,8 +109,8 @@ class BillingRenewalWorker < ApplicationJob
     renewal_method = resource.metadata&.dig('renewal_method') || 'wallet'
 
     # 1. Fallback to Gateway if balance is low and valid renewal method is set.
-    # Only FastSpring supports off-session charging; other renewals must be
-    # funded via the wallet.
+    # Only FastSpring supports off-session charging — RexPay has no
+    # token-recharge API, so card renewals must be funded via the wallet.
     if owner.wallet.balance < renewal_amount && renewal_method == 'fastspring'
       attempt_gateway_charge(owner, resource, renewal_amount, renewal_method)
     end

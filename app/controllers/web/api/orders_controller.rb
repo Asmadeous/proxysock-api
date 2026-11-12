@@ -147,7 +147,7 @@ module Web
         render json: serialize_order(order)
       end
 
-      ORDER_GATEWAYS = %w[bachs plisio payvra heleket hundredpay].freeze
+      ORDER_GATEWAYS = %w[rexpay bachs plisio payvra heleket hundredpay].freeze
 
       # POST /web/api/orders
       def create
@@ -155,7 +155,7 @@ module Web
         pricing = product.product_pricings.find_by(active: true)
         payment_method = params[:payment_method] || 'wallet' # 'wallet' or 'gateway'
         promo_code_input = params[:promo_code]&.strip&.upcase
-        if payment_method != 'wallet' && ORDER_GATEWAYS.exclude?(params[:gateway] || 'bachs')
+        if payment_method != 'wallet' && ORDER_GATEWAYS.exclude?(params[:gateway] || 'rexpay')
           return render json: { error: 'Invalid gateway' }, status: :bad_request
         end
 
@@ -177,7 +177,7 @@ module Web
         meta[:globalTargetSectionId] = params[:globalTargetSectionId] if params[:globalTargetSectionId].present?
 
         meta[:client_ip] = request.remote_ip # Capture client IP for MyProxyAPI whitelist_ip requirement
-        meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'bachs')
+        meta[:payment_debug] = payment_method == 'wallet' ? 'balance' : (params[:gateway] || 'rexpay')
 
         # Create order
         order = Order.new(
@@ -274,7 +274,7 @@ module Web
 
         else
           # Redirect to payment gateway
-          gateway = params[:gateway] || 'bachs'
+          gateway = params[:gateway] || 'rexpay'
 
           # Record promo code usage for gateway payments
           promo_code_record&.record_use! if promo_discount.positive?
@@ -296,7 +296,7 @@ module Web
       def checkout_cart
         items = params[:items] || []
         payment_method = params[:payment_method] || 'wallet'
-        gateway = params[:gateway] || 'bachs'
+        gateway = params[:gateway] || 'rexpay'
         promo_code_input = params[:promo_code]&.strip&.upcase
 
         return render json: { error: 'Cart is empty' }, status: :bad_request if items.empty?
@@ -1055,6 +1055,24 @@ module Web
         callback_url = "#{ENV['APP_URL']}/webhooks/#{gateway}"
 
         case gateway
+        when 'rexpay'
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=order&order_id=#{order.id}&amount=#{amount}&product_type=#{order.product.product_type}"
+          # Alphanumeric — RexPay rejects `_`/`-`. The de-hyphenated UUID is still
+          # a valid Postgres uuid on lookup; the webhook recovers it by prefix.
+          reference = "ORD#{order.id.delete('-')}#{SecureRandom.hex(4)}"
+          {
+            url: RexpayService.new.create_payment(
+              email: current_actor.email,
+              amount: amount_ngn,
+              currency: 'NGN',
+              reference: reference,
+              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
+            )[:payment_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'bachs'
           # Bachs never reuses a reference, so each payment attempt gets a fresh one.
           BachsService.new.payment_link(
@@ -1121,6 +1139,21 @@ module Web
         reference = session.gateway_reference
 
         case gateway
+        when 'rexpay'
+          # RexPay (Nigerian account) charges NGN; gross up so the customer pays the fee.
+          amount_ngn = RexpayService.ngn_charge_amount(amount)
+          frontend_callback_url = "#{ENV['FRONTEND_URL']}/payments/success?payment=rexpay&type=cart_checkout&checkout_session_id=#{session.id}&amount=#{amount}&product_type=mixed"
+          {
+            url: RexpayService.new.create_payment(
+              email: current_actor.email,
+              amount: amount_ngn,
+              currency: 'NGN',
+              reference: reference,
+              callback_url: RexpayService.webhook_callback_url(reference, frontend_callback_url)
+            )[:payment_url],
+            amount: amount_ngn,
+            currency: 'NGN'
+          }
         when 'bachs'
           BachsService.new.payment_link(
             amount: amount,

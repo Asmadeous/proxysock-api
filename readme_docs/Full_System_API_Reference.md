@@ -19,6 +19,10 @@ This document outlines every single endpoint exposed in the ProxySock applicatio
 - **Controller**: `webhooks`
 - **Action**: `hundredpay`
 
+### POST `/webhooks/rexpay`
+- **Controller**: `webhooks`
+- **Action**: `rexpay`
+
 ### POST `/webhooks/payvra`
 - **Controller**: `webhooks`
 - **Action**: `payvra`

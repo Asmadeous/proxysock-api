@@ -14,12 +14,23 @@ ProxySock supports multiple payment gateways to handle global transactions for b
   - `HUNDREDPAY_SECRET_KEY`: Secret API Key for verification.
   - `HUNDREDPAY_USER_ID`: Required for internal tracking.
 
-### 2. **Plisio**
+### 2. **RexPay**
+- **Features**: Primary card gateway (Global Accelerex). Supports Cards, Bank Transfer, and USSD via a hosted redirect checkout.
+- **Docs**: [https://rexpay-docs.globalaccelerex.com/docs](https://rexpay-docs.globalaccelerex.com/docs)
+- **Webhook / Callback**: `/webhooks/rexpay` (unsigned — the handler verifies every charge server-side via `getTransactionStatus` before crediting).
+- **Logic**: Automatically converts USD amounts to NGN (major units, not kobo) using real-time rates from `FixerService`.
+- **Environment Variables**:
+  - `REXPAY_USERNAME`: Account email (Basic Auth username).
+  - `REXPAY_SECRET_KEY`: Secret key (Basic Auth password).
+  - `REXPAY_BASE_URL`: API host — defaults to the sandbox (`https://pgs-sandbox.globalaccelerex.com`).
+- **Limitations**: No refund, transfer, or saved-card recharge API — refunds and payouts are processed manually from the RexPay dashboard.
+
+### 3. **Plisio**
 - **Features**: Dedicated Cryptocurrency payment processor.
 - **Webhook**: `/webhooks/plisio`
 - **Usage**: Primarily used for direct purchase and reseller wallet top-ups.
 
-### 3. **Bachs**
+### 4. **Bachs**
 - **Features**: Hosted checkout for USD and NGN cards, NGN bank transfer, mobile money (GHS, KES, TZS, UGX, XAF, XOF, RWF, MWK, ZMW) and crypto (USDT, USDC, ETH, SOL, BNB; no BTC). Refunds by API. Settles to the account's USD balance.
 - **Docs**: [https://docs.bachs.io](https://docs.bachs.io)
 - **Integration**: `BachsService` creates one checkout per deposit, cart checkout or order, priced in USD with our `DEP`/`CHECKOUT`/`ORD` reference. `BachsWebhookService` confirms each payment by reading the checkout back from Bachs, then hands it to `PaymentReconciler`.
@@ -33,7 +44,7 @@ ProxySock supports multiple payment gateways to handle global transactions for b
 - **Refunds**: automatic refunds of failed orders go back through Bachs, once per payment. NGN bank-transfer payments cannot be refunded by Bachs; refund those to the wallet. A failed Bachs refund is posted to Slack alerts.
 - **Limitations**: Bachs pays out only to the account holder's own destinations, so affiliate and reseller payouts stay on Plisio and Heleket. Checkout return URLs must be public, so local development checkouts have none.
 
-### 4. **Payvra**
+### 5. **Payvra**
 - **Features**: Crypto payment gateway focused on privacy and global reach.
 - **Webhook**: `/webhooks/payvra`
 
@@ -64,5 +75,6 @@ ProxySock supports multiple payment gateways to handle global transactions for b
 
 ## 🛠️ Security & Verfication
 Every webhook handler verifies authenticity before crediting. Never disable these checks in production.
+- **RexPay**: Callbacks carry no signature; the handler confirms every charge server-side via `getTransactionStatus`.
 - **100Pay**: Verifies using `x-100pay-signature`.
 - **Plisio/Payvra**: Uses IP whitelisting and secret key matching.
